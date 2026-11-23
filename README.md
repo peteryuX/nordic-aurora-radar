@@ -1,54 +1,84 @@
 # 🌌 Nordic Aurora Radar｜極光視覺即時雷達
 
-一個零依賴、純前端單頁的北歐／全球即時極光視覺雷達，直連挪威官方 **Yr.no (MET Norway)** 2.5 km 高解析分層雲量與美國 **NOAA SWPC** 即時太陽風衛星資料，結合精準天文太陽暮光、月球仰角與磁緯模型，專為行動裝置即時追光設計。
+[![Live App](https://img.shields.io/badge/Live%20App-GitHub%20Pages-34f0b0?style=flat-square)](https://peteryux.github.io/nordic-aurora-radar/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-66bdff?style=flat-square)](LICENSE)
+[![Zero Dependencies](https://img.shields.io/badge/Build-Single%20HTML%20%7C%20Zero%20Deps-ffcf5c?style=flat-square)](index.html)
+[![Privacy First](https://img.shields.io/badge/Privacy-100%25%20Client--Side-a78bfa?style=flat-square)](#-privacy--security隱私與安全)
 
-A zero-dependency, single-file real-time aurora radar for the Nordics and worldwide — combining official **Yr.no (MET Norway)** 2.5 km layered cloud forecasts, **Open-Meteo** global fallback, **NOAA SWPC** real-time solar wind telemetry, and analytical solar twilight / lunar elevation models.
+> **Real-time Nordic & global aurora radar** combining official **Yr.no (MET Norway)** layered cloud forecasts, **NOAA SWPC** solar wind telemetry, twilight & moonlight physics, and a **360° cloud-gap driving radar** — in a single zero-dependency web app.
+>
+> 整合挪威官方 **Yr.no** 分層雲量、美國 **NOAA** 即時太陽風衛星、精準天文暮光／月光模型與 **360° 陸路雲洞雷達**，打開即知「現在看得到極光嗎、往哪裡開最晴朗」的免費即時追光雷達。
 
-🔗 **Live Demo（GitHub Pages）**：https://peteryux.github.io/nordic-aurora-radar/
+### 👉 **[Open Live Aurora Radar / 立即開啟線上版](https://peteryux.github.io/nordic-aurora-radar/)**
 
----
-
-## ✨ 主要功能 / Key Features
-
-- **🌌 即時天空實況視覺儀表板 / Live Sky Dashboard**
-  - 動態 SVG 極光與雲層實況視覺、0–100「看見指數」圓環，以及「天空清朗 / 極光強度 / 天黑暗空」三維拆解。
-  - 內建太陽仰角與月球相位／仰角解析天文模型，精準判斷暮光與月光干擾。
-- **⚡ 過去 2 小時極光能量變化圖 / 2-Hour Solar Wind Energy**
-  - 整合 NOAA 即時太陽風（IMF Bz、風速、密度）、L1 飛抵地球估算時間（ETA）、GOES 磁力計、半球能量指數（HPI）與 OVATION 模型。
-- **🌤️ 未來 12 小時「晴空＋極光」互動預報 / 12-Hour Interactive Forecast**
-  - 點選圖表任一時段即可檢視晴空度、體感溫度、月光影響與 NOAA 官方 72 小時 Kp 預報。
-- **🧭 360° 陸路安全雲洞雷達 / 360° Land-Safe Cloud-Gap Radar**
-  - 內建北歐經典追光據點（Alta、Tromsø、Lofoten、Senja、Narvik、Abisko、Kirkenes、Rovaniemi）已驗證陸路走廊與海域高程檢查，一鍵開啟 Google Maps 導航追雲洞。
-- **🛰️ 動態雲圖與北歐天文台即時全天空實拍 / Live Cloud Map & All-Sky Cams**
-  - 內嵌 Windy 即時雲層動畫、NOAA 南／北半球 OVATION 極光橢圓圖，以及挪威 UiT（Skibotn）、瑞典 IRF（Kiruna）、芬蘭 SGO（Sodankylä）天文台約每分鐘更新的即時全天空相機。
-- **📱 行動裝置友善工具 / Mobile-Friendly Utilities**
-  - 繁體中文／English 一鍵即時切換、GPS 定位與全球城市搜尋、系統原生分享／剪貼簿一鍵複製即時摘要、極光爆發提醒模式與手機拍極光教學。
+Supports **Traditional Chinese (`繁體中文`)** and **English** with instant one-tap switching. Built for Arctic hotspots including **Alta, Tromsø, Lofoten, Senja, Narvik, Abisko, Kirkenes, Rovaniemi**, as well as **Iceland, Alaska, Canada, and Southern Hemisphere** locations worldwide.
 
 ---
 
-## 🚀 本機使用與部署 / Local Usage & Deployment
+## ✨ Key Features｜主要功能
 
-本專案為純靜態網頁（單一 `index.html`，無需建置工具或後端伺服器）：
-
-- 直接在瀏覽器開啟 `index.html`，或透過任何靜態伺服器預覽：
-  ```bash
-  python3 -m http.server 8000
-  ```
-- 推送至 `main` 分支即會自動透過 GitHub Pages 更新線上站點。
+- **🌌 Live Sky & 0–100 Visibility Index（即時天空視覺與看見指數）**
+  - Dynamic SVG live sky scene with clear-sky %, aurora power, and astronomical darkness breakdown.
+  - Analytical solar twilight (`< -4°` ramp to `< -12°` dark) and ELP lunar phase / topocentric elevation modeling.
+- **⚡ 2-Hour Solar Wind Energy & Ballistic L1 ETA（過去 2 小時極光能量與抵地倒數）**
+  - Direct **NOAA SWPC** 1-minute real-time solar wind (IMF $B_z$, $B_y$, speed, density) with **Newell magnetopause coupling**, L1-to-Earth propagation ETA split ("hitting Earth now" vs "incoming"), **GOES magnetometer substorm onset**, and CME dynamic pressure shock detection.
+- **🌤️ 12-Hour Interactive Clear-Sky + Aurora Forecast（未來 12 小時晴空＋極光互動預報）**
+  - Tap any hour to inspect effective cloud clearing, temperature & wind chill, moonlight interference, and NOAA 72h Kp forecast.
+- **🧭 360° Land-Safe Cloud-Gap Radar（360° 陸路安全雲洞雷達）**
+  - Verified land-safe Nordic chase corridors + Open-Meteo elevation sea-filter outside presets, with one-tap Google Maps driving navigation to clearer skies.
+- **🛰️ Live Cloud Map & Arctic Observatory All-Sky Cameras（動態雲圖與北歐天文台即時實拍）**
+  - Embedded **Windy** live animated cloud map, **NOAA OVATION** Northern/Southern Hemisphere aurora oval, and ~1-minute live all-sky cameras from **UiT Skibotn (Norway)**, **IRF Kiruna (Sweden)**, and **SGO Sodankylä (Finland)**.
+- **📱 Mobile-Ready Chase Toolkit（行動追光工具）**
+  - GPS geolocation & global city search, native Web Share / clipboard summary sharing, audio + vibration aurora alert mode (with Screen Wake Lock), 6-hour offline cache fallback, and dynamic moon-aware smartphone photography guide.
 
 ---
 
-## 📡 資料來源與授權聲明 / Data Sources & Attribution
+## 🔬 How the Forecast Model Works｜科學模型說明
 
-本工具僅作非商業／個人追光與天文氣象參考，並遵循各公開資料來源授權：
+Unlike simple Kp-only apps, Nordic Aurora Radar combines space-weather physics, local layered cloud occlusion, and astronomical geometry:
 
-- **Weather & Layered Clouds**：[MET Norway (Yr.no)](https://api.met.no/)（CC BY 4.0 / NLOD 2.0）、[Open-Meteo](https://open-meteo.com/)（CC BY 4.0, non-commercial use）
-- **Space Weather & Satellites**：[NOAA SWPC](https://www.swpc.noaa.gov/)（U.S. Government Public Domain）
-- **Live All-Sky Cameras**：[UiT Tromsø Geophysical Observatory](https://flux.phys.uit.no/)、[IRF Kiruna](https://www.irf.se/)、[SGO Sodankylä](https://www.sgo.fi/)（academic non-commercial）
-- **Cloud Map & Reverse Geocoding**：[Windy.com](https://www.windy.com/)、[BigDataCloud](https://www.bigdatacloud.com/)
+1. **Layered Cloud Occlusion**: Uses random-overlap attenuation `1 - (1 - low)(1 - mid)(1 - 0.30 × high)(1 - fog)` from official **MET Norway 2.5 km** forecasts inside the Nordics (auto-fallback to **Open-Meteo** globally), so thin high cirrus doesn't falsely trigger an overcast alert.
+2. **Geomagnetic & Solar Wind Fusion**: Computes **IGRF-14** dipole geomagnetic latitude and **Magnetic Local Time (MLT)** oval shift, fuses **NOAA OVATION** local probability, **Hemispheric Power Index (GW)**, and **1-minute Kp** without double-counting, then applies ballistic **Newell coupling** ($d\Phi/dt = v^{4/3} B_T^{2/3} \sin^{8/3}(\theta/2)$), **GOES substorm dipolarization**, and solar-wind dynamic pressure ($P_{\text{dyn}}$).
+3. **Hard Physical Gates**: Automatically suppresses false positives during daylight/bright twilight (`sunAlt >= -4°`) or below auroral latitudes when geomagnetic activity cannot reach the horizon.
 
-> ⚠️ **安全提醒 / Safety Notice**：極圈冬季夜間駕駛請務必以當地官方路況（如 Statens vegvesen）與人身安全為優先，本工具之預報與導航建議僅供參考。
+---
+
+## 🔒 Privacy & Security｜隱私與安全
+
+- **100% Static Client-Side**: Zero backend servers, zero databases, zero API keys, and zero third-party analytics, ads, or tracking cookies.
+- **Local-First Location Handling**: GPS coordinates are processed strictly inside your browser and sent only to the public weather / reverse-geocoding endpoints needed to fetch your local forecast. Saved preferences and the 6-hour offline fallback live solely in your browser's `localStorage`.
+- **Auditable Single-File Source**: The entire application lives in [`index.html`](index.html) with no external JavaScript bundles or build steps, making it straightforward to inspect, self-host, or fork.
+
+---
+
+## 🚀 Local Usage & Self-Hosting｜本機執行與自行部署
+
+No build tools or package installation required:
+
+```bash
+git clone https://github.com/peteryuX/nordic-aurora-radar.git
+cd nordic-aurora-radar
+python3 -m http.server 8000
+```
+
+Then open `http://localhost:8000` in your browser, or fork the repository and enable **GitHub Pages** on `main` (`/`).
+
+---
+
+## 📡 Data Sources & Attribution｜資料來源與授權
+
+This is a **non-commercial, open-source** personal stargazing tool. All upstream data providers are credited below:
+
+- **Weather & Layered Clouds**: [MET Norway (Yr.no)](https://api.met.no/) (CC BY 4.0 / NLOD 2.0), [Open-Meteo](https://open-meteo.com/) (CC BY 4.0, non-commercial use)
+- **Space Weather & Satellites**: [NOAA Space Weather Prediction Center (SWPC)](https://www.swpc.noaa.gov/) (U.S. Government Public Domain)
+- **Live All-Sky Cameras**: [UiT Tromsø Geophysical Observatory](https://flux.phys.uit.no/), [IRF Kiruna](https://www.irf.se/), [SGO Sodankylä](https://www.sgo.fi/) (academic non-commercial live feeds)
+- **Cloud Map & Reverse Geocoding**: [Windy.com](https://www.windy.com/), [BigDataCloud](https://www.bigdatacloud.com/)
+
+> ⚠️ **Safety Disclaimer｜安全免責聲明**
+> This app is provided "as is" for informational and recreational stargazing purposes only and is **not** an official weather, marine, or road-safety warning. When driving in Arctic winter conditions at night, always prioritize official local road authorities (e.g., [Statens vegvesen](https://www.vegvesen.no/trafikk)) and personal safety.
+
+---
 
 ## 📄 License
 
-MIT License — see [LICENSE](LICENSE) for details.
+Released under the [MIT License](LICENSE).

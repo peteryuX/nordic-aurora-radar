@@ -4,9 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=2.0" />
   <title>🌌 極光視覺即時雷達｜北歐＆全球即時預報</title>
-  <meta name="description" content="直連挪威官方 Yr.no (MET Norway) 高解析分層雲量與美國 NOAA 即時太陽風衛星，結合精準太陽暮光、月球仰角與 360° 雲洞雷達。" />
-  <meta property="og:title" content="🌌 極光視覺即時雷達｜北歐＆全球即時預報" />
-  <meta property="og:description" content="直連官方分層雲量＋NOAA 即時太陽風，結合天文暗度與 360° 雲洞雷達，每 5 分鐘自動更新。" />
+  <meta name="description" content="Real-time Nordic & global aurora radar combining official Yr.no (MET Norway) layered clouds, NOAA solar wind telemetry, twilight/moonlight physics, and a 360° cloud-gap radar. 直連挪威官方 Yr.no 分層雲量與美國 NOAA 即時太陽風衛星，結合太陽暮光、月球仰角與 360° 雲洞雷達。" />
+  <meta name="keywords" content="aurora forecast, northern lights, nordic aurora radar, Tromso aurora, Alta aurora, Lofoten aurora, Abisko aurora, NOAA SWPC, Yr.no cloud forecast, 極光預報, 極光雷達, 北歐極光" />
+  <meta name="theme-color" content="#050c17" />
+  <link rel="canonical" href="https://peteryux.github.io/nordic-aurora-radar/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://peteryux.github.io/nordic-aurora-radar/" />
+  <meta property="og:title" content="🌌 Nordic Aurora Radar｜極光視覺即時雷達" />
+  <meta property="og:description" content="Real-time Yr.no layered cloud + NOAA solar wind aurora radar with twilight/moonlight physics and 360° cloud-gap routing. 每 5 分鐘自動更新。" />
+  <meta name="twitter:card" content="summary" />
   <style>
     :root {
       --bg: #050c17;
@@ -2094,30 +2100,35 @@
       const now = new Date();
       let moon = updateClockAndPhoto();
 
-      // 1. Live NOAA SWPC
+      // 1. Live NOAA SWPC (isolated per endpoint so one transient outage never drops other feeds)
       try {
+        const safeJson = r => (r && r.ok ? r.json().catch(() => null) : Promise.resolve(null));
+        const safeText = r => (r && r.ok ? r.text().catch(() => null) : Promise.resolve(null));
         const [mR, wR, k1R, oR, hpiR, gR, kfcR] = await Promise.all([
-          fetch('https://services.swpc.noaa.gov/json/rtsw/rtsw_mag_1m.json'),
-          fetch('https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json'),
-          fetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json'),
-          fetch('https://services.swpc.noaa.gov/json/ovation_aurora_latest.json'),
+          fetch('https://services.swpc.noaa.gov/json/rtsw/rtsw_mag_1m.json').catch(() => null),
+          fetch('https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json').catch(() => null),
+          fetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json').catch(() => null),
+          fetch('https://services.swpc.noaa.gov/json/ovation_aurora_latest.json').catch(() => null),
           fetch('https://services.swpc.noaa.gov/text/aurora-nowcast-hemi-power.txt').catch(() => null),
           fetch('https://services.swpc.noaa.gov/json/goes/primary/magnetometers-6-hour.json').catch(() => null),
           fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json').catch(() => null)
         ]);
-        if (mR.ok) magSeries = parseMagSeries(await mR.json(), 180);
-        if (wR.ok) windSeries = parseWindSeries(await wR.json(), 180);
-        if (kfcR && kfcR.ok) kpForecast = parseKpForecast(await kfcR.json());
+        const [mJ, wJ, k1J, ovJson, hpiTxt, gJ, kfcJ] = await Promise.all([
+          safeJson(mR), safeJson(wR), safeJson(k1R), safeJson(oR), safeText(hpiR), safeJson(gR), safeJson(kfcR)
+        ]);
+        if (mJ) magSeries = parseMagSeries(mJ, 180);
+        if (wJ) windSeries = parseWindSeries(wJ, 180);
+        if (kfcJ) kpForecast = parseKpForecast(kfcJ);
         const lastMag = magSeries.length ? magSeries[magSeries.length - 1] : null;
         const wind = windSeries.length ? windSeries[windSeries.length - 1] : null;
-        let kpObj = k1R.ok ? parseLatestKp(await k1R.json()) : null;
+        let kpObj = k1J ? parseLatestKp(k1J) : null;
         if (!kpObj) {
           const k3R = await fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json').catch(() => null);
-          if (k3R && k3R.ok) kpObj = parseLatestKp(await k3R.json());
+          const k3J = await safeJson(k3R);
+          if (k3J) kpObj = parseLatestKp(k3J);
         }
-        const ovJson = oR.ok ? await oR.json() : null;
-        const hpiObj = (hpiR && hpiR.ok) ? parseHemiPower(await hpiR.text(), currentPos.lat) : null;
-        goesSub = (gR && gR.ok) ? parseGoesSubstorm(await gR.json()) : null;
+        const hpiObj = hpiTxt ? parseHemiPower(hpiTxt, currentPos.lat) : null;
+        goesSub = gJ ? parseGoesSubstorm(gJ) : null;
 
         if (lastMag) { bz = lastMag.bz; noaaLagMin = computeDataLagMin(lastMag.time_tag, now.getTime()); }
         if (wind) speed = wind.speed;
