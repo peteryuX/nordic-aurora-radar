@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=2.0" />
-  <title>🌌 極光視覺即時雷達｜Yr.no官方雲層＋NOAA衛星＋天文精準版</title>
-  <meta name="description" content="直連挪威官方 Yr.no (MET Norway) 高解析分層雲量與美國 NOAA 衛星，結合精準太陽暮光與月球仰角模型。" />
-  <meta property="og:title" content="🌌 極光視覺即時雷達（科學精準家庭版）" />
-  <meta property="og:description" content="直連挪威官方 Yr.no 雲層＋NOAA 即時太陽風｜每 5 分鐘自動更新，大字體好讀。" />
+  <title>🌌 極光視覺即時雷達｜北歐＆全球即時預報</title>
+  <meta name="description" content="直連挪威官方 Yr.no (MET Norway) 高解析分層雲量與美國 NOAA 即時太陽風衛星，結合精準太陽暮光、月球仰角與 360° 雲洞雷達。" />
+  <meta property="og:title" content="🌌 極光視覺即時雷達｜北歐＆全球即時預報" />
+  <meta property="og:description" content="直連官方分層雲量＋NOAA 即時太陽風，結合天文暗度與 360° 雲洞雷達，每 5 分鐘自動更新。" />
   <style>
     :root {
       --bg: #050c17;
@@ -260,7 +260,7 @@
     </header>
 
     <div id="lineTip" class="line-tip">
-      💡 在 LINE 內若無法點 GPS，按右下角「⋯」選「用預設瀏覽器開啟」，或直接按「換地點」。
+      💡 若在 App 內建瀏覽器無法使用 GPS，請改用 Safari / Chrome 開啟，或直接點「換地點」。
     </div>
     <div id="offlineBanner" class="offline-tip"></div>
 
@@ -272,7 +272,7 @@
       <div class="loc-grid3">
         <button id="gpsBtn" class="btn btn-blue" type="button" onclick="useGPS()">📍 GPS定位</button>
         <button id="pickBtn" class="btn" type="button" onclick="togglePicker()">🗺️ 換地點 ▾</button>
-        <button id="shareBtn" class="btn btn-amber" type="button" onclick="copyLine()">📋 貼LINE</button>
+        <button id="shareBtn" class="btn btn-amber" type="button" onclick="shareStatus()">📤 分享</button>
       </div>
 
       <div id="picker" class="picker">
@@ -406,7 +406,7 @@
 
       <div class="card" id="skyCamCard">
         <h2 id="h2Cam">📷 北歐天文台「現場全天空實拍」</h2>
-        <p id="subCam" class="card-sub">每 30 秒由極圈天文台實拍上傳！不用猜模型，直接用眼睛確認現在天空有沒有雲、有沒有綠光：</p>
+        <p id="subCam" class="card-sub">約每分鐘由極圈天文台實拍上傳！不用猜模型，直接用眼睛確認現在天空有沒有雲、有沒有綠光：</p>
         <div class="chips" id="camChips" style="margin-bottom:10px;">
           <button id="camBtnUit" class="chip on" type="button" onclick="selectSkyCam('uit', this)">🇳🇴 挪威 UiT</button>
           <button id="camBtnIrf" class="chip" type="button" onclick="selectSkyCam('irf', this)">🇸🇪 瑞典 Kiruna</button>
@@ -1159,8 +1159,8 @@
       const lookDir = lat >= 0 ? (en ? 'North' : '正北方') : (en ? 'South' : '正南方');
       if (scoreObj?.outOfZone === 'low-lat') {
         return en
-          ? { kicker: '🌏 Warm Latitude', title: 'Too far south — aurora awaits in the Arctic!', lead: `Geomagnetic latitude here is ${scoreObj.magLat}° (aurora mostly stays above 60°). Tap "🗺️ Location" above to view Norway live!` }
-          : { kicker: '🌏 溫暖緯度', title: '這裡是溫暖緯度，極光在極圈等你！', lead: `此地地磁緯度 ${scoreObj.magLat}°（極光主要在 60° 以上高緯度），點上方「🗺️ 換地點」可立刻看挪威最新實況！` };
+          ? { kicker: '🌏 Warm Latitude', title: 'Too far south — aurora awaits in the Arctic!', lead: `Geomagnetic latitude here is ${scoreObj.magLat}° (aurora mostly stays above 60°). Tap "🗺️ Location" above to check Arctic aurora spots live!` }
+          : { kicker: '🌏 溫暖緯度', title: '這裡是溫暖緯度，極光在極圈等你！', lead: `此地地磁緯度 ${scoreObj.magLat}°（極光主要出現在 60° 以上高緯度），點上方「🗺️ 換地點」可立刻切換極圈熱門地點查看實況！` };
       }
       if (scoreObj?.outOfZone === 'need-storm') {
         return en
@@ -1212,17 +1212,17 @@
       return en
         ? {
             kicker: '☕ Waiting for Gaps',
-            title: 'Thick cloud cover — relax & enjoy the cozy night',
+            title: 'Thick cloud cover — relax & enjoy a cozy night',
             lead: bestDark && bestDark.block <= 45
               ? `Clouds may thin around ${bestDark.time} (${bestDark.clear}% clear). Enjoy a warm meal first and check later!`
               : 'Grab a warm dinner and rest up — Arctic skies shift quickly, so peek outside before bed!'
           }
         : {
             kicker: '☕ 靜候雲開',
-            title: '雲層正厚，先安心享受北歐夜晚',
+            title: '雲層偏厚，先安心休息靜候轉機',
             lead: bestDark && bestDark.block <= 45
               ? `預計 ${bestDark.time} 雲會漸散（晴空度 ${bestDark.clear}%），先吃頓熱飯休息，晚點再看！`
-              : '先吃頓熱呼呼的晚餐、養足體力，北極天氣變化快，睡前再推窗看看有沒有小驚喜！'
+              : '先吃頓熱呼呼的晚餐、養足體力，高緯度天氣變化快，睡前再推窗看看有沒有小驚喜！'
           };
     }
 
@@ -1242,7 +1242,7 @@
       if (diff >= 25 && best.avg3h <= 50) {
         return { bestKey: best.key, good: true, text: en ? `✨ Clear pocket toward "${tDirLabel(best.label, 'en')}"! 3h avg cloud ${best.avg3h}% (${diff}% clearer than here).` : `✨ 「${best.label}」有明顯晴空雲洞！3 小時均雲 ${best.avg3h}%（比原地少了 ${diff}%）。` };
       }
-      return { bestKey: null, good: false, text: en ? `☕ Nearby land routes are also overcast (~${best.avg3h}% cloud). Save the drive and stay cozy!` : `☕ 周邊陸路目前都被雲被子蓋著（雲量約 ${best.avg3h}%），剛好省下舟車勞頓，在飯店附近放鬆最舒服！` };
+      return { bestKey: null, good: false, text: en ? `☕ Nearby land routes are also overcast (~${best.avg3h}% cloud). Save the drive and stay cozy indoors!` : `☕ 周邊陸路目前都被雲層覆蓋（雲量約 ${best.avg3h}%），省下舟車勞頓，先就近在室內休息最舒服！` };
     }
 
     // ====== SVG Visualization Builders ======
@@ -1584,11 +1584,11 @@
       setT('langBtn', '🌐 EN', '🌐 繁中');
       setT('alertBtn', alertEnabled ? '🔔 提醒中' : '🔔 提醒', alertEnabled ? '🔔 On' : '🔔 Alert');
       setT('refBtn', '🔄 更新', '🔄 Sync');
-      setT('lineTip', '💡 在 LINE 內若無法點 GPS，按右下角「⋯」選「用預設瀏覽器開啟」，或直接按「換地點」。', '💡 If GPS is blocked inside an in-app browser, open in Safari/Chrome or tap Location.');
+      setT('lineTip', '💡 若在 App 內建瀏覽器無法使用 GPS，請改用 Safari / Chrome 開啟，或直接點「換地點」。', '💡 If GPS is blocked in an in-app browser, open in Safari/Chrome or tap "Location".');
       setT('gpsBtn', '📍 GPS定位', '📍 Use GPS');
       const pickerOpen = document.getElementById('picker')?.classList.contains('open');
       setT('pickBtn', pickerOpen ? '🗺️ 收合 ▴' : '🗺️ 換地點 ▾', pickerOpen ? '🗺️ Close ▴' : '🗺️ Location ▾');
-      setT('shareBtn', '📋 貼LINE', '📋 Share');
+      setT('shareBtn', '📤 分享', '📤 Share');
       const ci = document.getElementById('cityInput');
       if (ci) ci.placeholder = en ? 'Search city (e.g. Tromso, Reykjavik, Fairbanks)' : '輸入英文地名（例：Kautokeino, Oslo, Reykjavik）';
       setT('searchBtn', '搜尋', 'Go');
@@ -1605,7 +1605,7 @@
       setT('h2Windy', '🛰️ 動態雲圖（直接滑動看雲怎麼飄）', '🛰️ Live Cloud Map (Windy)');
       setT('subWindy', '已自動對準你目前位置，按左下角 ▶ 就能看接下來幾小時雲往哪個方向散開！', 'Centered on your location — press ▶ bottom-left to animate cloud movement!');
       setT('h2Cam', '📷 北歐天文台「現場全天空實拍」', '📷 Arctic Observatory Live All-Sky Cams');
-      setT('subCam', '每 30 秒由極圈天文台實拍上傳！不用猜模型，直接用眼睛確認現在天空有沒有雲、有沒有綠光：', 'Live photos uploaded ~every minute from Arctic observatories for direct sky verification:');
+      setT('subCam', '約每分鐘由極圈天文台實拍上傳！不用猜模型，直接用眼睛確認現在天空有沒有雲、有沒有綠光：', 'Live photos uploaded ~every minute from Arctic observatories for direct sky verification:');
       setT('camBtnUit', '🇳🇴 挪威 UiT', '🇳🇴 Norway UiT');
       setT('camBtnIrf', '🇸🇪 瑞典 Kiruna', '🇸🇪 Sweden Kiruna');
       setT('camBtnSgo', '🇫🇮 芬蘭 Sodankylä', '🇫🇮 Finland SGO');
@@ -1743,7 +1743,7 @@
         const sp = JSON.parse(localStorage.getItem('aurora_pos_v2') || 'null');
         if (sp && Number.isFinite(sp.lat) && Number.isFinite(sp.lon)) currentPos = { ...currentPos, ...sp };
       } catch(e) {}
-      if (typeof navigator !== 'undefined' && /Line\//i.test(navigator.userAgent || '')) {
+      if (typeof navigator !== 'undefined' && /Line\/|FBAN|FBAV|Instagram|MicroMessenger/i.test(navigator.userAgent || '')) {
         document.getElementById('lineTip').style.display = 'block';
       }
     }
@@ -1919,7 +1919,7 @@
         () => {
           b.disabled = false; b.textContent = isEn() ? '📍 Use GPS' : '📍 GPS定位';
           currentPos.mode = 'gps-err'; renderLocationHeader();
-          toast(isEn() ? 'GPS permission denied (open in Safari/Chrome)' : 'GPS 權限被拒（LINE 內請改用 Safari/Chrome 開）');
+          toast(isEn() ? 'GPS permission denied (open in Safari/Chrome or pick a location)' : 'GPS 權限被拒（請改用預設瀏覽器開啟，或手動選地點）');
         },
         { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
       );
@@ -2267,15 +2267,31 @@
       b.disabled = false; b.textContent = isEn() ? '🔄 Sync' : '🔄 更新';
     }
 
-    function copyLine() {
+    async function shareStatus() {
       const en = isEn();
       const scStr = lastScore ? (en ? `${lastScore.total}/100 (${tGrade(lastScore.grade)})` : `${lastScore.total} 分（${lastScore.grade}）`) : (en ? 'Updating' : '更新中');
-      const txt = en
-        ? `🌌 [${getPosDisplayName()}] Aurora Visibility: ${scStr}\n${document.getElementById('vTitle').textContent}\n• Sky: ${document.getElementById('fSkySub').textContent}\n• Aurora: ${document.getElementById('fAurSub').textContent}\n👉 Live Yr.no + NOAA Radar (auto-updates every 5m):\n${location.href}`
-        : `🌌【${getPosDisplayName()}】極光看見指數：${scStr}\n${document.getElementById('vTitle').textContent}\n• 天空：${document.getElementById('fSkySub').textContent}\n• 極光：${document.getElementById('fAurSub').textContent}\n👉 點開看 Yr.no 官方雲層＋NOAA 衛星（每5分自動更新）：\n${location.href}`;
-      if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => toast(en ? 'Copied to clipboard 📋' : '已複製 📋')).catch(() => toast(en ? 'Copy URL directly' : '請直接複製網址'));
-      else toast(en ? 'Copy URL directly' : '請直接複製網址');
+      const title = en ? `🌌 [${getPosDisplayName()}] Aurora Visibility: ${scStr}` : `🌌【${getPosDisplayName()}】極光看見指數：${scStr}`;
+      const body = en
+        ? `${title}\n${document.getElementById('vTitle').textContent}\n• Sky: ${document.getElementById('fSkySub').textContent}\n• Aurora: ${document.getElementById('fAurSub').textContent}\n👉 Live Cloud & NOAA Aurora Radar (auto-updates every 5m):`
+        : `${title}\n${document.getElementById('vTitle').textContent}\n• 天空：${document.getElementById('fSkySub').textContent}\n• 極光：${document.getElementById('fAurSub').textContent}\n👉 點開看即時雲層＋NOAA 極光雷達（每 5 分鐘自動更新）：`;
+      const txt = `${body}\n${location.href}`;
+      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+        try {
+          await navigator.share({ title, text: body, url: location.href });
+          return;
+        } catch (err) {
+          if (err && err.name === 'AbortError') return;
+        }
+      }
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(txt)
+          .then(() => toast(en ? 'Summary copied to clipboard 📋' : '已複製分享摘要 📋'))
+          .catch(() => toast(en ? 'Please copy the URL directly' : '請直接複製網址分享'));
+      } else {
+        toast(en ? 'Please copy the URL directly' : '請直接複製網址分享');
+      }
     }
+    const copyLine = shareStatus;
 
     let tm;
     function toast(m) {
