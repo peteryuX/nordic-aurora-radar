@@ -512,7 +512,7 @@
     function tGrade(zhGrade, lang) {
       if (!isEn(lang)) return zhGrade;
       const map = {
-        '🌏 緯度過低': '🌏 Low Latitude', '🌍 極光帶偏北': '🌍 Oval North',
+        '🌏 緯度過低': '🌏 Low Latitude', '🌍 極光帶偏北': '🌍 Oval North', '🌍 極光帶偏南': '🌍 Oval South',
         '☀️ 天色過亮': '☀️ Too Bright', '🌟 極佳條件': '🌟 Prime Conditions',
         '🟢 適合觀測': '🟢 Good Conditions', '✨ 有機會看見': '✨ Fair Chance',
         '🌌 晴朗但極光弱': '🌌 Clear · Quiet', '☁️ 雲層過厚': '☁️ Too Cloudy'
@@ -560,7 +560,7 @@
       ]},
       { match: [69.73, 30.05], pts: [
         { key: 'N', label: '⬆️ 往北 Vadsø', lat: 70.0740, lon: 29.7490, isOcean: false },
-        { key: 'E', label: '➡️ 往東 Grense Jakobselv', lat: 69.7752, lon: 30.8303, isOcean: false },
+        { key: 'E', label: '➡️ 往東 Jakobselv', lat: 69.7752, lon: 30.8303, isOcean: false },
         { key: 'S', label: '⬇️ 往南 Svanvik', lat: 69.4538, lon: 30.0496, isOcean: false },
         { key: 'W', label: '⬅️ 往西 Neiden', lat: 69.7010, lon: 29.3830, isOcean: false }
       ]},
@@ -859,12 +859,12 @@
       const curOv = (ovation !== null && Number.isFinite(ovation)) ? ovation : null;
       const curHpi = (hpiGw !== null && Number.isFinite(hpiGw)) ? hpiGw : null;
 
-      // Hard physical gate 2: Mid-lat (e.g. Oslo, Hokkaido 35-38°) where Kp & OVATION cannot reach
+      // Hard physical gate 2: Mid-lat (e.g. Oslo, Hokkaido, Hobart) where Kp & OVATION cannot reach
       if (neededKp >= 3 && (curKp + 0.8) < neededKp && (curOv ?? 0) < 5) {
         return {
           total: 0, skyScore, auroraScore: 0, darkScore, isTooBright,
           magLat: Math.round(absMag), neededKp, outOfZone: 'need-storm',
-          grade: '🌍 極光帶偏北', color: '#ff8a96'
+          grade: lat >= 0 ? '🌍 極光帶偏北' : '🌍 極光帶偏南', color: '#ff8a96'
         };
       }
 
@@ -1199,9 +1199,10 @@
           : { kicker: '🌏 緯度過低', title: '此地不在極光帶內，請切換至高緯度地區', lead: `此地地磁緯度 ${scoreObj.magLat}°（極光主要出現在 60° 以上高緯度），點上方「🗺️ 換地點」可查看極圈即時預報。` };
       }
       if (scoreObj?.outOfZone === 'need-storm') {
+        const isNorth = lat >= 0;
         return en
-          ? { kicker: '🌍 Oval Further North', title: 'Auroral oval is currently further north', lead: `At ${scoreObj.magLat}° mag latitude, a strong storm (Kp ≥ ${scoreObj.neededKp}) is usually needed. Current Global Kp is ${kp !== null ? kp.toFixed(2) : '--'}.` }
-          : { kicker: '🌍 極光帶偏北', title: '目前極光帶集中在更高緯度區域', lead: `此地（地磁 ${scoreObj.magLat}°）通常需強地磁暴 Kp ≥ ${scoreObj.neededKp} 才有機會觀測，目前全球 Kp 為 ${kp !== null ? kp.toFixed(2) : '--'}。` };
+          ? { kicker: isNorth ? '🌍 Oval Further North' : '🌍 Oval Further South', title: isNorth ? 'Auroral oval is currently further north' : 'Auroral oval is currently further south', lead: `At ${scoreObj.magLat}° mag latitude, a strong storm (Kp ≥ ${scoreObj.neededKp}) is usually needed. Current Global Kp is ${kp !== null ? kp.toFixed(2) : '--'}.` }
+          : { kicker: isNorth ? '🌍 極光帶偏北' : '🌍 極光帶偏南', title: isNorth ? '目前極光帶集中在更北邊的高緯度區域' : '目前極光帶集中在更南邊的高緯度區域', lead: `此地（地磁 ${scoreObj.magLat}°）通常需強地磁暴 Kp ≥ ${scoreObj.neededKp} 才有機會觀測，目前全球 Kp 為 ${kp !== null ? kp.toFixed(2) : '--'}。` };
       }
       if (scoreObj?.isTooBright) {
         return en
@@ -1839,25 +1840,28 @@
       renderSkyCamCaption(key);
     }
 
+    function syncSatTab() {
+      const wf = document.getElementById('windyFrame');
+      if (!wf) return;
+      const target = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&overlay=clouds&lat=${currentPos.lat.toFixed(3)}&lon=${currentPos.lon.toFixed(3)}&zoom=7`;
+      if (wf.src !== target) wf.src = target;
+      const hemi = currentPos.lat >= 0 ? 'north' : 'south';
+      const en = isEn();
+      document.getElementById('ovHeading').textContent = currentPos.lat >= 0
+        ? (en ? '🌍 NOAA Northern Hemisphere Aurora Oval' : '🌍 NOAA 北半球即時極光橢圓圖')
+        : (en ? '🌍 NOAA Southern Hemisphere Aurora Oval' : '🌍 NOAA 南半球即時極光橢圓圖');
+      document.getElementById('ovationImg').src = `https://services.swpc.noaa.gov/images/animations/ovation/${hemi}/latest.jpg?t=${Date.now()}`;
+      const camCard = document.getElementById('skyCamCard');
+      if (camCard) camCard.style.display = currentPos.lat >= 0 ? 'block' : 'none';
+      if (currentPos.lat >= 0) selectSkyCam(currentCamKey);
+    }
+
     function switchView(name, btn) {
       document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
       document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('on'));
       document.getElementById('v-' + name).classList.add('on');
       btn.classList.add('on');
-      if (name === 'sat') {
-        const wf = document.getElementById('windyFrame');
-        const target = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&overlay=clouds&lat=${currentPos.lat.toFixed(3)}&lon=${currentPos.lon.toFixed(3)}&zoom=7`;
-        if (wf.src !== target) wf.src = target;
-        const hemi = currentPos.lat >= 0 ? 'north' : 'south';
-        const en = isEn();
-        document.getElementById('ovHeading').textContent = currentPos.lat >= 0
-          ? (en ? '🌍 NOAA Northern Hemisphere Aurora Oval' : '🌍 NOAA 北半球即時極光橢圓圖')
-          : (en ? '🌍 NOAA Southern Hemisphere Aurora Oval' : '🌍 NOAA 南半球即時極光橢圓圖');
-        document.getElementById('ovationImg').src = `https://services.swpc.noaa.gov/images/animations/ovation/${hemi}/latest.jpg?t=${Date.now()}`;
-        const camCard = document.getElementById('skyCamCard');
-        if (camCard) camCard.style.display = currentPos.lat >= 0 ? 'block' : 'none';
-        if (currentPos.lat >= 0) selectSkyCam(currentCamKey);
-      }
+      if (name === 'sat') syncSatTab();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -1889,6 +1893,7 @@
       if (ly) ly.href = yrUrl;
       const pm = document.getElementById('pMet');
       if (pm) pm.href = isInNordicMetBox(currentPos.lat, currentPos.lon) ? yrUrl : 'https://open-meteo.com/en/docs';
+      if (document.getElementById('v-sat')?.classList.contains('on')) syncSatTab();
       try { localStorage.setItem('aurora_pos_v2', JSON.stringify(currentPos)); } catch(e) {}
     }
 
@@ -2162,7 +2167,10 @@
         : (en ? 'Partial sync (Auto 5m)' : '部分同步（每5分自動更新）');
     }
 
+    let refreshSeq = 0;
+
     async function refreshAll(manual) {
+      const mySeq = ++refreshSeq;
       const en = isEn();
       const b = document.getElementById('refBtn');
       b.disabled = true; b.textContent = en ? '⏳ Sync' : '⏳ 更新中';
@@ -2190,6 +2198,7 @@
         const [mJ, wJ, k1J, ovJson, hpiTxt, gJ, kfcJ] = await Promise.all([
           safeJson(mR), safeJson(wR), safeJson(k1R), safeJson(oR), safeText(hpiR), safeJson(gR), safeJson(kfcR)
         ]);
+        if (mySeq !== refreshSeq) return;
         if (mJ) magSeries = parseMagSeries(mJ, 180);
         if (wJ) windSeries = parseWindSeries(wJ, 180);
         if (kfcJ) kpForecast = parseKpForecast(kfcJ);
@@ -2199,6 +2208,7 @@
         if (!kpObj) {
           const k3R = await fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json').catch(() => null);
           const k3J = await safeJson(k3R);
+          if (mySeq !== refreshSeq) return;
           if (k3J) kpObj = parseLatestKp(k3J);
         }
         const hpiObj = hpiTxt ? parseHemiPower(hpiTxt, currentPos.lat) : null;
@@ -2224,11 +2234,12 @@
             if (elRes.ok) {
               const elJson = await elRes.json();
               if (Array.isArray(elJson.elevation)) {
-                pts.forEach((pt, i) => { if (i > 0 && Number(elJson.elevation[i]) <= 1) pt.isOcean = true; });
+                pts.forEach((pt, i) => { if (i > 0 && Number(elJson.elevation[i]) <= 0) pt.isOcean = true; });
               }
             }
           } catch(e) {}
         }
+        if (mySeq !== refreshSeq) return;
 
         if (isInNordicMetBox(currentPos.lat, currentPos.lon)) {
           try {
@@ -2236,8 +2247,10 @@
               Promise.all(pts.map(p => fetchMetNorwayPoint(p.lat, p.lon))),
               fetch(`https://api.open-meteo.com/v1/forecast?latitude=${currentPos.lat.toFixed(4)}&longitude=${currentPos.lon.toFixed(4)}&hourly=temperature_2m&timezone=auto&forecast_days=1`).catch(() => null)
             ]);
+            if (mySeq !== refreshSeq) return;
             if (tzRes && tzRes.ok) {
               const tzJ = await tzRes.json();
+              if (mySeq !== refreshSeq) return;
               if (tzJ?.timezone) currentPos.tz = tzJ.timezone;
             }
             if (metList[0]) {
@@ -2256,9 +2269,11 @@
         if (!usedMet) {
           const url = `https://api.open-meteo.com/v1/forecast?latitude=${pts.map(p=>p.lat).join(',')}&longitude=${pts.map(p=>p.lon).join(',')}&hourly=temperature_2m,wind_speed_10m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,precipitation&timezone=auto&forecast_days=2`;
           const r = await fetch(url);
+          if (mySeq !== refreshSeq) return;
           if (r.ok) {
             metOk = true; weatherSourceLabel = 'Open-Meteo';
             const data = await r.json();
+            if (mySeq !== refreshSeq) return;
             const list = Array.isArray(data) ? data : [data];
             if (list[0]?.timezone) currentPos.tz = list[0].timezone;
             pts.forEach((pt, i) => {
@@ -2270,6 +2285,7 @@
             });
           }
         }
+        if (mySeq !== refreshSeq) return;
 
         if (metOk && hereHrs.length) {
           document.getElementById('offlineBanner').style.display = 'none';

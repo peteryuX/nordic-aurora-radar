@@ -271,8 +271,18 @@ test('9. Aurora scoring invariants, monotonicity, and zero contradiction with ho
   });
   assert.equal(fc12.hours[0].score, hero.total, 'Hour-0 forecast score must match hero score');
 
+  // Southern Hemisphere mid-latitude (Hobart) must say Oval South / 極光帶偏南, not North!
+  const hobart = api.computeAuroraScore({ lat: -42.88, lon: 147.33, cloudNow: 10, sunAlt: -25, bz: 0, speed: 350, kp: 1, ovation: 0 });
+  assert.equal(hobart.outOfZone, 'need-storm');
+  assert.equal(hobart.grade, '🌍 極光帶偏南');
+  assert.equal(api.tGrade(hobart.grade, 'en'), '🌍 Oval South');
+  const vHobartEn = api.evaluateVerdict({ lat: -42.88, bestDark: hrs[0], kp: 1, scoreObj: hobart, lang: 'en' });
+  const vHobartZh = api.evaluateVerdict({ lat: -42.88, bestDark: hrs[0], kp: 1, scoreObj: hobart, lang: 'zh' });
+  assert.match(vHobartEn.title, /south/i);
+  assert.match(vHobartZh.title, /更南邊/);
+
   // Consistency: every grade has a non-empty English translation & verdict in both languages
-  for (const sc of [taipei, daylight, cloudy, clear, quiet]) {
+  for (const sc of [taipei, daylight, cloudy, clear, quiet, hobart]) {
     assert.ok(api.tGrade(sc.grade, 'en') !== sc.grade, `Missing English tGrade for ${sc.grade}`);
     const vZh = api.evaluateVerdict({ lat: 69.97, bestDark: hrs[0], kp: 2, scoreObj: sc, lang: 'zh' });
     const vEn = api.evaluateVerdict({ lat: 69.97, bestDark: hrs[0], kp: 2, scoreObj: sc, lang: 'en' });
@@ -299,7 +309,7 @@ test('10. Solar wind trend banner aligns with Newell chart energy zone', () => {
   assert.match(trendEn.text, /Active zone/);
 });
 
-test('11. All NORDIC_CORRIDORS are land-safe, unique, and match their compass sectors', () => {
+test('11. All NORDIC_CORRIDORS are land-safe, unique, fit SVG wedges, and match compass sectors', () => {
   for (const c of api.NORDIC_CORRIDORS) {
     assert.equal(c.pts.length, 4);
     const keys = new Set(c.pts.map(p => p.key));
@@ -308,7 +318,8 @@ test('11. All NORDIC_CORRIDORS are land-safe, unique, and match their compass se
       assert.ok(Number.isFinite(p.lat) && Number.isFinite(p.lon));
       assert.ok(p.lon <= 30.85, `Point ${p.label} lon=${p.lon} crosses Russian border`);
       assert.equal(p.isOcean, false);
-      // Verify Kirkenes East/West no longer contradict arrow vs text
+      const shortName = p.label.replace(/^[⬆️⬇️➡️⬅️]+\s*往[東西南北]+\s*/, '');
+      assert.ok(shortName.length <= 13, `Radar wedge label too long (${shortName.length}): ${shortName}`);
       if (p.key === 'E') assert.ok(!p.label.includes('往西'), `East wedge should not say 往西: ${p.label}`);
       if (p.key === 'W') assert.ok(!p.label.includes('往東'), `West wedge should not say 往東: ${p.label}`);
     }
