@@ -76,7 +76,7 @@ test('4. IGRF-14 geomagnetic latitude, MLT, and Kp threshold gates', () => {
   assert.ok(alta > 65 && alta < 70, `Alta magLat=${alta}`);
   assert.ok(oslo > 57 && oslo < 62, `Oslo magLat=${oslo}`);
   assert.ok(taipei > 13 && taipei < 20, `Taipei magLat=${taipei}`);
-  assert.ok(hobart < -47 && hobart > -53, `Hobart magLat=${hobart}`);
+  assert.ok(hobart < -54 && hobart > -59, `Hobart eccentric AACGM magLat=${hobart}`);
 
   assert.equal(api.requiredKpForMagLat(Math.abs(alta)), 0);
   assert.ok(api.requiredKpForMagLat(Math.abs(oslo)) >= 3);
@@ -326,27 +326,35 @@ test('11. All NORDIC_CORRIDORS are land-safe, unique, fit SVG wedges, and match 
   }
 });
 
-test('12. All SVG builders produce clean markup without NaN or undefined', () => {
+test('12. All SVG builders produce clean markup with strictly uniform X-axis intervals', () => {
   const sky = api.buildSkySceneSVG({ cloudPct: 40, auroraScore: 55, moonUp: true, moonPct: 70, isTooBright: false });
   assert.ok(sky.includes('<rect') && !sky.includes('NaN') && !sky.includes('undefined'));
 
-  const series = Array.from({ length: 60 }, (_, i) => ({
-    time_tag: `2026-11-23T20:${String(i).padStart(2, '0')}:00`,
-    bz: i > 40 ? -5 : -1,
-    by: 1
-  }));
-  const bal = api.computeBallisticCoupling(series, 400); // etaMin = 60m -> 20:59 UTC + 60m = 21:59 UTC = 22:59 CET
+  // Chart 1: 120-min series -> shifted by etaMin=60m -> uniform :00 / :30 ticks
+  const series = Array.from({ length: 120 }, (_, i) => {
+    const t = new Date(Date.parse('2026-11-23T20:00:00Z') + i * 60000);
+    return { time_tag: t.toISOString().slice(0, 19), bz: i > 80 ? -5 : -1, by: 1 };
+  });
+  const bal = api.computeBallisticCoupling(series, 400); // etaMin = 60m -> arrival 22:00..23:59 CET
   const bzSvg = api.buildBzChartSVG(series, 'Europe/Oslo', 400, bal, 'zh');
   assert.ok(bzSvg.includes('<polyline') && !bzSvg.includes('NaN') && !bzSvg.includes('undefined'));
-  assert.ok(bzSvg.includes('預估 22:59'), `Expected shifted Earth arrival time 預估 22:59 in SVG`);
+  const bzTicks = [...bzSvg.matchAll(/<text[^>]*y="163"[^>]*>(\d{2}:\d{2})<\/text>/g)].map(m => m[1]);
+  assert.deepEqual(bzTicks, ['22:30', '23:00', '23:30'], `Expected uniform 30-min ticks, got ${JSON.stringify(bzTicks)}`);
   assert.equal(api.utcTagToLocalHM('2026-11-23T20:59:00', 'Europe/Oslo', 60), '22:59');
 
-  const hrs = [
-    { time: '22:00', clear: 80, block: 20, score: 55, temp: -2, isDay: false },
-    { time: '23:00', clear: 40, block: 60, score: 25, temp: -3, isDay: false }
-  ];
-  const waveSvg = api.buildSkyWaveSVG(hrs, hrs[0], 0, 'en');
+  // Chart 2: 12-hour forecast -> strictly uniform 2-hour HH:00 ticks even when bestIdx & selectedIdx are odd!
+  const hrs = Array.from({ length: 12 }, (_, i) => ({
+    time: `${String((22 + i) % 24).padStart(2, '0')}:00`,
+    clear: i === 3 ? 90 : 50,
+    block: i === 3 ? 10 : 50,
+    score: i === 3 ? 72 : 30,
+    temp: -2,
+    isDay: false
+  }));
+  const waveSvg = api.buildSkyWaveSVG(hrs, hrs[3], 5, 'zh'); // bestIdx=3 (odd), selectedIdx=5 (odd)
   assert.ok(waveSvg.includes('<polyline') && !waveSvg.includes('NaN') && !waveSvg.includes('undefined'));
+  const waveTicks = [...waveSvg.matchAll(/<text[^>]*y="170"[^>]*>(\d{2}:\d{2})<\/text>/g)].map(m => m[1]);
+  assert.deepEqual(waveTicks, ['22:00', '00:00', '02:00', '04:00', '06:00', '08:00'], `Expected strict 2-hour ticks, got ${JSON.stringify(waveTicks)}`);
 
   const dirs = [
     { key: 'here', label: '📍 目前位置', lat: 69.97, lon: 23.27, avg3h: 80, isOcean: false },
@@ -408,4 +416,58 @@ test('14. Live API end-to-end smoke test (enabled with LIVE_TEST=1)', { skip: pr
     ovation: ovAlta, hpiGw: hpiObj.gw, newell: bal.nowNewell
   });
   assert.ok(sc.total >= 0 && sc.total <= 99, `Live Alta score out of range: ${sc.total}`);
+});
+
+test('15. 50-city global regression test: zero G1/G4 false negatives and accurate daylight/hemisphere gates', () => {
+  const CITIES = [
+    ['Alta', 69.97, 23.27, 'oval'], ['Tromso', 69.65, 18.96, 'oval'], ['Lofoten', 68.23, 14.57, 'oval'],
+    ['Senja', 69.35, 17.48, 'oval'], ['Narvik', 68.44, 17.43, 'oval'], ['Abisko', 68.35, 18.83, 'oval'],
+    ['Kiruna', 67.86, 20.23, 'oval'], ['Kirkenes', 69.73, 30.05, 'oval'], ['Rovaniemi', 66.50, 25.73, 'oval'],
+    ['Inari', 68.91, 27.03, 'oval'], ['Longyearbyen', 78.22, 15.63, 'polar'], ['Oslo', 59.91, 10.75, 'sub'],
+    ['Bergen', 60.39, 5.32, 'sub'], ['Trondheim', 63.43, 10.40, 'oval'], ['Stockholm', 59.33, 18.07, 'sub'],
+    ['Helsinki', 60.17, 24.94, 'sub'], ['Reykjavik', 64.15, -21.94, 'oval'], ['Akureyri', 65.69, -18.13, 'oval'],
+    ['Ilulissat', 69.22, -51.10, 'polar'], ['Nuuk', 64.18, -51.69, 'oval'], ['Inverness', 57.48, -4.22, 'sub'],
+    ['Edinburgh', 55.95, -3.19, 'sub'], ['Murmansk', 68.96, 33.08, 'oval'], ['London', 51.51, -0.13, 'mid'],
+    ['Berlin', 52.52, 13.41, 'mid'], ['Fairbanks', 64.84, -147.72, 'oval'], ['Anchorage', 61.22, -149.90, 'sub'],
+    ['Utqiagvik', 71.29, -156.79, 'oval'], ['Yellowknife', 62.45, -114.37, 'oval'], ['Whitehorse', 60.72, -135.06, 'oval'],
+    ['Churchill', 58.77, -94.17, 'oval'], ['Iqaluit', 63.75, -68.52, 'oval'], ['Banff', 51.18, -115.57, 'sub'],
+    ['Calgary', 51.04, -114.07, 'sub'], ['Winnipeg', 49.90, -97.14, 'sub'], ['StJohns', 47.56, -52.71, 'sub'],
+    ['Seattle', 47.61, -122.33, 'mid'], ['Minneapolis', 44.98, -93.27, 'mid'], ['Sapporo', 43.06, 141.35, 'storm'],
+    ['Asahikawa', 43.77, 142.37, 'storm'], ['Tokyo', 35.68, 139.65, 'low'], ['Taipei', 25.03, 121.57, 'low'],
+    ['Singapore', 1.35, 103.82, 'low'], ['Hobart', -42.88, 147.33, 'sub'], ['Queenstown', -45.03, 168.66, 'sub'],
+    ['Invercargill', -46.41, 168.35, 'sub'], ['Dunedin', -45.88, 170.50, 'sub'], ['Melbourne', -37.81, 144.96, 'mid'],
+    ['Ushuaia', -54.80, -68.30, 'storm'], ['McMurdo', -77.84, 166.69, 'polar']
+  ];
+  assert.equal(CITIES.length, 50);
+
+  for (const [name, lat, lon, tier] of CITIES) {
+    // 1. Broad daylight must ALWAYS return 0; auroral/sub-auroral cities must say Too Bright (not Oval North/South)
+    const day = api.computeAuroraScore({ lat, lon, cloudNow: 0, sunAlt: 15, bz: -1, speed: 350, kp: 1, ovation: 0 });
+    assert.equal(day.total, 0, `${name} daylight must be 0`);
+    if (tier === 'oval' || tier === 'sub' || tier === 'polar') {
+      assert.equal(day.grade, '☀️ 天色過亮', `${name} in daylight should show Too Bright, got ${day.grade}`);
+    }
+    if (tier === 'low') {
+      assert.equal(day.outOfZone, 'low-lat', `${name} must be low-lat`);
+    }
+
+    // 2. G1 storm (Kp 5, clear dark night) must NEVER miss oval or sub-auroral cities (incl. Hobart/NZ/Oslo/Banff!)
+    const g1 = api.computeAuroraScore({
+      lat, lon, cloudNow: 10, sunAlt: -25, bz: -7, speed: 550, kp: 5,
+      ovation: tier === 'oval' ? 75 : (tier === 'sub' ? 35 : 0),
+      hpiGw: 65, newell: 8500, mlt: 0.5, effMoonPct: 0
+    });
+    if (tier === 'oval') assert.ok(g1.total >= 65, `${name} G1 should be >=65, got ${g1.total}`);
+    if (tier === 'sub') assert.ok(g1.total >= 40, `${name} G1 should be >=40 (no missed G1!), got ${g1.total}`);
+    if (tier === 'low') assert.equal(g1.total, 0, `${name} G1 must stay 0`);
+
+    // 3. G4 severe storm (Kp 8, clear dark night) must alert mid-lat & storm cities (London, Berlin, Sapporo, Melbourne, Ushuaia)
+    const g4 = api.computeAuroraScore({
+      lat, lon, cloudNow: 10, sunAlt: -25, bz: -18, speed: 750, kp: 8,
+      ovation: tier === 'low' ? 0 : 35,
+      hpiGw: 140, newell: 22000, mlt: 0.5, effMoonPct: 0
+    });
+    if (tier !== 'low') assert.ok(g4.total >= 40, `${name} G4 should be >=40, got ${g4.total}`);
+    else assert.equal(g4.total, 0, `${name} G4 must stay 0`);
+  }
 });

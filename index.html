@@ -372,7 +372,7 @@
         </div>
         <div id="bzFootnote" style="margin-top:7px; font-size:0.74rem; color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:5px;">
           <span id="etaHint">💡 時間軸已換算為到達地球的當地時間</span>
-          <a id="bzRawVal" class="src-link" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/real-time-solar-wind" style="white-space:nowrap;"></a>
+          <a id="bzRawVal" class="src-link" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/solar-wind" style="white-space:nowrap;"></a>
         </div>
       </section>
 
@@ -386,7 +386,7 @@
         <div id="hourDetail" class="hr-detail"><span>👆 點擊圖上任一時段查看詳細預報（晴空率、體感溫度、月光與 Kp）</span></div>
         <div class="hr-legend">
           <span id="hrLegLeft">🟢 綠線＝晴空率 % ｜ 🟣 紫柱＝觀測指數</span>
-          <span id="hrLegRight">點圖表切換時段</span>
+          <span id="hrLegRight">每 2 小時刻度・點圖表查看單小時</span>
         </div>
       </section>
     </main>
@@ -398,7 +398,7 @@
         <div id="compassSummary" class="callout warn">掃描周邊雲量中...</div>
         <div class="radar-wrap">
           <svg id="radarSvg" class="radar-svg" viewBox="0 0 320 320"></svg>
-          <div id="radarLeg" style="font-size:0.78rem; color:var(--muted);">🟢 晴朗（雲≤35%）｜🟡 局部多雲｜🔴 陰天厚雲（點陸地扇區導航）</div>
+          <div id="radarLeg" style="font-size:0.78rem; color:var(--muted);">🟢 晴朗（≤35%）｜🟡 局部多雲（36–65%）｜🔴 陰天厚雲（>65%）（點陸地導航）</div>
         </div>
         <div id="compassBox" style="margin-top:12px;"></div>
       </div>
@@ -452,7 +452,7 @@
           <a id="linkYr" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.yr.no/en/forecast/daily-table/69.969,23.272">🌧️ 挪威 Yr.no</a>
           <a id="linkTgo" class="btn btn-blue" target="_blank" rel="noopener" href="https://flux.phys.uit.no/Last24/">📈 挪威即時地磁站</a>
           <a id="linkNoaa" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/planetary-k-index">🌌 NOAA Kp 指數</a>
-          <a id="linkSolarWind" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/real-time-solar-wind">⚡ NOAA 太陽風</a>
+          <a id="linkSolarWind" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/solar-wind">⚡ NOAA 太陽風</a>
         </div>
       </div>
 
@@ -683,13 +683,18 @@
       return Math.max(0, Math.min(100, eff));
     }
 
-    // IGRF-14 (2026) dipole geomagnetic latitude (north pole 80.9°N, -72.8°W)
+    // IGRF-14 / AACGM-aligned geomagnetic latitude (North pole 80.9°N, -72.8°W; eccentric South auroral pole -74.5°S, +126.0°E)
     function computeGeomagneticLat(lat, lon) {
       const toR = d => d * Math.PI / 180;
       const phi = toR(lat), lam = toR(lon);
-      const phiP = toR(80.9), lamP = toR(-72.8);
+      if (lat >= 0) {
+        const phiP = toR(80.9), lamP = toR(-72.8);
+        const sinM = Math.sin(phi) * Math.sin(phiP) + Math.cos(phi) * Math.cos(phiP) * Math.cos(lam - lamP);
+        return Math.asin(Math.max(-1, Math.min(1, sinM))) * 180 / Math.PI;
+      }
+      const phiP = toR(-74.5), lamP = toR(126.0);
       const sinM = Math.sin(phi) * Math.sin(phiP) + Math.cos(phi) * Math.cos(phiP) * Math.cos(lam - lamP);
-      return Math.asin(Math.max(-1, Math.min(1, sinM))) * 180 / Math.PI;
+      return -Math.asin(Math.max(-1, Math.min(1, sinM))) * 180 / Math.PI;
     }
 
     // NOAA empirical oval (2.04°/Kp up to Kp 6) + G3-G5 horizon expansion (never exceeds physical Kp 9.0)
@@ -859,8 +864,8 @@
       const curOv = (ovation !== null && Number.isFinite(ovation)) ? ovation : null;
       const curHpi = (hpiGw !== null && Number.isFinite(hpiGw)) ? hpiGw : null;
 
-      // Hard physical gate 2: Mid-lat (e.g. Oslo, Hokkaido, Hobart) where Kp & OVATION cannot reach
-      if (neededKp >= 3 && (curKp + 0.8) < neededKp && (curOv ?? 0) < 5) {
+      // Hard physical gate 2: Mid-lat (e.g. Oslo, Hokkaido, Hobart) where Kp & OVATION cannot reach (at night, or below 45° magLat)
+      if (!(isTooBright && absMag >= 45) && neededKp >= 3 && (curKp + 0.8) < neededKp && (curOv ?? 0) < 5) {
         return {
           total: 0, skyScore, auroraScore: 0, darkScore, isTooBright,
           magLat: Math.round(absMag), neededKp, outOfZone: 'need-storm',
@@ -893,9 +898,9 @@
       const spdVal = (speed !== null && Number.isFinite(speed)) ? speed : 380;
       let swAdj;
       if (newell !== null && Number.isFinite(newell)) {
-        swAdj = Math.max(-6, Math.min(36, (newell - 1500) / 215));
+        swAdj = Math.max(-4, Math.min(36, (newell - 1500) / 215));
       } else {
-        const bzAdj = Math.max(-8, Math.min(26, -bzVal * 3.0));
+        const bzAdj = Math.max(-4, Math.min(26, -bzVal * 3.0));
         const southWeight = Math.max(0, Math.min(1, (-bzVal + 1) / 4));
         const spAdj = Math.max(0, Math.min(14, (spdVal - 380) / 22)) * (0.2 + 0.8 * southWeight);
         swAdj = bzAdj + spAdj;
@@ -1390,10 +1395,24 @@
       const W = 420, H = 170, padL = 62, padR = 14, padT = 24, padB = 28;
       const plotW = W - padL - padR, plotH = H - padT - padB;
       const yOf = e => padT + ((100 - e) / 100) * plotH;
-      const xOf = i => padL + (i / (series.length - 1)) * plotW;
 
-      const yBurst = yOf(62), yWarm = yOf(20);
+      // Exact visual zone boundaries matching stateWord & summarizeEnergyTrend: <25 Quiet, 25-61 Rising, >=62 Active
+      const yBurst = yOf(62), yWarm = yOf(25);
       const etaMin = balOpt?.etaMin ?? computeL1EtaMin(speed);
+      const parseUtcMs = t => {
+        const s = String(t || '');
+        return Date.parse(s.endsWith('Z') ? s : s + 'Z');
+      };
+      const arrMsList = series.map(s => {
+        const ms = parseUtcMs(s.time_tag);
+        return Number.isFinite(ms) ? ms + etaMin * 60000 : NaN;
+      });
+      const validTime = Number.isFinite(arrMsList[0]) && Number.isFinite(arrMsList[arrMsList.length - 1]) && arrMsList[arrMsList.length - 1] > arrMsList[0];
+      const minMs = validTime ? arrMsList[0] : 0;
+      const maxMs = validTime ? arrMsList[arrMsList.length - 1] : (series.length - 1);
+      const xOfMs = ms => padL + ((ms - minMs) / (maxMs - minMs)) * plotW;
+      const xOf = i => validTime && Number.isFinite(arrMsList[i]) ? xOfMs(arrMsList[i]) : (padL + (i / (series.length - 1)) * plotW);
+
       const energies = (balOpt && Array.isArray(balOpt.energy120) && balOpt.energy120.length === series.length)
         ? balOpt.energy120
         : series.map(s => bzToEnergy(s.bz, speed));
@@ -1404,6 +1423,30 @@
       const lx = xOf(energies.length - 1), ly = yOf(lastE);
       const col = lastE >= 62 ? '#34f0b0' : lastE >= 25 ? '#ffcf5c' : '#66bdff';
       const stateWord = lastE >= 62 ? (en ? '🔥 Active' : '🔥 活躍') : lastE >= 25 ? (en ? '🟡 Rising' : '🟡 增強') : (en ? '🌙 Quiet' : '🌙 平靜');
+
+      // Uniform 30-minute (:00 / :30) Earth-arrival clock ticks & vertical gridlines
+      let xTicksSvg = '';
+      if (validTime) {
+        const spanMin = (maxMs - minMs) / 60000;
+        const stepMin = spanMin > 165 ? 60 : 30;
+        const stepMs = stepMin * 60000;
+        const firstTick = Math.ceil(minMs / stepMs) * stepMs;
+        for (let t = firstTick; t <= maxMs; t += stepMs) {
+          const tx = xOfMs(t);
+          if (tx < padL + 10 || tx > W - padR - 10) continue;
+          const z = getZoneParts(new Date(t), timeZone);
+          xTicksSvg += `
+            <line x1="${tx.toFixed(1)}" y1="${padT}" x2="${tx.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(148,188,232,0.12)" stroke-dasharray="2 4"/>
+            <text x="${tx.toFixed(1)}" y="${H - 7}" text-anchor="middle" fill="#b8cbe2" font-size="11" font-weight="700">${z.hourStr}:${z.minStr}</text>`;
+        }
+      }
+      if (!xTicksSvg) {
+        const tStart = utcTagToLocalHM(series[0].time_tag, timeZone, etaMin);
+        const tEnd = utcTagToLocalHM(series[series.length - 1].time_tag, timeZone, etaMin);
+        xTicksSvg = `
+          <text x="${padL}" y="${H - 7}" fill="#b8cbe2" font-size="11" font-weight="700">${tStart}</text>
+          <text x="${W - padR}" y="${H - 7}" text-anchor="end" fill="#66e8ff" font-size="11" font-weight="800">${tEnd}</text>`;
+      }
 
       let arriveSvg = '';
       let futureBandSvg = '';
@@ -1418,11 +1461,6 @@
           <text x="${lxClamped.toFixed(1)}" y="15" text-anchor="middle" fill="#66e8ff" font-size="10.5" font-weight="800">${en ? `Now ${tNowEarth}` : `現在 ${tNowEarth}`}</text>`;
       }
 
-      // Shift X-axis directly to Earth-arrival local time (zero mental arithmetic!)
-      const tStart = utcTagToLocalHM(series[0].time_tag, timeZone, etaMin);
-      const tMid = utcTagToLocalHM(series[Math.floor(series.length / 2)].time_tag, timeZone, etaMin);
-      const tEnd = utcTagToLocalHM(series[series.length - 1].time_tag, timeZone, etaMin);
-
       return `
         <defs>
           <linearGradient id="enGrad" x1="0" y1="0" x2="0" y2="1">
@@ -1435,6 +1473,7 @@
         <rect x="${padL}" y="${yBurst.toFixed(1)}" width="${plotW}" height="${(yWarm - yBurst).toFixed(1)}" fill="rgba(255,207,92,0.07)"/>
         <rect x="${padL}" y="${yWarm.toFixed(1)}" width="${plotW}" height="${(padT + plotH - yWarm).toFixed(1)}" fill="rgba(102,189,255,0.05)"/>
         ${futureBandSvg}
+        ${xTicksSvg}
         <line x1="${padL}" y1="${yBurst.toFixed(1)}" x2="${W - padR}" y2="${yBurst.toFixed(1)}" stroke="#34f0b0" stroke-dasharray="4 4" stroke-width="1.2" opacity="0.75"/>
         <line x1="${padL}" y1="${yWarm.toFixed(1)}" x2="${W - padR}" y2="${yWarm.toFixed(1)}" stroke="rgba(148,188,232,0.3)" stroke-dasharray="3 4" stroke-width="1"/>
         <line x1="${padL}" y1="${(padT + plotH).toFixed(1)}" x2="${W - padR}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(148,188,232,0.28)"/>
@@ -1447,9 +1486,6 @@
         <circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="5" fill="${col}" stroke="#050c17" stroke-width="2"/>
         <rect x="${W - 108}" y="2" width="94" height="20" rx="10" fill="rgba(6,14,26,0.9)" stroke="${col}" stroke-width="1"/>
         <text x="${W - 61}" y="16" text-anchor="middle" fill="${col}" font-size="11" font-weight="900">L1 ${stateWord}</text>
-        <text x="${padL}" y="${H - 7}" fill="#9eb6d4" font-size="11.5" font-weight="700">${tStart}</text>
-        <text x="${(padL + plotW/2).toFixed(1)}" y="${H - 7}" text-anchor="middle" fill="#9eb6d4" font-size="11.5">${tMid}</text>
-        <text x="${W - padR}" y="${H - 7}" text-anchor="end" fill="#66e8ff" font-size="11.5" font-weight="800">${en ? 'Est. ' : '預估 '}${tEnd}</text>
       `;
     }
 
@@ -1466,6 +1502,11 @@
         ? `<rect x="${(xOf(i) - stepW/2).toFixed(1)}" y="${padT}" width="${stepW.toFixed(1)}" height="${plotH}" fill="rgba(102,189,255,0.14)"/>`
         : '').join('');
 
+      // Strictly uniform 2-hour vertical gridlines (every even index: +0h, +2h, +4h, +6h, +8h, +10h)
+      const vGrid = hrs.map((_, i) => i % 2 === 0
+        ? `<line x1="${xOf(i).toFixed(1)}" y1="${padT}" x2="${xOf(i).toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(148,188,232,0.12)" stroke-dasharray="2 4"/>`
+        : '').join('');
+
       const barW = Math.max(8, Math.min(18, stepW * 0.45));
       const scoreBars = hrs.map((h, i) => {
         if (!Number.isFinite(h.score) || h.score <= 0) return '';
@@ -1473,7 +1514,7 @@
         const y = yOf(h.score);
         const bh = Math.max(2, padT + plotH - y);
         const isSel = i === selectedIdx;
-        return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="3" fill="${isSel ? 'rgba(168,85,247,0.68)' : 'rgba(168,85,247,0.34)'}" stroke="${isSel ? '#d8b4fe' : 'rgba(192,132,252,0.5)'}" stroke-width="1"/>`;
+        return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="3" fill="${isSel ? 'rgba(168,85,247,0.72)' : 'rgba(168,85,247,0.34)'}" stroke="${isSel ? '#d8b4fe' : 'rgba(192,132,252,0.5)'}" stroke-width="1"/>`;
       }).join('');
 
       const linePts = hrs.map((h, i) => `${xOf(i).toFixed(1)},${yOf(h.clear).toFixed(1)}`).join(' ');
@@ -1484,16 +1525,16 @@
         const x = xOf(i), y = yOf(h.clear);
         const isBest = i === bestIdx;
         const isSel = i === selectedIdx;
-        const nearBest = bestIdx >= 0 && Math.abs(i - bestIdx) === 1;
-        const showLbl = isBest || isSel || (!nearBest && i % 2 === 0);
+        // Strictly uniform 2-hour X-axis labels (HH:00) — never irregular 1h/3h gaps!
+        const showTick = (i % 2 === 0);
         const c = h.isDay ? '#66bdff' : (h.clear >= 65 ? '#34f0b0' : h.clear >= 35 ? '#ffcf5c' : '#ff6b7b');
         const tInt = Math.round(h.temp) || 0;
-        const hrUnit = en ? 'h' : '時';
-        const lbl = showLbl ? `<text x="${x.toFixed(1)}" y="${H - 24}" text-anchor="middle" fill="${isSel ? '#ffffff' : (isBest ? '#34f0b0' : '#c6d6ea')}" font-size="11.5" font-weight="${isBest || isSel ? '900' : '700'}">${h.time.slice(0,2)}${hrUnit}</text>` : '';
-        const tempLbl = showLbl ? `<text x="${x.toFixed(1)}" y="${H - 8}" text-anchor="middle" fill="#89a6c8" font-size="10.5">${tInt > 0 ? '+' : ''}${tInt}°</text>` : '';
+        const hhmm = h.time.length >= 5 ? h.time.slice(0, 5) : `${h.time.slice(0, 2)}:00`;
+        const lbl = showTick ? `<text x="${x.toFixed(1)}" y="${H - 24}" text-anchor="middle" fill="${isSel ? '#ffffff' : (isBest ? '#34f0b0' : '#c6d6ea')}" font-size="10.5" font-weight="${isBest || isSel ? '900' : '700'}">${hhmm}</text>` : '';
+        const tempLbl = showTick ? `<text x="${x.toFixed(1)}" y="${H - 8}" text-anchor="middle" fill="#89a6c8" font-size="10">${tInt > 0 ? '+' : ''}${tInt}°</text>` : '';
         const badgeVal = Number.isFinite(h.score) && h.score > 0 ? (en ? `${h.score}` : `${h.score}分`) : `${h.clear}%`;
-        const star = isBest ? `<text x="${Math.min(W - 36, Math.max(padL + 28, x)).toFixed(1)}" y="${Math.max(15, y - 11).toFixed(1)}" text-anchor="middle" fill="#34f0b0" font-size="12" font-weight="900">⭐ ${badgeVal}</text>` : '';
-        const selRing = isSel ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="8" fill="none" stroke="#ffffff" stroke-width="1.6" opacity="0.9"/>` : '';
+        const star = isBest ? `<text x="${Math.min(W - 36, Math.max(padL + 28, x)).toFixed(1)}" y="${Math.max(15, y - 11).toFixed(1)}" text-anchor="middle" fill="#34f0b0" font-size="11.5" font-weight="900">⭐ ${badgeVal}</text>` : '';
+        const selRing = isSel ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="8" fill="none" stroke="#ffffff" stroke-width="1.6" opacity="0.92"/>` : '';
         const hitRect = `<rect x="${(x - stepW/2).toFixed(1)}" y="${padT}" width="${stepW.toFixed(1)}" height="${plotH + 34}" fill="transparent" style="cursor:pointer;" onclick="selectForecastHour(${i})"/>`;
         return `${star}${selRing}<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${isBest || isSel ? 5.5 : 3.8}" fill="${c}" stroke="#050c17" stroke-width="1.6"/>${lbl}${tempLbl}${hitRect}`;
       }).join('');
@@ -1506,6 +1547,7 @@
           </linearGradient>
         </defs>
         ${dayBands}
+        ${vGrid}
         <line x1="${padL}" y1="${padT}" x2="${W - padR}" y2="${padT}" stroke="rgba(148,188,232,0.16)" stroke-dasharray="3 4"/>
         <line x1="${padL}" y1="${padT + plotH/2}" x2="${W - padR}" y2="${padT + plotH/2}" stroke="rgba(148,188,232,0.18)" stroke-dasharray="3 4"/>
         <line x1="${padL}" y1="${padT + plotH}" x2="${W - padR}" y2="${padT + plotH}" stroke="rgba(148,188,232,0.28)"/>
@@ -1662,9 +1704,9 @@
       setT('h2Energy', '⚡ 太陽風能量走勢（含提前預告）', '⚡ Solar Wind Energy & Arrival Preview');
       setT('h2Wave', '🌤️ 未來 12 小時晴空與極光預報', '🌤️ 12-Hour Sky & Aurora Forecast');
       setT('hrLegLeft', '🟢 綠線＝晴空率 % ｜ 🟣 紫柱＝觀測指數', '🟢 Line = Clear Sky % ｜ 🟣 Bars = Viewing Score');
-      setT('hrLegRight', '點圖表切換時段', 'Tap chart to inspect');
+      setT('hrLegRight', '每 2 小時刻度・點圖表查看單小時', '2h ticks · Tap hour to inspect');
       setT('h2Radar', '🧭 周邊 360° 晴空雷達', '🧭 360° Cloud-Gap Radar');
-      setT('radarLeg', '🟢 晴朗（雲≤35%）｜🟡 局部多雲｜🔴 陰天厚雲（點陸地扇區導航）', '🟢 Clear (≤35%) ｜ 🟡 Partly Cloudy ｜ 🔴 Overcast (Tap land wedge to navigate)');
+      setT('radarLeg', '🟢 晴朗（≤35%）｜🟡 局部多雲（36–65%）｜🔴 陰天厚雲（>65%）（點陸地導航）', '🟢 Clear (≤35%) ｜ 🟡 Partly Cloudy (36–65%) ｜ 🔴 Overcast (>65%)');
       setT('h2Windy', '🛰️ 即時動態雲圖', '🛰️ Live Cloud Map (Windy)');
       setT('subWindy', '已自動對準目前位置，按左下角 ▶ 可播放接下來幾小時雲層移動趨勢：', 'Centered on your location — press ▶ bottom-left to animate cloud movement:');
       setT('h2Cam', '📷 北歐天文台即時全天空相機', '📷 Arctic Observatory All-Sky Cams');
@@ -1695,11 +1737,11 @@
       if (lb) {
         lb.innerHTML = en
           ? `• Weather: <a href="https://api.met.no/" target="_blank" rel="noopener" style="color:var(--blue);">MET Norway (Yr.no)</a> (CC BY 4.0 / NLOD 2.0), <a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:var(--blue);">Open-Meteo</a> (CC BY 4.0, non-commercial use)<br/>` +
-            `• Space Weather: <a href="https://www.swpc.noaa.gov/" target="_blank" rel="noopener" style="color:var(--blue);">NOAA SWPC</a> (U.S. Gov Public Domain)<br/>` +
+            `• Space Weather: <a href="https://www.spaceweather.gov/" target="_blank" rel="noopener" style="color:var(--blue);">NOAA SWPC</a> (U.S. Gov Public Domain)<br/>` +
             `• Live All-Sky Cams: <a href="https://flux.phys.uit.no/" target="_blank" rel="noopener" style="color:var(--blue);">UiT TGO</a>, <a href="https://www.irf.se/" target="_blank" rel="noopener" style="color:var(--blue);">IRF Kiruna</a>, <a href="https://www.sgo.fi/" target="_blank" rel="noopener" style="color:var(--blue);">SGO Sodankylä</a> (academic non-commercial); Cloud map: <a href="https://www.windy.com/" target="_blank" rel="noopener" style="color:var(--blue);">Windy.com</a><br/>` +
             `• <strong>Disclaimer</strong>: Open-source non-commercial project (MIT License) for personal stargazing reference only, not an official weather or road warning. Follow local winter driving advisories.`
           : `• 氣象預報：<a href="https://api.met.no/" target="_blank" rel="noopener" style="color:var(--blue);">MET Norway (Yr.no)</a>（CC BY 4.0 / NLOD 2.0）、<a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:var(--blue);">Open-Meteo</a>（CC BY 4.0，限非商業用途）<br/>` +
-            `• 太空天氣：<a href="https://www.swpc.noaa.gov/" target="_blank" rel="noopener" style="color:var(--blue);">NOAA SWPC</a>（美國政府公領域 Public Domain）<br/>` +
+            `• 太空天氣：<a href="https://www.spaceweather.gov/" target="_blank" rel="noopener" style="color:var(--blue);">NOAA SWPC</a>（美國政府公領域 Public Domain）<br/>` +
             `• 全天空實拍：<a href="https://flux.phys.uit.no/" target="_blank" rel="noopener" style="color:var(--blue);">UiT TGO</a>、<a href="https://www.irf.se/" target="_blank" rel="noopener" style="color:var(--blue);">IRF Kiruna</a>、<a href="https://www.sgo.fi/" target="_blank" rel="noopener" style="color:var(--blue);">SGO Sodankylä</a>（學術非商業即時影像）；雲圖嵌入：<a href="https://www.windy.com/" target="_blank" rel="noopener" style="color:var(--blue);">Windy.com</a><br/>` +
             `• <strong>免責聲明</strong>：本工具為非商業開源專案（MIT License），僅供個人旅遊觀星參考，不構成正式氣象或道路安全警告。北極冬季行車與夜間戶外活動請務必遵守當地交通管制（如 Vegvesen 路況）與安全指引。`;
       }
@@ -2084,8 +2126,8 @@
           const diff = scNext.total - sc.total;
           const arrow = diff >= 6 ? (en ? '↗ Rising' : '↗ 增強中') : (diff <= -6 ? (en ? '↘ Fading' : '↘ 轉弱中') : (en ? '→ Steady' : '→ 持平'));
           fcEl.innerHTML = en
-            ? `🔮 Next ${bal.etaMin} min: <strong>${scNext.total}/100</strong> (${arrow})`
-            : `🔮 未來 ${bal.etaMin} 分鐘預估：<strong>${scNext.total} 分</strong>（${arrow}）`;
+            ? `🔮 Est. ${etaClock || `+${bal.etaMin}m`}${etaClock ? ` (+${bal.etaMin}m)` : ''}: <strong>${scNext.total}/100</strong> (${arrow})`
+            : `🔮 預估 ${etaClock || `未來 ${bal.etaMin} 分`}${etaClock ? `（+${bal.etaMin}分）` : ''}：<strong>${scNext.total} 分</strong>（${arrow}）`;
           const cSpan = hereHrs.length >= 3 ? (Math.max(hereHrs[0].block, hereHrs[1].block, hereHrs[2].block) - Math.min(hereHrs[0].block, hereHrs[1].block, hereHrs[2].block)) : 0;
           confEl.textContent = (noaaLagMin > 45)
             ? (en ? 'Conf: Med (Sat lag)' : '信心：中（衛星延遲）')
@@ -2316,8 +2358,9 @@
             newell: bal.nowNewell, mlt: mltNow, effMoonPct: moon.effMoonPct
           });
 
-          const nextDt = new Date(now.getTime() + 3600000);
-          const cNext = hereHrs[1] ? hereHrs[1].block : c0;
+          const nextDt = new Date(now.getTime() + bal.etaMin * 60000);
+          const nextHourIdx = Math.min(hereHrs.length - 1, Math.max(0, Math.round(bal.etaMin / 60)));
+          const cNext = hereHrs[nextHourIdx] ? hereHrs[nextHourIdx].block : c0;
           const moonNext = getMoonState(nextDt, currentPos.lat, currentPos.lon);
           const kpNext = lookupForecastKp(kpForecast, nextDt, kp ?? 0);
           const scNext = computeAuroraScore({

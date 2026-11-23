@@ -76,7 +76,7 @@ LIVE_TEST=1 node --test tests/aurora.test.mjs
 This is a **non-commercial, open-source** personal stargazing tool. All upstream data providers are credited below:
 
 - **Weather & Layered Clouds**: [MET Norway (Yr.no)](https://api.met.no/) (CC BY 4.0 / NLOD 2.0), [Open-Meteo](https://open-meteo.com/) (CC BY 4.0, non-commercial use)
-- **Space Weather & Satellites**: [NOAA Space Weather Prediction Center (SWPC)](https://www.swpc.noaa.gov/) (U.S. Government Public Domain)
+- **Space Weather & Satellites**: [NOAA Space Weather Prediction Center (SWPC)](https://www.spaceweather.gov/) (U.S. Government Public Domain)
 - **Live All-Sky Cameras**: [UiT Tromsø Geophysical Observatory](https://flux.phys.uit.no/), [IRF Kiruna](https://www.irf.se/), [SGO Sodankylä](https://www.sgo.fi/) (academic non-commercial live feeds)
 - **Cloud Map & Reverse Geocoding**: [Windy.com](https://www.windy.com/), [BigDataCloud](https://www.bigdatacloud.com/)
 
