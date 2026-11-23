@@ -15,7 +15,8 @@ const EXPORTED_SYMBOLS = [
   'detectDefaultLang', 'setLang', 'isEn', 'tSky', 'tDirLabel', 'tGrade',
   'isInNordicMetBox', 'computeCompassPoints', 'getZoneParts', 'formatReverseGeo',
   'computeSolarElevation', 'getMoonState', 'computeEffectiveCloud',
-  'computeGeomagneticLat', 'requiredKpForMagLat', 'computeL1EtaMin',
+  'computeGeomagneticLat', 'requiredKpForMagLat', 'computeViewingGeometry',
+  'parseUrlLocation', 'buildShareUrl', 'computeL1EtaMin',
   'computeMLT', 'computeNewellCoupling', 'computeDynamicPressure',
   'detectPressureShock', 'computeWindChill', 'computeDataLagMin',
   'newellToEnergy', 'computeBallisticCoupling', 'computeAuroraScore',
@@ -471,3 +472,72 @@ test('15. 50-city global regression test: zero G1/G4 false negatives and accurat
     else assert.equal(g4.total, 0, `${name} G4 must stay 0`);
   }
 });
+
+test('16. Spherical-Earth viewing elevation geometry matches overhead, mid-sky, low-horizon, and polar-cap regimes', () => {
+  // Alta inside oval -> overhead
+  const alta = api.computeViewingGeometry({ lat: 69.97, lon: 23.27, kp: 2, mlt: 0.5, lang: 'en' });
+  assert.equal(alta.mode, 'overhead');
+  assert.match(alta.shortText, /Overhead/i);
+
+  // Oslo at Kp 2 (no MLT boost) -> low/mid Northern horizon
+  const osloQuiet = api.computeViewingGeometry({ lat: 59.91, lon: 10.75, kp: 2, mlt: 12, lang: 'zh' });
+  assert.ok(osloQuiet.mode === 'low' || osloQuiet.mode === 'mid', `Expected Oslo low/mid, got ${osloQuiet.mode}`);
+  assert.match(osloQuiet.shortText, /正北方/);
+
+  // Hobart during G1 storm (Kp 5) -> Southern horizon or overhead near midnight
+  const hobartG1 = api.computeViewingGeometry({ lat: -42.88, lon: 147.33, kp: 5, mlt: 0.5, lang: 'en' });
+  assert.equal(hobartG1.direction, 'South');
+  assert.notEqual(hobartG1.mode, 'below');
+
+  // Longyearbyen (polar cap) during strong storm (Kp 6) -> oval shifted southward
+  const svalbard = api.computeViewingGeometry({ lat: 78.22, lon: 15.63, kp: 6, mlt: 0.5, lang: 'zh' });
+  assert.equal(svalbard.mode, 'overhead-eq');
+  assert.match(svalbard.shortText, /正南方/);
+
+  // Taipei at quiet Kp -> below horizon
+  const taipei = api.computeViewingGeometry({ lat: 25.03, lon: 121.57, kp: 1, mlt: 0.5, lang: 'en' });
+  assert.equal(taipei.mode, 'below');
+});
+
+test('17. Shareable city URL parser and builder validate coordinates, sanitize names, and round-trip cleanly', () => {
+  const built = api.buildShareUrl(
+    'https://peteryux.github.io/nordic-aurora-radar/?lat=1&lon=2&lang=zh',
+    { name: '挪威・Tromsø', nameEn: 'Norway · Tromsø', lat: 69.6492, lon: 18.9553 },
+    'en'
+  );
+  const parsed = api.parseUrlLocation(new URL(built).search);
+  assert.ok(parsed);
+  assert.equal(parsed.lat, 69.6492);
+  assert.equal(parsed.lon, 18.9553);
+  assert.equal(parsed.name, 'Norway · Tromsø');
+
+  // Reject out-of-range coordinates & strip dangerous characters
+  assert.equal(api.parseUrlLocation('?lat=999&lon=10'), null);
+  assert.equal(api.parseUrlLocation('?lat=abc&lon=10'), null);
+  const xss = api.parseUrlLocation('?lat=64.1466&lon=-21.9426&name=%3Cscript%3EReykjavik%3C/script%3E');
+  assert.ok(xss && !xss.name.includes('<') && !xss.name.includes('>'));
+});
+
+test('18. Sub-auroral 12h forecast has zero +1h/+2h ghost score spikes when Kp is below storm threshold', () => {
+  const baseMs = Date.parse('2026-11-23T22:00:00Z');
+  const hrs = Array.from({ length: 6 }, (_, i) => ({
+    time: `${String((23 + i) % 24).padStart(2, '0')}:00`,
+    dtMs: baseMs + i * 3600000,
+    block: 5, clear: 95, txt: '🌟 晴', temp: 2, windMs: 2, windChill: 0, isDay: false, sunAlt: -30
+  }));
+  // Stockholm, Edinburgh, and Hobart at quiet Kp=1.0, ovation=0 -> every hour must stay strictly 0 (no +1h/+2h false positive!)
+  for (const [name, lat, lon] of [['Stockholm', 59.33, 18.07], ['Edinburgh', 55.95, -3.19], ['Hobart', -42.88, 147.33]]) {
+    const res = api.scoreHourlyForecast12(hrs, {
+      lat, lon, kpForecast: [], fallbackKp: 1.0, ovation: 0, hpiGw: 12, bz: 1.0, speed: 350, newell: 200
+    });
+    for (let i = 0; i < res.hours.length; i++) {
+      assert.equal(res.hours[i].score, 0, `${name} hour +${i}h should be 0 at Kp 1.0, got ${res.hours[i].score}`);
+    }
+  }
+  // Oslo at quiet Kp=1.0 must not spike at +1h/+2h relative to +0h
+  const oslo = api.scoreHourlyForecast12(hrs, {
+    lat: 59.91, lon: 10.75, kpForecast: [], fallbackKp: 1.0, ovation: 0, hpiGw: 12, bz: 1.0, speed: 350, newell: 200
+  });
+  assert.ok(oslo.hours[1].score <= oslo.hours[0].score, `Oslo +1h (${oslo.hours[1].score}) must not spike above +0h (${oslo.hours[0].score})`);
+});
+

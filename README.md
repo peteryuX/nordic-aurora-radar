@@ -17,19 +17,19 @@ Supports **Traditional Chinese (`繁體中文`)** and **English** with instant o
 
 ## ✨ Key Features｜主要功能
 
-- **🌌 Live Sky & 0–100 Viewing Score（即時天空實況與觀測指數）**
-  - Dynamic SVG live sky scene with clear-sky %, aurora activity, and sky darkness breakdown.
-  - Analytical solar twilight (`< -4°` ramp to `< -12°` dark) and ELP lunar phase / topocentric elevation modeling.
-- **⚡ 2-Hour Solar Wind Energy & Ballistic L1 ETA（過去 2 小時太陽風能量與到達地球倒數）**
-  - Direct **NOAA SWPC** 1-minute real-time solar wind (IMF $B_z$, $B_y$, speed, density) with **Newell magnetopause coupling**, L1-to-Earth propagation ETA split ("reaching Earth now" vs "incoming"), **GOES magnetometer substorm onset**, and CME dynamic pressure shock detection.
+- **🌌 Live Sky, 0–99 Viewing Score & Viewing Elevation Angle（即時天空實況、觀測指數與仰角指引）**
+  - Dynamic SVG live sky scene with Clear Sky %, Aurora Activity, and Sky Darkness breakdown.
+  - Analytical solar twilight (`< -4°` ramp to `< -12°` dark), ELP lunar phase / topocentric elevation modeling, and **spherical-Earth viewing elevation geometry** (distinguishing overhead aurora vs mid/low horizon elevation angles).
+- **⚡ Solar Wind Energy & Earth-Arrival Timeline（太陽風能量走勢與到達地球時間軸）**
+  - Direct **NOAA SWPC** 1-minute real-time solar wind (IMF $B_z$, $B_y$, speed, density) with **Newell magnetopause coupling**, X-axis shifted directly to **estimated Earth-arrival local time** (uniform 30-min `:00`/`:30` ticks), **GOES magnetometer substorm onset**, and CME dynamic pressure shock detection.
 - **🌤️ 12-Hour Interactive Clear-Sky + Aurora Forecast（未來 12 小時晴空與極光預報）**
-  - Tap any hour to inspect clear-sky %, temperature & wind chill, moonlight interference, and NOAA 72h Kp forecast.
+  - Uniform 2-hour `HH:00` timeline ticks; tap any hour to inspect clear-sky %, temperature & wind chill, moonlight interference, and NOAA 72h Kp forecast.
 - **🧭 360° Land-Safe Sky Radar（360° 周邊晴空雷達）**
   - Verified land-safe Nordic chase corridors + Open-Meteo elevation sea-filter outside presets, with one-tap Google Maps driving navigation to clearer skies.
 - **🛰️ Live Cloud Map & Arctic Observatory All-Sky Cameras（即時動態雲圖與北歐天文台全天空相機）**
   - Embedded **Windy** live animated cloud map, **NOAA OVATION** Northern/Southern Hemisphere aurora oval, and ~1-minute live all-sky cameras from **UiT Skibotn (Norway)**, **IRF Kiruna (Sweden)**, and **SGO Sodankylä (Finland)**.
-- **📱 Mobile-Ready Chase Toolkit（行動追光工具）**
-  - GPS geolocation & global city search, native Web Share / clipboard summary sharing, audio + vibration aurora alert mode (with Screen Wake Lock), 6-hour offline cache fallback, and dynamic moon-aware smartphone photography guide.
+- **📱 Mobile-Ready Chase Toolkit & Transparency（行動追光工具與指標說明）**
+  - GPS geolocation, global city search, **shareable city links (`?lat=...&lon=...&name=...&lang=...`)**, native Web Share / clipboard summary sharing, audio + vibration aurora alert mode (with Screen Wake Lock), 6-hour offline cache fallback, dynamic moon- & elevation-aware smartphone photography guide, and a built-in **Live Observation vs Model Forecast** glossary.
 
 ---
 
@@ -38,8 +38,8 @@ Supports **Traditional Chinese (`繁體中文`)** and **English** with instant o
 Unlike simple Kp-only apps, Nordic Aurora Radar combines space-weather physics, local layered cloud occlusion, and astronomical geometry:
 
 1. **Layered Cloud Occlusion**: Uses random-overlap attenuation `1 - (1 - low)(1 - mid)(1 - 0.30 × high)(1 - fog)` from official **MET Norway 2.5 km** forecasts inside the Nordics (auto-fallback to **Open-Meteo** globally), so thin high cirrus doesn't falsely trigger an overcast alert.
-2. **Geomagnetic & Solar Wind Fusion**: Computes **IGRF-14** dipole geomagnetic latitude and **Magnetic Local Time (MLT)** oval shift, fuses **NOAA OVATION** local probability, **Hemispheric Power Index (GW)**, and **1-minute Kp** without double-counting, then applies ballistic **Newell coupling** ($d\Phi/dt = v^{4/3} B_T^{2/3} \sin^{8/3}(\theta/2)$), **GOES substorm dipolarization**, and solar-wind dynamic pressure ($P_{\text{dyn}}$).
-3. **Hard Physical Gates**: Automatically suppresses false positives during daylight/bright twilight (`sunAlt >= -4°`) or below auroral latitudes when geomagnetic activity cannot reach the horizon.
+2. **Geomagnetic & Solar Wind Fusion**: Computes **IGRF-14 / AACGM-aligned** geomagnetic latitude (including eccentric Southern Hemisphere auroral pole calibration for Tasmania/New Zealand) and **Magnetic Local Time (MLT)** oval shift, fuses **NOAA OVATION** local probability, **Hemispheric Power Index (GW)**, and **1-minute Kp** (filtering provisional trailing `0Z` placeholders) without double-counting, then applies ballistic **Newell coupling** ($d\Phi/dt = v^{4/3} B_T^{2/3} \sin^{8/3}(\theta/2)$), **GOES substorm dipolarization**, and solar-wind dynamic pressure ($P_{\text{dyn}}$).
+3. **Hard Physical Gates & 50-City Global Calibration**: Automatically suppresses false positives during daylight/bright twilight (`sunAlt >= -4°`) or below auroral latitudes when geomagnetic activity cannot reach the horizon, while verifying zero G1/G4 storm false negatives across 50 global cities in [`tests/aurora.test.mjs`](tests/aurora.test.mjs).
 
 ---
 

@@ -104,22 +104,22 @@
       box-shadow: 0 14px 36px rgba(0, 0, 0, 0.42);
     }
     .sky-stage {
-      position: relative; width: 100%; height: 244px; overflow: hidden;
+      position: relative; width: 100%; min-height: 244px; height: auto; overflow: hidden;
       background: linear-gradient(180deg, #061326 0%, #0d2542 70%, #122844 100%);
     }
-    .sky-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    .sky-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
     .sky-overlay {
-      position: absolute; inset: 0; padding: 14px 16px;
+      position: relative; z-index: 1; min-height: 244px; padding: 16px;
       display: flex; align-items: center; justify-content: space-between; gap: 14px;
-      background: linear-gradient(90deg, rgba(5,12,23,0.74) 0%, rgba(5,12,23,0.28) 55%, rgba(5,12,23,0.68) 100%);
+      background: linear-gradient(90deg, rgba(5,12,23,0.76) 0%, rgba(5,12,23,0.32) 55%, rgba(5,12,23,0.68) 100%);
     }
     .sky-text { flex: 1; min-width: 0; }
     .sky-tag {
       display: inline-block; padding: 3px 9px; border-radius: 99px; font-size: 0.75rem; font-weight: 800;
       background: rgba(6,14,26,0.75); border: 1px solid var(--border-strong); margin-bottom: 6px;
     }
-    .sky-title { margin: 0 0 5px; font-size: 1.24rem; font-weight: 900; line-height: 1.26; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
-    .sky-lead { margin: 0; font-size: 0.85rem; color: #e2eefc; text-shadow: 0 1px 6px rgba(0,0,0,0.85); }
+    .sky-title { margin: 0 0 6px; font-size: 1.2rem; font-weight: 900; line-height: 1.28; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
+    .sky-lead { margin: 0; font-size: 0.84rem; line-height: 1.48; color: #e2eefc; text-shadow: 0 1px 6px rgba(0,0,0,0.85); }
 
     .ring-wrap { position: relative; width: 126px; height: 126px; flex-shrink: 0; }
     .ring-svg { width: 126px; height: 126px; transform: rotate(-90deg); overflow: visible; }
@@ -136,7 +136,7 @@
     }
     .ring-num { font-size: 2rem; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
     .ring-sub { font-size: 0.68rem; color: var(--muted); font-weight: 700; margin-top: 2px; }
-    .ring-grade { margin-top: 3px; font-size: 0.72rem; font-weight: 800; }
+    .ring-grade { margin-top: 3px; font-size: 0.68rem; font-weight: 800; white-space: nowrap; max-width: 96px; text-align: center; }
 
     @keyframes auroraWave {
       0%, 100% { transform: translateX(0px) scaleY(1); opacity: 0.85; }
@@ -256,6 +256,19 @@
     }
     .hr-detail strong { color: var(--green); }
     .hr-legend { margin-top: 6px; font-size: 0.72rem; color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+    .glossary summary {
+      cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between;
+      font-size: 0.96rem; font-weight: 900; color: var(--text); user-select: none;
+    }
+    .glossary summary::-webkit-details-marker { display: none; }
+    .glossary summary::after { content: '▾'; color: var(--muted); font-size: 0.9rem; transition: transform 0.15s ease; }
+    .glossary[open] summary::after { transform: rotate(180deg); }
+    .glossary-body { margin-top: 10px; font-size: 0.78rem; color: var(--muted); line-height: 1.62; border-top: 1px solid var(--border); padding-top: 10px; }
+    .gl-group { font-weight: 800; color: #dbeeff; margin: 8px 0 4px; font-size: 0.8rem; }
+    .gl-group:first-child { margin-top: 0; }
+    .gl-badge { display: inline-block; padding: 1px 6px; border-radius: 6px; font-size: 0.68rem; font-weight: 800; margin-right: 4px; vertical-align: middle; }
+    .gl-obs { background: var(--green-bg); color: var(--green); border: 1px solid rgba(52,240,176,0.35); }
+    .gl-mod { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(102,189,255,0.35); }
   </style>
 </head>
 <body>
@@ -287,14 +300,14 @@
 
       <div id="picker" class="picker">
         <div class="chips" id="presetChips">
-          <button class="chip on" type="button" onclick="pickPreset('挪威・Alta', 'Norway · Alta', 69.9689, 23.2716, this)">Alta</button>
-          <button class="chip" type="button" onclick="pickPreset('挪威・Tromsø', 'Norway · Tromsø', 69.6492, 18.9553, this)">Tromsø</button>
-          <button class="chip" type="button" onclick="pickPreset('挪威・Lofoten', 'Norway · Lofoten', 68.2342, 14.5683, this)">Lofoten</button>
-          <button class="chip" type="button" onclick="pickPreset('挪威・Senja', 'Norway · Senja', 69.3470, 17.4820, this)">Senja</button>
-          <button class="chip" type="button" onclick="pickPreset('挪威・Narvik', 'Norway · Narvik', 68.4385, 17.4273, this)">Narvik</button>
-          <button class="chip" type="button" onclick="pickPreset('瑞典・Abisko', 'Sweden · Abisko', 68.3495, 18.8312, this)">Abisko</button>
-          <button class="chip" type="button" onclick="pickPreset('挪威・Kirkenes', 'Norway · Kirkenes', 69.7271, 30.0458, this)">Kirkenes</button>
-          <button class="chip" type="button" onclick="pickPreset('芬蘭・Rovaniemi', 'Finland · Rovaniemi', 66.5039, 25.7294, this)">Rovaniemi</button>
+          <button class="chip on" type="button" data-lat="69.9689" data-lon="23.2716" onclick="pickPreset('挪威・Alta', 'Norway · Alta', 69.9689, 23.2716, this)">Alta</button>
+          <button class="chip" type="button" data-lat="69.6492" data-lon="18.9553" onclick="pickPreset('挪威・Tromsø', 'Norway · Tromsø', 69.6492, 18.9553, this)">Tromsø</button>
+          <button class="chip" type="button" data-lat="68.2342" data-lon="14.5683" onclick="pickPreset('挪威・Lofoten', 'Norway · Lofoten', 68.2342, 14.5683, this)">Lofoten</button>
+          <button class="chip" type="button" data-lat="69.3470" data-lon="17.4820" onclick="pickPreset('挪威・Senja', 'Norway · Senja', 69.3470, 17.4820, this)">Senja</button>
+          <button class="chip" type="button" data-lat="68.4385" data-lon="17.4273" onclick="pickPreset('挪威・Narvik', 'Norway · Narvik', 68.4385, 17.4273, this)">Narvik</button>
+          <button class="chip" type="button" data-lat="68.3495" data-lon="18.8312" onclick="pickPreset('瑞典・Abisko', 'Sweden · Abisko', 68.3495, 18.8312, this)">Abisko</button>
+          <button class="chip" type="button" data-lat="69.7271" data-lon="30.0458" onclick="pickPreset('挪威・Kirkenes', 'Norway · Kirkenes', 69.7271, 30.0458, this)">Kirkenes</button>
+          <button class="chip" type="button" data-lat="66.5039" data-lon="25.7294" onclick="pickPreset('芬蘭・Rovaniemi', 'Finland · Rovaniemi', 66.5039, 25.7294, this)">Rovaniemi</button>
         </div>
         <form class="search-row" onsubmit="searchCity(event)">
           <input id="cityInput" type="text" placeholder="輸入英文地名（例：Kautokeino, Oslo, Reykjavik）" />
@@ -453,7 +466,15 @@
           <a id="linkTgo" class="btn btn-blue" target="_blank" rel="noopener" href="https://flux.phys.uit.no/Last24/">📈 挪威即時地磁站</a>
           <a id="linkNoaa" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/planetary-k-index">🌌 NOAA Kp 指數</a>
           <a id="linkSolarWind" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/solar-wind">⚡ NOAA 太陽風</a>
+          <a id="linkGfz" class="btn btn-blue" target="_blank" rel="noopener" href="https://kp.gfz.de/en/hp30-hp60">📊 GFZ Hp30 指數</a>
         </div>
+      </div>
+
+      <div class="card">
+        <details class="glossary" id="glossaryCard">
+          <summary id="h2Glossary">📖 指標說明與資料性質（實測 vs 模型）</summary>
+          <div id="glossaryBody" class="glossary-body"></div>
+        </details>
       </div>
 
       <div class="card" style="font-size:0.78rem; color:var(--muted); line-height:1.6;">
@@ -512,10 +533,10 @@
     function tGrade(zhGrade, lang) {
       if (!isEn(lang)) return zhGrade;
       const map = {
-        '🌏 緯度過低': '🌏 Low Latitude', '🌍 極光帶偏北': '🌍 Oval North', '🌍 極光帶偏南': '🌍 Oval South',
-        '☀️ 天色過亮': '☀️ Too Bright', '🌟 極佳條件': '🌟 Prime Conditions',
-        '🟢 適合觀測': '🟢 Good Conditions', '✨ 有機會看見': '✨ Fair Chance',
-        '🌌 晴朗但極光弱': '🌌 Clear · Quiet', '☁️ 雲層過厚': '☁️ Too Cloudy'
+        '🌏 緯度過低': '🌏 Low Lat', '🌍 極光帶偏北': '🌍 Oval North', '🌍 極光帶偏南': '🌍 Oval South',
+        '☀️ 天色過亮': '☀️ Too Bright', '🌟 極佳條件': '🌟 Prime',
+        '🟢 適合觀測': '🟢 Good', '✨ 有機會看見': '✨ Fair',
+        '🌌 晴朗但極光弱': '🌌 Quiet', '☁️ 雲層過厚': '☁️ Cloudy'
       };
       return map[zhGrade] || zhGrade;
     }
@@ -704,6 +725,89 @@
       return Math.min(9.0, +(6.0 + (54.2 - absMagLat) / 6.5).toFixed(1));
     }
 
+    // Spherical-Earth aurora viewing elevation geometry (Re=6371 km, green base h=120 km, upper rays h=200 km)
+    function computeViewingGeometry({ lat = 69.97, lon = 23.27, kp = 0, mlt = null, lang } = {}) {
+      const en = isEn(lang);
+      const curKp = (kp !== null && Number.isFinite(kp)) ? Math.max(0, Math.min(9, kp)) : 0;
+      const absMag = Math.abs(computeGeomagneticLat(lat, lon));
+      const mltShift = (mlt !== null && Number.isFinite(mlt)) ? (2.0 * Math.cos((mlt - 0.5) * Math.PI / 12)) : 0;
+      const ovalEdge = Math.max(44, 66.5 - 2.04 * curKp - mltShift);
+      const deltaDeg = ovalEdge - absMag;
+      const poleDir = lat >= 0 ? (en ? 'North' : '正北方') : (en ? 'South' : '正南方');
+      const eqDir = lat >= 0 ? (en ? 'South' : '正南方') : (en ? 'North' : '正北方');
+
+      if (absMag > 74 && curKp >= 4) {
+        return {
+          mode: 'overhead-eq', elevGreenDeg: 65, elevUpperDeg: 80, direction: eqDir,
+          shortText: en ? `Overhead to ${eqDir} (expanded oval)` : `頭頂偏${eqDir}高空（極光帶擴張）`
+        };
+      }
+      if (deltaDeg <= 0.5) {
+        return {
+          mode: 'overhead', elevGreenDeg: 90, elevUpperDeg: 90, direction: poleDir,
+          shortText: en ? `Overhead & across the sky (start facing ${poleDir})` : `頭頂與全天空（可先朝${poleDir}觀察）`
+        };
+      }
+      const Re = 6371;
+      const distKm = deltaDeg * 111.32;
+      const psi = distKm / Re;
+      const elevAt = h => Math.atan2((Re + h) * Math.cos(psi) - Re, (Re + h) * Math.sin(psi)) * 180 / Math.PI;
+      const elevGreen = elevAt(120);
+      const elevUpper = elevAt(200);
+      const lo = Math.max(3, Math.round(elevGreen));
+      const hi = Math.min(85, Math.max(lo + 4, Math.round(elevUpper)));
+      if (elevGreen >= 18) {
+        return {
+          mode: 'mid', elevGreenDeg: +elevGreen.toFixed(1), elevUpperDeg: +elevUpper.toFixed(1), direction: poleDir,
+          shortText: en ? `Face ${poleDir} (~${lo}°–${hi}° elevation)` : `朝${poleDir}仰角約 ${lo}°–${hi}°`
+        };
+      }
+      if (elevUpper >= 5) {
+        return {
+          mode: 'low', elevGreenDeg: +elevGreen.toFixed(1), elevUpperDeg: +elevUpper.toFixed(1), direction: poleDir,
+          shortText: en ? `Low on ${poleDir} horizon (~${lo}°–${hi}°, unobstructed view & camera help)` : `朝${poleDir}低空約 ${lo}°–${hi}°（建議無遮蔽地平線＋手機夜拍）`
+        };
+      }
+      return {
+        mode: 'below', elevGreenDeg: +elevGreen.toFixed(1), elevUpperDeg: +elevUpper.toFixed(1), direction: poleDir,
+        shortText: en ? `Below the ${poleDir} horizon right now` : `目前位於${poleDir}地平線以下`
+      };
+    }
+
+    // Parse & validate shareable URL location params (?lat=...&lon=...&name=...&tz=...)
+    function parseUrlLocation(searchStr) {
+      if (!searchStr || typeof searchStr !== 'string') return null;
+      try {
+        const sp = new URLSearchParams(searchStr);
+        if (!sp.has('lat') || !sp.has('lon')) return null;
+        const lat = parseFloat(sp.get('lat'));
+        const lon = parseFloat(sp.get('lon'));
+        if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+        const rawName = (sp.get('name') || '').replace(/[\r\n\t<>]/g, '').trim().slice(0, 60);
+        const fallbackName = `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lon).toFixed(2)}°${lon >= 0 ? 'E' : 'W'}`;
+        const name = rawName || fallbackName;
+        let tz = (sp.get('tz') || 'auto').trim();
+        if (tz !== 'auto') {
+          try { new Intl.DateTimeFormat('en-CA', { timeZone: tz }); } catch (e) { tz = 'auto'; }
+        }
+        return { name, nameEn: name, lat: +lat.toFixed(4), lon: +lon.toFixed(4), tz, mode: 'manual', accuracy: null };
+      } catch (e) { return null; }
+    }
+
+    function buildShareUrl(baseHref, pos, lang) {
+      try {
+        const u = new URL(baseHref);
+        if (pos && Number.isFinite(pos.lat) && Number.isFinite(pos.lon)) {
+          u.searchParams.set('lat', pos.lat.toFixed(4));
+          u.searchParams.set('lon', pos.lon.toFixed(4));
+          const displayName = isEn(lang) ? (pos.nameEn || pos.name) : pos.name;
+          if (displayName) u.searchParams.set('name', displayName);
+        }
+        if (lang === 'en' || lang === 'zh') u.searchParams.set('lang', lang);
+        return u.toString();
+      } catch (e) { return baseHref; }
+    }
+
     function computeL1EtaMin(speed) {
       if (!Number.isFinite(speed) || speed < 200 || speed > 1500) return 45;
       return Math.max(18, Math.min(95, Math.round(1440000 / (speed * 60))));
@@ -865,7 +969,7 @@
       const curHpi = (hpiGw !== null && Number.isFinite(hpiGw)) ? hpiGw : null;
 
       // Hard physical gate 2: Mid-lat (e.g. Oslo, Hokkaido, Hobart) where Kp & OVATION cannot reach (at night, or below 45° magLat)
-      if (!(isTooBright && absMag >= 45) && neededKp >= 3 && (curKp + 0.8) < neededKp && (curOv ?? 0) < 5) {
+      if (!(isTooBright && absMag >= 45) && neededKp >= 2.5 && (curKp + 0.8) < neededKp && (curOv ?? 0) < 5) {
         return {
           total: 0, skyScore, auroraScore: 0, darkScore, isTooBright,
           magLat: Math.round(absMag), neededKp, outOfZone: 'need-storm',
@@ -885,7 +989,7 @@
           baseAur = 0.78 * curOv + 0.22 * globalScore;
         } else if (neededKp > 1.5) {
           const marginScore = Math.max(0, Math.min(100, (curKp - neededKp + 1.5) * 18));
-          baseAur = 0.65 * curOv + 0.35 * marginScore;
+          baseAur = 0.50 * curOv + 0.50 * marginScore;
         } else {
           baseAur = 0.52 * curOv + 0.48 * globalScore;
         }
@@ -1152,6 +1256,7 @@
     // Score ALL 12 hours combining cloud, sun/moon elevation, dipole MLT, live solar wind (decayed after +2h), and NOAA 72h Kp forecast!
     function scoreHourlyForecast12(hrs, { lat = 69.97, lon = 23.27, kpForecast = [], fallbackKp = 0, ovation = null, hpiGw = null, bz = 0, speed = 400, newell = null, substormJumpNt = 0, pdyn = null, shockJumpNpa = 0 }) {
       if (!Array.isArray(hrs) || !hrs.length) return { hours: [], bestAurora: null };
+      const absMag = Math.abs(computeGeomagneticLat(lat, lon));
       const hours = hrs.map((h, i) => {
         const dt = new Date(h.dtMs || (Date.now() + i * 3600000));
         const moonH = getMoonState(dt, lat, lon);
@@ -1162,10 +1267,16 @@
         const bzH = liveW > 0 && Number.isFinite(bz) ? bz * liveW : 0;
         const spdH = liveW > 0 && Number.isFinite(speed) ? Math.round(speed * liveW + 400 * (1 - liveW)) : 400;
         const nwH = liveW > 0 && Number.isFinite(newell) ? Math.round(newell * liveW + 1500 * (1 - liveW)) : null;
+        const mltShiftH = 2.0 * Math.cos((mltH - 0.5) * Math.PI / 12);
+        const neededKpH = requiredKpForMagLat(absMag + mltShiftH);
+        const estOvFc = neededKpH > 1.5
+          ? Math.max(0, Math.min(95, (kpFc - neededKpH + 1.5) * 18))
+          : Math.min(95, kpFc * 15);
+        const ovH = liveW > 0 && ovation !== null ? Math.round(ovation * liveW + estOvFc * (1 - liveW)) : null;
         const scH = computeAuroraScore({
           lat, lon, cloudNow: h.block, sunAlt: h.sunAlt,
           bz: bzH, speed: spdH, kp: kpFc,
-          ovation: liveW > 0 && ovation !== null ? Math.round(ovation * liveW + Math.min(95, kpFc * 15) * (1 - liveW)) : null,
+          ovation: ovH,
           hpiGw: liveW > 0 ? hpiGw : null,
           newell: nwH,
           substormJumpNt: liveW > 0 ? Math.round((substormJumpNt || 0) * liveW) : 0,
@@ -1195,9 +1306,16 @@
     }
 
     // Strictly monotonic, 100% consistent with scoreObj.total (0% contradictions!)
-    function evaluateVerdict({ lat = 69.97, bestDark, kp, scoreObj, lang }) {
+    function evaluateVerdict({ lat = 69.97, lon = 23.27, bestDark, kp, mlt = null, scoreObj, lang }) {
       const en = isEn(lang);
       const lookDir = lat >= 0 ? (en ? 'North' : '正北方') : (en ? 'South' : '正南方');
+      const geom = computeViewingGeometry({ lat, lon, kp, mlt, lang });
+      const viewCueZh = geom.mode === 'overhead' || geom.mode === 'overhead-eq' || geom.mode === 'mid' || geom.mode === 'low'
+        ? `視野方向：${geom.shortText}。`
+        : `建議朝${lookDir}開闊處觀測。`;
+      const viewCueEn = geom.mode === 'overhead' || geom.mode === 'overhead-eq' || geom.mode === 'mid' || geom.mode === 'low'
+        ? `Look: ${geom.shortText}.`
+        : `Face ${lookDir} with an open horizon.`;
       if (scoreObj?.outOfZone === 'low-lat') {
         return en
           ? { kicker: '🌏 Low Latitude', title: 'Outside the auroral zone — try a high-latitude spot', lead: `Geomagnetic latitude here is ${scoreObj.magLat}° (auroras primarily occur above 60°). Tap "🗺️ Location" above to view Arctic forecasts.` }
@@ -1216,13 +1334,13 @@
       }
       if (scoreObj.total >= 65) {
         return en
-          ? { kicker: '🌟 Prime Conditions', title: 'Clear skies and active aurora — head out now!', lead: `Strong viewing conditions! Dress warm, step away from light pollution, and face ${lookDir}.` }
-          : { kicker: '🌟 極佳條件', title: '晴空且極光活躍，現在最適合出門觀測！', lead: `雲量少且極光能量充足，建議避開光害、朝${lookDir}視野開闊處觀賞。` };
+          ? { kicker: '🌟 Prime Conditions', title: 'Clear skies and active aurora — head out now!', lead: `Strong viewing conditions! Step away from light pollution. ${viewCueEn}` }
+          : { kicker: '🌟 極佳條件', title: '晴空且極光活躍，現在最適合出門觀測！', lead: `雲量少且極光能量充足，建議避開光害。${viewCueZh}` };
       }
       if (scoreObj.total >= 40) {
         return en
-          ? { kicker: '🟢 Good Conditions', title: 'Favorable viewing conditions — worth heading out', lead: `Clear sky openings with active aurora — find a dark open view facing ${lookDir}.` }
-          : { kicker: '🟢 適合觀測', title: '條件不錯，建議穿暖前往暗處觀測', lead: `天空有晴空空檔且極光活躍，朝${lookDir}開闊處很有機會看見。` };
+          ? { kicker: '🟢 Good Conditions', title: 'Favorable viewing conditions — worth heading out', lead: `Clear sky openings with active aurora — dress warm. ${viewCueEn}` }
+          : { kicker: '🟢 適合觀測', title: '條件不錯，建議穿暖前往暗處觀測', lead: `天空有晴空空檔且極光活躍。${viewCueZh}` };
       }
       if (scoreObj.total >= 18) {
         return en
@@ -1230,15 +1348,15 @@
               kicker: '✨ Fair Chance',
               title: scoreObj.skyScore >= 55 ? 'Clear skies — worth keeping watch' : 'Cloud gaps opening — watch the sky',
               lead: scoreObj.auroraScore >= 45
-                ? `Aurora activity is building — check cloud gaps toward the ${lookDir}.`
-                : `Skies are fairly clear while solar wind is quiet; faint arcs can still appear unexpectedly.`
+                ? `Aurora activity is building — check cloud gaps. ${viewCueEn}`
+                : `Skies are fairly clear while solar wind is quiet; faint arcs can appear. ${viewCueEn}`
             }
           : {
               kicker: '✨ 有機會看見',
               title: scoreObj.skyScore >= 55 ? '天空偏晴，可留意微弱極光' : '雲層出現空檔，可留意天空變化',
               lead: scoreObj.auroraScore >= 45
-                ? `極光活動正在增強，可朝${lookDir}留意雲縫間是否出現綠光。`
-                : `晴空條件不錯，但目前太陽風較平靜，仍可能出現微弱極光帶。`
+                ? `極光活動正在增強，留意雲縫間是否出現綠光。${viewCueZh}`
+                : `晴空條件不錯，太陽風雖平靜仍可能出現微弱極光帶。${viewCueZh}`
             };
       }
       if (scoreObj.auroraScore >= 55 && scoreObj.skyScore < 35) {
@@ -1534,9 +1652,10 @@
         const tempLbl = showTick ? `<text x="${x.toFixed(1)}" y="${H - 8}" text-anchor="middle" fill="#89a6c8" font-size="10">${tInt > 0 ? '+' : ''}${tInt}°</text>` : '';
         const badgeVal = Number.isFinite(h.score) && h.score > 0 ? (en ? `${h.score}` : `${h.score}分`) : `${h.clear}%`;
         const star = isBest ? `<text x="${Math.min(W - 36, Math.max(padL + 28, x)).toFixed(1)}" y="${Math.max(15, y - 11).toFixed(1)}" text-anchor="middle" fill="#34f0b0" font-size="11.5" font-weight="900">⭐ ${badgeVal}</text>` : '';
+        const selLine = isSel ? `<line x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(255,255,255,0.34)" stroke-dasharray="2 3" stroke-width="1.2"/>` : '';
         const selRing = isSel ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="8" fill="none" stroke="#ffffff" stroke-width="1.6" opacity="0.92"/>` : '';
         const hitRect = `<rect x="${(x - stepW/2).toFixed(1)}" y="${padT}" width="${stepW.toFixed(1)}" height="${plotH + 34}" fill="transparent" style="cursor:pointer;" onclick="selectForecastHour(${i})"/>`;
-        return `${star}${selRing}<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${isBest || isSel ? 5.5 : 3.8}" fill="${c}" stroke="#050c17" stroke-width="1.6"/>${lbl}${tempLbl}${hitRect}`;
+        return `${selLine}${star}${selRing}<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${isBest || isSel ? 5.5 : 3.8}" fill="${c}" stroke="#050c17" stroke-width="1.6"/>${lbl}${tempLbl}${hitRect}`;
       }).join('');
 
       return `
@@ -1619,7 +1738,8 @@
         detectDefaultLang, setLang, isEn, tSky, tDirLabel, tGrade,
         isInNordicMetBox, computeCompassPoints, getZoneParts, formatReverseGeo,
         computeSolarElevation, getMoonState, computeEffectiveCloud,
-        computeGeomagneticLat, requiredKpForMagLat, computeL1EtaMin,
+        computeGeomagneticLat, requiredKpForMagLat, computeViewingGeometry,
+        parseUrlLocation, buildShareUrl, computeL1EtaMin,
         computeMLT, computeNewellCoupling, computeDynamicPressure, detectPressureShock,
         computeWindChill, computeDataLagMin, newellToEnergy, computeBallisticCoupling,
         computeAuroraScore, parseMagSeries, parseWindSeries, parseLatestActiveWind,
@@ -1728,20 +1848,42 @@
       setT('linkTgo', '📈 挪威即時地磁站', '📈 UiT Magnetometer');
       setT('linkNoaa', '🌌 NOAA Kp 指數', '🌌 NOAA Kp Index');
       setT('linkSolarWind', '⚡ NOAA 太陽風', '⚡ NOAA Solar Wind');
+      setT('linkGfz', '📊 GFZ Hp30 指數', '📊 GFZ Hp30 Index');
+      setT('h2Glossary', '📖 指標說明與資料性質（實測 vs 模型）', '📖 Metrics & Data Guide (Live vs Model)');
       setT('h2Legal', '⚖️ 資料授權與安全免責聲明', '⚖️ Data Attribution & Safety Disclaimer');
       setT('navHome', '即時總覽', 'Overview');
       setT('navDir', '晴空雷達', 'Sky Radar');
       setT('navSat', '動態雲圖', 'Live Map');
       setT('navTips', '拍照/工具', 'Photo & Info');
+      const gb = document.getElementById('glossaryBody');
+      if (gb) {
+        gb.innerHTML = en
+          ? `<div class="gl-group"><span class="gl-badge gl-obs">LIVE OBS</span> Real-Time Satellite & Ground Telemetry</div>` +
+            `• <strong>L1 Solar Wind (Bz / Speed / Pressure)</strong>: Direct measurements ~1.5M km sunward; reaches Earth in ~30–60 min. Sustained negative <strong>Bz</strong> (southward) drives aurora.<br/>` +
+            `• <strong>Global Kp (1-min est.)</strong>: Real-time planetary geomagnetic disturbance index (0–9). High-latitude oval spots can see aurora even at Kp 0–2.<br/>` +
+            `• <strong>GOES Magnetometer & All-Sky Cams</strong>: Live geostationary substorm onset detection and real Arctic observatory sky photos.<br/>` +
+            `<div class="gl-group"><span class="gl-badge gl-mod">MODEL</span> Forecasts & Composite Indicators</div>` +
+            `• <strong>NOAA OVATION %</strong>: Model probability of aurora <em>directly overhead</em>. Low-horizon aurora can still be visible 500–800 km equatorward when overhead % is low.<br/>` +
+            `• <strong>Clear Sky % (Yr.no / Open-Meteo)</strong>: Layered numerical cloud forecast weighting low/mid clouds & fog heavily (high thin cirrus = 30% occlusion).<br/>` +
+            `• <strong>Viewing Score (0–99)</strong>: This app's composite index combining Clear Sky %, Aurora Activity, and Sky Darkness (sun twilight & lunar elevation).`
+          : `<div class="gl-group"><span class="gl-badge gl-obs">即時實測</span> 衛星與地面天文台實測資料</div>` +
+            `• <strong>L1 衛星太陽風（Bz／風速／動壓）</strong>：距地球約 150 萬公里處實測，約 30–60 分鐘後抵達地球。<strong>Bz 持續為負（南向）</strong>最容易觸發極光。<br/>` +
+            `• <strong>全球 Kp（1 分鐘即時估計）</strong>：全球地磁擾動指標（0–9）。位於極光帶內的城市即使 Kp 0–2 仍有機會看見極光。<br/>` +
+            `• <strong>GOES 磁力儀與全天空相機</strong>：地球同步軌道副磁暴偵測，以及北歐極圈天文台約每分鐘實拍影像。<br/>` +
+            `<div class="gl-group"><span class="gl-badge gl-mod">模型預報</span> 數值模式與綜合評估指標</div>` +
+            `• <strong>NOAA OVATION 機率 %</strong>：模式推估<strong>頭頂正上方（天頂）</strong>出現極光的機率；即使頭頂機率偏低，中緯度仍可能在北方／南方低空地平線看到極光。<br/>` +
+            `• <strong>晴空率 %（Yr.no／Open-Meteo）</strong>：分層雲量數值預報，低／中雲與霧權重高，高空薄捲雲僅計 30% 遮蔽。<br/>` +
+            `• <strong>觀測指數（0–99 分）</strong>：本站綜合晴空率、極光活動與夜空暗度（太陽暮光與月球仰角）計算的即時參考分數。`;
+      }
       const lb = document.getElementById('legalBody');
       if (lb) {
         lb.innerHTML = en
           ? `• Weather: <a href="https://api.met.no/" target="_blank" rel="noopener" style="color:var(--blue);">MET Norway (Yr.no)</a> (CC BY 4.0 / NLOD 2.0), <a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:var(--blue);">Open-Meteo</a> (CC BY 4.0, non-commercial use)<br/>` +
-            `• Space Weather: <a href="https://www.spaceweather.gov/" target="_blank" rel="noopener" style="color:var(--blue);">NOAA SWPC</a> (U.S. Gov Public Domain)<br/>` +
+            `• Space Weather: <a href="https://www.spaceweather.gov/" target="_blank" rel="noopener" style="color:var(--blue);">NOAA SWPC</a> (U.S. Gov Public Domain); Reference: <a href="https://kp.gfz.de/en/hp30-hp60" target="_blank" rel="noopener" style="color:var(--blue);">GFZ Potsdam Hp30</a><br/>` +
             `• Live All-Sky Cams: <a href="https://flux.phys.uit.no/" target="_blank" rel="noopener" style="color:var(--blue);">UiT TGO</a>, <a href="https://www.irf.se/" target="_blank" rel="noopener" style="color:var(--blue);">IRF Kiruna</a>, <a href="https://www.sgo.fi/" target="_blank" rel="noopener" style="color:var(--blue);">SGO Sodankylä</a> (academic non-commercial); Cloud map: <a href="https://www.windy.com/" target="_blank" rel="noopener" style="color:var(--blue);">Windy.com</a><br/>` +
             `• <strong>Disclaimer</strong>: Open-source non-commercial project (MIT License) for personal stargazing reference only, not an official weather or road warning. Follow local winter driving advisories.`
           : `• 氣象預報：<a href="https://api.met.no/" target="_blank" rel="noopener" style="color:var(--blue);">MET Norway (Yr.no)</a>（CC BY 4.0 / NLOD 2.0）、<a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:var(--blue);">Open-Meteo</a>（CC BY 4.0，限非商業用途）<br/>` +
-            `• 太空天氣：<a href="https://www.spaceweather.gov/" target="_blank" rel="noopener" style="color:var(--blue);">NOAA SWPC</a>（美國政府公領域 Public Domain）<br/>` +
+            `• 太空天氣：<a href="https://www.spaceweather.gov/" target="_blank" rel="noopener" style="color:var(--blue);">NOAA SWPC</a>（美國政府公領域 Public Domain）；參考：<a href="https://kp.gfz.de/en/hp30-hp60" target="_blank" rel="noopener" style="color:var(--blue);">GFZ Potsdam Hp30</a><br/>` +
             `• 全天空實拍：<a href="https://flux.phys.uit.no/" target="_blank" rel="noopener" style="color:var(--blue);">UiT TGO</a>、<a href="https://www.irf.se/" target="_blank" rel="noopener" style="color:var(--blue);">IRF Kiruna</a>、<a href="https://www.sgo.fi/" target="_blank" rel="noopener" style="color:var(--blue);">SGO Sodankylä</a>（學術非商業即時影像）；雲圖嵌入：<a href="https://www.windy.com/" target="_blank" rel="noopener" style="color:var(--blue);">Windy.com</a><br/>` +
             `• <strong>免責聲明</strong>：本工具為非商業開源專案（MIT License），僅供個人旅遊觀星參考，不構成正式氣象或道路安全警告。北極冬季行車與夜間戶外活動請務必遵守當地交通管制（如 Vegvesen 路況）與安全指引。`;
       }
@@ -1851,13 +1993,28 @@
 
     function loadSavedPrefs() {
       currentLang = detectDefaultLang();
-      try {
-        const sp = JSON.parse(localStorage.getItem('aurora_pos_v2') || 'null');
-        if (sp && Number.isFinite(sp.lat) && Number.isFinite(sp.lon)) currentPos = { ...currentPos, ...sp };
-      } catch(e) {}
+      const urlPos = (typeof location !== 'undefined') ? parseUrlLocation(location.search) : null;
+      if (urlPos) {
+        currentPos = { ...currentPos, ...urlPos };
+      } else {
+        try {
+          const sp = JSON.parse(localStorage.getItem('aurora_pos_v2') || 'null');
+          if (sp && Number.isFinite(sp.lat) && Number.isFinite(sp.lon)) currentPos = { ...currentPos, ...sp };
+        } catch(e) {}
+      }
       if (typeof navigator !== 'undefined' && /Line\/|FBAN|FBAV|Instagram|MicroMessenger/i.test(navigator.userAgent || '')) {
         document.getElementById('lineTip').style.display = 'block';
       }
+    }
+
+    function syncPresetChipHighlight() {
+      document.querySelectorAll('#presetChips .chip').forEach(c => {
+        const plat = parseFloat(c.dataset.lat);
+        const plon = parseFloat(c.dataset.lon);
+        const match = Number.isFinite(plat) && Number.isFinite(plon)
+          && Math.abs(plat - currentPos.lat) < 0.03 && Math.abs(plon - currentPos.lon) < 0.03;
+        c.classList.toggle('on', match);
+      });
     }
 
     function togglePicker(forceClose) {
@@ -1926,6 +2083,7 @@
       const lonS = `${Math.abs(currentPos.lon).toFixed(2)}°${currentPos.lon >= 0 ? 'E' : 'W'}`;
       const clkNow = document.getElementById('clk')?.textContent || '--:--';
       document.getElementById('locMeta').innerHTML = `${latS}, ${lonS} ｜ ${en ? 'Local' : '當地'} <span id="clk">${clkNow}</span>`;
+      syncPresetChipHighlight();
       const windyUrl = `https://www.windy.com/${currentPos.lat.toFixed(3)}/${currentPos.lon.toFixed(3)}?clouds,${currentPos.lat.toFixed(3)},${currentPos.lon.toFixed(3)},8`;
       const yrUrl = `https://www.yr.no/en/forecast/daily-table/${currentPos.lat.toFixed(3)},${currentPos.lon.toFixed(3)}`;
       document.getElementById('linkWindy').href = windyUrl;
@@ -1949,6 +2107,11 @@
       } catch(e) {}
       const moon = getMoonState(now, currentPos.lat, currentPos.lon);
       const dirTxt = currentPos.lat >= 0 ? (en ? 'North' : '正北方') : (en ? 'South' : '正南方');
+      const liveKp = lastRenderState?.kp ?? 2;
+      const geom = computeViewingGeometry({ lat: currentPos.lat, lon: currentPos.lon, kp: liveKp, mlt: computeMLT(now, currentPos.lat, currentPos.lon) });
+      const aimLine = (geom.mode === 'below')
+        ? (en ? `<strong>${dirTxt}</strong> (low horizon during geomagnetic storms)` : `<strong>${dirTxt}</strong>（地磁暴時留意低空地平線）`)
+        : `<strong>${geom.shortText}</strong>`;
       if (moon.effMoonPct >= 55) {
         document.getElementById('photoHeading').textContent = en
           ? `📱 Bright Moon (Alt ${Math.round(moon.altDeg)}°) Phone Photo Tips`
@@ -1956,10 +2119,10 @@
         document.getElementById('photoBody').innerHTML = en
           ? `1️⃣ Flash OFF, Night Mode ON — keep exposure at <strong>2–3 seconds</strong> (longer washes out!).<br/>` +
             `2️⃣ Tap the sky and drag the exposure slider <strong>slightly darker</strong>.<br/>` +
-            `3️⃣ Keep the moon behind you, point <strong>${dirTxt}</strong>, then warm your phone in your pocket.`
+            `3️⃣ Keep the moon behind you — framing: ${aimLine}; then warm your phone in your pocket.`
           : `1️⃣ 關閃光燈、開夜間模式，<strong>秒數壓在 2–3 秒</strong>（設太久會過曝白掉！）。<br/>` +
             `2️⃣ 點天空後把小太陽亮度<strong>往下拉暗一點</strong>。<br/>` +
-            `3️⃣ <strong>背對月亮、朝${dirTxt}拍</strong>，拍完收口袋保暖。`;
+            `3️⃣ <strong>背對月亮</strong>，取景方向：${aimLine}；拍完收口袋保暖。`;
       } else {
         const reason = !moon.up ? (en ? 'Moon down' : '月亮已落下') : (en ? `Dim moon ${moon.effMoonPct}%` : `月光微弱 ${moon.effMoonPct}%`);
         document.getElementById('photoHeading').textContent = en
@@ -1967,10 +2130,10 @@
           : `📱 暗空夜（${reason}）手機拍照 3 步驟`;
         document.getElementById('photoBody').innerHTML = en
           ? `1️⃣ Flash OFF, Night Mode ON — use <strong>5–10 seconds</strong> (hold steady or rest on a rail).<br/>` +
-            `2️⃣ Step away from streetlights and point <strong>${dirTxt}</strong>.<br/>` +
+            `2️⃣ Step away from streetlights — framing: ${aimLine}.<br/>` +
             `3️⃣ If you see a faint white cloud/arc, take a test shot — phones reveal green aurora first!`
           : `1️⃣ 關閃光燈、開夜間模式，<strong>秒數設 5–10 秒</strong>（手拿穩或靠欄杆）。<br/>` +
-            `2️⃣ 避開路燈、鏡頭<strong>朝${dirTxt}</strong>拍。<br/>` +
+            `2️⃣ 避開路燈，取景方向：${aimLine}。<br/>` +
             `3️⃣ 肉眼看像白霧時先拍一張，螢幕會立刻顯現綠色！`;
       }
       return moon;
@@ -2161,7 +2324,7 @@
         darkSub: darkSubText
       });
 
-      const v = evaluateVerdict({ lat: currentPos.lat, bestDark, kp, scoreObj: sc });
+      const v = evaluateVerdict({ lat: currentPos.lat, lon: currentPos.lon, bestDark, kp, mlt: st.mltNow ?? null, scoreObj: sc });
       document.getElementById('vKicker').textContent = v.kicker;
       document.getElementById('vTitle').textContent = v.title;
       document.getElementById('vLead').textContent = v.lead;
@@ -2193,7 +2356,7 @@
           : `<a class="btn btn-blue" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&origin=${currentPos.lat},${currentPos.lon}&destination=${d.lat},${d.lon}&travelmode=driving">${en ? '🧭 Drive' : '🧭 導航'}</a>`;
         return `<div class="dir ${isBest ? 'best' : ''} ${d.isOcean ? 'sea' : ''}">
           <div><div style="font-weight:800;">${tDirLabel(d.label)} ${isBest ? '⭐' : ''}</div>
-          <div style="font-size:0.8rem;color:var(--muted);">${en ? '3h avg cloud' : '3h 平均雲量'} <strong class="${col}">${d.avg3h}%</strong>｜${en ? 'Now' : '目前'} ${d.nowC}%｜${fmtT(d.temp)}</div></div>
+          <div style="font-size:0.74rem;color:var(--muted);">${en ? '3h avg cloud' : '3h 平均雲量'} <strong class="${col}">${d.avg3h}%</strong>｜${en ? 'Now' : '目前'} ${d.nowC}%｜${fmtT(d.temp)}</div></div>
           ${nav}
         </div>`;
       }).join('');
@@ -2375,15 +2538,16 @@
 
           lastRenderState = {
             magSeries, chartSeries: magSeries.slice(-120), speed, bz, kp, ovation, hpiGw, goesSub, bal,
-            noaaOk, noaaLagMin, hereHrs, dirResults, weatherSourceLabel, usedMet, sunAltNow, moon, sc, scNext, bestDark
+            noaaOk, noaaLagMin, hereHrs, dirResults, weatherSourceLabel, usedMet, sunAltNow, mltNow, moon, sc, scNext, bestDark
           };
           renderFromState(lastRenderState);
+          updateClockAndPhoto();
           maybeTriggerAlert(sc, goesSub);
 
           try {
             localStorage.setItem('aurora_cache_v4', JSON.stringify({
               ts: Date.now(), posName: getPosDisplayName(), score: sc,
-              v: evaluateVerdict({ lat: currentPos.lat, bestDark, kp, scoreObj: sc }),
+              v: evaluateVerdict({ lat: currentPos.lat, lon: currentPos.lon, bestDark, kp, mlt: mltNow, scoreObj: sc }),
               skySub: document.getElementById('fSkySub').textContent,
               aurSub: document.getElementById('fAurSub').textContent,
               darkSub: document.getElementById('fDarkSub').textContent
@@ -2416,15 +2580,16 @@
 
     async function shareStatus() {
       const en = isEn();
+      const shareUrl = buildShareUrl(location.href, currentPos, currentLang);
       const scStr = lastScore ? (en ? `${lastScore.total}/100 (${tGrade(lastScore.grade)})` : `${lastScore.total} 分（${lastScore.grade}）`) : (en ? 'Updating' : '更新中');
       const title = en ? `🌌 [${getPosDisplayName()}] Aurora Viewing Score: ${scStr}` : `🌌【${getPosDisplayName()}】極光觀測指數：${scStr}`;
       const body = en
         ? `${title}\n${document.getElementById('vTitle').textContent}\n• Sky: ${document.getElementById('fSkySub').textContent}\n• Aurora: ${document.getElementById('fAurSub').textContent}\n👉 Live Cloud & NOAA Aurora Radar (auto-updates every 5m):`
         : `${title}\n${document.getElementById('vTitle').textContent}\n• 天空：${document.getElementById('fSkySub').textContent}\n• 極光：${document.getElementById('fAurSub').textContent}\n👉 點開看即時雲層＋NOAA 極光雷達（每 5 分鐘自動更新）：`;
-      const txt = `${body}\n${location.href}`;
+      const txt = `${body}\n${shareUrl}`;
       if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
         try {
-          await navigator.share({ title, text: body, url: location.href });
+          await navigator.share({ title, text: body, url: shareUrl });
           return;
         } catch (err) {
           if (err && err.name === 'AbortError') return;
