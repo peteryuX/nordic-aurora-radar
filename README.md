@@ -5,9 +5,9 @@
 [![Zero Dependencies](https://img.shields.io/badge/Build-Single%20HTML%20%7C%20Zero%20Deps-ffcf5c?style=flat-square)](index.html)
 [![Privacy First](https://img.shields.io/badge/Privacy-100%25%20Client--Side-a78bfa?style=flat-square)](#-privacy--security隱私與安全)
 
-> **Real-time Nordic & global aurora radar** combining official **Yr.no (MET Norway)** layered cloud forecasts, **NOAA SWPC** solar wind telemetry, twilight & moonlight physics, and a **360° cloud-gap driving radar** — in a single zero-dependency web app.
+> **Real-time Nordic & global aurora radar** combining official **Yr.no (MET Norway)** layered cloud forecasts, **NOAA SWPC** solar wind telemetry, twilight & moonlight physics, and a **360° clear-sky radar** — in a single zero-dependency web app.
 >
-> 整合挪威官方 **Yr.no** 分層雲量、美國 **NOAA** 即時太陽風衛星、精準天文暮光／月光模型與 **360° 陸路雲洞雷達**，打開即知「現在看得到極光嗎、往哪裡開最晴朗」的免費即時追光雷達。
+> 整合挪威官方 **Yr.no** 分層雲量、美國 **NOAA** 即時太陽風衛星、精準天文暮光／月光模型與 **360° 晴空雷達**，打開即知「現在看得到極光嗎、往哪裡開最晴朗」的免費即時追光雷達。
 
 ### 👉 **[Open Live Aurora Radar / 立即開啟線上版](https://peteryux.github.io/nordic-aurora-radar/)**
 
@@ -17,16 +17,16 @@ Supports **Traditional Chinese (`繁體中文`)** and **English** with instant o
 
 ## ✨ Key Features｜主要功能
 
-- **🌌 Live Sky & 0–100 Visibility Index（即時天空實況與看見指數）**
-  - Dynamic SVG live sky scene with clear-sky %, aurora power, and astronomical darkness breakdown.
+- **🌌 Live Sky & 0–100 Viewing Score（即時天空實況與觀測指數）**
+  - Dynamic SVG live sky scene with clear-sky %, aurora activity, and sky darkness breakdown.
   - Analytical solar twilight (`< -4°` ramp to `< -12°` dark) and ELP lunar phase / topocentric elevation modeling.
 - **⚡ 2-Hour Solar Wind Energy & Ballistic L1 ETA（過去 2 小時太陽風能量與到達地球倒數）**
-  - Direct **NOAA SWPC** 1-minute real-time solar wind (IMF $B_z$, $B_y$, speed, density) with **Newell magnetopause coupling**, L1-to-Earth propagation ETA split ("hitting Earth now" vs "incoming"), **GOES magnetometer substorm onset**, and CME dynamic pressure shock detection.
-- **🌤️ 12-Hour Interactive Clear-Sky + Aurora Forecast（未來 12 小時晴空＋極光互動預報）**
-  - Tap any hour to inspect effective cloud clearing, temperature & wind chill, moonlight interference, and NOAA 72h Kp forecast.
-- **🧭 360° Land-Safe Cloud-Gap Radar（360° 陸路安全雲洞雷達）**
+  - Direct **NOAA SWPC** 1-minute real-time solar wind (IMF $B_z$, $B_y$, speed, density) with **Newell magnetopause coupling**, L1-to-Earth propagation ETA split ("reaching Earth now" vs "incoming"), **GOES magnetometer substorm onset**, and CME dynamic pressure shock detection.
+- **🌤️ 12-Hour Interactive Clear-Sky + Aurora Forecast（未來 12 小時晴空與極光預報）**
+  - Tap any hour to inspect clear-sky %, temperature & wind chill, moonlight interference, and NOAA 72h Kp forecast.
+- **🧭 360° Land-Safe Sky Radar（360° 周邊晴空雷達）**
   - Verified land-safe Nordic chase corridors + Open-Meteo elevation sea-filter outside presets, with one-tap Google Maps driving navigation to clearer skies.
-- **🛰️ Live Cloud Map & Arctic Observatory All-Sky Cameras（動態雲圖與北歐天文台即時實拍）**
+- **🛰️ Live Cloud Map & Arctic Observatory All-Sky Cameras（即時動態雲圖與北歐天文台全天空相機）**
   - Embedded **Windy** live animated cloud map, **NOAA OVATION** Northern/Southern Hemisphere aurora oval, and ~1-minute live all-sky cameras from **UiT Skibotn (Norway)**, **IRF Kiruna (Sweden)**, and **SGO Sodankylä (Finland)**.
 - **📱 Mobile-Ready Chase Toolkit（行動追光工具）**
   - GPS geolocation & global city search, native Web Share / clipboard summary sharing, audio + vibration aurora alert mode (with Screen Wake Lock), 6-hour offline cache fallback, and dynamic moon-aware smartphone photography guide.
@@ -51,7 +51,7 @@ Unlike simple Kp-only apps, Nordic Aurora Radar combines space-weather physics, 
 
 ---
 
-## 🚀 Local Usage & Self-Hosting｜本機執行與自行部署
+## 🚀 Local Usage & Testing｜本機執行與單元測試
 
 No build tools or package installation required:
 
@@ -61,7 +61,13 @@ cd nordic-aurora-radar
 python3 -m http.server 8000
 ```
 
-Then open `http://localhost:8000` in your browser, or fork the repository and enable **GitHub Pages** on `main` (`/`).
+Run the automated unit test suite (Node.js 20+, zero dependencies):
+
+```bash
+node --test tests/aurora.test.mjs
+# Include live NOAA + MET Norway + Open-Meteo end-to-end verification:
+LIVE_TEST=1 node --test tests/aurora.test.mjs
+```
 
 ---
 
