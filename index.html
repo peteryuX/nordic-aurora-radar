@@ -169,6 +169,10 @@
     }
     .trust-pills { display: flex; flex-wrap: wrap; gap: 5px; }
     .tpill { padding: 2px 8px; border-radius: 99px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); font-weight: 700; }
+    .tpill-link { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease; }
+    .tpill-link:hover { border-color: rgba(102,189,255,0.55); background: rgba(102,189,255,0.12); color: #e2f2ff; }
+    .src-link { color: inherit; text-decoration: none; border-bottom: 1px dashed rgba(148,188,232,0.4); transition: color 0.15s ease, border-color 0.15s ease; }
+    .src-link:hover { color: var(--blue); border-bottom-color: var(--blue); }
 
     .view { display: none; }
     .view.on { display: block; animation: fadeUp 0.18s ease; }
@@ -351,8 +355,8 @@
 
           <div class="trust-bar">
             <div class="trust-pills">
-              <span id="pNoaa" class="tpill">⏳ NOAA</span>
-              <span id="pMet" class="tpill">⏳ 氣象</span>
+              <a id="pNoaa" class="tpill tpill-link" target="_blank" rel="noopener" href="https://www.spaceweather.gov/communities/aurora-dashboard-experimental">⏳ NOAA ↗</a>
+              <a id="pMet" class="tpill tpill-link" target="_blank" rel="noopener" href="https://www.yr.no/en/forecast/daily-table/69.969,23.272">⏳ 氣象 ↗</a>
             </div>
             <span id="syncTime">同步中</span>
           </div>
@@ -367,8 +371,8 @@
           <svg id="bzChart" class="chart-svg" viewBox="0 0 420 170"></svg>
         </div>
         <div id="bzFootnote" style="margin-top:7px; font-size:0.74rem; color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:5px;">
-          <span id="etaHint">💡 虛線左側＝已抵地球｜右側＝正飛來中</span>
-          <span id="bzRawVal" style="white-space:nowrap;"></span>
+          <span id="etaHint">💡 虛線＝現在到達地球｜右側＝太陽風正飛向地球</span>
+          <a id="bzRawVal" class="src-link" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/real-time-solar-wind" style="white-space:nowrap;"></a>
         </div>
       </section>
 
@@ -403,7 +407,7 @@
     <!-- VIEW 3: LIVE SATELLITE & WINDY CLOUD MAP -->
     <section id="v-sat" class="view">
       <div class="card">
-        <h2 id="h2Windy">🛰️ 動態雲圖（直接滑動看雲怎麼飄）</h2>
+        <h2><span id="h2Windy">🛰️ 動態雲圖（直接滑動看雲怎麼飄）</span><a id="windyExtLink" class="tpill tpill-link" target="_blank" rel="noopener" href="https://www.windy.com/" style="font-size:0.72rem; color:var(--muted); flex-shrink:0;">Windy ↗</a></h2>
         <p id="subWindy" class="card-sub">已自動對準你目前位置，按左下角 ▶ 就能看接下來幾小時雲往哪個方向散開！</p>
         <div class="sat-img-wrap" style="height: 330px;">
           <iframe id="windyFrame" title="Windy Live Cloud Map" style="width:100%;height:100%;border:0;" loading="lazy"></iframe>
@@ -420,7 +424,7 @@
         </div>
         <div class="sat-img-wrap">
           <img id="skyCamImg" class="sat-img" alt="Nordic Live All-Sky Camera" />
-          <div id="skyCamCap" class="sat-cap">資料來源：挪威北極大學 UiT 全天空極光相機（Skibotn 天文台，約每分鐘實拍）</div>
+          <div id="skyCamCap" class="sat-cap"><a class="src-link" target="_blank" rel="noopener" href="https://fox.phys.uit.no/ASC/">資料來源：挪威北極大學 UiT 全天空極光相機（Skibotn 天文台，約每分鐘實拍）↗</a></div>
         </div>
       </div>
 
@@ -429,7 +433,7 @@
         <p id="subOv" class="card-sub">看綠色／黃色光環現在有沒有蓋到你所在區域（每 5 分鐘自動更新）：</p>
         <div class="sat-img-wrap">
           <img id="ovationImg" class="sat-img" alt="NOAA Live OVATION Aurora Oval" src="https://services.swpc.noaa.gov/images/animations/ovation/north/latest.jpg" />
-          <div id="ovCap" class="sat-cap">資料來源：NOAA SWPC OVATION 即時模型（綠色＝有極光、黃紅＝強爆發）</div>
+          <div id="ovCap" class="sat-cap"><a class="src-link" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/aurora-30-minute-forecast">資料來源：NOAA SWPC OVATION 即時模型（綠色＝有極光、黃紅＝強爆發）↗</a></div>
         </div>
       </div>
     </section>
@@ -445,9 +449,9 @@
         <h2 id="h2Tools">🔗 官方專業網站直連</h2>
         <div class="loc-btns" style="margin-top:0;">
           <a id="linkWindy" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.windy.com/">🛰️ Windy 全螢幕</a>
-          <a id="linkYr" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.yr.no/">🌧️ 挪威 Yr.no</a>
+          <a id="linkYr" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.yr.no/en/forecast/daily-table/69.969,23.272">🌧️ 挪威 Yr.no</a>
           <a id="linkTgo" class="btn btn-blue" target="_blank" rel="noopener" href="https://flux.phys.uit.no/Last24/">📈 挪威即時地磁站</a>
-          <a id="linkNoaa" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/aurora-30-minute-forecast">🌌 NOAA 官網</a>
+          <a id="linkNoaa" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.spaceweather.gov/communities/aurora-dashboard-experimental">🌌 NOAA 官網</a>
         </div>
       </div>
 
@@ -1367,11 +1371,11 @@
       let arriveSvg = '';
       if (balOpt && Number.isInteger(balOpt.arrivingIdx) && balOpt.arrivingIdx > 4 && balOpt.arrivingIdx < series.length - 4) {
         const ax = xOf(balOpt.arrivingIdx);
-        const lxClamped = Math.max(padL + 38, Math.min(W - 148, ax));
+        const lxClamped = Math.max(padL + 44, Math.min(W - 150, ax));
         arriveSvg = `
           <line x1="${ax.toFixed(1)}" y1="${padT}" x2="${ax.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="#22d3ee" stroke-dasharray="3 3" stroke-width="1.6" opacity="0.85"/>
           <circle cx="${ax.toFixed(1)}" cy="${yOf(energies[balOpt.arrivingIdx]).toFixed(1)}" r="4" fill="#22d3ee" stroke="#050c17" stroke-width="1.5"/>
-          <text x="${lxClamped.toFixed(1)}" y="15" text-anchor="middle" fill="#66e8ff" font-size="10.5" font-weight="800">${en ? '🎯 At Earth' : '🎯 此刻抵地'}</text>`;
+          <text x="${lxClamped.toFixed(1)}" y="15" text-anchor="middle" fill="#66e8ff" font-size="10.5" font-weight="800">${en ? '🎯 Reaching Earth' : '🎯 到達地球'}</text>`;
       }
 
       const tStart = utcTagToLocalHM(series[0].time_tag, timeZone);
@@ -1564,21 +1568,32 @@
     const SKY_CAMS = {
       uit: {
         url: 'https://fox.phys.uit.no/ASC/Latest_ASC01.png',
+        page: 'https://fox.phys.uit.no/ASC/',
         capZh: '資料來源：挪威北極大學 UiT 全天空極光相機（Skibotn 天文台，約每分鐘實拍）',
         capEn: 'Source: UiT Tromsø Geophysical Observatory All-Sky Camera (Skibotn, ~1 min live)'
       },
       irf: {
         url: 'https://www.irf.se/alis/allsky/krn/latest_medium.jpeg',
+        page: 'https://www.irf.se/alis/allsky/krn/',
         capZh: '資料來源：瑞典空間物理研究所 IRF Kiruna 全天空相機（約每分鐘實拍）',
         capEn: 'Source: Swedish Institute of Space Physics (IRF Kiruna) Live All-Sky Camera'
       },
       sgo: {
         url: 'https://www.sgo.fi/Data/RealTime/Kuvat/UCL.jpg',
+        page: 'https://www.sgo.fi/Data/RealTime/allsky.php',
         capZh: '資料來源：芬蘭索丹屈萊天文台 SGO 全天空相機（約每分鐘實拍）',
         capEn: 'Source: Sodankylä Geophysical Observatory (SGO Finland) Live All-Sky Camera'
       }
     };
     let currentCamKey = 'uit';
+
+    function renderSkyCamCaption(key) {
+      const cap = document.getElementById('skyCamCap');
+      const cam = SKY_CAMS[key];
+      if (!cap || !cam) return;
+      const txt = isEn() ? cam.capEn : cam.capZh;
+      cap.innerHTML = `<a class="src-link" target="_blank" rel="noopener" href="${cam.page}">${txt} ↗</a>`;
+    }
 
     function applyStaticI18n() {
       const en = isEn();
@@ -1616,7 +1631,13 @@
       setT('camBtnIrf', '🇸🇪 瑞典 Kiruna', '🇸🇪 Sweden Kiruna');
       setT('camBtnSgo', '🇫🇮 芬蘭 Sodankylä', '🇫🇮 Finland SGO');
       setT('subOv', '看綠色／黃色光環現在有沒有蓋到你所在區域（每 5 分鐘自動更新）：', 'Check if the green/yellow auroral oval covers your region (updates every 5 min):');
-      setT('ovCap', '資料來源：NOAA SWPC OVATION 即時模型（綠色＝有極光、黃紅＝強爆發）', 'Source: NOAA SWPC OVATION Live Model (Green = aurora, Yellow/Red = intense)');
+      const ovCapEl = document.getElementById('ovCap');
+      if (ovCapEl) {
+        const ovTxt = en
+          ? 'Source: NOAA SWPC OVATION Live Model (Green = aurora, Yellow/Red = intense)'
+          : '資料來源：NOAA SWPC OVATION 即時模型（綠色＝有極光、黃紅＝強爆發）';
+        ovCapEl.innerHTML = `<a class="src-link" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/aurora-30-minute-forecast">${ovTxt} ↗</a>`;
+      }
       setT('h2Tools', '🔗 官方專業網站直連', '🔗 Official Space & Weather Links');
       setT('linkWindy', '🛰️ Windy 全螢幕', '🛰️ Windy Fullscreen');
       setT('linkYr', '🌧️ 挪威 Yr.no', '🌧️ Norway Yr.no');
@@ -1639,8 +1660,7 @@
             `• 全天空實拍：<a href="https://flux.phys.uit.no/" target="_blank" rel="noopener" style="color:var(--blue);">UiT TGO</a>、<a href="https://www.irf.se/" target="_blank" rel="noopener" style="color:var(--blue);">IRF Kiruna</a>、<a href="https://www.sgo.fi/" target="_blank" rel="noopener" style="color:var(--blue);">SGO Sodankylä</a>（學術非商業即時影像）；雲圖嵌入：<a href="https://www.windy.com/" target="_blank" rel="noopener" style="color:var(--blue);">Windy.com</a><br/>` +
             `• <strong>免責聲明</strong>：本工具為非商業開源專案（MIT License），僅供個人旅遊觀星參考，不構成正式氣象或道路安全警告。北極冬季行車與夜間戶外活動請務必遵守當地交通管制（如 Vegvesen 路況）與安全指引。`;
       }
-      const cap = document.getElementById('skyCamCap');
-      if (cap && SKY_CAMS[currentCamKey]) cap.textContent = en ? SKY_CAMS[currentCamKey].capEn : SKY_CAMS[currentCamKey].capZh;
+      renderSkyCamCaption(currentCamKey);
       const ovH = document.getElementById('ovHeading');
       if (ovH) {
         ovH.textContent = currentPos.lat >= 0
@@ -1772,9 +1792,8 @@
         btn.classList.add('on');
       }
       const img = document.getElementById('skyCamImg');
-      const cap = document.getElementById('skyCamCap');
       if (img) img.src = `${SKY_CAMS[key].url}?t=${Date.now()}`;
-      if (cap) cap.textContent = isEn() ? SKY_CAMS[key].capEn : SKY_CAMS[key].capZh;
+      renderSkyCamCaption(key);
     }
 
     function switchView(name, btn) {
@@ -1818,7 +1837,15 @@
       const lonS = `${Math.abs(currentPos.lon).toFixed(2)}°${currentPos.lon >= 0 ? 'E' : 'W'}`;
       const clkNow = document.getElementById('clk')?.textContent || '--:--';
       document.getElementById('locMeta').innerHTML = `${latS}, ${lonS} ｜ ${en ? 'Local' : '當地'} <span id="clk">${clkNow}</span>`;
-      document.getElementById('linkWindy').href = `https://www.windy.com/${currentPos.lat.toFixed(3)}/${currentPos.lon.toFixed(3)}?clouds,${currentPos.lat.toFixed(3)},${currentPos.lon.toFixed(3)},8`;
+      const windyUrl = `https://www.windy.com/${currentPos.lat.toFixed(3)}/${currentPos.lon.toFixed(3)}?clouds,${currentPos.lat.toFixed(3)},${currentPos.lon.toFixed(3)},8`;
+      const yrUrl = `https://www.yr.no/en/forecast/daily-table/${currentPos.lat.toFixed(3)},${currentPos.lon.toFixed(3)}`;
+      document.getElementById('linkWindy').href = windyUrl;
+      const we = document.getElementById('windyExtLink');
+      if (we) we.href = windyUrl;
+      const ly = document.getElementById('linkYr');
+      if (ly) ly.href = yrUrl;
+      const pm = document.getElementById('pMet');
+      if (pm) pm.href = isInNordicMetBox(currentPos.lat, currentPos.lon) ? yrUrl : 'https://open-meteo.com/en/docs';
       try { localStorage.setItem('aurora_pos_v2', JSON.stringify(currentPos)); } catch(e) {}
     }
 
@@ -1980,19 +2007,19 @@
             ? (en ? `💥 Solar wind pressure shock (${bal.pdyn} nPa)! Potential burst in ~${bal.etaMin} min!` : `💥 偵測到太陽風動壓衝擊（${bal.pdyn} nPa）！約 ${bal.etaMin} 分鐘後可能觸發極光爆發！`)
             : enSum.text);
       document.getElementById('etaHint').textContent = en
-        ? `💡 Dashed = At Earth · Right arrives in ~${bal.etaMin}m`
-        : `💡 虛線「此刻抵地」｜右側約 ${bal.etaMin} 分鐘後抵達`;
+        ? `💡 Dashed = Reaching Earth now · Right arrives in ~${bal.etaMin}m`
+        : `💡 虛線＝現在到達地球｜右側＝約 ${bal.etaMin} 分鐘後到達`;
       const pTxt = bal.pdyn !== null ? ` · ${bal.pdyn}nPa` : '';
-      document.getElementById('bzRawVal').textContent = `Bz ${bz !== null ? (bz>=0?'+':'')+bz.toFixed(1) : '--'} · ${speed ? Math.round(speed) : '--'}km/s${hpiGw !== null ? ' · ' + Math.round(hpiGw) + 'GW' : ''}${pTxt}`;
+      document.getElementById('bzRawVal').textContent = `Bz ${bz !== null ? (bz>=0?'+':'')+bz.toFixed(1) : '--'} · ${speed ? Math.round(speed) : '--'}km/s${hpiGw !== null ? ' · ' + Math.round(hpiGw) + 'GW' : ''}${pTxt} ↗`;
       document.getElementById('bzChart').innerHTML = buildBzChartSVG(chartSeries, currentPos.tz, speed, bal);
 
       const lastM = magSeries.length ? magSeries[magSeries.length - 1] : null;
       if (noaaOk) {
         const stale = noaaLagMin !== null && noaaLagMin > 45;
         pNoaa.textContent = stale
-          ? (en ? `🟡 NOAA Delayed (${noaaLagMin}m ago)` : `🟡 NOAA 延遲 (${noaaLagMin}分前)`)
-          : `🟢 NOAA (${lastM ? utcTagToLocalHM(lastM.time_tag, currentPos.tz) : (en ? 'Live' : '已同步')})`;
-      } else pNoaa.textContent = en ? '🔴 NOAA Offline' : '🔴 NOAA 離線';
+          ? (en ? `🟡 NOAA Delayed (${noaaLagMin}m ago) ↗` : `🟡 NOAA 延遲 (${noaaLagMin}分前) ↗`)
+          : `🟢 NOAA (${lastM ? utcTagToLocalHM(lastM.time_tag, currentPos.tz) : (en ? 'Live' : '已同步')}) ↗`;
+      } else pNoaa.textContent = en ? '🔴 NOAA Offline ↗' : '🔴 NOAA 離線 ↗';
 
       if (!hereHrs.length) return;
       const c0 = hereHrs[0].block;
@@ -2081,7 +2108,10 @@
       }).join('');
 
       const srcLbl = (weatherSourceLabel === 'Yr.no官方' && en) ? 'Yr.no Official' : weatherSourceLabel;
-      pMet.textContent = `🟢 ${srcLbl} (${hereHrs[0].time})`;
+      pMet.textContent = `🟢 ${srcLbl} (${hereHrs[0].time}) ↗`;
+      pMet.href = usedMet
+        ? `https://www.yr.no/en/forecast/daily-table/${currentPos.lat.toFixed(3)},${currentPos.lon.toFixed(3)}`
+        : 'https://open-meteo.com/en/docs';
       const tNow = document.getElementById('clk')?.textContent || '--:--';
       document.getElementById('syncTime').textContent = (noaaOk && hereHrs.length)
         ? (en ? `Synced ${tNow} (Auto 5m)` : `已同步 ${tNow}（每5分自動更新）`)
@@ -2093,7 +2123,7 @@
       const b = document.getElementById('refBtn');
       b.disabled = true; b.textContent = en ? '⏳ Sync' : '⏳ 更新中';
       const pNoaa = document.getElementById('pNoaa'), pMet = document.getElementById('pMet');
-      pNoaa.textContent = '⏳ NOAA'; pMet.textContent = en ? '⏳ Weather' : '⏳ 氣象';
+      pNoaa.textContent = '⏳ NOAA ↗'; pMet.textContent = en ? '⏳ Weather ↗' : '⏳ 氣象 ↗';
 
       let bz = null, speed = null, kp = null, ovation = null, hpiGw = null, goesSub = null, noaaOk = false, metOk = false;
       let magSeries = [], windSeries = [], kpForecast = [], noaaLagMin = null;
