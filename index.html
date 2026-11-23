@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=2.0" />
-  <title>🌌 極光視覺即時雷達｜北歐＆全球即時預報</title>
+  <title>🌌 極光即時雷達｜北歐＆全球即時預報</title>
   <meta name="description" content="Real-time Nordic & global aurora radar combining official Yr.no (MET Norway) layered clouds, NOAA solar wind telemetry, twilight/moonlight physics, and a 360° cloud-gap radar. 直連挪威官方 Yr.no 分層雲量與美國 NOAA 即時太陽風衛星，結合太陽暮光、月球仰角與 360° 雲洞雷達。" />
   <meta name="keywords" content="aurora forecast, northern lights, nordic aurora radar, Tromso aurora, Alta aurora, Lofoten aurora, Abisko aurora, NOAA SWPC, Yr.no cloud forecast, 極光預報, 極光雷達, 北歐極光" />
   <meta name="theme-color" content="#050c17" />
   <link rel="canonical" href="https://peteryux.github.io/nordic-aurora-radar/" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://peteryux.github.io/nordic-aurora-radar/" />
-  <meta property="og:title" content="🌌 Nordic Aurora Radar｜極光視覺即時雷達" />
+  <meta property="og:title" content="🌌 Nordic Aurora Radar｜極光即時雷達" />
   <meta property="og:description" content="Real-time Yr.no layered cloud + NOAA solar wind aurora radar with twilight/moonlight physics and 360° cloud-gap routing. 每 5 分鐘自動更新。" />
   <meta name="twitter:card" content="summary" />
   <style>
@@ -261,7 +261,7 @@
 <body>
   <div class="wrap">
     <header class="hdr">
-      <div class="brand"><span class="brand-dot"></span><span id="brandTxt">極光視覺雷達</span></div>
+      <div class="brand"><span class="brand-dot"></span><span id="brandTxt">極光即時雷達</span></div>
       <div class="hdr-tools">
         <button id="langBtn" class="btn" type="button" onclick="toggleLang()" style="padding:7px 9px;font-size:0.8rem;">🌐 EN</button>
         <button id="alertBtn" class="btn" type="button" onclick="toggleAlertMode()" style="padding:7px 9px;font-size:0.8rem;">🔔 提醒</button>
@@ -355,7 +355,7 @@
 
           <div class="trust-bar">
             <div class="trust-pills">
-              <a id="pNoaa" class="tpill tpill-link" target="_blank" rel="noopener" href="https://www.spaceweather.gov/communities/aurora-dashboard-experimental">⏳ NOAA ↗</a>
+              <a id="pNoaa" class="tpill tpill-link" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/planetary-k-index">⏳ NOAA ↗</a>
               <a id="pMet" class="tpill tpill-link" target="_blank" rel="noopener" href="https://www.yr.no/en/forecast/daily-table/69.969,23.272">⏳ 氣象 ↗</a>
             </div>
             <span id="syncTime">同步中</span>
@@ -451,7 +451,8 @@
           <a id="linkWindy" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.windy.com/">🛰️ Windy 全螢幕</a>
           <a id="linkYr" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.yr.no/en/forecast/daily-table/69.969,23.272">🌧️ 挪威 Yr.no</a>
           <a id="linkTgo" class="btn btn-blue" target="_blank" rel="noopener" href="https://flux.phys.uit.no/Last24/">📈 挪威即時地磁站</a>
-          <a id="linkNoaa" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.spaceweather.gov/communities/aurora-dashboard-experimental">🌌 NOAA 官網</a>
+          <a id="linkNoaa" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/planetary-k-index">🌌 NOAA Kp 指數</a>
+          <a id="linkSolarWind" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/real-time-solar-wind">⚡ NOAA 太陽風</a>
         </div>
       </div>
 
@@ -465,7 +466,7 @@
   <!-- Fixed Bottom App Nav -->
   <nav class="bottom-nav" aria-label="Main Navigation">
     <div class="bottom-inner">
-      <button class="nav-btn on" type="button" onclick="switchView('home', this)"><span class="ico">🌌</span><span id="navHome">視覺總覽</span></button>
+      <button class="nav-btn on" type="button" onclick="switchView('home', this)"><span class="ico">🌌</span><span id="navHome">即時總覽</span></button>
       <button class="nav-btn" type="button" onclick="switchView('dir', this)"><span class="ico">🧭</span><span id="navDir">雲洞雷達</span></button>
       <button class="nav-btn" type="button" onclick="switchView('sat', this)"><span class="ico">🛰️</span><span id="navSat">動態雲圖</span></button>
       <button class="nav-btn" type="button" onclick="switchView('tips', this)"><span class="ico">📸</span><span id="navTips">拍照/工具</span></button>
@@ -1599,9 +1600,9 @@
       const en = isEn();
       if (typeof document === 'undefined') return;
       document.documentElement.lang = en ? 'en' : 'zh-Hant';
-      document.title = en ? 'Aurora Visual Radar · Live Global Forecast' : '極光視覺雷達｜北歐＆全球即時預報';
+      document.title = en ? 'Nordic Aurora Radar · Live Global Forecast' : '極光即時雷達｜北歐＆全球即時預報';
       const setT = (id, zh, enT) => { const el = document.getElementById(id); if (el) el.textContent = en ? enT : zh; };
-      setT('brandTxt', '極光視覺雷達', 'Aurora Radar');
+      setT('brandTxt', '極光即時雷達', 'Aurora Radar');
       setT('langBtn', '🌐 EN', '🌐 繁中');
       setT('alertBtn', alertEnabled ? '🔔 提醒中' : '🔔 提醒', alertEnabled ? '🔔 On' : '🔔 Alert');
       setT('refBtn', '🔄 更新', '🔄 Sync');
@@ -1642,9 +1643,10 @@
       setT('linkWindy', '🛰️ Windy 全螢幕', '🛰️ Windy Fullscreen');
       setT('linkYr', '🌧️ 挪威 Yr.no', '🌧️ Norway Yr.no');
       setT('linkTgo', '📈 挪威即時地磁站', '📈 UiT Magnetometer');
-      setT('linkNoaa', '🌌 NOAA 官網', '🌌 NOAA SWPC');
+      setT('linkNoaa', '🌌 NOAA Kp 指數', '🌌 NOAA Kp Index');
+      setT('linkSolarWind', '⚡ NOAA 太陽風', '⚡ NOAA Solar Wind');
       setT('h2Legal', '⚖️ 資料授權與安全免責聲明', '⚖️ Data Attribution & Safety Disclaimer');
-      setT('navHome', '視覺總覽', 'Overview');
+      setT('navHome', '即時總覽', 'Overview');
       setT('navDir', '雲洞雷達', 'Sky Radar');
       setT('navSat', '動態雲圖', 'Live Map');
       setT('navTips', '拍照/工具', 'Photo & Info');
@@ -1738,7 +1740,7 @@
       toast(msg);
       try {
         if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification(en ? '🌌 Aurora Radar Alert' : '🌌 極光視覺雷達提醒', { body: msg });
+          new Notification(en ? '🌌 Aurora Radar Alert' : '🌌 極光即時雷達提醒', { body: msg });
         }
       } catch(e) {}
     }

@@ -1,4 +1,4 @@
-# 🌌 Nordic Aurora Radar｜極光視覺即時雷達
+# 🌌 Nordic Aurora Radar｜極光即時雷達
 
 [![Live App](https://img.shields.io/badge/Live%20App-GitHub%20Pages-34f0b0?style=flat-square)](https://peteryux.github.io/nordic-aurora-radar/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-66bdff?style=flat-square)](LICENSE)
@@ -17,10 +17,10 @@ Supports **Traditional Chinese (`繁體中文`)** and **English** with instant o
 
 ## ✨ Key Features｜主要功能
 
-- **🌌 Live Sky & 0–100 Visibility Index（即時天空視覺與看見指數）**
+- **🌌 Live Sky & 0–100 Visibility Index（即時天空實況與看見指數）**
   - Dynamic SVG live sky scene with clear-sky %, aurora power, and astronomical darkness breakdown.
   - Analytical solar twilight (`< -4°` ramp to `< -12°` dark) and ELP lunar phase / topocentric elevation modeling.
-- **⚡ 2-Hour Solar Wind Energy & Ballistic L1 ETA（過去 2 小時極光能量與抵地倒數）**
+- **⚡ 2-Hour Solar Wind Energy & Ballistic L1 ETA（過去 2 小時太陽風能量與到達地球倒數）**
   - Direct **NOAA SWPC** 1-minute real-time solar wind (IMF $B_z$, $B_y$, speed, density) with **Newell magnetopause coupling**, L1-to-Earth propagation ETA split ("hitting Earth now" vs "incoming"), **GOES magnetometer substorm onset**, and CME dynamic pressure shock detection.
 - **🌤️ 12-Hour Interactive Clear-Sky + Aurora Forecast（未來 12 小時晴空＋極光互動預報）**
   - Tap any hour to inspect effective cloud clearing, temperature & wind chill, moonlight interference, and NOAA 72h Kp forecast.
