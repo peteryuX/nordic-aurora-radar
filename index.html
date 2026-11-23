@@ -363,15 +363,15 @@
         </div>
       </section>
 
-      <!-- VISUAL 2: Intuitive 2-Hour Aurora Energy Chart -->
+      <!-- VISUAL 2: Intuitive Solar Wind Energy & Arrival Chart -->
       <section class="card">
-        <h2><span id="h2Energy">⚡ 過去 2 小時太陽風能量</span></h2>
+        <h2><span id="h2Energy">⚡ 太陽風能量走勢（含提前預告）</span></h2>
         <div id="energyBanner" class="callout">讀取衛星即時太陽風中...</div>
         <div class="chart-box">
           <svg id="bzChart" class="chart-svg" viewBox="0 0 420 170"></svg>
         </div>
         <div id="bzFootnote" style="margin-top:7px; font-size:0.74rem; color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:5px;">
-          <span id="etaHint">💡 虛線＝現在到達地球｜右側＝太陽風正飛向地球</span>
+          <span id="etaHint">💡 時間軸已換算為到達地球的當地時間</span>
           <a id="bzRawVal" class="src-link" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/real-time-solar-wind" style="white-space:nowrap;"></a>
         </div>
       </section>
@@ -1337,13 +1337,14 @@
       `;
     }
 
-    function utcTagToLocalHM(utcTag, timeZone) {
+    function utcTagToLocalHM(utcTag, timeZone, offsetMin = 0) {
       if (!utcTag) return '--:--';
       try {
         const iso = String(utcTag).endsWith('Z') ? String(utcTag) : String(utcTag) + 'Z';
         const d = new Date(iso);
         if (Number.isNaN(d.getTime())) return String(utcTag).slice(11, 16);
-        const z = getZoneParts(d, timeZone);
+        const shifted = offsetMin ? new Date(d.getTime() + offsetMin * 60000) : d;
+        const z = getZoneParts(shifted, timeZone);
         return `${z.hourStr}:${z.minStr}`;
       } catch (e) { return String(utcTag).slice(11, 16); }
     }
@@ -1391,6 +1392,7 @@
       const xOf = i => padL + (i / (series.length - 1)) * plotW;
 
       const yBurst = yOf(62), yWarm = yOf(20);
+      const etaMin = balOpt?.etaMin ?? computeL1EtaMin(speed);
       const energies = (balOpt && Array.isArray(balOpt.energy120) && balOpt.energy120.length === series.length)
         ? balOpt.energy120
         : series.map(s => bzToEnergy(s.bz, speed));
@@ -1403,18 +1405,22 @@
       const stateWord = lastE >= 62 ? (en ? '🔥 Active' : '🔥 活躍') : lastE >= 25 ? (en ? '🟡 Rising' : '🟡 增強') : (en ? '🌙 Quiet' : '🌙 平靜');
 
       let arriveSvg = '';
+      let futureBandSvg = '';
       if (balOpt && Number.isInteger(balOpt.arrivingIdx) && balOpt.arrivingIdx > 4 && balOpt.arrivingIdx < series.length - 4) {
         const ax = xOf(balOpt.arrivingIdx);
+        const tNowEarth = utcTagToLocalHM(series[balOpt.arrivingIdx].time_tag, timeZone, etaMin);
         const lxClamped = Math.max(padL + 44, Math.min(W - 150, ax));
+        futureBandSvg = `<rect x="${ax.toFixed(1)}" y="${padT}" width="${(W - padR - ax).toFixed(1)}" height="${plotH}" fill="rgba(34,211,238,0.06)"/>`;
         arriveSvg = `
-          <line x1="${ax.toFixed(1)}" y1="${padT}" x2="${ax.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="#22d3ee" stroke-dasharray="3 3" stroke-width="1.6" opacity="0.85"/>
+          <line x1="${ax.toFixed(1)}" y1="${padT}" x2="${ax.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="#22d3ee" stroke-dasharray="3 3" stroke-width="1.6" opacity="0.88"/>
           <circle cx="${ax.toFixed(1)}" cy="${yOf(energies[balOpt.arrivingIdx]).toFixed(1)}" r="4" fill="#22d3ee" stroke="#050c17" stroke-width="1.5"/>
-          <text x="${lxClamped.toFixed(1)}" y="15" text-anchor="middle" fill="#66e8ff" font-size="10.5" font-weight="800">${en ? '🎯 Reaching Earth' : '🎯 到達地球'}</text>`;
+          <text x="${lxClamped.toFixed(1)}" y="15" text-anchor="middle" fill="#66e8ff" font-size="10.5" font-weight="800">${en ? `Now ${tNowEarth}` : `現在 ${tNowEarth}`}</text>`;
       }
 
-      const tStart = utcTagToLocalHM(series[0].time_tag, timeZone);
-      const tMid = utcTagToLocalHM(series[Math.floor(series.length / 2)].time_tag, timeZone);
-      const tEnd = utcTagToLocalHM(series[series.length - 1].time_tag, timeZone);
+      // Shift X-axis directly to Earth-arrival local time (zero mental arithmetic!)
+      const tStart = utcTagToLocalHM(series[0].time_tag, timeZone, etaMin);
+      const tMid = utcTagToLocalHM(series[Math.floor(series.length / 2)].time_tag, timeZone, etaMin);
+      const tEnd = utcTagToLocalHM(series[series.length - 1].time_tag, timeZone, etaMin);
 
       return `
         <defs>
@@ -1427,6 +1433,7 @@
         <rect x="${padL}" y="${padT}" width="${plotW}" height="${(yBurst - padT).toFixed(1)}" fill="rgba(52,240,176,0.12)"/>
         <rect x="${padL}" y="${yBurst.toFixed(1)}" width="${plotW}" height="${(yWarm - yBurst).toFixed(1)}" fill="rgba(255,207,92,0.07)"/>
         <rect x="${padL}" y="${yWarm.toFixed(1)}" width="${plotW}" height="${(padT + plotH - yWarm).toFixed(1)}" fill="rgba(102,189,255,0.05)"/>
+        ${futureBandSvg}
         <line x1="${padL}" y1="${yBurst.toFixed(1)}" x2="${W - padR}" y2="${yBurst.toFixed(1)}" stroke="#34f0b0" stroke-dasharray="4 4" stroke-width="1.2" opacity="0.75"/>
         <line x1="${padL}" y1="${yWarm.toFixed(1)}" x2="${W - padR}" y2="${yWarm.toFixed(1)}" stroke="rgba(148,188,232,0.3)" stroke-dasharray="3 4" stroke-width="1"/>
         <line x1="${padL}" y1="${(padT + plotH).toFixed(1)}" x2="${W - padR}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(148,188,232,0.28)"/>
@@ -1441,7 +1448,7 @@
         <text x="${W - 61}" y="16" text-anchor="middle" fill="${col}" font-size="11" font-weight="900">L1 ${stateWord}</text>
         <text x="${padL}" y="${H - 7}" fill="#9eb6d4" font-size="11.5" font-weight="700">${tStart}</text>
         <text x="${(padL + plotW/2).toFixed(1)}" y="${H - 7}" text-anchor="middle" fill="#9eb6d4" font-size="11.5">${tMid}</text>
-        <text x="${W - padR}" y="${H - 7}" text-anchor="end" fill="#f3f8ff" font-size="11.5" font-weight="800">${en ? 'Now ' : '最新 '}${tEnd}</text>
+        <text x="${W - padR}" y="${H - 7}" text-anchor="end" fill="#66e8ff" font-size="11.5" font-weight="800">${en ? 'Est. ' : '預估 '}${tEnd}</text>
       `;
     }
 
@@ -1651,7 +1658,7 @@
       setT('fSkyLbl', '☁️ 晴空率', '☁️ Clear Sky');
       setT('fAurLbl', '🌌 極光活動', '🌌 Aurora Activity');
       setT('fDarkLbl', '🌑 夜空暗度', '🌑 Sky Darkness');
-      setT('h2Energy', '⚡ 過去 2 小時太陽風能量', '⚡ 2-Hour Solar Wind Energy');
+      setT('h2Energy', '⚡ 太陽風能量走勢（含提前預告）', '⚡ Solar Wind Energy & Arrival Preview');
       setT('h2Wave', '🌤️ 未來 12 小時晴空與極光預報', '🌤️ 12-Hour Sky & Aurora Forecast');
       setT('hrLegLeft', '🟢 綠線＝晴空率 % ｜ 🟣 紫柱＝觀測指數', '🟢 Line = Clear Sky % ｜ 🟣 Bars = Viewing Score');
       setT('hrLegRight', '點圖表切換時段', 'Tap chart to inspect');
@@ -2042,14 +2049,15 @@
         : (bal.shockActive
             ? (en ? `💥 Solar wind pressure shock (${bal.pdyn} nPa)! Potential burst in ~${bal.etaMin} min.` : `💥 偵測到太陽風動壓衝擊（${bal.pdyn} nPa），約 ${bal.etaMin} 分鐘後可能觸發極光增強！`)
             : enSum.text);
+      const lastM = magSeries.length ? magSeries[magSeries.length - 1] : null;
+      const etaClock = lastM ? utcTagToLocalHM(lastM.time_tag, currentPos.tz, bal.etaMin) : '';
       document.getElementById('etaHint').textContent = en
-        ? `💡 Dashed = Reaching Earth now · Right arrives in ~${bal.etaMin}m`
-        : `💡 虛線＝現在到達地球｜右側＝約 ${bal.etaMin} 分鐘後到達`;
+        ? (etaClock ? `💡 Right of dashed line = arriving by ${etaClock}` : `💡 Time axis shows estimated Earth arrival`)
+        : (etaClock ? `💡 虛線右側＝已測得太陽風，預估於 ${etaClock} 前陸續到達` : `💡 時間軸已換算為到達地球的當地時間`);
       const pTxt = bal.pdyn !== null ? ` · ${bal.pdyn}nPa` : '';
       document.getElementById('bzRawVal').textContent = `Bz ${bz !== null ? (bz>=0?'+':'')+bz.toFixed(1) : '--'} · ${speed ? Math.round(speed) : '--'}km/s${hpiGw !== null ? ' · ' + Math.round(hpiGw) + 'GW' : ''}${pTxt} ↗`;
       document.getElementById('bzChart').innerHTML = buildBzChartSVG(chartSeries, currentPos.tz, speed, bal);
 
-      const lastM = magSeries.length ? magSeries[magSeries.length - 1] : null;
       if (noaaOk) {
         const stale = noaaLagMin !== null && noaaLagMin > 45;
         pNoaa.textContent = stale

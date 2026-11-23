@@ -319,12 +319,16 @@ test('12. All SVG builders produce clean markup without NaN or undefined', () =>
   const sky = api.buildSkySceneSVG({ cloudPct: 40, auroraScore: 55, moonUp: true, moonPct: 70, isTooBright: false });
   assert.ok(sky.includes('<rect') && !sky.includes('NaN') && !sky.includes('undefined'));
 
-  const series = [
-    { time_tag: '2026-11-23T20:00:00', bz: -1, by: 0 },
-    { time_tag: '2026-11-23T21:00:00', bz: -5, by: 1 }
-  ];
-  const bzSvg = api.buildBzChartSVG(series, 'Europe/Oslo', 450, null, 'zh');
+  const series = Array.from({ length: 60 }, (_, i) => ({
+    time_tag: `2026-11-23T20:${String(i).padStart(2, '0')}:00`,
+    bz: i > 40 ? -5 : -1,
+    by: 1
+  }));
+  const bal = api.computeBallisticCoupling(series, 400); // etaMin = 60m -> 20:59 UTC + 60m = 21:59 UTC = 22:59 CET
+  const bzSvg = api.buildBzChartSVG(series, 'Europe/Oslo', 400, bal, 'zh');
   assert.ok(bzSvg.includes('<polyline') && !bzSvg.includes('NaN') && !bzSvg.includes('undefined'));
+  assert.ok(bzSvg.includes('預估 22:59'), `Expected shifted Earth arrival time 預估 22:59 in SVG`);
+  assert.equal(api.utcTagToLocalHM('2026-11-23T20:59:00', 'Europe/Oslo', 60), '22:59');
 
   const hrs = [
     { time: '22:00', clear: 80, block: 20, score: 55, temp: -2, isDay: false },
