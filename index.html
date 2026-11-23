@@ -1,0 +1,2298 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=2.0" />
+  <title>🌌 極光視覺即時雷達｜Yr.no官方雲層＋NOAA衛星＋天文精準版</title>
+  <meta name="description" content="直連挪威官方 Yr.no (MET Norway) 高解析分層雲量與美國 NOAA 衛星，結合精準太陽暮光與月球仰角模型。" />
+  <meta property="og:title" content="🌌 極光視覺即時雷達（科學精準家庭版）" />
+  <meta property="og:description" content="直連挪威官方 Yr.no 雲層＋NOAA 即時太陽風｜每 5 分鐘自動更新，大字體好讀。" />
+  <style>
+    :root {
+      --bg: #050c17;
+      --surface: rgba(14, 25, 44, 0.92);
+      --surface-2: rgba(21, 37, 63, 0.86);
+      --border: rgba(148, 188, 232, 0.16);
+      --border-strong: rgba(148, 188, 232, 0.30);
+      --text: #f3f8ff;
+      --muted: #9eb6d4;
+      --green: #34f0b0;
+      --green-bg: rgba(52, 240, 176, 0.13);
+      --amber: #ffcf5c;
+      --amber-bg: rgba(255, 207, 92, 0.14);
+      --red: #ff6b7b;
+      --red-bg: rgba(255, 107, 123, 0.14);
+      --blue: #66bdff;
+      --blue-bg: rgba(102, 189, 255, 0.14);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html { font-size: 18px; scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      background: var(--bg);
+      background-image: radial-gradient(ellipse 90% 40% at 50% -5%, rgba(22, 128, 114, 0.25), transparent 65%);
+      background-attachment: fixed;
+      color: var(--text);
+      line-height: 1.54;
+      padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .wrap { max-width: 680px; margin: 0 auto; padding: 12px 14px 18px; }
+
+    .hdr { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 10px; flex-wrap: nowrap; }
+    .brand { display: flex; align-items: center; gap: 6px; font-weight: 900; font-size: 0.94rem; white-space: nowrap; }
+    .brand-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; background: var(--green); box-shadow: 0 0 12px var(--green); }
+    .hdr-tools { display: flex; gap: 5px; flex-shrink: 0; }
+    .hdr-tools .btn { white-space: nowrap; padding: 6px 8px !important; font-size: 0.76rem !important; gap: 3px; }
+
+    .btn {
+      border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text);
+      font-size: 0.83rem; font-weight: 700; padding: 7px 11px; border-radius: 12px;
+      cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+      font-family: inherit;
+    }
+    .btn:disabled { opacity: 0.55; cursor: wait; }
+    .btn-primary { background: linear-gradient(135deg, #168f6f, #0f6f68); border-color: rgba(52,240,176,0.55); color: #fff; }
+    .btn-blue { background: var(--blue-bg); border-color: rgba(102,189,255,0.45); color: #d8efff; }
+    .btn-amber { background: var(--amber-bg); border-color: rgba(255,207,92,0.5); color: #ffe7a8; }
+
+    .line-tip {
+      display: none; background: var(--blue-bg); border: 1px solid rgba(102,189,255,0.4);
+      border-radius: 14px; padding: 9px 12px; margin-bottom: 10px; font-size: 0.82rem; color: #d6eeff;
+    }
+
+    .loc-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 18px; padding: 12px 14px; margin-bottom: 12px;
+    }
+    .gps-pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 99px; font-size: 0.74rem; font-weight: 800; margin-bottom: 4px; }
+    .gps-live { background: var(--green-bg); color: #7efbd0; border: 1px solid rgba(52,240,176,0.4); }
+    .gps-manual { background: var(--amber-bg); color: #ffe28f; border: 1px solid rgba(255,207,92,0.4); }
+    .gps-err { background: var(--red-bg); color: #ff9ea8; border: 1px solid rgba(255,107,123,0.4); }
+    .loc-name { font-size: 1.12rem; font-weight: 900; line-height: 1.25; }
+    .loc-meta { font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .loc-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px; }
+    .loc-grid3 { display: grid; grid-template-columns: 1.12fr 1fr 0.96fr; gap: 6px; margin-top: 9px; }
+    .loc-grid3 .btn { padding: 8px 6px; font-size: 0.8rem; white-space: nowrap; }
+
+    .picker { display: none; margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--border); }
+    .picker.open { display: block; }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .chip {
+      padding: 6px 10px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--surface-2); color: var(--muted); font-size: 0.82rem; font-weight: 700; cursor: pointer; font-family: inherit;
+    }
+    .chip.on { background: #194566; border-color: var(--blue); color: #fff; }
+    .search-row { display: flex; gap: 6px; }
+    .search-row input {
+      flex: 1; min-width: 0; padding: 8px 11px; border-radius: 11px;
+      border: 1px solid var(--border-strong); background: rgba(7,15,28,0.9); color: var(--text); font-size: 0.86rem; font-family: inherit;
+    }
+
+    /* LIVE SKY SCENE VISUALIZER */
+    .sky-hero {
+      border-radius: 22px; overflow: hidden; border: 1.5px solid var(--border-strong);
+      background: var(--surface); margin-bottom: 12px;
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.42);
+    }
+    .sky-stage {
+      position: relative; width: 100%; height: 244px; overflow: hidden;
+      background: linear-gradient(180deg, #061326 0%, #0d2542 70%, #122844 100%);
+    }
+    .sky-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    .sky-overlay {
+      position: absolute; inset: 0; padding: 14px 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 14px;
+      background: linear-gradient(90deg, rgba(5,12,23,0.74) 0%, rgba(5,12,23,0.28) 55%, rgba(5,12,23,0.68) 100%);
+    }
+    .sky-text { flex: 1; min-width: 0; }
+    .sky-tag {
+      display: inline-block; padding: 3px 9px; border-radius: 99px; font-size: 0.75rem; font-weight: 800;
+      background: rgba(6,14,26,0.75); border: 1px solid var(--border-strong); margin-bottom: 6px;
+    }
+    .sky-title { margin: 0 0 5px; font-size: 1.24rem; font-weight: 900; line-height: 1.26; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
+    .sky-lead { margin: 0; font-size: 0.85rem; color: #e2eefc; text-shadow: 0 1px 6px rgba(0,0,0,0.85); }
+
+    .ring-wrap { position: relative; width: 126px; height: 126px; flex-shrink: 0; }
+    .ring-svg { width: 126px; height: 126px; transform: rotate(-90deg); overflow: visible; }
+    .ring-bg-disc { fill: rgba(5, 12, 23, 0.72); }
+    .ring-track { fill: none; stroke: rgba(255, 255, 255, 0.14); stroke-width: 10; }
+    .ring-prog {
+      fill: none; stroke: var(--amber); stroke-width: 10; stroke-linecap: round;
+      stroke-dasharray: 326.7; stroke-dashoffset: 310;
+      transition: stroke-dashoffset 0.75s cubic-bezier(0.22, 1, 0.36, 1), stroke 0.35s ease;
+    }
+    .ring-center {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; pointer-events: none;
+    }
+    .ring-num { font-size: 2rem; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
+    .ring-sub { font-size: 0.68rem; color: var(--muted); font-weight: 700; margin-top: 2px; }
+    .ring-grade { margin-top: 3px; font-size: 0.72rem; font-weight: 800; }
+
+    @keyframes auroraWave {
+      0%, 100% { transform: translateX(0px) scaleY(1); opacity: 0.85; }
+      50% { transform: translateX(12px) scaleY(1.08); opacity: 1; }
+    }
+    .aur-anim { animation: auroraWave 6s ease-in-out infinite; transform-origin: center; }
+
+    .sky-body { padding: 13px 15px 14px; }
+    .factors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    @media (max-width: 450px) { .factors { grid-template-columns: 1fr; } }
+    .f-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 13px; padding: 9px 10px; }
+    .f-head { display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 800; margin-bottom: 5px; }
+    .f-track { height: 8px; background: rgba(5,12,23,0.9); border-radius: 99px; overflow: hidden; margin-bottom: 4px; }
+    .f-fill { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
+    .f-sub { font-size: 0.74rem; color: var(--muted); }
+
+    .fc-strip {
+      margin-top: 9px; padding: 8px 11px; border-radius: 11px;
+      background: rgba(102, 189, 255, 0.08); border: 1px solid rgba(102, 189, 255, 0.25);
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;
+      font-size: 0.8rem; color: #dbeeff;
+    }
+    .fc-strip strong { color: var(--green); }
+    .fc-conf { font-size: 0.74rem; color: var(--muted); font-weight: 700; }
+
+    .trust-bar {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px;
+      margin-top: 11px; padding-top: 9px; border-top: 1px solid var(--border);
+      font-size: 0.74rem; color: var(--muted);
+    }
+    .trust-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+    .tpill { padding: 2px 8px; border-radius: 99px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); font-weight: 700; }
+
+    .view { display: none; }
+    .view.on { display: block; animation: fadeUp 0.18s ease; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 18px; padding: 15px; margin-bottom: 12px;
+    }
+    .card h2 { margin: 0 0 8px; font-size: 1.08rem; font-weight: 900; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .card-sub { margin: 0 0 10px; font-size: 0.82rem; color: var(--muted); }
+
+    .callout {
+      border-radius: 12px; padding: 10px 12px; margin-bottom: 10px;
+      font-size: 0.9rem; border: 1px solid var(--border); background: var(--surface-2);
+    }
+    .callout.good { background: var(--green-bg); border-color: rgba(52,240,176,0.4); color: #d8fff0; }
+    .callout.warn { background: var(--amber-bg); border-color: rgba(255,207,92,0.4); color: #fff2cc; }
+
+    .chart-box {
+      width: 100%; background: rgba(5, 12, 23, 0.72); border: 1px solid var(--border);
+      border-radius: 14px; padding: 10px 8px 6px; overflow: hidden;
+    }
+    .chart-svg { width: 100%; height: auto; display: block; }
+
+    .radar-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .radar-svg { width: 100%; max-width: 310px; height: auto; display: block; }
+    .radar-sector { cursor: pointer; transition: opacity 0.15s ease; }
+    .radar-sector:hover { opacity: 0.92; }
+
+    .sat-img-wrap {
+      position: relative; border-radius: 14px; overflow: hidden;
+      border: 1px solid var(--border-strong); background: #030811;
+    }
+    .sat-img { width: 100%; display: block; height: auto; }
+    .sat-cap { padding: 8px 10px; font-size: 0.78rem; color: var(--muted); background: rgba(5,12,23,0.9); }
+
+    .dir {
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 13px;
+      padding: 10px 11px; margin-bottom: 8px;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: nowrap;
+    }
+    .dir > div { min-width: 0; }
+    .dir .btn { flex-shrink: 0; white-space: nowrap; padding: 7px 10px; font-size: 0.84rem; }
+    .dir.best { border-color: rgba(52,240,176,0.55); background: rgba(52,240,176,0.08); }
+    .dir.sea { opacity: 0.78; border-style: dashed; }
+    .c-green { color: var(--green); } .c-amber { color: var(--amber); } .c-red { color: var(--red); } .c-blue { color: var(--blue); }
+
+    .bottom-nav {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+      background: rgba(7, 15, 28, 0.97); backdrop-filter: blur(14px);
+      border-top: 1px solid var(--border-strong);
+      padding: 8px 6px calc(12px + env(safe-area-inset-bottom, 0px));
+    }
+    .bottom-inner { max-width: 680px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+    .nav-btn {
+      background: transparent; border: none; color: var(--muted);
+      padding: 5px 2px 6px; border-radius: 12px; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+      font-family: inherit; font-weight: 700; font-size: 12px; line-height: 1.2;
+    }
+    .nav-btn .ico { font-size: 20px; line-height: 1; }
+    .nav-btn.on { color: var(--green); background: rgba(52,240,176,0.12); }
+
+    .toast {
+      position: fixed; bottom: 86px; left: 50%; transform: translateX(-50%) translateY(30px); opacity: 0;
+      background: #103c32; color: #eafff7; border: 1px solid var(--green);
+      padding: 9px 15px; border-radius: 12px; font-weight: 800; font-size: 0.88rem;
+      pointer-events: none; transition: all 0.2s ease; z-index: 99; max-width: 90vw; text-align: center;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .btn-alert-on { background: rgba(52,240,176,0.22); border-color: var(--green); color: #d8fff0; box-shadow: 0 0 12px rgba(52,240,176,0.28); }
+    .offline-tip {
+      display: none; background: rgba(255, 107, 123, 0.14); border: 1px solid rgba(255, 107, 123, 0.45);
+      border-radius: 12px; padding: 8px 11px; margin-bottom: 10px; font-size: 0.8rem; color: #ffd4d9; font-weight: 700;
+    }
+    .hr-detail {
+      margin-top: 8px; padding: 8px 10px; border-radius: 10px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      font-size: 0.78rem; color: #d7e7f9; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px;
+    }
+    .hr-detail strong { color: var(--green); }
+    .hr-legend { margin-top: 6px; font-size: 0.72rem; color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hdr">
+      <div class="brand"><span class="brand-dot"></span><span id="brandTxt">極光視覺雷達</span></div>
+      <div class="hdr-tools">
+        <button id="langBtn" class="btn" type="button" onclick="toggleLang()" style="padding:7px 9px;font-size:0.8rem;">🌐 EN</button>
+        <button id="alertBtn" class="btn" type="button" onclick="toggleAlertMode()" style="padding:7px 9px;font-size:0.8rem;">🔔 提醒</button>
+        <button id="refBtn" class="btn btn-primary" type="button" onclick="refreshAll(true)" style="padding:7px 10px;font-size:0.82rem;">🔄 更新</button>
+      </div>
+    </header>
+
+    <div id="lineTip" class="line-tip">
+      💡 在 LINE 內若無法點 GPS，按右下角「⋯」選「用預設瀏覽器開啟」，或直接按「換地點」。
+    </div>
+    <div id="offlineBanner" class="offline-tip"></div>
+
+    <!-- Location Transparency Card -->
+    <section class="loc-card">
+      <div id="gpsPill" class="gps-pill gps-manual">🧭 手動選擇地點（未啟用 GPS）</div>
+      <div id="locName" class="loc-name">挪威・Alta</div>
+      <div id="locMeta" class="loc-meta">69.97°N, 23.27°E ｜ 當地 <span id="clk">--:--</span></div>
+      <div class="loc-grid3">
+        <button id="gpsBtn" class="btn btn-blue" type="button" onclick="useGPS()">📍 GPS定位</button>
+        <button id="pickBtn" class="btn" type="button" onclick="togglePicker()">🗺️ 換地點 ▾</button>
+        <button id="shareBtn" class="btn btn-amber" type="button" onclick="copyLine()">📋 貼LINE</button>
+      </div>
+
+      <div id="picker" class="picker">
+        <div class="chips" id="presetChips">
+          <button class="chip on" type="button" onclick="pickPreset('挪威・Alta', 'Norway · Alta', 69.9689, 23.2716, this)">Alta</button>
+          <button class="chip" type="button" onclick="pickPreset('挪威・Tromsø', 'Norway · Tromsø', 69.6492, 18.9553, this)">Tromsø</button>
+          <button class="chip" type="button" onclick="pickPreset('挪威・Lofoten', 'Norway · Lofoten', 68.2342, 14.5683, this)">Lofoten</button>
+          <button class="chip" type="button" onclick="pickPreset('挪威・Senja', 'Norway · Senja', 69.3470, 17.4820, this)">Senja</button>
+          <button class="chip" type="button" onclick="pickPreset('挪威・Narvik', 'Norway · Narvik', 68.4385, 17.4273, this)">Narvik</button>
+          <button class="chip" type="button" onclick="pickPreset('瑞典・Abisko', 'Sweden · Abisko', 68.3495, 18.8312, this)">Abisko</button>
+          <button class="chip" type="button" onclick="pickPreset('挪威・Kirkenes', 'Norway · Kirkenes', 69.7271, 30.0458, this)">Kirkenes</button>
+          <button class="chip" type="button" onclick="pickPreset('芬蘭・Rovaniemi', 'Finland · Rovaniemi', 66.5039, 25.7294, this)">Rovaniemi</button>
+        </div>
+        <form class="search-row" onsubmit="searchCity(event)">
+          <input id="cityInput" type="text" placeholder="輸入英文地名（例：Kautokeino, Oslo, Reykjavik）" />
+          <button id="searchBtn" class="btn btn-blue" type="submit">搜尋</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- VIEW 1: LIVE VISUAL DASHBOARD -->
+    <main id="v-home" class="view on">
+      <section class="sky-hero">
+        <div class="sky-stage">
+          <svg id="skySvg" class="sky-svg" viewBox="0 0 640 225" preserveAspectRatio="xMidYMid slice"></svg>
+          <div class="sky-overlay">
+            <div class="sky-text">
+              <div id="vKicker" class="sky-tag">⏳ 即時評估中</div>
+              <h1 id="vTitle" class="sky-title">連線同步最新天空實況...</h1>
+              <p id="vLead" class="sky-lead">結合官方高解析分層雲量、NOAA 衛星與精準天文暗度。</p>
+            </div>
+            <div class="ring-wrap">
+              <svg class="ring-svg" viewBox="0 0 126 126">
+                <circle class="ring-bg-disc" cx="63" cy="63" r="56"></circle>
+                <circle class="ring-track" cx="63" cy="63" r="52"></circle>
+                <circle id="ringProg" class="ring-prog" cx="63" cy="63" r="52"></circle>
+              </svg>
+              <div class="ring-center">
+                <div id="ringNum" class="ring-num">--</div>
+                <div id="ringSubLbl" class="ring-sub">看見指數</div>
+                <div id="ringGrade" class="ring-grade">計算中</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sky-body">
+          <div class="factors">
+            <div class="f-box">
+              <div class="f-head"><span id="fSkyLbl">☁️ 天空清朗</span><span id="fSkyVal">--</span></div>
+              <div class="f-track"><div id="fSkyBar" class="f-fill"></div></div>
+              <div id="fSkySub" class="f-sub">讀取中...</div>
+            </div>
+            <div class="f-box">
+              <div class="f-head"><span id="fAurLbl">🌌 極光強度</span><span id="fAurVal">--</span></div>
+              <div class="f-track"><div id="fAurBar" class="f-fill"></div></div>
+              <div id="fAurSub" class="f-sub">讀取中...</div>
+            </div>
+            <div class="f-box">
+              <div class="f-head"><span id="fDarkLbl">🌑 天黑暗空</span><span id="fDarkVal">--</span></div>
+              <div class="f-track"><div id="fDarkBar" class="f-fill"></div></div>
+              <div id="fDarkSub" class="f-sub">讀取中...</div>
+            </div>
+          </div>
+
+          <div id="fcStrip" class="fc-strip">
+            <span id="fcNextTxt">🔮 未來 1 小時預估：計算中...</span>
+            <span id="fcConfTxt" class="fc-conf"></span>
+          </div>
+
+          <div class="trust-bar">
+            <div class="trust-pills">
+              <span id="pNoaa" class="tpill">⏳ NOAA</span>
+              <span id="pMet" class="tpill">⏳ 氣象</span>
+            </div>
+            <span id="syncTime">同步中</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- VISUAL 2: Intuitive 2-Hour Aurora Energy Chart -->
+      <section class="card">
+        <h2><span id="h2Energy">⚡ 過去 2 小時「極光能量變化」</span></h2>
+        <div id="energyBanner" class="callout">讀取衛星即時能量中...</div>
+        <div class="chart-box">
+          <svg id="bzChart" class="chart-svg" viewBox="0 0 420 170"></svg>
+        </div>
+        <div id="bzFootnote" style="margin-top:7px; font-size:0.74rem; color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:5px;">
+          <span id="etaHint">💡 虛線左側＝已抵地球｜右側＝正飛來中</span>
+          <span id="bzRawVal" style="white-space:nowrap;"></span>
+        </div>
+      </section>
+
+      <!-- VISUAL 3: 12-Hour Combined Clear-Sky & Aurora Forecast Chart -->
+      <section class="card">
+        <h2><span id="h2Wave">🌤️ 未來 12 小時「晴空＋極光預報」</span></h2>
+        <div id="homeBest" class="callout">載入中...</div>
+        <div class="chart-box">
+          <svg id="skyWaveChart" class="chart-svg" viewBox="0 0 420 194"></svg>
+        </div>
+        <div id="hourDetail" class="hr-detail"><span>👆 點擊圖上任一時段查看詳細預報（晴空、體感溫度、月光與 Kp）</span></div>
+        <div class="hr-legend">
+          <span id="hrLegLeft">🟢 綠線＝晴空度 % ｜ 🟣 紫柱＝極光綜合分</span>
+          <span id="hrLegRight">點圖表切換時段</span>
+        </div>
+      </section>
+    </main>
+
+    <!-- VIEW 2: LAND-SAFE 360° CLOUD HOLE RADAR -->
+    <section id="v-dir" class="view">
+      <div class="card">
+        <h2 id="h2Radar">🧭 周邊陸路「雲洞雷達圖」</h2>
+        <div id="compassSummary" class="callout warn">掃描周邊雲層中...</div>
+        <div class="radar-wrap">
+          <svg id="radarSvg" class="radar-svg" viewBox="0 0 320 320"></svg>
+          <div id="radarLeg" style="font-size:0.78rem; color:var(--muted);">🟢 綠＝晴朗（雲≤35%）｜🟡 黃＝有雲縫｜🔴 紅＝厚雲（點陸地扇區開導航）</div>
+        </div>
+        <div id="compassBox" style="margin-top:12px;"></div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: LIVE SATELLITE & WINDY CLOUD MAP -->
+    <section id="v-sat" class="view">
+      <div class="card">
+        <h2 id="h2Windy">🛰️ 動態雲圖（直接滑動看雲怎麼飄）</h2>
+        <p id="subWindy" class="card-sub">已自動對準你目前位置，按左下角 ▶ 就能看接下來幾小時雲往哪個方向散開！</p>
+        <div class="sat-img-wrap" style="height: 330px;">
+          <iframe id="windyFrame" title="Windy Live Cloud Map" style="width:100%;height:100%;border:0;" loading="lazy"></iframe>
+        </div>
+      </div>
+
+      <div class="card" id="skyCamCard">
+        <h2 id="h2Cam">📷 北歐天文台「現場全天空實拍」</h2>
+        <p id="subCam" class="card-sub">每 30 秒由極圈天文台實拍上傳！不用猜模型，直接用眼睛確認現在天空有沒有雲、有沒有綠光：</p>
+        <div class="chips" id="camChips" style="margin-bottom:10px;">
+          <button id="camBtnUit" class="chip on" type="button" onclick="selectSkyCam('uit', this)">🇳🇴 挪威 UiT</button>
+          <button id="camBtnIrf" class="chip" type="button" onclick="selectSkyCam('irf', this)">🇸🇪 瑞典 Kiruna</button>
+          <button id="camBtnSgo" class="chip" type="button" onclick="selectSkyCam('sgo', this)">🇫🇮 芬蘭 Sodankylä</button>
+        </div>
+        <div class="sat-img-wrap">
+          <img id="skyCamImg" class="sat-img" alt="Nordic Live All-Sky Camera" />
+          <div id="skyCamCap" class="sat-cap">資料來源：挪威北極大學 UiT 全天空極光相機（Skibotn 天文台，約每分鐘實拍）</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 id="ovHeading">🌍 NOAA 北半球即時極光橢圓圖</h2>
+        <p id="subOv" class="card-sub">看綠色／黃色光環現在有沒有蓋到你所在區域（每 5 分鐘自動更新）：</p>
+        <div class="sat-img-wrap">
+          <img id="ovationImg" class="sat-img" alt="NOAA Live OVATION Aurora Oval" src="https://services.swpc.noaa.gov/images/animations/ovation/north/latest.jpg" />
+          <div id="ovCap" class="sat-cap">資料來源：NOAA SWPC OVATION 即時模型（綠色＝有極光、黃紅＝強爆發）</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: PHOTO & OFFICIAL TOOLS -->
+    <section id="v-tips" class="view">
+      <div class="card">
+        <h2 id="photoHeading">📱 手機拍極光 3 步驟</h2>
+        <div id="photoBody" class="callout warn" style="margin-bottom:0;"></div>
+      </div>
+
+      <div class="card">
+        <h2 id="h2Tools">🔗 官方專業網站直連</h2>
+        <div class="loc-btns" style="margin-top:0;">
+          <a id="linkWindy" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.windy.com/">🛰️ Windy 全螢幕</a>
+          <a id="linkYr" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.yr.no/">🌧️ 挪威 Yr.no</a>
+          <a id="linkTgo" class="btn btn-blue" target="_blank" rel="noopener" href="https://flux.phys.uit.no/Last24/">📈 挪威即時地磁站</a>
+          <a id="linkNoaa" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/aurora-30-minute-forecast">🌌 NOAA 官網</a>
+        </div>
+      </div>
+
+      <div class="card" style="font-size:0.78rem; color:var(--muted); line-height:1.6;">
+        <h2 id="h2Legal" style="font-size:0.95rem;">⚖️ 資料授權與安全免責聲明</h2>
+        <div id="legalBody"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Fixed Bottom App Nav -->
+  <nav class="bottom-nav" aria-label="Main Navigation">
+    <div class="bottom-inner">
+      <button class="nav-btn on" type="button" onclick="switchView('home', this)"><span class="ico">🌌</span><span id="navHome">視覺總覽</span></button>
+      <button class="nav-btn" type="button" onclick="switchView('dir', this)"><span class="ico">🧭</span><span id="navDir">雲洞雷達</span></button>
+      <button class="nav-btn" type="button" onclick="switchView('sat', this)"><span class="ico">🛰️</span><span id="navSat">動態雲圖</span></button>
+      <button class="nav-btn" type="button" onclick="switchView('tips', this)"><span class="ico">📸</span><span id="navTips">拍照/工具</span></button>
+    </div>
+  </nav>
+
+  <div id="toast" class="toast">OK</div>
+
+  <script>
+    // ====== Bilingual i18n (zh-Hant / English, auto-detected & zero-latency switch) ======
+    let currentLang = 'zh';
+    function detectDefaultLang() {
+      try {
+        if (typeof location !== 'undefined') {
+          const ql = new URLSearchParams(location.search).get('lang');
+          if (ql === 'en' || ql === 'zh') return ql;
+        }
+        if (typeof localStorage !== 'undefined') {
+          const saved = localStorage.getItem('aurora_lang_v4');
+          if (saved === 'en' || saved === 'zh') return saved;
+        }
+        if (typeof navigator !== 'undefined' && navigator.language) {
+          return /^zh/i.test(navigator.language) ? 'zh' : 'en';
+        }
+      } catch(e) {}
+      return 'zh';
+    }
+    function setLang(l) { currentLang = (l === 'en') ? 'en' : 'zh'; return currentLang; }
+    function isEn(lang) { return (lang || currentLang) === 'en'; }
+    function tSky(zhTxt, lang) {
+      if (!isEn(lang)) return zhTxt;
+      const map = { '☀️ 白天': '☀️ Day', '🌅 晨昏光': '🌅 Twilight', '❄️ 雪': '❄️ Snow', '🌧️ 雨雪': '🌧️ Rain', '🌟 晴': '🌟 Clear', '⛅ 縫': '⛅ Gaps', '☁️ 陰': '☁️ Cloudy' };
+      return map[zhTxt] || zhTxt;
+    }
+    function tDirLabel(lbl, lang) {
+      if (!isEn(lang)) return lbl;
+      return String(lbl)
+        .replace('📍 目前位置', '📍 Current Spot')
+        .replace('往東北 ', 'NE · ').replace('往西北 ', 'NW · ')
+        .replace('往北 ', 'North ').replace('往南 ', 'South ')
+        .replace('往東 ', 'East ').replace('往西 ', 'West ');
+    }
+    function tGrade(zhGrade, lang) {
+      if (!isEn(lang)) return zhGrade;
+      const map = {
+        '🌏 溫暖緯度': '🌏 Too Far South', '🌍 極光較偏北': '🌍 Oval North',
+        '☀️ 天色尚亮': '☀️ Too Bright', '🌟 極佳爆發': '🌟 Prime Show',
+        '🟢 值得出門': '🟢 Go Outside', '✨ 星空初現': '✨ Worth a Look',
+        '🌌 星空清朗': '🌌 Clear & Quiet', '☁️ 靜候雲開': '☁️ Waiting Gaps'
+      };
+      return map[zhGrade] || zhGrade;
+    }
+
+    // ====== Verified Real Land-Safe Nordic Chase Corridors (No Ocean / No Russian Border!) ======
+    const NORDIC_CORRIDORS = [
+      { match: [69.97, 23.27], pts: [
+        { key: 'N', label: '⬆️ 往東北 Skaidi', lat: 70.4325, lon: 24.5020, isOcean: false },
+        { key: 'E', label: '➡️ 往東 Lakselv', lat: 70.0513, lon: 24.9718, isOcean: false },
+        { key: 'S', label: '⬇️ 往南 Kautokeino', lat: 69.0125, lon: 23.0412, isOcean: false },
+        { key: 'W', label: '⬅️ 往西 Burfjord', lat: 69.9360, lon: 22.0528, isOcean: false }
+      ]},
+      { match: [69.65, 18.96], pts: [
+        { key: 'N', label: '⬆️ 往北 Grøtfjord', lat: 69.7760, lon: 18.5450, isOcean: false },
+        { key: 'E', label: '➡️ 往東 Skibotn', lat: 69.3910, lon: 20.2680, isOcean: false },
+        { key: 'S', label: '⬇️ 往南 Kilpisjärvi', lat: 69.0480, lon: 20.7950, isOcean: false },
+        { key: 'W', label: '⬅️ 往西 Sommarøy', lat: 69.6340, lon: 18.0090, isOcean: false }
+      ]},
+      { match: [68.23, 14.57], pts: [
+        { key: 'N', label: '⬆️ 往北 Gimsøy', lat: 68.3200, lon: 14.1500, isOcean: false },
+        { key: 'E', label: '➡️ 往東 Lødingen', lat: 68.4140, lon: 15.9940, isOcean: false },
+        { key: 'S', label: '⬇️ 往南 Leknes', lat: 68.1475, lon: 13.6115, isOcean: false },
+        { key: 'W', label: '⬅️ 往西 Ramberg', lat: 68.0900, lon: 13.2490, isOcean: false }
+      ]},
+      { match: [69.35, 17.48], pts: [
+        { key: 'N', label: '⬆️ 往北 Ersfjord', lat: 69.4860, lon: 17.3920, isOcean: false },
+        { key: 'E', label: '➡️ 往東 Finnsnes', lat: 69.2300, lon: 17.9810, isOcean: false },
+        { key: 'S', label: '⬇️ 往南 Bardufoss', lat: 69.0640, lon: 18.5140, isOcean: false },
+        { key: 'W', label: '⬅️ 往西 Hamn i Senja', lat: 69.4170, lon: 17.1590, isOcean: false }
+      ]},
+      { match: [68.44, 17.43], pts: [
+        { key: 'N', label: '⬆️ 往北 Gratangen', lat: 68.6930, lon: 17.5320, isOcean: false },
+        { key: 'E', label: '➡️ 往東 Abisko', lat: 68.3495, lon: 18.8312, isOcean: false },
+        { key: 'S', label: '⬇️ 往南 Ballangen', lat: 68.3430, lon: 16.8320, isOcean: false },
+        { key: 'W', label: '⬅️ 往西 Evenes', lat: 68.4910, lon: 16.6780, isOcean: false }
+      ]},
+      { match: [68.35, 18.83], pts: [
+        { key: 'N', label: '⬆️ 往北 Bjerkvik', lat: 68.5490, lon: 17.5540, isOcean: false },
+        { key: 'E', label: '➡️ 往東 Kiruna', lat: 67.8558, lon: 20.2253, isOcean: false },
+        { key: 'S', label: '⬇️ 往南 Torneträsk', lat: 68.2150, lon: 19.7200, isOcean: false },
+        { key: 'W', label: '⬅️ 往西 Narvik', lat: 68.4385, lon: 17.4273, isOcean: false }
+      ]},
+      { match: [69.73, 30.05], pts: [
+        { key: 'N', label: '⬆️ 往北 Vadsø', lat: 70.0740, lon: 29.7490, isOcean: false },
+        { key: 'E', label: '➡️ 往西 Neiden', lat: 69.7010, lon: 29.3830, isOcean: false },
+        { key: 'S', label: '⬇️ 往南 Inari', lat: 68.9060, lon: 27.0280, isOcean: false },
+        { key: 'W', label: '⬅️ 往西北 Tana', lat: 70.1990, lon: 28.1850, isOcean: false }
+      ]},
+      { match: [66.50, 25.73], pts: [
+        { key: 'N', label: '⬆️ 往北 Luosto', lat: 67.1410, lon: 26.9040, isOcean: false },
+        { key: 'E', label: '➡️ 往東 Kemijärvi', lat: 66.7130, lon: 27.4310, isOcean: false },
+        { key: 'S', label: '⬇️ 往南 Ranua', lat: 65.9280, lon: 26.5180, isOcean: false },
+        { key: 'W', label: '⬅️ 往西 Pello', lat: 66.7750, lon: 23.9630, isOcean: false }
+      ]}
+    ];
+
+    // ====== Pure, Scientifically Audited Core Functions ======
+    function isInNordicMetBox(lat, lon) {
+      return lat >= 55.0 && lat <= 72.0 && lon >= 4.0 && lon <= 33.0;
+    }
+
+    function computeCompassPoints(lat, lon, distKm = 60) {
+      const here = { key: 'here', label: '📍 目前位置', lat: +lat.toFixed(4), lon: +lon.toFixed(4), isOcean: false };
+      for (const c of NORDIC_CORRIDORS) {
+        if (Math.hypot(lat - c.match[0], (lon - c.match[1]) * Math.cos(lat * Math.PI / 180)) < 0.25) {
+          return [here, ...c.pts.map(p => ({ ...p }))];
+        }
+      }
+      const dLat = distKm / 111.32;
+      const cosLat = Math.max(0.1, Math.cos(lat * Math.PI / 180));
+      const dLon = distKm / (111.32 * cosLat);
+      return [
+        here,
+        { key: 'N', label: `⬆️ 往北 ${distKm} km`, lat: +Math.min(89.5, lat + dLat).toFixed(4), lon: +lon.toFixed(4), isOcean: false },
+        { key: 'S', label: `⬇️ 往南 ${distKm} km`, lat: +Math.max(-89.5, lat - dLat).toFixed(4), lon: +lon.toFixed(4), isOcean: false },
+        { key: 'E', label: `➡️ 往東 ${distKm} km`, lat: +lat.toFixed(4), lon: +(((lon + dLon + 540) % 360) - 180).toFixed(4), isOcean: false },
+        { key: 'W', label: `⬅️ 往西 ${distKm} km`, lat: +lat.toFixed(4), lon: +(((lon - dLon + 540) % 360) - 180).toFixed(4), isOcean: false }
+      ];
+    }
+
+    function getZoneParts(dateObj, timeZone) {
+      let tz = (timeZone && timeZone !== 'auto') ? timeZone : 'UTC';
+      let parts;
+      try {
+        parts = new Intl.DateTimeFormat('en-CA', {
+          timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', hour12: false
+        }).formatToParts(dateObj);
+      } catch (e) {
+        parts = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', hour12: false
+        }).formatToParts(dateObj);
+      }
+      const map = {};
+      for (const p of parts) map[p.type] = p.value;
+      const hh = map.hour === '24' ? '00' : map.hour;
+      return { dateStr: `${map.year}-${map.month}-${map.day}`, hourStr: hh, minStr: map.minute, isoHour: `${map.year}-${map.month}-${map.day}T${hh}:00` };
+    }
+
+    function formatReverseGeo(geoJson) {
+      if (!geoJson || typeof geoJson !== 'object') return null;
+      const country = (geoJson.countryName || '').trim();
+      const city = (geoJson.city || geoJson.locality || geoJson.principalSubdivision || '').trim();
+      const locality = (geoJson.locality || '').trim();
+      if (!country && !city) return null;
+      const prefix = (country && country !== city) ? country + '・' : '';
+      if (city && locality && locality !== city) return `${prefix}${city}（${locality}）`;
+      if (city) return `${prefix}${city}`;
+      return country;
+    }
+
+    // Verified analytical solar elevation (< 0.008° error vs Meeus across 2026-2027)
+    function computeSolarElevation(dateObj, lat, lon) {
+      const d = dateObj.getTime() / 86400000 - 10957.5;
+      const r = Math.PI / 180;
+      const g = (357.529 + 0.98560028 * d) * r;
+      const L = (280.459 + 0.98564736 * d + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * r;
+      const e = (23.439 - 0.00000036 * d) * r;
+      const ra = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L));
+      const dec = Math.asin(Math.sin(e) * Math.sin(L));
+      const ha = (280.46061837 + 360.98564736629 * d) * r + lon * r - ra;
+      const latR = lat * r;
+      return Math.asin(Math.max(-1, Math.min(1, Math.sin(latR) * Math.sin(dec) + Math.cos(latR) * Math.cos(dec) * Math.cos(ha)))) / r;
+    }
+
+    // Verified analytical ELP lunar phase + topocentric elevation (illum <0.45%, alt <0.9° error)
+    function getMoonState(dateObj, lat = 69.97, lon = 23.27) {
+      const d = dateObj.getTime() / 86400000 - 10957.5, r = Math.PI / 180;
+      const L = (218.316 + 13.176396 * d) * r;
+      const M = (134.963 + 13.064993 * d) * r;
+      const F = (93.272 + 13.229350 * d) * r;
+      const Ms = (357.529 + 0.98560028 * d) * r;
+      const Ls = (280.459 + 0.98564736 * d + 1.915 * Math.sin(Ms)) * r;
+      const D = L - Ls;
+      const lonM = L + (6.289 * Math.sin(M) + 1.274 * Math.sin(2 * D - M) + 0.658 * Math.sin(2 * D)) * r;
+      const latM = 5.128 * Math.sin(F) * r;
+      const e = 23.439 * r;
+      const ra = Math.atan2(Math.sin(lonM) * Math.cos(e) - Math.tan(latM) * Math.sin(e), Math.cos(lonM));
+      const dec = Math.asin(Math.sin(latM) * Math.cos(e) + Math.cos(latM) * Math.sin(e) * Math.sin(lonM));
+      const ha = (280.46061837 + 360.98564736629 * d) * r + lon * r - ra;
+      const latR = lat * r;
+      const altGeo = Math.asin(Math.max(-1, Math.min(1, Math.sin(latR) * Math.sin(dec) + Math.cos(latR) * Math.cos(dec) * Math.cos(ha))));
+      const altDeg = +(altGeo / r - 0.95 * Math.cos(altGeo)).toFixed(1);
+      const pct = Math.max(0, Math.min(100, Math.round(((1 - Math.cos(lonM - Ls) * Math.cos(latM)) / 2) * 100)));
+      const up = altDeg > 0;
+      const altFactor = !up ? 0 : Math.min(1, Math.sin(Math.min(25, altDeg) * r) / Math.sin(25 * r));
+      const effMoonPct = Math.round(pct * altFactor);
+      let desc = '月光微弱（暗空極佳）';
+      if (!up) desc = `月亮已落下（相位 ${pct}%，暗空極佳）`;
+      else if (effMoonPct >= 75) desc = `月光較亮（高掛 ${Math.round(altDeg)}°）`;
+      else if (effMoonPct >= 40) desc = `中度月光（仰角 ${Math.round(altDeg)}°）`;
+      return { pct, altDeg, up, effMoonPct, desc };
+    }
+
+    // Random-overlap effective aurora cloud occlusion (incorporating high cirrus 30% + fog)
+    function computeEffectiveCloud(low, mid, high = 0, fog = 0, totalCap = null) {
+      const clamp01 = x => Math.max(0, Math.min(1, (Number.isFinite(x) ? x : 0) / 100));
+      const l = clamp01(low), m = clamp01(mid), h = clamp01(high), f = clamp01(fog);
+      let eff = Math.round(100 * (1 - (1 - l) * (1 - m) * (1 - 0.30 * h) * (1 - f)));
+      // Guard against Open-Meteo cross-model mismatch (low > total)
+      if (totalCap !== null && Number.isFinite(totalCap)) {
+        eff = Math.min(eff, Math.min(100, Math.round(totalCap + 8)));
+      }
+      return Math.max(0, Math.min(100, eff));
+    }
+
+    // IGRF-14 (2026) dipole geomagnetic latitude (north pole 80.9°N, -72.8°W)
+    function computeGeomagneticLat(lat, lon) {
+      const toR = d => d * Math.PI / 180;
+      const phi = toR(lat), lam = toR(lon);
+      const phiP = toR(80.9), lamP = toR(-72.8);
+      const sinM = Math.sin(phi) * Math.sin(phiP) + Math.cos(phi) * Math.cos(phiP) * Math.cos(lam - lamP);
+      return Math.asin(Math.max(-1, Math.min(1, sinM))) * 180 / Math.PI;
+    }
+
+    // NOAA empirical oval (2.04°/Kp up to Kp 6) + G3-G5 horizon expansion (never exceeds physical Kp 9.0)
+    function requiredKpForMagLat(absMagLat) {
+      if (absMagLat >= 66.5) return 0;
+      if (absMagLat >= 54.2) return +((66.5 - absMagLat) / 2.04).toFixed(1);
+      return Math.min(9.0, +(6.0 + (54.2 - absMagLat) / 6.5).toFixed(1));
+    }
+
+    function computeL1EtaMin(speed) {
+      if (!Number.isFinite(speed) || speed < 200 || speed > 1500) return 45;
+      return Math.max(18, Math.min(95, Math.round(1440000 / (speed * 60))));
+    }
+
+    // Exact spherical dipole Magnetic Local Time (0-24h) using IGRF-14 pole (80.9°N, -72.8°W)
+    function computeMLT(dateObj, lat, lon) {
+      const toR = d => d * Math.PI / 180;
+      const phiP = toR(80.9), lamP = toR(-72.8);
+      const dipoleLon = (la, lo) => {
+        const phi = toR(la), dl = toR(lo) - lamP;
+        const y = Math.cos(phi) * Math.sin(dl);
+        const x = Math.sin(phiP) * Math.cos(phi) * Math.cos(dl) - Math.cos(phiP) * Math.sin(phi);
+        return Math.atan2(y, x) * 180 / Math.PI;
+      };
+      const utcH = dateObj.getUTCHours() + dateObj.getUTCMinutes() / 60 + dateObj.getUTCSeconds() / 3600;
+      const sunLon = -15 * (utcH - 12);
+      const dL = dipoleLon(lat, lon) - dipoleLon(0, sunLon);
+      return (((dL / 15 + 12) % 24) + 24) % 24;
+    }
+
+    // Newell et al. (2007) magnetopause reconnection coupling dPhi/dt = v^(4/3) * BT^(2/3) * sin^(8/3)(theta/2)
+    function computeNewellCoupling(speed, by, bz) {
+      if (!Number.isFinite(speed) || speed <= 0 || !Number.isFinite(bz)) return 0;
+      const byV = Number.isFinite(by) ? by : 0;
+      const bt = Math.hypot(byV, bz);
+      if (bt < 0.05) return 0;
+      const theta = Math.atan2(Math.abs(byV), bz); // 0 = pure north, PI = pure south
+      return Math.pow(speed, 4 / 3) * Math.pow(bt, 2 / 3) * Math.pow(Math.sin(theta / 2), 8 / 3);
+    }
+
+    // Solar wind dynamic pressure P_dyn (nPa) = 1.6726e-6 * n_p * v^2
+    function computeDynamicPressure(speed, density) {
+      if (!Number.isFinite(speed) || !Number.isFinite(density) || speed <= 0 || density < 0) return null;
+      return +(1.6726e-6 * density * speed * speed).toFixed(2);
+    }
+
+    // Detect CME / CIR solar wind dynamic pressure shock (Pdyn >= 5.5 nPa or 30m jump >= +3.0 nPa)
+    function detectPressureShock(windSeries) {
+      if (!Array.isArray(windSeries) || !windSeries.length) return { pdyn: null, jumpNpa: 0, active: false };
+      const vals = [];
+      for (const r of windSeries) {
+        const p = computeDynamicPressure(r.speed, r.density);
+        if (p !== null) vals.push(p);
+      }
+      if (!vals.length) return { pdyn: null, jumpNpa: 0, active: false };
+      const latest = vals[vals.length - 1];
+      const win = vals.slice(-30);
+      const minP = Math.min(...win);
+      const jumpNpa = +(latest - minP).toFixed(2);
+      return { pdyn: latest, jumpNpa, active: latest >= 5.5 || jumpNpa >= 3.0 };
+    }
+
+    // Standard NOAA / Environment Canada Wind Chill (°C) for Arctic clothing safety
+    function computeWindChill(tempC, windMs) {
+      if (!Number.isFinite(tempC)) return 0;
+      const vKmh = Number.isFinite(windMs) ? windMs * 3.6 : 0;
+      if (tempC > 10 || vKmh < 4.8) return +tempC.toFixed(1);
+      const v16 = Math.pow(vKmh, 0.16);
+      return +(13.12 + 0.6215 * tempC - 11.37 * v16 + 0.3965 * tempC * v16).toFixed(1);
+    }
+
+    function computeDataLagMin(isoTag, nowMs = Date.now()) {
+      if (!isoTag) return null;
+      const s = String(isoTag).endsWith('Z') ? String(isoTag) : String(isoTag) + 'Z';
+      const ts = Date.parse(s);
+      if (!Number.isFinite(ts)) return null;
+      return Math.max(0, Math.round((nowMs - ts) / 60000));
+    }
+
+    // Normalize Newell coupling (0..12000+) into intuitive 4..100 chart energy scale
+    function newellToEnergy(nw) {
+      if (!Number.isFinite(nw) || nw <= 0) return 4;
+      // Quiet <1500 (~4..22), Moderate 2500..4500 (~34..58), Burst >=5000 (>=62)
+      return Math.max(4, Math.min(100, Math.round(4 + Math.pow(nw / 100, 0.88) * 1.85)));
+    }
+
+    // Split 3h L1 series with minute-matched wind speed into earth-arriving (t - ETA) vs incoming (+ETA forecast)
+    function computeBallisticCoupling(magSeries, windSeriesOrSpeed) {
+      if (!Array.isArray(magSeries) || !magSeries.length) {
+        return { etaMin: 45, nowBz: null, nowNewell: null, nextBz: null, nextNewell: null, pdyn: null, shockActive: false, shockJumpNpa: 0, energy120: [], arrivingIdx: -1 };
+      }
+      const isWindArr = Array.isArray(windSeriesOrSpeed) && windSeriesOrSpeed.length > 0;
+      const windMap = new Map();
+      let latestSpd = 380;
+      if (isWindArr) {
+        for (const w of windSeriesOrSpeed) windMap.set(String(w.time_tag).slice(0, 16), w.speed);
+        latestSpd = windSeriesOrSpeed[windSeriesOrSpeed.length - 1].speed;
+      } else if (Number.isFinite(windSeriesOrSpeed) && windSeriesOrSpeed > 150) {
+        latestSpd = windSeriesOrSpeed;
+      }
+      const shock = isWindArr ? detectPressureShock(windSeriesOrSpeed) : { pdyn: null, jumpNpa: 0, active: false };
+      const etaMin = computeL1EtaMin(latestSpd);
+      const parseTs = t => Date.parse(String(t) + (String(t).endsWith('Z') ? '' : 'Z'));
+      const lastTs = parseTs(magSeries[magSeries.length - 1].time_tag);
+
+      const enriched = magSeries.map(r => {
+        const v = windMap.get(String(r.time_tag).slice(0, 16)) ?? latestSpd;
+        const nw = computeNewellCoupling(v, r.by, r.bz);
+        return { ...r, ts: parseTs(r.time_tag), v, nw };
+      });
+      const avgWin = arr => {
+        if (!arr.length) return { bz: null, newell: null };
+        const bz = arr.reduce((s, r) => s + r.bz, 0) / arr.length;
+        const nw = arr.reduce((s, r) => s + r.nw, 0) / arr.length;
+        return { bz: +bz.toFixed(2), newell: Math.round(nw) };
+      };
+      const incArr = enriched.filter(r => Number.isFinite(r.ts) && r.ts >= lastTs - 30 * 60000);
+      const arrArr = enriched.filter(r => Number.isFinite(r.ts) && r.ts >= lastTs - (etaMin + 20) * 60000 && r.ts <= lastTs - Math.max(0, etaMin - 10) * 60000);
+      const inc = avgWin(incArr.length ? incArr : enriched.slice(-10));
+      const nowW = avgWin(arrArr.length ? arrArr : (incArr.length ? incArr : enriched.slice(-10)));
+
+      // Build 120-min Newell energy series & find exact index hitting Earth right now (lastTs - etaMin)
+      const tail120 = enriched.slice(-120);
+      const energy120 = tail120.map(r => newellToEnergy(r.nw));
+      const targetTs = lastTs - etaMin * 60000;
+      let arrivingIdx = -1, bestDiff = Infinity;
+      tail120.forEach((r, i) => {
+        if (!Number.isFinite(r.ts)) return;
+        const d = Math.abs(r.ts - targetTs);
+        if (d < bestDiff) { bestDiff = d; arrivingIdx = i; }
+      });
+      if (bestDiff > 20 * 60000) arrivingIdx = -1;
+
+      return {
+        etaMin, nowBz: nowW.bz, nowNewell: nowW.newell, nextBz: inc.bz, nextNewell: inc.newell,
+        pdyn: shock.pdyn, shockActive: shock.active, shockJumpNpa: shock.jumpNpa,
+        energy120, arrivingIdx
+      };
+    }
+
+    // Smooth, calibrated, double-counting-free 0-100 Aurora Visibility Score (v4.0: +Newell, Ballistic L1, MLT, HPI GW, GOES Substorm, CME Pdyn)
+    function computeAuroraScore({ lat = 69.97, lon = 23.27, cloudNow, sunAlt = -15, bz, speed, kp, ovation, hpiGw = null, substormJumpNt = 0, pdyn = null, shockJumpNpa = 0, newell = null, mlt = null, effMoonPct = 0 }) {
+      const magLat = computeGeomagneticLat(lat, lon);
+      const absMag = Math.abs(magLat);
+      // Diurnal oval shift by Magnetic Local Time: ~2.0° equatorward near magnetic midnight (MLT ~0.5h), poleward near noon
+      const mltShiftDeg = (mlt !== null && Number.isFinite(mlt)) ? (2.0 * Math.cos((mlt - 0.5) * Math.PI / 12)) : 0;
+      const effMagForOval = absMag + mltShiftDeg;
+      const neededKp = requiredKpForMagLat(effMagForOval);
+      const skyScore = Math.max(0, Math.min(100, Math.round(100 - (cloudNow ?? 100))));
+
+      // Twilight-aware darkness: >= -4° too bright (0), -4°..-12° smooth ramp, <= -12° full dark minus effective moonlight
+      const isTooBright = sunAlt >= -4;
+      const twilightFactor = isTooBright ? 0 : Math.min(1, (-sunAlt - 4) / 8);
+      const moonDarkFactor = Math.max(0.55, 1 - (effMoonPct ?? 0) * 0.0040);
+      const darkScore = Math.round(100 * twilightFactor * moonDarkFactor);
+
+      // Hard physical gate 1: < 32° geomagnetic (Taiwan 16°, Tokyo 28°, Singapore) -> impossible
+      if (absMag < 32) {
+        return {
+          total: 0, skyScore, auroraScore: 0, darkScore, isTooBright,
+          magLat: Math.round(absMag), neededKp: requiredKpForMagLat(absMag), outOfZone: 'low-lat',
+          grade: '🌏 溫暖緯度', color: '#ff8a96'
+        };
+      }
+
+      const curKp = (kp !== null && Number.isFinite(kp)) ? kp : 0;
+      const curOv = (ovation !== null && Number.isFinite(ovation)) ? ovation : null;
+      const curHpi = (hpiGw !== null && Number.isFinite(hpiGw)) ? hpiGw : null;
+
+      // Hard physical gate 2: Mid-lat (e.g. Oslo, Hokkaido 35-38°) where Kp & OVATION cannot reach
+      if (neededKp >= 3 && (curKp + 0.8) < neededKp && (curOv ?? 0) < 5) {
+        return {
+          total: 0, skyScore, auroraScore: 0, darkScore, isTooBright,
+          magLat: Math.round(absMag), neededKp, outOfZone: 'need-storm',
+          grade: '🌍 極光較偏北', color: '#ff8a96'
+        };
+      }
+
+      // Smooth fused geomagnetic base (NO double-counting! HPI GW shares weight with Kp, OVATION leads)
+      const kpScore = Math.max(0, Math.min(100, curKp * 14));
+      const hpiScore = curHpi !== null ? Math.max(0, Math.min(100, (curHpi - 8) * 1.35)) : null;
+      const globalScore = hpiScore !== null ? (0.58 * hpiScore + 0.42 * kpScore) : kpScore;
+
+      let baseAur;
+      if (curOv !== null) {
+        if (absMag > 73) {
+          // Polar cap (e.g. Svalbard): strong storms shift oval south, trust local OVATION
+          baseAur = 0.78 * curOv + 0.22 * globalScore;
+        } else if (neededKp > 1.5) {
+          const marginScore = Math.max(0, Math.min(100, (curKp - neededKp + 1.5) * 18));
+          baseAur = 0.65 * curOv + 0.35 * marginScore;
+        } else {
+          baseAur = 0.52 * curOv + 0.48 * globalScore;
+        }
+      } else {
+        baseAur = neededKp > 1.5 ? Math.max(0, (curKp - neededKp + 1.5) * 18) : globalScore;
+      }
+
+      // Continuous solar-wind coupling adjustment: prefer ballistic Newell coupling when available, else smooth Bz+Speed
+      const bzVal = (bz !== null && Number.isFinite(bz)) ? bz : 0;
+      const spdVal = (speed !== null && Number.isFinite(speed)) ? speed : 380;
+      let swAdj;
+      if (newell !== null && Number.isFinite(newell)) {
+        swAdj = Math.max(-6, Math.min(36, (newell - 1500) / 215));
+      } else {
+        const bzAdj = Math.max(-8, Math.min(26, -bzVal * 3.0));
+        const southWeight = Math.max(0, Math.min(1, (-bzVal + 1) / 4));
+        const spAdj = Math.max(0, Math.min(14, (spdVal - 380) / 22)) * (0.2 + 0.8 * southWeight);
+        swAdj = bzAdj + spAdj;
+      }
+      // GOES geostationary substorm dipolarization onset (7-day empirically calibrated: >=10 nT -> 0.00% FP!)
+      const subJump = (substormJumpNt !== null && Number.isFinite(substormJumpNt)) ? substormJumpNt : 0;
+      const substormAdj = Math.max(0, Math.min(18, (subJump - 10) * 0.75));
+      // Solar wind CME / CIR dynamic pressure compression smooth boost (+0..+12)
+      const pVal = (pdyn !== null && Number.isFinite(pdyn)) ? pdyn : 0;
+      const pJump = (shockJumpNpa !== null && Number.isFinite(shockJumpNpa)) ? shockJumpNpa : 0;
+      const pdynAdj = Math.max(0, Math.min(12, Math.max((pVal - 4.5) * 2.0, (pJump - 2.2) * 2.5)));
+      // Gentle MLT substorm-sector multiplier (+/-7% around magnetic midnight)
+      const mltFactor = (mlt !== null && Number.isFinite(mlt)) ? (1 + 0.07 * Math.cos((mlt - 0.5) * Math.PI / 12)) : 1;
+
+      const auroraScore = Math.max(2, Math.min(100, Math.round((baseAur + swAdj + substormAdj + pdynAdj) * mltFactor)));
+
+      let total = 0;
+      if (!isTooBright) {
+        const skyFactor = Math.pow(skyScore / 100, 0.85);
+        const darkFactor = twilightFactor * (0.55 + 0.45 * moonDarkFactor);
+        total = Math.max(0, Math.min(99, Math.round(skyFactor * auroraScore * darkFactor)));
+      }
+
+      let grade = '☁️ 靜候雲開', color = '#ff8a96';
+      if (isTooBright) { grade = '☀️ 天色尚亮'; color = '#66bdff'; }
+      else if (total >= 65) { grade = '🌟 極佳爆發'; color = '#34f0b0'; }
+      else if (total >= 40) { grade = '🟢 值得出門'; color = '#34f0b0'; }
+      else if (total >= 18) { grade = '✨ 星空初現'; color = '#ffcf5c'; }
+      else if (skyScore >= 55) { grade = '🌌 星空清朗'; color = '#66bdff'; }
+      return { total, skyScore, auroraScore, darkScore, isTooBright, magLat: Math.round(absMag), neededKp, outOfZone: null, grade, color };
+    }
+
+    function parseMagSeries(rows, limit = 180) {
+      if (!Array.isArray(rows)) return [];
+      const active = [];
+      for (const r of rows) {
+        if (!r || r.active !== true) continue;
+        if (typeof r.bz_gsm !== 'number' || !Number.isFinite(r.bz_gsm)) continue;
+        active.push({
+          time_tag: String(r.time_tag),
+          bz: r.bz_gsm,
+          by: typeof r.by_gsm === 'number' && Number.isFinite(r.by_gsm) ? r.by_gsm : 0,
+          bt: typeof r.bt === 'number' ? r.bt : null
+        });
+      }
+      active.sort((a, b) => a.time_tag.localeCompare(b.time_tag));
+      return active.slice(-limit);
+    }
+
+    function parseWindSeries(rows, limit = 180) {
+      if (!Array.isArray(rows)) return [];
+      const active = [];
+      for (const r of rows) {
+        if (!r || r.active !== true) continue;
+        if (typeof r.proton_speed !== 'number' || !Number.isFinite(r.proton_speed)) continue;
+        active.push({
+          time_tag: String(r.time_tag),
+          speed: r.proton_speed,
+          density: typeof r.proton_density === 'number' && Number.isFinite(r.proton_density) ? r.proton_density : null
+        });
+      }
+      active.sort((a, b) => a.time_tag.localeCompare(b.time_tag));
+      return active.slice(-limit);
+    }
+
+    function parseLatestActiveWind(rows) {
+      const s = parseWindSeries(rows, 180);
+      if (!s.length) return null;
+      const last = s[s.length - 1];
+      return { speed: last.speed, density: last.density, time_tag: last.time_tag };
+    }
+
+    function parseKpForecast(rows) {
+      if (!Array.isArray(rows)) return [];
+      const out = [];
+      for (const r of rows) {
+        if (!r || typeof r !== 'object') continue;
+        const kp = typeof r.kp === 'number' ? r.kp : (typeof r.Kp === 'number' ? r.Kp : parseFloat(r.kp));
+        const tag = String(r.time_tag || '');
+        const ts = Date.parse(tag.endsWith('Z') ? tag : tag + 'Z');
+        if (!Number.isFinite(kp) || !Number.isFinite(ts)) continue;
+        out.push({ ts, kp, observed: r.observed || '' });
+      }
+      out.sort((a, b) => a.ts - b.ts);
+      return out;
+    }
+
+    function lookupForecastKp(fcList, targetDate, fallbackKp = 0) {
+      if (!Array.isArray(fcList) || !fcList.length) return fallbackKp ?? 0;
+      const targetMs = (targetDate instanceof Date ? targetDate.getTime() : Number(targetDate));
+      let best = null, bestDist = Infinity;
+      for (const item of fcList) {
+        const d = Math.abs(item.ts - targetMs);
+        if (d < bestDist) { bestDist = d; best = item.kp; }
+      }
+      return best !== null && bestDist <= 6 * 3600000 ? best : (fallbackKp ?? 0);
+    }
+
+    function parseLatestKp(rows) {
+      if (!Array.isArray(rows)) return null;
+      let best = null;
+      for (const r of rows) {
+        if (!r) continue;
+        const val = (typeof r.estimated_kp === 'number') ? r.estimated_kp
+          : (typeof r.Kp === 'number') ? r.Kp
+          : (typeof r.kp_index === 'number') ? r.kp_index
+          : (Array.isArray(r) ? parseFloat(r[1]) : NaN);
+        const tag = r.time_tag || (Array.isArray(r) ? r[0] : '');
+        if (!Number.isFinite(val) || !tag) continue;
+        if (!best || String(tag) > String(best.time_tag)) best = { kp: val, time_tag: tag };
+      }
+      return best;
+    }
+
+    function lookupOvationProb(ovationJson, lat, lon) {
+      if (!ovationJson || !Array.isArray(ovationJson.coordinates)) return null;
+      const targetLon = ((Math.round(lon) % 360) + 360) % 360;
+      const targetLat = Math.max(-90, Math.min(90, Math.round(lat)));
+      let bestVal = null, bestDist = Infinity;
+      for (const pt of ovationJson.coordinates) {
+        if (!Array.isArray(pt) || pt.length < 3) continue;
+        const dLat = Math.abs(pt[1] - targetLat);
+        if (dLat > 1) continue;
+        let dLon = Math.abs(pt[0] - targetLon);
+        if (dLon > 180) dLon = 360 - dLon;
+        if (dLon > 1) continue;
+        const d = dLat + dLon;
+        if (d < bestDist) { bestDist = d; bestVal = Number(pt[2]); if (d === 0) break; }
+      }
+      return Number.isFinite(bestVal) ? bestVal : null;
+    }
+
+    // Parse NOAA Hemispheric Power Index (GW) tabular text -> latest North/South GW
+    function parseHemiPower(txt, lat = 69.97) {
+      if (typeof txt !== 'string' || !txt.trim()) return null;
+      const lines = txt.split(/\r?\n/);
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const line = lines[i].trim();
+        if (!line || line.startsWith('#')) continue;
+        const parts = line.split(/\s+/);
+        if (parts.length < 4) continue;
+        const north = parseFloat(parts[2]), south = parseFloat(parts[3]);
+        if (!Number.isFinite(north) || !Number.isFinite(south)) continue;
+        return { obsTime: parts[0], fcTime: parts[1], north, south, gw: lat >= 0 ? north : south };
+      }
+      return null;
+    }
+
+    // Parse GOES primary magnetometer 6h JSON -> 25-min Hp dipolarization jump (substorm onset detector)
+    function parseGoesSubstorm(rows) {
+      if (!Array.isArray(rows) || rows.length < 5) return null;
+      const clean = [];
+      for (const r of rows) {
+        if (!r || r.arcjet_flag === true) continue;
+        if (typeof r.Hp !== 'number' || !Number.isFinite(r.Hp)) continue;
+        clean.push({ time_tag: String(r.time_tag || ''), hp: r.Hp });
+      }
+      if (clean.length < 5) return null;
+      clean.sort((a, b) => a.time_tag.localeCompare(b.time_tag));
+      const win = clean.slice(-26); // latest ~25 minutes
+      const latestHp = win[win.length - 1].hp;
+      let minHp = Infinity;
+      for (const x of win) if (x.hp < minHp) minHp = x.hp;
+      const jumpNt = +(latestHp - minHp).toFixed(1);
+      return { latestHp: +latestHp.toFixed(1), jumpNt, active: jumpNt >= 15, time_tag: win[win.length - 1].time_tag };
+    }
+
+    // Parse official MET Norway Locationforecast 2.0 complete into unified 12-hour array (+wind chill & dtMs)
+    function parseMetNorwayHourly12(metJson, lat, lon, timeZone, nowDate) {
+      const series = metJson?.properties?.timeseries;
+      if (!Array.isArray(series) || !series.length) return [];
+      const nowMs = (nowDate || new Date()).getTime();
+      let idx = series.findIndex(item => Date.parse(item.time) >= nowMs - 3600000);
+      if (idx < 0) idx = 0;
+      const out = [];
+      for (let i = idx; i < Math.min(idx + 12, series.length); i++) {
+        const item = series[i];
+        const det = item?.data?.instant?.details || {};
+        const dt = new Date(item.time);
+        const midDt = new Date(dt.getTime() + 1800000); // :30 midpoint for solar elevation
+        const sunAlt = computeSolarElevation(midDt, lat, lon);
+        const isTooBright = sunAlt >= -4;
+        const effCloud = computeEffectiveCloud(
+          det.cloud_area_fraction_low ?? 0,
+          det.cloud_area_fraction_medium ?? 0,
+          det.cloud_area_fraction_high ?? 0,
+          det.fog_area_fraction ?? 0
+        );
+        const pr = Number(item?.data?.next_1_hours?.details?.precipitation_amount ?? 0);
+        const tp = Number(det.air_temperature ?? 0);
+        const windMs = Number(det.wind_speed ?? 0);
+        const windChill = computeWindChill(tp, windMs);
+        const z = getZoneParts(dt, timeZone);
+        const txt = isTooBright
+          ? (sunAlt >= 0 ? '☀️ 白天' : '🌅 晨昏光')
+          : (pr >= 0.1 ? (tp <= 0 ? '❄️ 雪' : '🌧️ 雨雪') : (effCloud <= 25 ? '🌟 晴' : effCloud <= 65 ? '⛅ 縫' : '☁️ 陰'));
+        out.push({ time: `${z.hourStr}:${z.minStr}`, dtMs: midDt.getTime(), block: effCloud, clear: 100 - effCloud, txt, temp: tp, windMs, windChill, isDay: isTooBright, sunAlt });
+      }
+      return out;
+    }
+
+    // Parse Open-Meteo fallback into unified 12-hour array (with total cloud cap, wind chill & analytical twilight)
+    function parseOpenMeteoHourly12(hourly, lat, lon, timeZone, nowDate) {
+      if (!hourly || !Array.isArray(hourly.time)) return [];
+      const zNow = getZoneParts(nowDate || new Date(), timeZone);
+      let idx = hourly.time.findIndex(t => t >= zNow.isoHour);
+      if (idx < 0) idx = 0;
+      const out = [];
+      for (let i = idx; i < Math.min(idx + 12, hourly.time.length); i++) {
+        const low = Number(hourly.cloud_cover_low?.[i] ?? 0);
+        const mid = Number(hourly.cloud_cover_mid?.[i] ?? 0);
+        const high = Number(hourly.cloud_cover_high?.[i] ?? 0);
+        const tot = hourly.cloud_cover ? Number(hourly.cloud_cover[i]) : null;
+        const effCloud = computeEffectiveCloud(low, mid, high, 0, tot);
+        const pr = Number(hourly.precipitation?.[i] ?? 0);
+        const tp = Number(hourly.temperature_2m?.[i] ?? 0);
+        const windMs = Number(hourly.wind_speed_10m?.[i] ?? 0) / 3.6;
+        const windChill = computeWindChill(tp, windMs);
+        const baseHourMs = Math.floor((nowDate || new Date()).getTime() / 3600000) * 3600000;
+        const approxUtc = new Date(baseHourMs + (i - idx) * 3600000 + 1800000);
+        const sunAlt = computeSolarElevation(approxUtc, lat, lon);
+        const isTooBright = sunAlt >= -4;
+        const txt = isTooBright
+          ? (sunAlt >= 0 ? '☀️ 白天' : '🌅 晨昏光')
+          : (pr >= 0.1 ? (tp <= 0 ? '❄️ 雪' : '🌧️ 雨雪') : (effCloud <= 25 ? '🌟 晴' : effCloud <= 65 ? '⛅ 縫' : '☁️ 陰'));
+        out.push({ time: hourly.time[i].slice(11, 16), dtMs: approxUtc.getTime(), block: effCloud, clear: 100 - effCloud, txt, temp: tp, windMs, windChill, isDay: isTooBright, sunAlt });
+      }
+      return out;
+    }
+
+    // Score ALL 12 hours combining cloud, sun/moon elevation, dipole MLT, and official NOAA 72h Kp forecast!
+    function scoreHourlyForecast12(hrs, { lat = 69.97, lon = 23.27, kpForecast = [], fallbackKp = 0, ovation = null, hpiGw = null }) {
+      if (!Array.isArray(hrs) || !hrs.length) return { hours: [], bestAurora: null };
+      const hours = hrs.map((h, i) => {
+        const dt = new Date(h.dtMs || (Date.now() + i * 3600000));
+        const moonH = getMoonState(dt, lat, lon);
+        const mltH = computeMLT(dt, lat, lon);
+        const kpFc = i === 0 && Number.isFinite(fallbackKp) ? fallbackKp : lookupForecastKp(kpForecast, dt, fallbackKp);
+        // Live OVATION/HPI decay cleanly into NOAA Kp forecast beyond +2h
+        const liveW = i === 0 ? 1 : (i === 1 ? 0.55 : (i === 2 ? 0.25 : 0));
+        const scH = computeAuroraScore({
+          lat, lon, cloudNow: h.block, sunAlt: h.sunAlt,
+          bz: 0, speed: 400, kp: kpFc,
+          ovation: liveW > 0 && ovation !== null ? Math.round(ovation * liveW + Math.min(95, kpFc * 15) * (1 - liveW)) : null,
+          hpiGw: liveW > 0 ? hpiGw : null,
+          mlt: mltH, effMoonPct: moonH.effMoonPct
+        });
+        return { ...h, score: scH.total, kpFc: +Number(kpFc).toFixed(1), moonUp: moonH.up, moonPct: moonH.pct, moonAlt: moonH.altDeg, mlt: +mltH.toFixed(1), outOfZone: scH.outOfZone };
+      });
+      const dark = hours.filter(h => !h.isDay);
+      let bestAurora = null;
+      for (const h of dark) {
+        if (!bestAurora || h.score > bestAurora.score || (h.score === bestAurora.score && h.block < bestAurora.block)) {
+          bestAurora = h;
+        }
+      }
+      return { hours, bestAurora };
+    }
+
+    function findBestDarkWindow(hrs) {
+      if (!hrs || !hrs.length) return null;
+      const dark = hrs.filter(h => !h.isDay);
+      if (!dark.length) return null;
+      let best = dark[0];
+      for (const h of dark) if (h.block < best.block) best = h;
+      return best;
+    }
+
+    // Strictly monotonic, 100% consistent with scoreObj.total (0% contradictions!)
+    function evaluateVerdict({ lat = 69.97, bestDark, kp, scoreObj, lang }) {
+      const en = isEn(lang);
+      const lookDir = lat >= 0 ? (en ? 'North' : '正北方') : (en ? 'South' : '正南方');
+      if (scoreObj?.outOfZone === 'low-lat') {
+        return en
+          ? { kicker: '🌏 Warm Latitude', title: 'Too far south — aurora awaits in the Arctic!', lead: `Geomagnetic latitude here is ${scoreObj.magLat}° (aurora mostly stays above 60°). Tap "🗺️ Location" above to view Norway live!` }
+          : { kicker: '🌏 溫暖緯度', title: '這裡是溫暖緯度，極光在極圈等你！', lead: `此地地磁緯度 ${scoreObj.magLat}°（極光主要在 60° 以上高緯度），點上方「🗺️ 換地點」可立刻看挪威最新實況！` };
+      }
+      if (scoreObj?.outOfZone === 'need-storm') {
+        return en
+          ? { kicker: '🌍 Oval Further North', title: 'Aurora oval is currently further north', lead: `At ${scoreObj.magLat}° mag latitude, a strong storm (Kp ≥ ${scoreObj.neededKp}) is usually needed. Current Kp is ${kp !== null ? kp.toFixed(1) : '--'}.` }
+          : { kicker: '🌍 極光帶較偏北', title: '目前極光帶集中在更北邊的極圈', lead: `此地（地磁 ${scoreObj.magLat}°）通常需強磁暴 Kp ≥ ${scoreObj.neededKp} 才有機會，目前為 Kp ${kp !== null ? kp.toFixed(1) : '--'}。` };
+      }
+      if (scoreObj?.isTooBright) {
+        return en
+          ? { kicker: '☀️ Sky Too Bright', title: 'Too bright for aurora — enjoy the daylight!', lead: bestDark ? `Best dark-sky window tonight: ${bestDark.time} (${bestDark.clear}% clear). Check back after dusk!` : 'Check back once true twilight ends!' }
+          : { kicker: '☀️ 天色尚亮', title: '天色還太亮，先開心享受白天風景！', lead: bestDark ? `天黑後較有機會的時段在 ${bestDark.time}（晴空度 ${bestDark.clear}%），晚點再看！` : '等夜幕完全降臨後再來看看極光驚喜！' };
+      }
+      if (scoreObj.total >= 65) {
+        return en
+          ? { kicker: '🌟 Prime Aurora Show', title: 'Clear skies + strong aurora — head out now!', lead: `Great conditions! Bundle up, step away from streetlights, and look ${lookDir}!` }
+          : { kicker: '🌟 黃金爆發時刻', title: '晴空＋極光活躍，快穿暖出門！', lead: `老天賞臉！雲少且極光能量充足，避開路燈朝${lookDir}欣賞吧！` };
+      }
+      if (scoreObj.total >= 40) {
+        return en
+          ? { kicker: '🟢 Worth Going Out', title: 'Good conditions! Dress warm and look up ✨', lead: `Clear openings with active aurora — find an open dark view facing ${lookDir}!` }
+          : { kicker: '🟢 值得出門', title: '條件不錯！快穿外套去暗處看 ✨', lead: `天空清朗且極光活躍，往${lookDir}視野開闊處走走很有機會看見！` };
+      }
+      if (scoreObj.total >= 18) {
+        return en
+          ? {
+              kicker: '✨ Worth Checking',
+              title: scoreObj.skyScore >= 55 ? 'Skies are clearing! Nice walk to watch ✨' : 'Cloud gaps opening — keep an eye out',
+              lead: scoreObj.auroraScore >= 45
+                ? `Aurora energy is picking up — watch the gaps toward the ${lookDir}!`
+                : `Clear sky openings tonight! Solar wind is gentle, but faint arcs can surprise anytime.`
+            }
+          : {
+              kicker: '✨ 星空初現',
+              title: scoreObj.skyScore >= 55 ? '天空放晴了！去散步等驚喜 ✨' : '雲縫露臉！可留意天空變化',
+              lead: scoreObj.auroraScore >= 45
+                ? `極光能量有起色！往${lookDir}看雲縫有沒有透出綠光！`
+                : `雲層散開、夜色很美！雖然太陽風目前溫和，但極光常突然現身，適合輕鬆散步。`
+            };
+      }
+      if (scoreObj.auroraScore >= 55 && scoreObj.skyScore < 35) {
+        return en
+          ? { kicker: '⚡ Energy Ready', title: 'Strong aurora above — waiting for cloud gaps!', lead: 'Solar wind is active! Check the Sky Radar or Live Map tabs for nearby clear pockets!' }
+          : { kicker: '⚡ 極光能量就位', title: '極光很給力，正等雲層開窗！', lead: '太陽風活躍中！點下方「雲洞雷達」或「動態雲圖」，說不定附近就有晴空驚喜！' };
+      }
+      if (scoreObj.skyScore >= 55) {
+        return en
+          ? { kicker: '🌌 Clear & Quiet', title: 'Clear starry skies — solar wind is calm', lead: `Great visibility looking ${lookDir}! Geomagnetic activity is very quiet right now; turn on Alerts to catch sudden bursts.` }
+          : { kicker: '🌌 星空清朗', title: '夜空很晴朗，目前太陽風較平靜', lead: `朝${lookDir}看得到滿天星斗！現在地磁活動偏弱，可以開啟右上角提醒，有極光爆發再出門！` };
+      }
+      return en
+        ? {
+            kicker: '☕ Waiting for Gaps',
+            title: 'Thick cloud cover — relax & enjoy the cozy night',
+            lead: bestDark && bestDark.block <= 45
+              ? `Clouds may thin around ${bestDark.time} (${bestDark.clear}% clear). Enjoy a warm meal first and check later!`
+              : 'Grab a warm dinner and rest up — Arctic skies shift quickly, so peek outside before bed!'
+          }
+        : {
+            kicker: '☕ 靜候雲開',
+            title: '雲層正厚，先安心享受北歐夜晚',
+            lead: bestDark && bestDark.block <= 45
+              ? `預計 ${bestDark.time} 雲會漸散（晴空度 ${bestDark.clear}%），先吃頓熱飯休息，晚點再看！`
+              : '先吃頓熱呼呼的晚餐、養足體力，北極天氣變化快，睡前再推窗看看有沒有小驚喜！'
+          };
+    }
+
+    function summarizeCompass(dirResults, lang) {
+      if (!dirResults || dirResults.length < 2) return null;
+      const en = isEn(lang);
+      const here = dirResults[0];
+      const landOthers = dirResults.slice(1).filter(d => !d.isOcean).sort((a, b) => a.avg3h - b.avg3h);
+      if (here.avg3h <= 35) {
+        return { bestKey: 'here', good: true, text: en ? `🟢 Clear skies right here for the next 3h (cloud only ${here.avg3h}%) — no need to drive!` : `🟢 原地未來 3 小時相當清朗（雲量僅 ${here.avg3h}%），在附近輕鬆散步看就好！` };
+      }
+      if (!landOthers.length) {
+        return { bestKey: null, good: false, text: en ? '🌊 Surrounding points are open sea. Stay local or check Live Map for inland roads.' : '🌊 周邊多為海面，建議留在當地或透過「動態雲圖」查看內陸路線。' };
+      }
+      const best = landOthers[0];
+      const diff = here.avg3h - best.avg3h;
+      if (diff >= 25 && best.avg3h <= 50) {
+        return { bestKey: best.key, good: true, text: en ? `✨ Clear pocket toward "${tDirLabel(best.label, 'en')}"! 3h avg cloud ${best.avg3h}% (${diff}% clearer than here).` : `✨ 「${best.label}」有明顯晴空雲洞！3 小時均雲 ${best.avg3h}%（比原地少了 ${diff}%）。` };
+      }
+      return { bestKey: null, good: false, text: en ? `☕ Nearby land routes are also overcast (~${best.avg3h}% cloud). Save the drive and stay cozy!` : `☕ 周邊陸路目前都被雲被子蓋著（雲量約 ${best.avg3h}%），剛好省下舟車勞頓，在飯店附近放鬆最舒服！` };
+    }
+
+    // ====== SVG Visualization Builders ======
+    function buildSkySceneSVG({ cloudPct, auroraScore, moonUp, moonPct, isTooBright }) {
+      const bgTop = isTooBright ? '#2e6da4' : '#040d1c';
+      const bgBot = isTooBright ? '#89bce2' : '#0f2744';
+      const starOp = isTooBright ? 0 : Math.max(0.05, (100 - cloudPct) / 100);
+      const aurOp = (isTooBright || auroraScore <= 0) ? 0 : Math.max(0.06, (auroraScore / 100) * Math.max(0.18, (100 - cloudPct * 0.85) / 100));
+      const cloudOp = Math.min(0.95, Math.max(0.08, (cloudPct / 100) * 0.94));
+      const showMoon = moonUp && !isTooBright;
+      const moonOp = showMoon ? Math.max(0.22, (100 - cloudPct * 0.7) / 100) : 0;
+      const moonR = 12 + (moonPct / 100) * 10;
+
+      const stars = [
+        [40,28,1.5],[95,52,1.2],[148,24,1.8],[215,40,1.1],[275,20,1.6],
+        [340,46,1.3],[410,25,1.7],[465,55,1.2],[530,30,1.5],[595,48,1.4],
+        [70,82,1.1],[180,74,1.4],[305,78,1.2],[440,86,1.3],[560,72,1.5]
+      ].map(([x,y,r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#ffffff" opacity="${(starOp * 0.85).toFixed(2)}"/>`).join('');
+
+      const clouds = cloudPct >= 15 ? `
+        <g opacity="${cloudOp.toFixed(2)}">
+          <ellipse cx="110" cy="78" rx="130" ry="34" fill="#324864"/>
+          <ellipse cx="290" cy="64" rx="165" ry="42" fill="#293d56"/>
+          <ellipse cx="490" cy="80" rx="160" ry="38" fill="#324864"/>
+          <ellipse cx="200" cy="108" rx="180" ry="32" fill="#1f3148"/>
+          <ellipse cx="440" cy="112" rx="190" ry="34" fill="#23364f"/>
+        </g>` : '';
+
+      const moonSvg = showMoon ? `
+        <g opacity="${moonOp.toFixed(2)}">
+          <circle cx="455" cy="48" r="${(moonR * 1.9).toFixed(1)}" fill="#ffefc2" opacity="0.16"/>
+          <circle cx="455" cy="48" r="${moonR.toFixed(1)}" fill="#fff4d1"/>
+        </g>` : '';
+
+      return `
+        <defs>
+          <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${bgTop}"/><stop offset="100%" stop-color="${bgBot}"/>
+          </linearGradient>
+          <linearGradient id="aurG" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#34f0b0" stop-opacity="0.9"/>
+            <stop offset="50%" stop-color="#22d3ee" stop-opacity="0.75"/>
+            <stop offset="100%" stop-color="#a855f7" stop-opacity="0.65"/>
+          </linearGradient>
+          <filter id="aurBlur"><feGaussianBlur stdDeviation="11"/></filter>
+        </defs>
+        <rect width="640" height="225" fill="url(#skyG)"/>
+        ${stars}
+        <g class="aur-anim" opacity="${aurOp.toFixed(2)}" filter="url(#aurBlur)">
+          <path d="M-20,130 C90,45 190,145 310,60 C430,-10 520,110 660,40 L660,95 C520,155 430,45 310,115 C190,185 90,95 -20,165 Z" fill="url(#aurG)"/>
+        </g>
+        ${moonSvg}
+        ${clouds}
+        <path d="M0,225 L0,186 L78,148 L155,176 L248,136 L345,178 L442,146 L545,172 L640,144 L640,225 Z" fill="#091525" opacity="0.92"/>
+        <path d="M0,225 L0,202 L120,182 L265,204 L415,178 L560,198 L640,186 L640,225 Z" fill="#050c17"/>
+      `;
+    }
+
+    function utcTagToLocalHM(utcTag, timeZone) {
+      if (!utcTag) return '--:--';
+      try {
+        const iso = String(utcTag).endsWith('Z') ? String(utcTag) : String(utcTag) + 'Z';
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return String(utcTag).slice(11, 16);
+        const z = getZoneParts(d, timeZone);
+        return `${z.hourStr}:${z.minStr}`;
+      } catch (e) { return String(utcTag).slice(11, 16); }
+    }
+
+    // Wind-coupled upward aurora energy (higher = stronger!)
+    function bzToEnergy(bz, speed = 420) {
+      if (!Number.isFinite(bz)) return 0;
+      const vScale = (Number.isFinite(speed) && speed > 200) ? Math.pow(speed / 420, 0.9) : 1;
+      const e = bz < 0 ? (20 + (-bz) * 10.5 * vScale) : (20 - bz * 6);
+      return Math.max(4, Math.min(100, Math.round(e)));
+    }
+
+    function summarizeEnergyTrend(series, speed, lang) {
+      const en = isEn(lang);
+      if (!series || !series.length) return { good: false, text: en ? 'Temporarily unable to read L1 satellite data — retrying soon.' : '暫時無法讀取衛星即時能量，稍後自動重試。', raw: '', etaMin: 45 };
+      const last = series[series.length - 1];
+      const recent30 = series.slice(-30);
+      const minBzRecent = Math.min(...recent30.map(s => s.bz));
+      const etaMin = computeL1EtaMin(speed);
+      const spdTxt = Number.isFinite(speed) ? ` · ${Math.round(speed)} km/s` : '';
+      const raw = `Bz ${last.bz >= 0 ? '+' : ''}${last.bz.toFixed(1)} nT${spdTxt}`;
+
+      if (last.bz <= -4) return { good: true, text: en ? `🔥 Aurora energy surged into the Burst zone! Sky could brighten in ~${etaMin} min!` : `🔥 極光能量衝進「爆發區」！約 ${etaMin} 分鐘後天空很有機會亮起來！`, raw, etaMin };
+      if (minBzRecent <= -4) return { good: true, text: en ? `⚡ Energy spiked in the last 30 min! Keep watch over the next ~${etaMin} min!` : `⚡ 剛才 30 分鐘內衝高過一波！接下來約 ${etaMin} 分鐘內值得留意天空！`, raw, etaMin };
+      if (last.bz < -0.5) return { good: false, text: en ? '✨ Solar wind energy is gently building — watch if it enters the green zone!' : '✨ 能量正微微升溫蓄力中，看看晚點會不會衝進綠色爆發區！', raw, etaMin };
+      return { good: false, text: en ? '🌙 Solar wind is calm right now — relax and let alerts watch for sudden bursts!' : '🌙 太陽風目前溫和蓄力中，極光常在深夜驚喜登場，先輕鬆休息！', raw, etaMin };
+    }
+
+    function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
+      const en = isEn(lang);
+      if (!series || series.length < 2) {
+        return `<text x="210" y="90" text-anchor="middle" fill="#9eb6d4" font-size="14" font-weight="700">${en ? 'No live satellite energy data' : '暫無衛星即時能量曲線'}</text>`;
+      }
+      const W = 420, H = 170, padL = 62, padR = 14, padT = 24, padB = 28;
+      const plotW = W - padL - padR, plotH = H - padT - padB;
+      const yOf = e => padT + ((100 - e) / 100) * plotH;
+      const xOf = i => padL + (i / (series.length - 1)) * plotW;
+
+      const yBurst = yOf(62), yWarm = yOf(20);
+      const energies = (balOpt && Array.isArray(balOpt.energy120) && balOpt.energy120.length === series.length)
+        ? balOpt.energy120
+        : series.map(s => bzToEnergy(s.bz, speed));
+      const pts = energies.map((e, i) => `${xOf(i).toFixed(1)},${yOf(e).toFixed(1)}`).join(' ');
+      const areaPts = `${padL},${(padT + plotH).toFixed(1)} ${pts} ${(W - padR).toFixed(1)},${(padT + plotH).toFixed(1)}`;
+
+      const lastE = energies[energies.length - 1];
+      const lx = xOf(energies.length - 1), ly = yOf(lastE);
+      const col = lastE >= 62 ? '#34f0b0' : lastE >= 25 ? '#ffcf5c' : '#66bdff';
+      const stateWord = lastE >= 62 ? (en ? '🔥 Burst' : '🔥 爆發') : lastE >= 25 ? (en ? '🟡 Rising' : '🟡 蓄力') : (en ? '🌙 Quiet' : '🌙 溫和');
+
+      let arriveSvg = '';
+      if (balOpt && Number.isInteger(balOpt.arrivingIdx) && balOpt.arrivingIdx > 4 && balOpt.arrivingIdx < series.length - 4) {
+        const ax = xOf(balOpt.arrivingIdx);
+        const lxClamped = Math.max(padL + 38, Math.min(W - 148, ax));
+        arriveSvg = `
+          <line x1="${ax.toFixed(1)}" y1="${padT}" x2="${ax.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="#22d3ee" stroke-dasharray="3 3" stroke-width="1.6" opacity="0.85"/>
+          <circle cx="${ax.toFixed(1)}" cy="${yOf(energies[balOpt.arrivingIdx]).toFixed(1)}" r="4" fill="#22d3ee" stroke="#050c17" stroke-width="1.5"/>
+          <text x="${lxClamped.toFixed(1)}" y="15" text-anchor="middle" fill="#66e8ff" font-size="10.5" font-weight="800">${en ? '🎯 At Earth' : '🎯 此刻抵地'}</text>`;
+      }
+
+      const tStart = utcTagToLocalHM(series[0].time_tag, timeZone);
+      const tMid = utcTagToLocalHM(series[Math.floor(series.length / 2)].time_tag, timeZone);
+      const tEnd = utcTagToLocalHM(series[series.length - 1].time_tag, timeZone);
+
+      return `
+        <defs>
+          <linearGradient id="enGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#34f0b0" stop-opacity="0.52"/>
+            <stop offset="55%" stop-color="#ffcf5c" stop-opacity="0.22"/>
+            <stop offset="100%" stop-color="#66bdff" stop-opacity="0.04"/>
+          </linearGradient>
+        </defs>
+        <rect x="${padL}" y="${padT}" width="${plotW}" height="${(yBurst - padT).toFixed(1)}" fill="rgba(52,240,176,0.12)"/>
+        <rect x="${padL}" y="${yBurst.toFixed(1)}" width="${plotW}" height="${(yWarm - yBurst).toFixed(1)}" fill="rgba(255,207,92,0.07)"/>
+        <rect x="${padL}" y="${yWarm.toFixed(1)}" width="${plotW}" height="${(padT + plotH - yWarm).toFixed(1)}" fill="rgba(102,189,255,0.05)"/>
+        <line x1="${padL}" y1="${yBurst.toFixed(1)}" x2="${W - padR}" y2="${yBurst.toFixed(1)}" stroke="#34f0b0" stroke-dasharray="4 4" stroke-width="1.2" opacity="0.75"/>
+        <line x1="${padL}" y1="${yWarm.toFixed(1)}" x2="${W - padR}" y2="${yWarm.toFixed(1)}" stroke="rgba(148,188,232,0.3)" stroke-dasharray="3 4" stroke-width="1"/>
+        <line x1="${padL}" y1="${(padT + plotH).toFixed(1)}" x2="${W - padR}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(148,188,232,0.28)"/>
+        <text x="${padL - 7}" y="${(padT + (yBurst - padT)/2 + 4).toFixed(1)}" text-anchor="end" fill="#34f0b0" font-size="11.5" font-weight="900">${en ? '🔥 Burst' : '🔥 爆發'}</text>
+        <text x="${padL - 7}" y="${(yBurst + (yWarm - yBurst)/2 + 4).toFixed(1)}" text-anchor="end" fill="#ffcf5c" font-size="11.5" font-weight="800">${en ? '🟡 Rise' : '🟡 蓄力'}</text>
+        <text x="${padL - 7}" y="${(yWarm + (padT + plotH - yWarm)/2 + 4).toFixed(1)}" text-anchor="end" fill="#9eb6d4" font-size="11.5" font-weight="700">${en ? '🌙 Calm' : '🌙 溫和'}</text>
+        <polygon points="${areaPts}" fill="url(#enGrad)"/>
+        <polyline fill="none" stroke="${col}" stroke-width="2.8" stroke-linejoin="round" points="${pts}"/>
+        ${arriveSvg}
+        <circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="5" fill="${col}" stroke="#050c17" stroke-width="2"/>
+        <rect x="${W - 108}" y="2" width="94" height="20" rx="10" fill="rgba(6,14,26,0.9)" stroke="${col}" stroke-width="1"/>
+        <text x="${W - 61}" y="16" text-anchor="middle" fill="${col}" font-size="11" font-weight="900">L1 ${stateWord}</text>
+        <text x="${padL}" y="${H - 7}" fill="#9eb6d4" font-size="11.5" font-weight="700">${tStart}</text>
+        <text x="${(padL + plotW/2).toFixed(1)}" y="${H - 7}" text-anchor="middle" fill="#9eb6d4" font-size="11.5">${tMid}</text>
+        <text x="${W - padR}" y="${H - 7}" text-anchor="end" fill="#f3f8ff" font-size="11.5" font-weight="800">${en ? 'Now ' : '最新 '}${tEnd}</text>
+      `;
+    }
+
+    function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
+      const en = isEn(lang);
+      if (!hrs || hrs.length < 2) return `<text x="210" y="95" text-anchor="middle" fill="#9eb6d4" font-size="14">${en ? 'Loading 12h forecast...' : '讀取 12 小時晴空曲線中...'}</text>`;
+      const W = 420, H = 194, padL = 44, padR = 16, padT = 28, padB = 44;
+      const plotW = W - padL - padR, plotH = H - padT - padB;
+      const xOf = i => padL + (i / (hrs.length - 1)) * plotW;
+      const yOf = pct => padT + ((100 - pct) / 100) * plotH;
+
+      const stepW = plotW / (hrs.length - 1);
+      const dayBands = hrs.map((h, i) => h.isDay
+        ? `<rect x="${(xOf(i) - stepW/2).toFixed(1)}" y="${padT}" width="${stepW.toFixed(1)}" height="${plotH}" fill="rgba(102,189,255,0.14)"/>`
+        : '').join('');
+
+      const barW = Math.max(8, Math.min(18, stepW * 0.45));
+      const scoreBars = hrs.map((h, i) => {
+        if (!Number.isFinite(h.score) || h.score <= 0) return '';
+        const x = xOf(i) - barW / 2;
+        const y = yOf(h.score);
+        const bh = Math.max(2, padT + plotH - y);
+        const isSel = i === selectedIdx;
+        return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="3" fill="${isSel ? 'rgba(168,85,247,0.68)' : 'rgba(168,85,247,0.34)'}" stroke="${isSel ? '#d8b4fe' : 'rgba(192,132,252,0.5)'}" stroke-width="1"/>`;
+      }).join('');
+
+      const linePts = hrs.map((h, i) => `${xOf(i).toFixed(1)},${yOf(h.clear).toFixed(1)}`).join(' ');
+      const areaPts = `${padL},${padT + plotH} ${linePts} ${W - padR},${padT + plotH}`;
+      const bestIdx = bestDark ? hrs.findIndex(h => h.time === bestDark.time && !h.isDay) : -1;
+
+      const dots = hrs.map((h, i) => {
+        const x = xOf(i), y = yOf(h.clear);
+        const isBest = i === bestIdx;
+        const isSel = i === selectedIdx;
+        const nearBest = bestIdx >= 0 && Math.abs(i - bestIdx) === 1;
+        const showLbl = isBest || isSel || (!nearBest && i % 2 === 0);
+        const c = h.isDay ? '#66bdff' : (h.clear >= 65 ? '#34f0b0' : h.clear >= 35 ? '#ffcf5c' : '#ff6b7b');
+        const tInt = Math.round(h.temp) || 0;
+        const hrUnit = en ? 'h' : '時';
+        const lbl = showLbl ? `<text x="${x.toFixed(1)}" y="${H - 24}" text-anchor="middle" fill="${isSel ? '#ffffff' : (isBest ? '#34f0b0' : '#c6d6ea')}" font-size="11.5" font-weight="${isBest || isSel ? '900' : '700'}">${h.time.slice(0,2)}${hrUnit}</text>` : '';
+        const tempLbl = showLbl ? `<text x="${x.toFixed(1)}" y="${H - 8}" text-anchor="middle" fill="#89a6c8" font-size="10.5">${tInt > 0 ? '+' : ''}${tInt}°</text>` : '';
+        const badgeVal = Number.isFinite(h.score) && h.score > 0 ? (en ? `${h.score}` : `${h.score}分`) : `${h.clear}%`;
+        const star = isBest ? `<text x="${Math.min(W - 36, Math.max(padL + 28, x)).toFixed(1)}" y="${Math.max(15, y - 11).toFixed(1)}" text-anchor="middle" fill="#34f0b0" font-size="12" font-weight="900">⭐ ${badgeVal}</text>` : '';
+        const selRing = isSel ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="8" fill="none" stroke="#ffffff" stroke-width="1.6" opacity="0.9"/>` : '';
+        const hitRect = `<rect x="${(x - stepW/2).toFixed(1)}" y="${padT}" width="${stepW.toFixed(1)}" height="${plotH + 34}" fill="transparent" style="cursor:pointer;" onclick="selectForecastHour(${i})"/>`;
+        return `${star}${selRing}<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${isBest || isSel ? 5.5 : 3.8}" fill="${c}" stroke="#050c17" stroke-width="1.6"/>${lbl}${tempLbl}${hitRect}`;
+      }).join('');
+
+      return `
+        <defs>
+          <linearGradient id="waveG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#34f0b0" stop-opacity="0.32"/>
+            <stop offset="100%" stop-color="#34f0b0" stop-opacity="0.02"/>
+          </linearGradient>
+        </defs>
+        ${dayBands}
+        <line x1="${padL}" y1="${padT}" x2="${W - padR}" y2="${padT}" stroke="rgba(148,188,232,0.16)" stroke-dasharray="3 4"/>
+        <line x1="${padL}" y1="${padT + plotH/2}" x2="${W - padR}" y2="${padT + plotH/2}" stroke="rgba(148,188,232,0.18)" stroke-dasharray="3 4"/>
+        <line x1="${padL}" y1="${padT + plotH}" x2="${W - padR}" y2="${padT + plotH}" stroke="rgba(148,188,232,0.28)"/>
+        <text x="${padL - 6}" y="${padT + 4}" text-anchor="end" fill="#34f0b0" font-size="11" font-weight="800">100</text>
+        <text x="${padL - 6}" y="${padT + plotH/2 + 4}" text-anchor="end" fill="#ffcf5c" font-size="11" font-weight="700">50</text>
+        <text x="${padL - 6}" y="${padT + plotH + 4}" text-anchor="end" fill="#ff6b7b" font-size="11" font-weight="800">0</text>
+        ${scoreBars}
+        <polygon points="${areaPts}" fill="url(#waveG)"/>
+        <polyline fill="none" stroke="#34f0b0" stroke-width="2.5" stroke-linejoin="round" points="${linePts}"/>
+        ${dots}
+      `;
+    }
+
+    function buildCompassRadarSVG(dirResults, originPos, lang) {
+      if (!dirResults || dirResults.length < 5) return '';
+      const en = isEn(lang);
+      const byKey = {};
+      for (const d of dirResults) byKey[d.key] = d;
+      const colOf = (c, sea) => sea ? '#66bdff' : (c <= 35 ? '#34f0b0' : c <= 65 ? '#ffcf5c' : '#ff6b7b');
+      const fillOf = (c, sea) => sea ? 'rgba(102,189,255,0.14)' : (c <= 35 ? 'rgba(52,240,176,0.28)' : c <= 65 ? 'rgba(255,207,92,0.26)' : 'rgba(255,107,123,0.25)');
+
+      const sectorPath = (a1Deg, a2Deg, rIn, rOut) => {
+        const toR = d => d * Math.PI / 180;
+        const x1 = 160 + rOut * Math.cos(toR(a1Deg)), y1 = 160 + rOut * Math.sin(toR(a1Deg));
+        const x2 = 160 + rOut * Math.cos(toR(a2Deg)), y2 = 160 + rOut * Math.sin(toR(a2Deg));
+        const x3 = 160 + rIn * Math.cos(toR(a2Deg)),  y3 = 160 + rIn * Math.sin(toR(a2Deg));
+        const x4 = 160 + rIn * Math.cos(toR(a1Deg)),  y4 = 160 + rIn * Math.sin(toR(a1Deg));
+        return `M${x1.toFixed(1)},${y1.toFixed(1)} A${rOut},${rOut} 0 0 1 ${x2.toFixed(1)},${y2.toFixed(1)} L${x3.toFixed(1)},${y3.toFixed(1)} A${rIn},${rIn} 0 0 0 ${x4.toFixed(1)},${y4.toFixed(1)} Z`;
+      };
+
+      const cfg = [
+        { k: 'N', a1: -135, a2: -45, tx: 160, ty: 58 },
+        { k: 'E', a1: -45,  a2: 45,  tx: 256, ty: 158 },
+        { k: 'S', a1: 45,   a2: 135, tx: 160, ty: 258 },
+        { k: 'W', a1: 135,  a2: 225, tx: 64,  ty: 158 }
+      ];
+
+      const wedges = cfg.map(s => {
+        const d = byKey[s.k];
+        const cleanLbl = d.label.replace(/^[⬆️⬇️➡️⬅️]+\s*/, '');
+        const shortLbl = cleanLbl.includes('km')
+          ? (en ? cleanLbl.replace('往北 ', 'N ').replace('往南 ', 'S ').replace('往東 ', 'E ').replace('往西 ', 'W ').replace(/\s+km$/, 'km') : cleanLbl.replace(/^往/, '').replace(/\s+km$/, 'km'))
+          : cleanLbl.replace(/^往[東西南北]+\s*/, '');
+        const col = colOf(d.avg3h, d.isOcean);
+        const body = `
+          <g class="radar-sector">
+            <path d="${sectorPath(s.a1, s.a2, 52, 146)}" fill="${fillOf(d.avg3h, d.isOcean)}" stroke="${col}" stroke-width="2" ${d.isOcean ? 'stroke-dasharray="5 4"' : ''}/>
+            <text x="${s.tx}" y="${s.ty - 5}" text-anchor="middle" fill="#f3f8ff" font-size="11.5" font-weight="900">${d.isOcean ? (en ? '🌊 Sea' : '🌊 海面') : shortLbl}</text>
+            <text x="${s.tx}" y="${s.ty + 15}" text-anchor="middle" fill="${col}" font-size="15.5" font-weight="900">${en ? '' : '雲 '}${d.avg3h}%</text>
+          </g>`;
+        if (d.isOcean) return body;
+        const href = `https://www.google.com/maps/dir/?api=1&origin=${originPos.lat},${originPos.lon}&destination=${d.lat},${d.lon}&travelmode=driving`;
+        return `<a href="${href}" target="_blank" rel="noopener">${body}</a>`;
+      }).join('');
+
+      const h = byKey.here;
+      return `
+        <circle cx="160" cy="160" r="148" fill="rgba(5,12,23,0.7)" stroke="rgba(148,188,232,0.22)" stroke-width="1.5"/>
+        <circle cx="160" cy="160" r="98" fill="none" stroke="rgba(148,188,232,0.16)" stroke-dasharray="4 4"/>
+        ${wedges}
+        <circle cx="160" cy="160" r="48" fill="#081324" stroke="${colOf(h.avg3h, false)}" stroke-width="3"/>
+        <text x="160" y="154" text-anchor="middle" fill="#b8cbe2" font-size="12" font-weight="800">${en ? 'Here' : '你在此處'}</text>
+        <text x="160" y="176" text-anchor="middle" fill="${colOf(h.avg3h, false)}" font-size="17" font-weight="900">${en ? '' : '雲 '}${h.avg3h}%</text>
+      `;
+    }
+
+    if (typeof window !== 'undefined') {
+      window.__AURORA_SCI_TEST__ = {
+        detectDefaultLang, setLang, isEn, tSky, tDirLabel, tGrade,
+        isInNordicMetBox, computeCompassPoints, getZoneParts, formatReverseGeo,
+        computeSolarElevation, getMoonState, computeEffectiveCloud,
+        computeGeomagneticLat, requiredKpForMagLat, computeL1EtaMin,
+        computeMLT, computeNewellCoupling, computeDynamicPressure, detectPressureShock,
+        computeWindChill, computeDataLagMin, newellToEnergy, computeBallisticCoupling,
+        computeAuroraScore, parseMagSeries, parseWindSeries, parseLatestActiveWind,
+        parseKpForecast, lookupForecastKp, parseLatestKp, lookupOvationProb,
+        parseHemiPower, parseGoesSubstorm, parseMetNorwayHourly12, parseOpenMeteoHourly12,
+        scoreHourlyForecast12, findBestDarkWindow, evaluateVerdict, summarizeCompass,
+        utcTagToLocalHM, bzToEnergy, summarizeEnergyTrend,
+        buildSkySceneSVG, buildBzChartSVG, buildSkyWaveSVG, buildCompassRadarSVG
+      };
+    }
+
+    // ====== App State, 15-min MET Cache, Bilingual i18n, Alert Engine & Offline Snapshot ======
+    let currentPos = { name: '挪威・Alta', nameEn: 'Norway · Alta', lat: 69.9689, lon: 23.2716, tz: 'Europe/Oslo', mode: 'manual', accuracy: null };
+    let lastScore = null;
+    let lastSyncMs = 0;
+    let lastScoredHours = [];
+    let lastBestAurora = null;
+    let lastSelectedHourIdx = 0;
+    let lastRenderState = null;
+    let alertEnabled = false;
+    let lastAlertMs = 0;
+    let wakeLockObj = null;
+    const AUTO_REFRESH_MS = 5 * 60 * 1000;
+    const metCache = new Map();
+
+    function getPosDisplayName() {
+      return isEn() ? (currentPos.nameEn || currentPos.name) : currentPos.name;
+    }
+
+    const SKY_CAMS = {
+      uit: {
+        url: 'https://fox.phys.uit.no/ASC/Latest_ASC01.png',
+        capZh: '資料來源：挪威北極大學 UiT 全天空極光相機（Skibotn 天文台，約每分鐘實拍）',
+        capEn: 'Source: UiT Tromsø Geophysical Observatory All-Sky Camera (Skibotn, ~1 min live)'
+      },
+      irf: {
+        url: 'https://www.irf.se/alis/allsky/krn/latest_medium.jpeg',
+        capZh: '資料來源：瑞典空間物理研究所 IRF Kiruna 全天空相機（約每分鐘實拍）',
+        capEn: 'Source: Swedish Institute of Space Physics (IRF Kiruna) Live All-Sky Camera'
+      },
+      sgo: {
+        url: 'https://www.sgo.fi/Data/RealTime/Kuvat/UCL.jpg',
+        capZh: '資料來源：芬蘭索丹屈萊天文台 SGO 全天空相機（約每分鐘實拍）',
+        capEn: 'Source: Sodankylä Geophysical Observatory (SGO Finland) Live All-Sky Camera'
+      }
+    };
+    let currentCamKey = 'uit';
+
+    function applyStaticI18n() {
+      const en = isEn();
+      if (typeof document === 'undefined') return;
+      document.documentElement.lang = en ? 'en' : 'zh-Hant';
+      document.title = en ? 'Aurora Visual Radar · Live Global Forecast' : '極光視覺雷達｜北歐＆全球即時預報';
+      const setT = (id, zh, enT) => { const el = document.getElementById(id); if (el) el.textContent = en ? enT : zh; };
+      setT('brandTxt', '極光視覺雷達', 'Aurora Radar');
+      setT('langBtn', '🌐 EN', '🌐 繁中');
+      setT('alertBtn', alertEnabled ? '🔔 提醒中' : '🔔 提醒', alertEnabled ? '🔔 On' : '🔔 Alert');
+      setT('refBtn', '🔄 更新', '🔄 Sync');
+      setT('lineTip', '💡 在 LINE 內若無法點 GPS，按右下角「⋯」選「用預設瀏覽器開啟」，或直接按「換地點」。', '💡 If GPS is blocked inside an in-app browser, open in Safari/Chrome or tap Location.');
+      setT('gpsBtn', '📍 GPS定位', '📍 Use GPS');
+      const pickerOpen = document.getElementById('picker')?.classList.contains('open');
+      setT('pickBtn', pickerOpen ? '🗺️ 收合 ▴' : '🗺️ 換地點 ▾', pickerOpen ? '🗺️ Close ▴' : '🗺️ Location ▾');
+      setT('shareBtn', '📋 貼LINE', '📋 Share');
+      const ci = document.getElementById('cityInput');
+      if (ci) ci.placeholder = en ? 'Search city (e.g. Tromso, Reykjavik, Fairbanks)' : '輸入英文地名（例：Kautokeino, Oslo, Reykjavik）';
+      setT('searchBtn', '搜尋', 'Go');
+      setT('ringSubLbl', '看見指數', 'Visibility');
+      setT('fSkyLbl', '☁️ 天空清朗', '☁️ Clear Sky');
+      setT('fAurLbl', '🌌 極光強度', '🌌 Aurora Power');
+      setT('fDarkLbl', '🌑 天黑暗空', '🌑 Darkness');
+      setT('h2Energy', '⚡ 過去 2 小時「極光能量變化」', '⚡ 2-Hour Solar Wind Energy');
+      setT('h2Wave', '🌤️ 未來 12 小時「晴空＋極光預報」', '🌤️ 12-Hour Sky & Aurora Forecast');
+      setT('hrLegLeft', '🟢 綠線＝晴空度 % ｜ 🟣 紫柱＝極光綜合分', '🟢 Line = Clear Sky % ｜ 🟣 Bars = Aurora Score');
+      setT('hrLegRight', '點圖表切換時段', 'Tap chart to inspect');
+      setT('h2Radar', '🧭 周邊陸路「雲洞雷達圖」', '🧭 360° Land Cloud-Gap Radar');
+      setT('radarLeg', '🟢 綠＝晴朗（雲≤35%）｜🟡 黃＝有雲縫｜🔴 紅＝厚雲（點陸地扇區開導航）', '🟢 Clear (≤35%) ｜ 🟡 Gaps ｜ 🔴 Overcast (Tap land wedge to navigate)');
+      setT('h2Windy', '🛰️ 動態雲圖（直接滑動看雲怎麼飄）', '🛰️ Live Cloud Map (Windy)');
+      setT('subWindy', '已自動對準你目前位置，按左下角 ▶ 就能看接下來幾小時雲往哪個方向散開！', 'Centered on your location — press ▶ bottom-left to animate cloud movement!');
+      setT('h2Cam', '📷 北歐天文台「現場全天空實拍」', '📷 Arctic Observatory Live All-Sky Cams');
+      setT('subCam', '每 30 秒由極圈天文台實拍上傳！不用猜模型，直接用眼睛確認現在天空有沒有雲、有沒有綠光：', 'Live photos uploaded ~every minute from Arctic observatories for direct sky verification:');
+      setT('camBtnUit', '🇳🇴 挪威 UiT', '🇳🇴 Norway UiT');
+      setT('camBtnIrf', '🇸🇪 瑞典 Kiruna', '🇸🇪 Sweden Kiruna');
+      setT('camBtnSgo', '🇫🇮 芬蘭 Sodankylä', '🇫🇮 Finland SGO');
+      setT('subOv', '看綠色／黃色光環現在有沒有蓋到你所在區域（每 5 分鐘自動更新）：', 'Check if the green/yellow auroral oval covers your region (updates every 5 min):');
+      setT('ovCap', '資料來源：NOAA SWPC OVATION 即時模型（綠色＝有極光、黃紅＝強爆發）', 'Source: NOAA SWPC OVATION Live Model (Green = aurora, Yellow/Red = intense)');
+      setT('h2Tools', '🔗 官方專業網站直連', '🔗 Official Space & Weather Links');
+      setT('linkWindy', '🛰️ Windy 全螢幕', '🛰️ Windy Fullscreen');
+      setT('linkYr', '🌧️ 挪威 Yr.no', '🌧️ Norway Yr.no');
+      setT('linkTgo', '📈 挪威即時地磁站', '📈 UiT Magnetometer');
+      setT('linkNoaa', '🌌 NOAA 官網', '🌌 NOAA SWPC');
+      setT('h2Legal', '⚖️ 資料授權與安全免責聲明', '⚖️ Data Attribution & Safety Disclaimer');
+      setT('navHome', '視覺總覽', 'Overview');
+      setT('navDir', '雲洞雷達', 'Sky Radar');
+      setT('navSat', '動態雲圖', 'Live Map');
+      setT('navTips', '拍照/工具', 'Photo & Info');
+      const lb = document.getElementById('legalBody');
+      if (lb) {
+        lb.innerHTML = en
+          ? `• Weather: <a href="https://api.met.no/" target="_blank" rel="noopener" style="color:var(--blue);">MET Norway (Yr.no)</a> (CC BY 4.0 / NLOD 2.0), <a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:var(--blue);">Open-Meteo</a> (CC BY 4.0, non-commercial use)<br/>` +
+            `• Space Weather: <a href="https://www.swpc.noaa.gov/" target="_blank" rel="noopener" style="color:var(--blue);">NOAA SWPC</a> (U.S. Gov Public Domain)<br/>` +
+            `• Live All-Sky Cams: <a href="https://flux.phys.uit.no/" target="_blank" rel="noopener" style="color:var(--blue);">UiT TGO</a>, <a href="https://www.irf.se/" target="_blank" rel="noopener" style="color:var(--blue);">IRF Kiruna</a>, <a href="https://www.sgo.fi/" target="_blank" rel="noopener" style="color:var(--blue);">SGO Sodankylä</a> (academic non-commercial); Cloud map: <a href="https://www.windy.com/" target="_blank" rel="noopener" style="color:var(--blue);">Windy.com</a><br/>` +
+            `• <strong>Disclaimer</strong>: Open-source non-commercial project (MIT License) for personal stargazing reference only, not an official weather or road warning. Follow local winter driving advisories.`
+          : `• 氣象預報：<a href="https://api.met.no/" target="_blank" rel="noopener" style="color:var(--blue);">MET Norway (Yr.no)</a>（CC BY 4.0 / NLOD 2.0）、<a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:var(--blue);">Open-Meteo</a>（CC BY 4.0，限非商業用途）<br/>` +
+            `• 太空天氣：<a href="https://www.swpc.noaa.gov/" target="_blank" rel="noopener" style="color:var(--blue);">NOAA SWPC</a>（美國政府公領域 Public Domain）<br/>` +
+            `• 全天空實拍：<a href="https://flux.phys.uit.no/" target="_blank" rel="noopener" style="color:var(--blue);">UiT TGO</a>、<a href="https://www.irf.se/" target="_blank" rel="noopener" style="color:var(--blue);">IRF Kiruna</a>、<a href="https://www.sgo.fi/" target="_blank" rel="noopener" style="color:var(--blue);">SGO Sodankylä</a>（學術非商業即時影像）；雲圖嵌入：<a href="https://www.windy.com/" target="_blank" rel="noopener" style="color:var(--blue);">Windy.com</a><br/>` +
+            `• <strong>免責聲明</strong>：本工具為非商業開源專案（MIT License），僅供個人旅遊觀星參考，不構成正式氣象或道路安全警告。北極冬季行車與夜間戶外活動請務必遵守當地交通管制（如 Vegvesen 路況）與安全指引。`;
+      }
+      const cap = document.getElementById('skyCamCap');
+      if (cap && SKY_CAMS[currentCamKey]) cap.textContent = en ? SKY_CAMS[currentCamKey].capEn : SKY_CAMS[currentCamKey].capZh;
+      const ovH = document.getElementById('ovHeading');
+      if (ovH) {
+        ovH.textContent = currentPos.lat >= 0
+          ? (en ? '🌍 NOAA Northern Hemisphere Aurora Oval' : '🌍 NOAA 北半球即時極光橢圓圖')
+          : (en ? '🌍 NOAA Southern Hemisphere Aurora Oval' : '🌍 NOAA 南半球即時極光橢圓圖');
+      }
+    }
+
+    function toggleLang() {
+      currentLang = isEn() ? 'zh' : 'en';
+      try { localStorage.setItem('aurora_lang_v4', currentLang); } catch(e) {}
+      applyStaticI18n();
+      renderLocationHeader();
+      updateClockAndPhoto();
+      if (lastRenderState) renderFromState(lastRenderState);
+      toast(isEn() ? 'Switched to English ✅' : '已切換為繁體中文 ✅');
+    }
+
+    function playAuroraChime() {
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        const ctx = new AC();
+        [523.25, 659.25, 783.99].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.16);
+          gain.gain.setValueAtTime(0.001, ctx.currentTime + i * 0.16);
+          gain.gain.exponentialRampToValueAtTime(0.16, ctx.currentTime + i * 0.16 + 0.04);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.16 + 0.45);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start(ctx.currentTime + i * 0.16);
+          osc.stop(ctx.currentTime + i * 0.16 + 0.5);
+        });
+      } catch(e) {}
+    }
+
+    async function toggleAlertMode() {
+      alertEnabled = !alertEnabled;
+      const btn = document.getElementById('alertBtn');
+      const en = isEn();
+      if (alertEnabled) {
+        btn.classList.add('btn-alert-on');
+        btn.textContent = en ? '🔔 On' : '🔔 提醒中';
+        playAuroraChime();
+        if (navigator.vibrate) navigator.vibrate([120, 80, 120]);
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission().catch(() => {});
+        }
+        try {
+          if (navigator.wakeLock) wakeLockObj = await navigator.wakeLock.request('screen');
+        } catch(e) {}
+        toast(en ? 'Alerts ON (chimes at score ≥40 or substorm) 🔔' : '已開啟達標自動提醒（≥40分或副磁暴會響鈴）🔔');
+      } else {
+        btn.classList.remove('btn-alert-on');
+        btn.textContent = en ? '🔔 Alert' : '🔔 提醒';
+        try { if (wakeLockObj) { await wakeLockObj.release(); wakeLockObj = null; } } catch(e) {}
+        toast(en ? 'Alerts turned off' : '已關閉自動提醒');
+      }
+    }
+
+    function maybeTriggerAlert(sc, goesSub) {
+      if (!alertEnabled || !sc || sc.outOfZone || sc.isTooBright) return;
+      const shouldFire = sc.total >= 40 || (goesSub?.active && sc.skyScore >= 40);
+      if (!shouldFire) return;
+      if (Date.now() - lastAlertMs < 15 * 60 * 1000) return;
+      lastAlertMs = Date.now();
+      playAuroraChime();
+      if (navigator.vibrate) navigator.vibrate([250, 120, 250, 120, 350]);
+      const en = isEn();
+      const msg = sc.total >= 40
+        ? (en ? `🌟 ${getPosDisplayName()} Aurora Score reached ${sc.total}! Head outside!` : `🌟 ${getPosDisplayName()} 極光指數達 ${sc.total} 分！快穿暖出門！`)
+        : (en ? `⚡ Substorm onset detected with cloud openings!` : `⚡ 偵測到副磁暴爆發且天空有雲縫！`);
+      toast(msg);
+      try {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification(en ? '🌌 Aurora Radar Alert' : '🌌 極光視覺雷達提醒', { body: msg });
+        }
+      } catch(e) {}
+    }
+
+    function selectForecastHour(idx) {
+      if (!lastScoredHours.length || idx < 0 || idx >= lastScoredHours.length) return;
+      lastSelectedHourIdx = idx;
+      const en = isEn();
+      const h = lastScoredHours[idx];
+      document.getElementById('skyWaveChart').innerHTML = buildSkyWaveSVG(lastScoredHours, lastBestAurora, idx);
+      const tInt = Math.round(h.temp) || 0;
+      const wcInt = Math.round(h.windChill ?? h.temp) || 0;
+      const wcTxt = (tInt - wcInt >= 3) ? (en ? ` (Feels ${wcInt > 0 ? '+' : ''}${wcInt}°C)` : `（體感 ${wcInt > 0 ? '+' : ''}${wcInt}°C）`) : '';
+      const moonTxt = h.isDay
+        ? (en ? 'Too bright' : '天色尚亮')
+        : (h.moonUp ? (en ? `Moon ${h.moonPct}%` : `月光 ${h.moonPct}%`) : (en ? '🌙 Moon down' : '🌙 月亮落下'));
+      const det = document.getElementById('hourDetail');
+      if (det) {
+        det.innerHTML = en
+          ? `<span><strong>${h.time}</strong> | Score <strong>${h.score}</strong> | Clear ${h.clear}% (${tSky(h.txt, 'en')})</span><span>${tInt > 0 ? '+' : ''}${tInt}°C${wcTxt} · ${moonTxt} · Kp ${h.kpFc}</span>`
+          : `<span><strong>${h.time}</strong>｜綜合 <strong>${h.score}分</strong>｜晴空 ${h.clear}% (${h.txt})</span><span>${tInt > 0 ? '+' : ''}${tInt}°C${wcTxt} · ${moonTxt} · Kp${h.kpFc}</span>`;
+      }
+    }
+
+    function loadSavedPrefs() {
+      currentLang = detectDefaultLang();
+      try {
+        const sp = JSON.parse(localStorage.getItem('aurora_pos_v2') || 'null');
+        if (sp && Number.isFinite(sp.lat) && Number.isFinite(sp.lon)) currentPos = { ...currentPos, ...sp };
+      } catch(e) {}
+      if (typeof navigator !== 'undefined' && /Line\//i.test(navigator.userAgent || '')) {
+        document.getElementById('lineTip').style.display = 'block';
+      }
+    }
+
+    function togglePicker(forceClose) {
+      const p = document.getElementById('picker');
+      const open = forceClose ? false : !p.classList.contains('open');
+      p.classList.toggle('open', open);
+      const en = isEn();
+      document.getElementById('pickBtn').textContent = open
+        ? (en ? '🗺️ Close ▴' : '🗺️ 收合 ▴')
+        : (en ? '🗺️ Location ▾' : '🗺️ 換地點 ▾');
+    }
+
+    function selectSkyCam(key, btn) {
+      if (!SKY_CAMS[key]) return;
+      currentCamKey = key;
+      if (btn) {
+        document.querySelectorAll('#camChips .chip').forEach(c => c.classList.remove('on'));
+        btn.classList.add('on');
+      }
+      const img = document.getElementById('skyCamImg');
+      const cap = document.getElementById('skyCamCap');
+      if (img) img.src = `${SKY_CAMS[key].url}?t=${Date.now()}`;
+      if (cap) cap.textContent = isEn() ? SKY_CAMS[key].capEn : SKY_CAMS[key].capZh;
+    }
+
+    function switchView(name, btn) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('on'));
+      document.getElementById('v-' + name).classList.add('on');
+      btn.classList.add('on');
+      if (name === 'sat') {
+        const wf = document.getElementById('windyFrame');
+        const target = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&overlay=clouds&lat=${currentPos.lat.toFixed(3)}&lon=${currentPos.lon.toFixed(3)}&zoom=7`;
+        if (wf.src !== target) wf.src = target;
+        const hemi = currentPos.lat >= 0 ? 'north' : 'south';
+        const en = isEn();
+        document.getElementById('ovHeading').textContent = currentPos.lat >= 0
+          ? (en ? '🌍 NOAA Northern Hemisphere Aurora Oval' : '🌍 NOAA 北半球即時極光橢圓圖')
+          : (en ? '🌍 NOAA Southern Hemisphere Aurora Oval' : '🌍 NOAA 南半球即時極光橢圓圖');
+        document.getElementById('ovationImg').src = `https://services.swpc.noaa.gov/images/animations/ovation/${hemi}/latest.jpg?t=${Date.now()}`;
+        const camCard = document.getElementById('skyCamCard');
+        if (camCard) camCard.style.display = currentPos.lat >= 0 ? 'block' : 'none';
+        if (currentPos.lat >= 0) selectSkyCam(currentCamKey);
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function renderLocationHeader() {
+      const en = isEn();
+      const pill = document.getElementById('gpsPill');
+      if (currentPos.mode === 'gps') {
+        const acc = currentPos.accuracy ? ` (±${Math.round(currentPos.accuracy)}m)` : '';
+        pill.className = 'gps-pill gps-live';
+        pill.textContent = en ? `🟢 GPS Locked${acc}` : `🟢 GPS 實測鎖定${acc}`;
+      } else if (currentPos.mode === 'gps-err') {
+        pill.className = 'gps-pill gps-err';
+        pill.textContent = en ? '🔴 GPS Denied (Manual Location)' : '🔴 GPS 未授權（顯示手動地點）';
+      } else {
+        pill.className = 'gps-pill gps-manual';
+        pill.textContent = en ? '🧭 Manual Location (GPS Off)' : '🧭 手動選擇地點（未啟用 GPS）';
+      }
+      document.getElementById('locName').textContent = getPosDisplayName();
+      const latS = `${Math.abs(currentPos.lat).toFixed(2)}°${currentPos.lat >= 0 ? 'N' : 'S'}`;
+      const lonS = `${Math.abs(currentPos.lon).toFixed(2)}°${currentPos.lon >= 0 ? 'E' : 'W'}`;
+      const clkNow = document.getElementById('clk')?.textContent || '--:--';
+      document.getElementById('locMeta').innerHTML = `${latS}, ${lonS} ｜ ${en ? 'Local' : '當地'} <span id="clk">${clkNow}</span>`;
+      document.getElementById('linkWindy').href = `https://www.windy.com/${currentPos.lat.toFixed(3)}/${currentPos.lon.toFixed(3)}?clouds,${currentPos.lat.toFixed(3)},${currentPos.lon.toFixed(3)},8`;
+      try { localStorage.setItem('aurora_pos_v2', JSON.stringify(currentPos)); } catch(e) {}
+    }
+
+    function updateClockAndPhoto() {
+      const now = new Date();
+      const en = isEn();
+      try {
+        const z = getZoneParts(now, currentPos.tz);
+        const clk = document.getElementById('clk');
+        if (clk) clk.textContent = `${z.hourStr}:${z.minStr}`;
+      } catch(e) {}
+      const moon = getMoonState(now, currentPos.lat, currentPos.lon);
+      const dirTxt = currentPos.lat >= 0 ? (en ? 'North' : '正北方') : (en ? 'South' : '正南方');
+      if (moon.effMoonPct >= 55) {
+        document.getElementById('photoHeading').textContent = en
+          ? `📱 Bright Moon (Alt ${Math.round(moon.altDeg)}°) Phone Photo Tips`
+          : `📱 月光偏亮（高掛 ${Math.round(moon.altDeg)}°）手機拍照 3 步驟`;
+        document.getElementById('photoBody').innerHTML = en
+          ? `1️⃣ Flash OFF, Night Mode ON — keep exposure at <strong>2–3 seconds</strong> (longer washes out!).<br/>` +
+            `2️⃣ Tap the sky and drag the exposure slider <strong>slightly darker</strong>.<br/>` +
+            `3️⃣ Keep the moon behind you, point <strong>${dirTxt}</strong>, then warm your phone in your pocket.`
+          : `1️⃣ 關閃光燈、開夜間模式，<strong>秒數壓在 2–3 秒</strong>（設太久會過曝白掉！）。<br/>` +
+            `2️⃣ 點天空後把小太陽亮度<strong>往下拉暗一點</strong>。<br/>` +
+            `3️⃣ <strong>背對月亮、朝${dirTxt}拍</strong>，拍完收口袋保暖。`;
+      } else {
+        const reason = !moon.up ? (en ? 'Moon down' : '月亮已落下') : (en ? `Dim moon ${moon.effMoonPct}%` : `月光微弱 ${moon.effMoonPct}%`);
+        document.getElementById('photoHeading').textContent = en
+          ? `📱 Dark Sky (${reason}) Phone Photo Tips`
+          : `📱 暗空夜（${reason}）手機拍照 3 步驟`;
+        document.getElementById('photoBody').innerHTML = en
+          ? `1️⃣ Flash OFF, Night Mode ON — use <strong>5–10 seconds</strong> (hold steady or rest on a rail).<br/>` +
+            `2️⃣ Step away from streetlights and point <strong>${dirTxt}</strong>.<br/>` +
+            `3️⃣ If you see a faint white cloud/arc, take a test shot — phones reveal green aurora first!`
+          : `1️⃣ 關閃光燈、開夜間模式，<strong>秒數設 5–10 秒</strong>（手拿穩或靠欄杆）。<br/>` +
+            `2️⃣ 避開路燈、鏡頭<strong>朝${dirTxt}</strong>拍。<br/>` +
+            `3️⃣ 肉眼看像白霧時先拍一張，螢幕會立刻顯現綠色！`;
+      }
+      return moon;
+    }
+
+    function barColor(score) { return score >= 65 ? '#34f0b0' : score >= 35 ? '#ffcf5c' : '#ff6b7b'; }
+
+    function renderGauge(sc, details) {
+      lastScore = sc;
+      const en = isEn();
+      const circ = 2 * Math.PI * 52;
+      const visPct = sc.total === 0 ? 5 : sc.total;
+      const prog = document.getElementById('ringProg');
+      prog.style.strokeDasharray = circ.toFixed(1);
+      prog.style.strokeDashoffset = (circ * (1 - visPct / 100)).toFixed(1);
+      prog.style.stroke = sc.color;
+      prog.style.filter = `drop-shadow(0 0 8px ${sc.color}99)`;
+
+      document.getElementById('ringNum').textContent = sc.total;
+      document.getElementById('ringNum').style.color = sc.color;
+      document.getElementById('ringGrade').textContent = tGrade(sc.grade);
+      document.getElementById('ringGrade').style.color = sc.color;
+
+      const setF = (vid, bid, sid, pct, lbl, sub, forceC) => {
+        const c = forceC || barColor(pct);
+        const ve = document.getElementById(vid);
+        ve.textContent = lbl; ve.style.color = c;
+        const be = document.getElementById(bid);
+        be.style.width = `${Math.max(6, pct)}%`; be.style.background = c;
+        document.getElementById(sid).textContent = sub;
+      };
+      setF('fSkyVal', 'fSkyBar', 'fSkySub', sc.skyScore, `${sc.skyScore}%`, details.skySub);
+      setF('fAurVal', 'fAurBar', 'fAurSub', sc.auroraScore, en ? `${sc.auroraScore}/100` : `${sc.auroraScore}分`, details.aurSub);
+      setF('fDarkVal', 'fDarkBar', 'fDarkSub', sc.darkScore, details.isTooBright ? (en ? 'Bright' : '尚亮') : `${sc.darkScore}%`, details.darkSub, details.isTooBright ? '#66bdff' : null);
+    }
+
+    function pickPreset(nameZh, nameEn, lat, lon, btn) {
+      // Backwards-compatible if called with 4 args
+      if (typeof nameEn === 'number') { btn = lon; lon = lat; lat = nameEn; nameEn = nameZh; }
+      document.querySelectorAll('#presetChips .chip').forEach(c => c.classList.remove('on'));
+      if (btn) btn.classList.add('on');
+      const tz = nameZh.includes('芬蘭') ? 'Europe/Helsinki' : nameZh.includes('瑞典') ? 'Europe/Stockholm' : 'Europe/Oslo';
+      currentPos = { name: nameZh, nameEn, lat, lon, tz, mode: 'manual', accuracy: null };
+      renderLocationHeader(); togglePicker(true); refreshAll(true);
+    }
+
+    function useGPS() {
+      const en = isEn();
+      if (!navigator.geolocation) { currentPos.mode = 'gps-err'; renderLocationHeader(); toast(en ? 'GPS not supported' : '此瀏覽器不支援 GPS'); return; }
+      const b = document.getElementById('gpsBtn');
+      b.disabled = true; b.textContent = en ? '📡 Locating' : '📡 定位中';
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const lat = pos.coords.latitude, lon = pos.coords.longitude, accuracy = pos.coords.accuracy;
+          document.querySelectorAll('#presetChips .chip').forEach(c => c.classList.remove('on'));
+          currentPos = { name: en ? 'Locating city...' : '辨識城市中...', nameEn: 'Locating city...', lat, lon, tz: currentPos.tz, mode: 'gps', accuracy };
+          renderLocationHeader();
+          try {
+            const locLang = isEn() ? 'en' : 'zh-Hant';
+            const rgRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=${locLang}`);
+            const resolved = rgRes.ok ? (formatReverseGeo(await rgRes.json()) || `GPS (${lat.toFixed(2)}, ${lon.toFixed(2)})`) : `GPS (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
+            currentPos.name = resolved; currentPos.nameEn = resolved;
+          } catch(e) { currentPos.name = `GPS (${lat.toFixed(2)}, ${lon.toFixed(2)})`; currentPos.nameEn = currentPos.name; }
+          renderLocationHeader(); togglePicker(true);
+          b.disabled = false; b.textContent = isEn() ? '📍 Use GPS' : '📍 GPS定位';
+          toast((isEn() ? 'Located: ' : '已定位：') + getPosDisplayName() + ' ✅');
+          refreshAll(false);
+        },
+        () => {
+          b.disabled = false; b.textContent = isEn() ? '📍 Use GPS' : '📍 GPS定位';
+          currentPos.mode = 'gps-err'; renderLocationHeader();
+          toast(isEn() ? 'GPS permission denied (open in Safari/Chrome)' : 'GPS 權限被拒（LINE 內請改用 Safari/Chrome 開）');
+        },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+      );
+    }
+
+    async function searchCity(e) {
+      e.preventDefault();
+      const q = document.getElementById('cityInput').value.trim();
+      if (!q) return;
+      const en = isEn();
+      try {
+        const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=en`);
+        if (r.ok) {
+          const d = await r.json();
+          if (d.results?.length) {
+            const g = d.results[0];
+            document.querySelectorAll('#presetChips .chip').forEach(c => c.classList.remove('on'));
+            const label = (g.country && g.country !== g.name) ? `${g.country}・${g.name}` : g.name;
+            const labelEn = (g.country && g.country !== g.name) ? `${g.country} · ${g.name}` : g.name;
+            currentPos = { name: label, nameEn: labelEn, lat: g.latitude, lon: g.longitude, tz: g.timezone || 'UTC', mode: 'manual', accuracy: null };
+            renderLocationHeader(); document.getElementById('cityInput').value = ''; togglePicker(true); refreshAll(true); return;
+          }
+        }
+        toast(en ? 'City not found — try English spelling' : '找不到地名，請輸入英文拼法');
+      } catch(err) { toast(en ? 'Search failed' : '搜尋連線失敗'); }
+    }
+
+    async function fetchMetNorwayPoint(lat, lon) {
+      const k = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+      const cached = metCache.get(k);
+      if (cached && Date.now() - cached.ts < 15 * 60 * 1000) return cached.data;
+      const r = await fetch(`https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`);
+      if (!r.ok) return null;
+      const data = await r.json();
+      metCache.set(k, { ts: Date.now(), data });
+      return data;
+    }
+
+    function renderFromState(st) {
+      if (!st) return;
+      const en = isEn();
+      const { magSeries, chartSeries, speed, bz, kp, ovation, hpiGw, goesSub, bal, noaaOk, noaaLagMin, hereHrs, dirResults, weatherSourceLabel, usedMet, sunAltNow, moon, sc, scNext, bestDark } = st;
+      const pNoaa = document.getElementById('pNoaa'), pMet = document.getElementById('pMet');
+
+      // Energy card
+      const enSum = summarizeEnergyTrend(chartSeries, speed);
+      const eb = document.getElementById('energyBanner');
+      eb.className = 'callout ' + (enSum.good || goesSub?.active || bal.shockActive ? 'good' : 'warn');
+      eb.textContent = goesSub?.active
+        ? (en ? `⚡ Magnetotail Substorm Onset (GOES +${goesSub.jumpNt} nT)! Aurora may brighten suddenly!` : `⚡ 偵測到磁尾「副磁暴釋放」（GOES +${goesSub.jumpNt} nT）！極光可能短時間內突然亮起！`)
+        : (bal.shockActive
+            ? (en ? `💥 Solar wind pressure shock (${bal.pdyn} nPa)! Potential burst in ~${bal.etaMin} min!` : `💥 偵測到太陽風動壓衝擊（${bal.pdyn} nPa）！約 ${bal.etaMin} 分鐘後可能觸發極光爆發！`)
+            : enSum.text);
+      document.getElementById('etaHint').textContent = en
+        ? `💡 Dashed = At Earth · Right arrives in ~${bal.etaMin}m`
+        : `💡 虛線「此刻抵地」｜右側約 ${bal.etaMin} 分鐘後抵達`;
+      const pTxt = bal.pdyn !== null ? ` · ${bal.pdyn}nPa` : '';
+      document.getElementById('bzRawVal').textContent = `Bz ${bz !== null ? (bz>=0?'+':'')+bz.toFixed(1) : '--'} · ${speed ? Math.round(speed) : '--'}km/s${hpiGw !== null ? ' · ' + Math.round(hpiGw) + 'GW' : ''}${pTxt}`;
+      document.getElementById('bzChart').innerHTML = buildBzChartSVG(chartSeries, currentPos.tz, speed, bal);
+
+      const lastM = magSeries.length ? magSeries[magSeries.length - 1] : null;
+      if (noaaOk) {
+        const stale = noaaLagMin !== null && noaaLagMin > 45;
+        pNoaa.textContent = stale
+          ? (en ? `🟡 NOAA Delayed (${noaaLagMin}m ago)` : `🟡 NOAA 延遲 (${noaaLagMin}分前)`)
+          : `🟢 NOAA (${lastM ? utcTagToLocalHM(lastM.time_tag, currentPos.tz) : (en ? 'Live' : '已同步')})`;
+      } else pNoaa.textContent = en ? '🔴 NOAA Offline' : '🔴 NOAA 離線';
+
+      if (!hereHrs.length) return;
+      const c0 = hereHrs[0].block;
+
+      // +ETA Forward Forecast Strip
+      const fcEl = document.getElementById('fcNextTxt');
+      const confEl = document.getElementById('fcConfTxt');
+      if (fcEl && confEl) {
+        if (sc.outOfZone) {
+          fcEl.innerHTML = en ? `🔮 Next 1h forecast: <strong>0/100</strong> (Latitude limit)` : `🔮 未來 1 小時預估：<strong>0 分</strong>（緯度限制）`;
+          confEl.textContent = en ? 'Confidence: High' : '預報信心：高';
+        } else {
+          const diff = scNext.total - sc.total;
+          const arrow = diff >= 6 ? (en ? '↗ Rising' : '↗ 升溫中') : (diff <= -6 ? (en ? '↘ Fading' : '↘ 轉弱中') : (en ? '→ Steady' : '→ 持平'));
+          fcEl.innerHTML = en
+            ? `🔮 Next ${bal.etaMin} min: <strong>${scNext.total}/100</strong> (${arrow})`
+            : `🔮 未來 ${bal.etaMin} 分鐘預估：<strong>${scNext.total} 分</strong>（${arrow}）`;
+          const cSpan = hereHrs.length >= 3 ? (Math.max(hereHrs[0].block, hereHrs[1].block, hereHrs[2].block) - Math.min(hereHrs[0].block, hereHrs[1].block, hereHrs[2].block)) : 0;
+          confEl.textContent = (noaaLagMin > 45)
+            ? (en ? 'Conf: Med (Sat lag)' : '信心：中（衛星延遲）')
+            : (cSpan >= 45 ? (en ? 'Conf: Med (Fast clouds)' : '信心：中（雲量變化快）') : (noaaOk && usedMet ? (en ? 'Conf: High (Live)' : '信心：高（官方即時）') : (en ? 'Conf: Med' : '信心：中')));
+        }
+      }
+
+      document.getElementById('skySvg').innerHTML = buildSkySceneSVG({
+        cloudPct: c0, auroraScore: sc.auroraScore, moonUp: moon.up, moonPct: moon.pct, isTooBright: sc.isTooBright
+      });
+
+      const fmtT = t => { const n = Math.round(t) || 0; return `${n > 0 ? '+' : ''}${n}°C`; };
+      const t0Int = Math.round(hereHrs[0].temp) || 0;
+      const wc0Int = Math.round(hereHrs[0].windChill ?? hereHrs[0].temp) || 0;
+      const wcTag = (t0Int - wc0Int >= 3) ? (en ? ` · Feels ${fmtT(wc0Int)}` : ` · 體感${fmtT(wc0Int)}`) : '';
+      const hpiTag = hpiGw !== null ? ` · ${Math.round(hpiGw)}GW` : '';
+      const subTag = goesSub?.active ? (en ? ' · ⚡Substorm' : ' · ⚡副磁暴') : (bal.shockActive ? (en ? ' · 💥Shock' : ' · 💥動壓衝擊') : '');
+      const aurSubText = sc.outOfZone === 'low-lat'
+        ? (en ? `Mag Lat ${sc.magLat}° (Outside oval)` : `地磁緯度 ${sc.magLat}°（非極光帶）`)
+        : (sc.outOfZone === 'need-storm'
+            ? (en ? `Needs Kp≥${sc.neededKp} (Now Kp ${kp !== null ? kp.toFixed(1) : '--'})` : `需 Kp≥${sc.neededKp}（目前 Kp${kp !== null ? kp.toFixed(1) : '--'}）`)
+            : (en ? `Prob ${ovation ?? '--'}%${hpiTag} · Kp ${kp !== null ? kp.toFixed(1) : '--'}${subTag}` : `機率${ovation ?? '--'}%${hpiTag} · Kp${kp !== null ? kp.toFixed(1) : '--'}${subTag}`));
+      const darkSubText = sc.isTooBright
+        ? (en ? `Sun Alt ${sunAltNow.toFixed(0)}° (Needs < -4°)` : `太陽仰角 ${sunAltNow.toFixed(0)}°（需低於 -4°）`)
+        : (moon.up ? (en ? `Moon ${moon.pct}% (Alt ${Math.round(moon.altDeg)}°)` : `月光 ${moon.pct}%（仰角 ${Math.round(moon.altDeg)}°）`) : (en ? 'Moon below horizon (Dark sky!)' : '月亮已落下（暗空極佳）'));
+
+      renderGauge(sc, {
+        isTooBright: sc.isTooBright,
+        skySub: en ? `Cloud block ${c0}% (${tSky(hereHrs[0].txt, 'en')} ${fmtT(t0Int)}${wcTag})` : `有效遮蔽 ${c0}% (${hereHrs[0].txt} ${fmtT(t0Int)}${wcTag})`,
+        aurSub: aurSubText,
+        darkSub: darkSubText
+      });
+
+      const v = evaluateVerdict({ lat: currentPos.lat, bestDark, kp, scoreObj: sc });
+      document.getElementById('vKicker').textContent = v.kicker;
+      document.getElementById('vTitle').textContent = v.title;
+      document.getElementById('vLead').textContent = v.lead;
+
+      const bestText = bestDark
+        ? (bestDark.score >= 35
+            ? (en ? `🏆 Best window tonight: <strong>${bestDark.time}</strong> (Score <strong>${bestDark.score}</strong> | Clear ${bestDark.clear}% · Kp ${bestDark.kpFc})` : `🏆 今晚最佳守候：<strong>${bestDark.time}</strong>（綜合預估 <strong>${bestDark.score} 分</strong>｜晴空 ${bestDark.clear}% · Kp${bestDark.kpFc}）`)
+            : (bestDark.block <= 40
+                ? (en ? `🌟 Clearest dark window: <strong>${bestDark.time}</strong> (${bestDark.clear}% clear, Score ${bestDark.score})` : `🌟 天黑後最晴時段：<strong>${bestDark.time}</strong>（晴空度 <strong>${bestDark.clear}%</strong>，綜合預估 ${bestDark.score} 分）`)
+                : (en ? `🌤️ Clouds may thin around <strong>${bestDark.time}</strong> (${bestDark.clear}% clear, Score ${bestDark.score}) — peek outside then!` : `🌤️ 預計 <strong>${bestDark.time}</strong> 雲層最有機會變薄（晴空度 <strong>${bestDark.clear}%</strong>，綜合 ${bestDark.score} 分），屆時可開窗看看！`)))
+        : (en ? '☀️ Sky stays bright over the next 12h — enjoy the daylight!' : '☀️ 未來 12 小時天色較亮，先開心享受白天風景！');
+      const hb = document.getElementById('homeBest');
+      hb.className = 'callout ' + (bestDark && (bestDark.score >= 35 || bestDark.block <= 40) ? 'good' : 'warn');
+      hb.innerHTML = bestText;
+
+      selectForecastHour(lastSelectedHourIdx >= 0 && lastSelectedHourIdx < lastScoredHours.length ? lastSelectedHourIdx : 0);
+
+      const sum = summarizeCompass(dirResults);
+      const cs = document.getElementById('compassSummary');
+      cs.className = 'callout ' + (sum?.good ? 'good' : 'warn');
+      cs.textContent = sum ? sum.text : (en ? 'No data' : '無資料');
+      document.getElementById('radarSvg').innerHTML = buildCompassRadarSVG(dirResults, currentPos);
+
+      document.getElementById('compassBox').innerHTML = dirResults.map(d => {
+        const isBest = sum && sum.bestKey === d.key;
+        const col = d.isOcean ? 'c-blue' : (d.avg3h <= 35 ? 'c-green' : d.avg3h <= 65 ? 'c-amber' : 'c-red');
+        const nav = (d.key === 'here' || d.isOcean)
+          ? (d.isOcean ? `<span style="font-size:0.78rem;color:var(--blue);font-weight:700;">${en ? '🌊 Open Sea' : '🌊 海域僅供參考'}</span>` : '')
+          : `<a class="btn btn-blue" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&origin=${currentPos.lat},${currentPos.lon}&destination=${d.lat},${d.lon}&travelmode=driving">${en ? '🧭 Drive' : '🧭 導航'}</a>`;
+        return `<div class="dir ${isBest ? 'best' : ''} ${d.isOcean ? 'sea' : ''}">
+          <div><div style="font-weight:800;">${tDirLabel(d.label)} ${isBest ? '⭐' : ''}</div>
+          <div style="font-size:0.8rem;color:var(--muted);">${en ? '3h avg' : '3h均雲'} <strong class="${col}">${d.avg3h}%</strong>｜${en ? 'Now' : '現在'} ${d.nowC}%｜${fmtT(d.temp)}</div></div>
+          ${nav}
+        </div>`;
+      }).join('');
+
+      const srcLbl = (weatherSourceLabel === 'Yr.no官方' && en) ? 'Yr.no Official' : weatherSourceLabel;
+      pMet.textContent = `🟢 ${srcLbl} (${hereHrs[0].time})`;
+      const tNow = document.getElementById('clk')?.textContent || '--:--';
+      document.getElementById('syncTime').textContent = (noaaOk && hereHrs.length)
+        ? (en ? `Synced ${tNow} (Auto 5m)` : `已同步 ${tNow}（每5分自動更新）`)
+        : (en ? 'Partial sync (Auto 5m)' : '部分同步（每5分自動更新）');
+    }
+
+    async function refreshAll(manual) {
+      const en = isEn();
+      const b = document.getElementById('refBtn');
+      b.disabled = true; b.textContent = en ? '⏳ Sync' : '⏳ 更新中';
+      const pNoaa = document.getElementById('pNoaa'), pMet = document.getElementById('pMet');
+      pNoaa.textContent = '⏳ NOAA'; pMet.textContent = en ? '⏳ Weather' : '⏳ 氣象';
+
+      let bz = null, speed = null, kp = null, ovation = null, hpiGw = null, goesSub = null, noaaOk = false, metOk = false;
+      let magSeries = [], windSeries = [], kpForecast = [], noaaLagMin = null;
+      const now = new Date();
+      let moon = updateClockAndPhoto();
+
+      // 1. Live NOAA SWPC
+      try {
+        const [mR, wR, k1R, oR, hpiR, gR, kfcR] = await Promise.all([
+          fetch('https://services.swpc.noaa.gov/json/rtsw/rtsw_mag_1m.json'),
+          fetch('https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json'),
+          fetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json'),
+          fetch('https://services.swpc.noaa.gov/json/ovation_aurora_latest.json'),
+          fetch('https://services.swpc.noaa.gov/text/aurora-nowcast-hemi-power.txt').catch(() => null),
+          fetch('https://services.swpc.noaa.gov/json/goes/primary/magnetometers-6-hour.json').catch(() => null),
+          fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json').catch(() => null)
+        ]);
+        if (mR.ok) magSeries = parseMagSeries(await mR.json(), 180);
+        if (wR.ok) windSeries = parseWindSeries(await wR.json(), 180);
+        if (kfcR && kfcR.ok) kpForecast = parseKpForecast(await kfcR.json());
+        const lastMag = magSeries.length ? magSeries[magSeries.length - 1] : null;
+        const wind = windSeries.length ? windSeries[windSeries.length - 1] : null;
+        let kpObj = k1R.ok ? parseLatestKp(await k1R.json()) : null;
+        if (!kpObj) {
+          const k3R = await fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json').catch(() => null);
+          if (k3R && k3R.ok) kpObj = parseLatestKp(await k3R.json());
+        }
+        const ovJson = oR.ok ? await oR.json() : null;
+        const hpiObj = (hpiR && hpiR.ok) ? parseHemiPower(await hpiR.text(), currentPos.lat) : null;
+        goesSub = (gR && gR.ok) ? parseGoesSubstorm(await gR.json()) : null;
+
+        if (lastMag) { bz = lastMag.bz; noaaLagMin = computeDataLagMin(lastMag.time_tag, now.getTime()); }
+        if (wind) speed = wind.speed;
+        if (kpObj) kp = kpObj.kp;
+        if (ovJson) ovation = lookupOvationProb(ovJson, currentPos.lat, currentPos.lon);
+        if (hpiObj) hpiGw = hpiObj.gw;
+        if (lastMag || wind || kpObj || ovation !== null) noaaOk = true;
+      } catch(e) {}
+
+      // 2. Cloud Forecast: Direct official Yr.no (MET Norway 2.5km) inside Nordics, Open-Meteo globally + Elevation sea check
+      let hereHrs = [], dirResults = [], weatherSourceLabel = '氣象', usedMet = false;
+      try {
+        const pts = computeCompassPoints(currentPos.lat, currentPos.lon, 60);
+        const needElev = pts.slice(1).some(p => p.label.includes('60 km'));
+
+        if (needElev) {
+          try {
+            const elRes = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${pts.map(p=>p.lat).join(',')}&longitude=${pts.map(p=>p.lon).join(',')}`);
+            if (elRes.ok) {
+              const elJson = await elRes.json();
+              if (Array.isArray(elJson.elevation)) {
+                pts.forEach((pt, i) => { if (i > 0 && Number(elJson.elevation[i]) <= 1) pt.isOcean = true; });
+              }
+            }
+          } catch(e) {}
+        }
+
+        if (isInNordicMetBox(currentPos.lat, currentPos.lon)) {
+          try {
+            const [metList, tzRes] = await Promise.all([
+              Promise.all(pts.map(p => fetchMetNorwayPoint(p.lat, p.lon))),
+              fetch(`https://api.open-meteo.com/v1/forecast?latitude=${currentPos.lat.toFixed(4)}&longitude=${currentPos.lon.toFixed(4)}&hourly=temperature_2m&timezone=auto&forecast_days=1`).catch(() => null)
+            ]);
+            if (tzRes && tzRes.ok) {
+              const tzJ = await tzRes.json();
+              if (tzJ?.timezone) currentPos.tz = tzJ.timezone;
+            }
+            if (metList[0]) {
+              usedMet = true; metOk = true; weatherSourceLabel = 'Yr.no官方';
+              pts.forEach((pt, i) => {
+                const hrs = metList[i] ? parseMetNorwayHourly12(metList[i], pt.lat, pt.lon, currentPos.tz, now) : [];
+                if (i === 0) hereHrs = hrs;
+                const first3 = hrs.slice(0, 3);
+                const avg3h = first3.length ? Math.round(first3.reduce((s, h) => s + h.block, 0) / first3.length) : 100;
+                dirResults.push({ ...pt, nowC: hrs[0]?.block ?? 100, avg3h, min12: hrs.length ? Math.min(...hrs.map(h => h.block)) : 100, temp: hrs[0]?.temp ?? 0 });
+              });
+            }
+          } catch(e) {}
+        }
+
+        if (!usedMet) {
+          const url = `https://api.open-meteo.com/v1/forecast?latitude=${pts.map(p=>p.lat).join(',')}&longitude=${pts.map(p=>p.lon).join(',')}&hourly=temperature_2m,wind_speed_10m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,precipitation&timezone=auto&forecast_days=2`;
+          const r = await fetch(url);
+          if (r.ok) {
+            metOk = true; weatherSourceLabel = 'Open-Meteo';
+            const data = await r.json();
+            const list = Array.isArray(data) ? data : [data];
+            if (list[0]?.timezone) currentPos.tz = list[0].timezone;
+            pts.forEach((pt, i) => {
+              const hrs = parseOpenMeteoHourly12(list[i]?.hourly, pt.lat, pt.lon, currentPos.tz, now);
+              if (i === 0) hereHrs = hrs;
+              const first3 = hrs.slice(0, 3);
+              const avg3h = first3.length ? Math.round(first3.reduce((s, h) => s + h.block, 0) / first3.length) : 100;
+              dirResults.push({ ...pt, nowC: hrs[0]?.block ?? 100, avg3h, min12: hrs.length ? Math.min(...hrs.map(h => h.block)) : 100, temp: hrs[0]?.temp ?? 0 });
+            });
+          }
+        }
+
+        if (metOk && hereHrs.length) {
+          document.getElementById('offlineBanner').style.display = 'none';
+          renderLocationHeader();
+          moon = updateClockAndPhoto();
+          const bal = computeBallisticCoupling(magSeries, windSeries.length ? windSeries : speed);
+          const c0 = hereHrs[0].block;
+          const sunAltNow = computeSolarElevation(now, currentPos.lat, currentPos.lon);
+          const mltNow = computeMLT(now, currentPos.lat, currentPos.lon);
+          const scored12 = scoreHourlyForecast12(hereHrs, {
+            lat: currentPos.lat, lon: currentPos.lon,
+            kpForecast, fallbackKp: kp ?? 0, ovation, hpiGw
+          });
+          lastScoredHours = scored12.hours;
+          lastBestAurora = scored12.bestAurora;
+          const bestDark = scored12.bestAurora || findBestDarkWindow(hereHrs);
+          lastSelectedHourIdx = bestDark ? Math.max(0, lastScoredHours.findIndex(h => h.time === bestDark.time)) : 0;
+
+          const sc = computeAuroraScore({
+            lat: currentPos.lat, lon: currentPos.lon,
+            cloudNow: c0, sunAlt: sunAltNow,
+            bz: bal.nowBz ?? bz, speed, kp, ovation,
+            hpiGw, substormJumpNt: goesSub ? goesSub.jumpNt : 0,
+            pdyn: bal.pdyn, shockJumpNpa: bal.shockJumpNpa,
+            newell: bal.nowNewell, mlt: mltNow, effMoonPct: moon.effMoonPct
+          });
+
+          const nextDt = new Date(now.getTime() + 3600000);
+          const cNext = hereHrs[1] ? hereHrs[1].block : c0;
+          const moonNext = getMoonState(nextDt, currentPos.lat, currentPos.lon);
+          const kpNext = lookupForecastKp(kpForecast, nextDt, kp ?? 0);
+          const scNext = computeAuroraScore({
+            lat: currentPos.lat, lon: currentPos.lon,
+            cloudNow: cNext, sunAlt: computeSolarElevation(nextDt, currentPos.lat, currentPos.lon),
+            bz: bal.nextBz ?? bz, speed, kp: kpNext, ovation,
+            hpiGw, substormJumpNt: goesSub ? Math.round(goesSub.jumpNt * 0.5) : 0,
+            pdyn: bal.pdyn, shockJumpNpa: bal.shockJumpNpa,
+            newell: bal.nextNewell, mlt: computeMLT(nextDt, currentPos.lat, currentPos.lon),
+            effMoonPct: moonNext.effMoonPct
+          });
+
+          lastRenderState = {
+            magSeries, chartSeries: magSeries.slice(-120), speed, bz, kp, ovation, hpiGw, goesSub, bal,
+            noaaOk, noaaLagMin, hereHrs, dirResults, weatherSourceLabel, usedMet, sunAltNow, moon, sc, scNext, bestDark
+          };
+          renderFromState(lastRenderState);
+          maybeTriggerAlert(sc, goesSub);
+
+          try {
+            localStorage.setItem('aurora_cache_v4', JSON.stringify({
+              ts: Date.now(), posName: getPosDisplayName(), score: sc,
+              v: evaluateVerdict({ lat: currentPos.lat, bestDark, kp, scoreObj: sc }),
+              skySub: document.getElementById('fSkySub').textContent,
+              aurSub: document.getElementById('fAurSub').textContent,
+              darkSub: document.getElementById('fDarkSub').textContent
+            }));
+          } catch(e) {}
+        } else {
+          pMet.textContent = isEn() ? '🔴 Weather Offline' : '🔴 氣象離線';
+          try {
+            const cached = JSON.parse(localStorage.getItem('aurora_cache_v4') || 'null');
+            if (cached && cached.score && (Date.now() - cached.ts) < 6 * 3600000) {
+              const minsAgo = Math.max(1, Math.round((Date.now() - cached.ts) / 60000));
+              const ob = document.getElementById('offlineBanner');
+              ob.style.display = 'block';
+              ob.textContent = isEn()
+                ? `⚠️ Offline: showing cached forecast from ${minsAgo} min ago (${cached.posName}).`
+                : `⚠️ 網路訊號中斷：目前顯示 ${minsAgo} 分鐘前（${cached.posName}）的快取預報，有訊號時按右上角更新。`;
+              renderGauge(cached.score, { isTooBright: cached.score.isTooBright, skySub: cached.skySub, aurSub: cached.aurSub, darkSub: cached.darkSub });
+              document.getElementById('vKicker').textContent = cached.v.kicker;
+              document.getElementById('vTitle').textContent = cached.v.title;
+              document.getElementById('vLead').textContent = cached.v.lead;
+            }
+          } catch(e) {}
+        }
+      } catch(e) { pMet.textContent = isEn() ? '🔴 Weather Offline' : '🔴 氣象離線'; }
+
+      if (noaaOk || metOk) lastSyncMs = Date.now();
+      if (manual) toast(noaaOk && metOk ? (isEn() ? 'Forecast updated ✅' : '已更新最新官方預報 ✅') : (isEn() ? 'Partial connection error ⚠️' : '部分資料連線失敗 ⚠️'));
+      b.disabled = false; b.textContent = isEn() ? '🔄 Sync' : '🔄 更新';
+    }
+
+    function copyLine() {
+      const en = isEn();
+      const scStr = lastScore ? (en ? `${lastScore.total}/100 (${tGrade(lastScore.grade)})` : `${lastScore.total} 分（${lastScore.grade}）`) : (en ? 'Updating' : '更新中');
+      const txt = en
+        ? `🌌 [${getPosDisplayName()}] Aurora Visibility: ${scStr}\n${document.getElementById('vTitle').textContent}\n• Sky: ${document.getElementById('fSkySub').textContent}\n• Aurora: ${document.getElementById('fAurSub').textContent}\n👉 Live Yr.no + NOAA Radar (auto-updates every 5m):\n${location.href}`
+        : `🌌【${getPosDisplayName()}】極光看見指數：${scStr}\n${document.getElementById('vTitle').textContent}\n• 天空：${document.getElementById('fSkySub').textContent}\n• 極光：${document.getElementById('fAurSub').textContent}\n👉 點開看 Yr.no 官方雲層＋NOAA 衛星（每5分自動更新）：\n${location.href}`;
+      if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => toast(en ? 'Copied to clipboard 📋' : '已複製 📋')).catch(() => toast(en ? 'Copy URL directly' : '請直接複製網址'));
+      else toast(en ? 'Copy URL directly' : '請直接複製網址');
+    }
+
+    let tm;
+    function toast(m) {
+      const e = document.getElementById('toast');
+      e.textContent = m; e.classList.add('show');
+      clearTimeout(tm); tm = setTimeout(() => e.classList.remove('show'), 2500);
+    }
+
+    if (typeof document !== 'undefined') {
+      loadSavedPrefs(); applyStaticI18n(); renderLocationHeader(); updateClockAndPhoto();
+      setInterval(updateClockAndPhoto, 30000);
+      refreshAll(false);
+      setInterval(() => { if (!document.hidden) refreshAll(false); }, AUTO_REFRESH_MS);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && Date.now() - lastSyncMs > 3 * 60 * 1000) refreshAll(false);
+      });
+    }
+  </script>
+</body>
+</html>
