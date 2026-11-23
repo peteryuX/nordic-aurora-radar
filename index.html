@@ -996,18 +996,30 @@
 
     function parseLatestKp(rows) {
       if (!Array.isArray(rows)) return null;
-      let best = null;
+      const items = [];
+      let is1m = false;
       for (const r of rows) {
         if (!r) continue;
+        if (typeof r.estimated_kp === 'number') is1m = true;
         const val = (typeof r.estimated_kp === 'number') ? r.estimated_kp
           : (typeof r.Kp === 'number') ? r.Kp
           : (typeof r.kp_index === 'number') ? r.kp_index
           : (Array.isArray(r) ? parseFloat(r[1]) : NaN);
         const tag = r.time_tag || (Array.isArray(r) ? r[0] : '');
         if (!Number.isFinite(val) || !tag) continue;
-        if (!best || String(tag) > String(best.time_tag)) best = { kp: val, time_tag: tag };
+        items.push({ kp: val, time_tag: String(tag) });
       }
-      return best;
+      if (!items.length) return null;
+      items.sort((a, b) => a.time_tag.localeCompare(b.time_tag));
+      // NOAA 1-minute Kp JSON often appends 1–4 trailing provisional 0Z rows before stations settle.
+      // Only return 0.00 if the latest 6 consecutive minutes are genuinely 0; otherwise use the newest settled reading.
+      if (is1m && items.length >= 2 && items[items.length - 1].kp === 0) {
+        const lookback = items.slice(Math.max(0, items.length - 6), -1);
+        for (let i = lookback.length - 1; i >= 0; i--) {
+          if (lookback[i].kp > 0) return lookback[i];
+        }
+      }
+      return items[items.length - 1];
     }
 
     function lookupOvationProb(ovationJson, lat, lon) {
@@ -1175,8 +1187,8 @@
       }
       if (scoreObj?.outOfZone === 'need-storm') {
         return en
-          ? { kicker: '🌍 Oval Further North', title: 'Aurora oval is currently further north', lead: `At ${scoreObj.magLat}° mag latitude, a strong storm (Kp ≥ ${scoreObj.neededKp}) is usually needed. Current Kp is ${kp !== null ? kp.toFixed(1) : '--'}.` }
-          : { kicker: '🌍 極光帶較偏北', title: '目前極光帶集中在更北邊的極圈', lead: `此地（地磁 ${scoreObj.magLat}°）通常需強磁暴 Kp ≥ ${scoreObj.neededKp} 才有機會，目前為 Kp ${kp !== null ? kp.toFixed(1) : '--'}。` };
+          ? { kicker: '🌍 Oval Further North', title: 'Aurora oval is currently further north', lead: `At ${scoreObj.magLat}° mag latitude, a strong storm (Kp ≥ ${scoreObj.neededKp}) is usually needed. Current Global Kp is ${kp !== null ? kp.toFixed(2) : '--'}.` }
+          : { kicker: '🌍 極光帶較偏北', title: '目前極光帶集中在更北邊的極圈', lead: `此地（地磁 ${scoreObj.magLat}°）通常需強磁暴 Kp ≥ ${scoreObj.neededKp} 才有機會，目前全球 Kp 為 ${kp !== null ? kp.toFixed(2) : '--'}。` };
       }
       if (scoreObj?.isTooBright) {
         return en
@@ -2059,8 +2071,8 @@
       const aurSubText = sc.outOfZone === 'low-lat'
         ? (en ? `Mag Lat ${sc.magLat}° (Outside oval)` : `地磁緯度 ${sc.magLat}°（非極光帶）`)
         : (sc.outOfZone === 'need-storm'
-            ? (en ? `Needs Kp≥${sc.neededKp} (Now Kp ${kp !== null ? kp.toFixed(1) : '--'})` : `需 Kp≥${sc.neededKp}（目前 Kp${kp !== null ? kp.toFixed(1) : '--'}）`)
-            : (en ? `Prob ${ovation ?? '--'}%${hpiTag} · Kp ${kp !== null ? kp.toFixed(1) : '--'}${subTag}` : `機率${ovation ?? '--'}%${hpiTag} · Kp${kp !== null ? kp.toFixed(1) : '--'}${subTag}`));
+            ? (en ? `Needs Kp≥${sc.neededKp} (Global Kp ${kp !== null ? kp.toFixed(2) : '--'})` : `需 Kp≥${sc.neededKp}（全球 Kp ${kp !== null ? kp.toFixed(2) : '--'}）`)
+            : (en ? `Prob ${ovation ?? '--'}%${hpiTag} · Kp ${kp !== null ? kp.toFixed(2) : '--'}${subTag}` : `機率${ovation ?? '--'}%${hpiTag} · Kp ${kp !== null ? kp.toFixed(2) : '--'}${subTag}`));
       const darkSubText = sc.isTooBright
         ? (en ? `Sun Alt ${sunAltNow.toFixed(0)}° (Needs < -4°)` : `太陽仰角 ${sunAltNow.toFixed(0)}°（需低於 -4°）`)
         : (moon.up ? (en ? `Moon ${moon.pct}% (Alt ${Math.round(moon.altDeg)}°)` : `月光 ${moon.pct}%（仰角 ${Math.round(moon.altDeg)}°）`) : (en ? 'Moon below horizon (Dark sky!)' : '月亮已落下（暗空極佳）'));
