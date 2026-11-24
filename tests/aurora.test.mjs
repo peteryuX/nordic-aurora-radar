@@ -1288,5 +1288,77 @@ test('37. Strict CSP, SW manifest integrity, zero 3rd-party JS & XSS/sink hygien
   assert.equal([...html.matchAll(/\son[a-z]+\s*=/gi)].length, 0, 'Inline event handlers forbidden under strict CSP');
 });
 
+test('38. Kyoto Dst, NOAA Propagated SW & WSA-ENLIL parsers + chaos resilience + recovery-phase physics', () => {
+  const nowMs = Date.parse('2026-11-24T12:00:00Z');
+  // Chaos payloads must never throw
+  for (const bad of [null, undefined, '', 42, {}, [], [null], [['time_tag', 'dst']], [{ time_tag: 'bad', dst: 'NaN' }]]) {
+    assert.doesNotThrow(() => api.parseKyotoDst(bad, nowMs));
+    assert.doesNotThrow(() => api.parsePropagatedSolarWind(bad, nowMs));
+    assert.doesNotThrow(() => api.parseEnlilForecast(bad, nowMs));
+  }
+
+  // 1. Kyoto Dst object-array & legacy 2D-array formats + stale filter
+  const dstObj = api.parseKyotoDst([
+    { time_tag: '2026-11-24T10:00:00', dst: -120 },
+    { time_tag: '2026-11-24T11:00:00', dst: -145 }
+  ], nowMs);
+  assert.equal(dstObj.dst, -145);
+  assert.equal(dstObj.stormClass, 'intense');
+  const dstLegacy = api.parseKyotoDst([['time_tag', 'dst'], ['2026-11-24 11:00:00', '-62']], nowMs);
+  assert.equal(dstLegacy.dst, -62);
+  assert.equal(dstLegacy.stormClass, 'moderate');
+  assert.equal(api.parseKyotoDst([{ time_tag: '2026-11-20T00:00:00', dst: -100 }], nowMs), null);
+
+  // Recovery-phase guard: moderate Dst -60 during quiet northward Bz must NOT inflate score, while intense Dst -150 boosts mid-lat
+  const quietRecov = api.computeAuroraScore({ lat: 69.97, lon: 23.27, cloudNow: 0, sunAlt: -20, bz: 4, speed: 380, kp: 1.5, dst: -60 });
+  const quietBase = api.computeAuroraScore({ lat: 69.97, lon: 23.27, cloudNow: 0, sunAlt: -20, bz: 4, speed: 380, kp: 1.5, dst: 0 });
+  assert.equal(quietRecov.total, quietBase.total, 'Quiet northward-Bz recovery phase Dst=-60 must not inflate score');
+
+  const intenseMid = api.computeAuroraScore({ lat: 55.95, lon: -3.19, cloudNow: 0, sunAlt: -20, bz: -4, speed: 500, kp: 3.0, dst: -180, mlt: 0 });
+  assert.equal(intenseMid.outOfZone, null, 'Intense ring-current storm Dst=-180 must unblock Edinburgh even if Kp lags');
+  assert.ok(intenseMid.effKp >= 7.0, `Expected effKp >= 7.0 for Dst=-180, got ${intenseMid.effKp}`);
+
+  // 2. NOAA Propagated Solar Wind ETA synchronization
+  const prop = api.parsePropagatedSolarWind([
+    ['time_tag', 'speed', 'density', 'temperature', 'bx', 'by', 'bz', 'bt', 'vx', 'vy', 'vz', 'propagated_time_tag'],
+    ['2026-11-24T11:20:00Z', 310, 2.0, 40000, 1, 2, -3, 4, -310, 0, 0, '2026-11-24T12:24:00Z']
+  ], nowMs);
+  assert.equal(prop.etaMin, 64);
+  const mag = Array.from({ length: 10 }, (_, i) => ({ time_tag: new Date(nowMs - (10 - i) * 60000).toISOString().slice(0, 19), bz: -5, by: 2 }));
+  const balSync = api.computeBallisticCoupling(mag, 310, nowMs, prop.etaMin);
+  assert.equal(balSync.etaMin, 64, 'computeBallisticCoupling should synchronize with NOAA official propagated ETA');
+});
+
+test('39. WSA-ENLIL CME/HSS parser handles reverse-chronological feed & tags matching 3-Night Outlook card', () => {
+  const nowDate = new Date('2026-11-24T20:00:00Z');
+  const nowMs = nowDate.getTime();
+  // Reverse-chronological rows matching real NOAA enlil_time_series.json order
+  const enlil = api.parseEnlilForecast([
+    { time_tag: '2026-11-26T02:00:00', v_r: 680, earth_particles_per_cm3: 18, cloud: 1 },
+    { time_tag: '2026-11-25T23:00:00', v_r: 620, earth_particles_per_cm3: 12, cloud: 1 },
+    { time_tag: '2026-11-24T22:00:00', v_r: 360, earth_particles_per_cm3: 4, cloud: 0 }
+  ], nowMs);
+  assert.ok(enlil && enlil.hasCme && enlil.maxSpeed === 680 && enlil.active);
+
+  const nights = api.summarize3NightOutlook({
+    cloudPoints: [
+      { dtMs: Date.parse('2026-11-24T22:00:00Z'), clear: 80, isDay: false },
+      { dtMs: Date.parse('2026-11-25T23:00:00Z'), clear: 75, isDay: false }
+    ],
+    kpForecast: [], currentKp: 2.0,
+    lat: 69.97, lon: 23.27, timeZone: 'UTC', nowDate, lang: 'en', enlilForecast: enlil
+  });
+  assert.equal(nights[0].enlilTag, '');
+  assert.ok(nights[1].enlilTag.includes('CME ~680km/s'), `Expected Tomorrow night CME tag, got "${nights[1].enlilTag}"`);
+
+  // GPS reverse-geocoding anti-Simplified-Chinese guard (BigDataCloud returns 北雷萨 even for zh-Hant)
+  const zhGeo = { countryCode: 'NO', countryName: '挪威', city: '北雷萨', locality: '北雷萨' };
+  const enGeo = { countryCode: 'NO', countryName: 'Norway', city: 'Nordreisa', locality: 'Nordreisa' };
+  assert.equal(api.formatReverseGeo(zhGeo, 'zh', enGeo), '挪威・Nordreisa');
+  assert.equal(api.formatReverseGeo(zhGeo, 'zh'), '挪威・北雷薩');
+  assert.equal(api.formatReverseGeo({ countryCode: 'FI', countryName: '芬兰', city: '伊纳里' }, 'zh', { countryCode: 'FI', countryName: 'Finland', city: 'Inari' }), '芬蘭・Inari');
+});
+
+
 
 

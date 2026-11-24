@@ -52,21 +52,26 @@ nordic-aurora-radar/
 ├── llms.txt / sitemap.xml  # AI-Search (GEO) & search engine indexing metadata
 ├── SECURITY.md             # CSP allowlist, zero-tracking privacy guarantees & vulnerability policy
 ├── tests/
-│   ├── aurora.test.mjs     # 37 automated physics, parser-chaos, monotonicity, 500+ SVG fuzz, i18n, security & live smoke tests
-│   ├── benchmark.mjs       # Quantitative calibration scorecard (MCC, ROC-AUC, Brier/BSS, 6-slice breakdown, JPL DE441, live cross-check)
-│   └── fixtures/           # 72 ground-truth historical storm/trap/outage cases + 22 NASA JPL Horizons DE441 checkpoints
-└── .github/workflows/ci.yml# Automated syntax/unit/calibration CI gates + daily live API health check
+│   ├── aurora.test.mjs          # 39 automated physics, parser-chaos, monotonicity, 500+ SVG fuzz, i18n, security & live smoke tests
+│   ├── benchmark.mjs            # Quantitative calibration scorecard (72 cases MCC/AUC/Brier, 22 JPL DE441, live cross-check)
+│   ├── realworld-validation.mjs # Independent blind public-data audit (17,255h NASA OMNI2, GFZ Hp30, NOAA Prop, 9 Airport METARs)
+│   └── fixtures/                # 72 ground-truth historical storm/trap/outage cases + 22 NASA JPL Horizons DE441 checkpoints
+└── .github/workflows/ci.yml     # Automated syntax/unit/calibration CI gates + daily live & public-data health check
 ```
 
 ---
 
 ## 🔬 Scientific Model & Verified Benchmarks｜科學模型與量化驗證
 
-1. **11 Live NOAA SWPC Feeds & IGRF-14 Eccentric Dipole**: Fuses 1-minute L1 solar wind (`Bz`/`By`/speed/density with **causal 3-point + tail spike filtering**, per-parcel ballistic Earth-arrival advection, calibrated Newell magnetopause coupling, and **60-min magnetotail preconditioning**), **NOAA Geospace 1h MHD predicted Kp**, 1-minute & 72h Kp, **SWPC alerts with CANCEL/expiration parsing**, G1–G5 storm scales, **bilinear 4-corner OVATION**, HPI (GW), and **dual-sector GOES East/West magnetometers** with dayside diurnal ramp & longitude-sector guards.
+1. **14 Live NOAA SWPC Feeds & IGRF-14 Eccentric Dipole**: Fuses 1-minute L1 solar wind (`Bz`/`By`/speed/density with **causal 3-point + tail spike filtering**, **NOAA official bow-shock propagation ETA sync**, calibrated Newell magnetopause coupling, and **60-min magnetotail preconditioning**), **NOAA Geospace 1h MHD predicted Kp**, 1-minute & 72h Kp, **Kyoto WDC real-time `Dst` ring-current index** (with recovery-phase guard), **WSA-ENLIL 3D MHD CME/HSS arrival forecast**, **SWPC alerts with CANCEL/expiration parsing**, G1–G5 storm scales, **bilinear 4-corner OVATION**, HPI (GW), and **dual-sector GOES East/West magnetometers**.
 2. **Layered Cloud, Fog & Precipitation Optics + Resilient Parallel Pipeline**: Uses `1 - (1 - low)(1 - mid)(1 - 0.30 × high)(1 - fog)(1 - precip)` from **MET Norway 2.5 km** inside the Nordics (in parallel with 5-point **Open-Meteo** backfill, `dtMs`-aligned dual-model consensus, bounded LRU caching, `AbortController` timeouts, and coordinate-keyed offline SWR cache).
-3. **Quantitative Quality Scorecard (`node tests/benchmark.mjs`)**:
-   - **Historical Storm, Trap & Partial-Outage Replay (72 cases)** — G5 Gannon (2024-05-10), Halloween 2003 1850 km/s CME, G4 (2024-10-10, 2023-04-23, 2025-01-01), Southern Hemisphere (Hobart/Queenstown/Cape Town/Ushuaia), GOES diurnal vs substorm traps, fog/snow/cirrus traps, twilight boundaries, and partial NOAA outages: **100.0% Accuracy**, **0.0% FNR / 0.0% FPR**, **MCC = 1.0000**, **ROC-AUC = 1.0000**, **Brier Score = 0.0896 (BSS = 0.6275)** across all 6 stratified domain slices.
-   - **Independent Astronomy Ephemeris Audit (22 NASA JPL Horizons DE441 checkpoints)**: Solar elevation max error **0.006°** (MAE `0.004°`), lunar elevation max error **0.74°** (MAE `0.30°`), lunar illumination max error **1.16%** (MAE `0.40%`).
+3. **Independent Real-World Public-Data Audit (`node tests/realworld-validation.mjs`, zero fitting)**:
+   - **NASA CDAWeb OMNI2 Full 2024–2025 Continuous Blind Backtest (`N = 17,255` real hours)**: Pure L1 solar wind alone achieves **ROC-AUC = 0.9019** (`AE >= 500 nT`) / **0.8635** (`AE >= 300 nT`); fused `(L1 + Kp + Dst)` achieves **ROC-AUC = 0.9414** (`AE >= 500 nT`) / **0.9187** (`AE >= 300 nT`, Spearman `ρ = 0.8125`), with strictly monotonic ground-truth `Mean AE` (`54 → 113 → 256 → 534 nT`) across UI score tiers and **1.0000 ROC-AUC** for mid-latitude intense storms (`Dst <= -100 nT`) at Oslo & Hobart.
+   - **GFZ Potsdam `Hp30` (4,272 matched 30-min windows)**: Pure L1 coupling achieves **ROC-AUC = 0.8982** (`Hp30 >= 5.0`).
+   - **Live Airport METAR Ceilometers (9 Arctic & global airports)**: Layered cirrus/fog/precip formula reduces real-sky MAE vs raw total cloud cover (**31.8% vs 41.6%** in live cross-check).
+4. **Curated Regression & Ephemeris Benchmarks (`node tests/benchmark.mjs`)**:
+   - **72 Storm, Trap & Partial-Outage Replay Cases**: **100.0% Accuracy**, **0.0% FNR / 0.0% FPR**, **MCC = 1.0000**, **ROC-AUC = 1.0000**, **Brier = 0.0896 (BSS = 0.6275)**.
+   - **22 NASA JPL Horizons DE441 Checkpoints**: Solar elevation max error **0.006°** (MAE `0.004°`), lunar elevation max error **0.74°** (MAE `0.30°`), lunar illumination max error **1.16%** (MAE `0.40%`).
 
 ---
 
@@ -88,11 +93,12 @@ cd nordic-aurora-radar
 python3 -m http.server 8000
 ```
 
-Run the 37 automated test suites & quantitative benchmark (Node.js 20+, zero dependencies):
+Run the 39 automated test suites, quantitative benchmarks & independent public-data audit (Node.js 20+, zero dependencies):
 
 ```bash
 node --test tests/aurora.test.mjs
 node tests/benchmark.mjs
+node tests/realworld-validation.mjs
 
 # Include live NOAA + MET Norway + Open-Meteo end-to-end & multi-source cross-validation:
 LIVE_TEST=1 node --test tests/aurora.test.mjs

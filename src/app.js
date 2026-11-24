@@ -20,6 +20,7 @@ const {
   parseMagSeries, parseWindSeries, parseKpForecast, lookupForecastKp,
   parseLatestKp, lookupOvationProb, parseHemiPower, parseGoesSubstorm, mergeGoesSubstorm,
   parseGeospacePredKp1h, parseNoaaAlerts, parseNoaaGeomagneticScales,
+  parseKyotoDst, parsePropagatedSolarWind, parseEnlilForecast,
   parseMetNorwayHourly12, parseMetNorwayMultiDay,
   parseOpenMeteoHourly12, parseOpenMeteoMultiDay, evaluateCloudConsensus, scoreHourlyForecast12,
   findBestDarkWindow, summarize3NightOutlook, evaluateVerdict,
@@ -140,13 +141,13 @@ async function refreshLocalizedPlaceName() {
   const reqLat = currentPos.lat;
   const reqLon = currentPos.lon;
   try {
-    const locLang = en ? 'en' : 'zh-Hant';
     const rgRes = await fetchWithTimeout(
-      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${reqLat}&longitude=${reqLon}&localityLanguage=${locLang}`,
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${reqLat}&longitude=${reqLon}&localityLanguage=en`,
       { timeoutMs: 4000 }
     );
     if (!rgRes.ok) return;
-    const resolved = formatReverseGeo(await rgRes.json(), en ? 'en' : 'zh');
+    const enJson = await rgRes.json();
+    const resolved = en ? formatReverseGeo(enJson, 'en') : formatReverseGeo(enJson, 'zh', enJson);
     if (!resolved || myLocSeq !== locationSeq || currentPos.lat !== reqLat || currentPos.lon !== reqLon) return;
     if (en) currentPos.nameEn = resolved;
     else currentPos.name = resolved;
@@ -260,10 +261,10 @@ function applyStaticI18n() {
   if (tsP) {
     tsP.innerHTML = en
       ? `<li><strong>Clear Sky</strong>: Low/mid clouds, fog & precipitation weigh heavily, high cirrus 30% (capped at total +8%), smooth nonlinear exponent 0.85→0.72 during bright storms.</li>` +
-        `<li><strong>Aurora</strong>: Fuses 11 live NOAA feeds (causal 3-pt L1 solar wind & 60m magnetotail preconditioning, Geospace 1h MHD Kp, bilinear OVATION, HPI GW, dual GOES & SWPC alerts).</li>` +
+        `<li><strong>Aurora</strong>: Fuses 14 live NOAA feeds (causal 3-pt L1 wind + bow-shock propagation, Geospace 1h Kp, bilinear OVATION, HPI GW, dual GOES, Kyoto Dst, WSA-ENLIL CME & SWPC alerts).</li>` +
         `<li><strong>Darkness</strong>: Sun must drop below -4° (-12° full dark), with Krisciunas–Schaefer lunar opposition surge tapering automatically during bright storms.</li>`
       : `<li><strong>晴空度</strong>：低雲／中雲／霧與降水計重度遮蔽、高捲雲以 30% 計（上限為總雲量 +8%），採平滑非線性指數 0.85→0.72（強極光雲縫自動放寬）。</li>` +
-        `<li><strong>極光活動</strong>：整合 NOAA 11 源（L1 太陽風因果 3 點濾波與 60 分鐘磁尾蓄能、Geospace 1h Kp、OVATION 雙線性內插、半球功率 GW、雙 GOES 與 SWPC 警報）。</li>` +
+        `<li><strong>極光活動</strong>：整合 NOAA 14 源（L1 因果 3 點濾波與官方彈道傳播、Geospace 1h Kp、OVATION 雙線性、HPI、雙 GOES、京都 Dst 環電流、WSA-ENLIL 與 SWPC 警報）。</li>` +
         `<li><strong>夜空暗度</strong>：太陽需低於 -4°（-12° 全暗），並依 Krisciunas–Schaefer 月光衝日效應與極光亮度動態調整扣分。</li>`;
   }
   setT('tsSciTitle', '科學驗證與官方資料來源', 'Scientific Verification & Sources');
@@ -271,12 +272,12 @@ function applyStaticI18n() {
   if (tsG) {
     tsG.innerHTML = en
       ? `<div class="ts-stat"><strong>NASA JPL 0.006°</strong><span>22 DE441 sun/moon checks</span></div>` +
-        `<div class="ts-stat"><strong>72 Cases · 0% FNR</strong><span>MCC 1.00 · ROC-AUC 1.00</span></div>` +
-        `<div class="ts-stat"><strong>11 NOAA Live Feeds</strong><span>L1 Wind · MHD · Dual GOES</span></div>` +
+        `<div class="ts-stat"><strong>17,255h NASA OMNI</strong><span>Blind ROC-AUC 0.92–0.94</span></div>` +
+        `<div class="ts-stat"><strong>14 NOAA Live Feeds</strong><span>L1 · MHD · Dst · ENLIL</span></div>` +
         `<div class="ts-stat"><strong>2.5km Yr.no</strong><span>Dual-model cloud check</span></div>`
       : `<div class="ts-stat"><strong>NASA JPL 0.006°</strong><span>22 點 DE441 日月校準</span></div>` +
-        `<div class="ts-stat"><strong>72 歷史案例 0 漏報</strong><span>MCC 1.00 · AUC 1.00</span></div>` +
-        `<div class="ts-stat"><strong>11 NOAA 即時源</strong><span>L1 太陽風・MHD・雙 GOES</span></div>` +
+        `<div class="ts-stat"><strong>17,255h NASA 盲測</strong><span>實測 ROC-AUC 0.92–0.94</span></div>` +
+        `<div class="ts-stat"><strong>14 NOAA 即時源</strong><span>L1・MHD・Dst・ENLIL</span></div>` +
         `<div class="ts-stat"><strong>2.5km Yr.no</strong><span>MET Norway 雙模型比對</span></div>`;
   }
   setT('tsPrivTitle', '隱私與安全信任章', 'Privacy & Security Seal');
@@ -779,17 +780,18 @@ function render3NightOutlook(nights) {
     const kpTxt = n.kpAvailable === false
       ? (en ? 'Kp --' : 'Kp 待更新')
       : `Kp ${Number(n.maxKp || 0).toFixed(1)}${n.gScale >= 1 ? ` · G${n.gScale}` : ''}`;
+    const enlilLine = n.enlilTag ? `<br/><span style="color:var(--amber);font-weight:700;">${escapeHtml(n.enlilTag)}</span>` : '';
     const bCol = n.badgeColor?.startsWith('#') ? scoreCssColor(n.badgeColor) : (n.badgeColor || 'var(--muted)');
     return `<div class="outlook-day ${i === bestIdx ? 'od-best' : ''}">
       <div class="od-date">${escapeHtml(n.label)}</div>
       <div class="od-badge" style="color:${bCol};"><span class="leg-dot" style="background:${bCol};margin-right:2px;"></span>${escapeHtml(n.badge)}</div>
-      <div class="od-stat">${escapeHtml(clearTxt)}<br/>${escapeHtml(kpTxt)}</div>
+      <div class="od-stat">${escapeHtml(clearTxt)}<br/>${escapeHtml(kpTxt)}${enlilLine}</div>
     </div>`;
   }).join('');
 }
 
 /** Progressive NOAA render so Solar Wind & Storm Banner appear immediately without waiting for Weather */
-function renderNoaaSection({ magSeries, chartSeries, speed, bz, hpiGw, goesSub, noaaScales, noaaAlert, bal, noaaOk, noaaLagMin, pos }) {
+function renderNoaaSection({ magSeries, chartSeries, speed, bz, hpiGw, goesSub, noaaScales, noaaAlert, kyotoDst, bal, noaaOk, noaaLagMin, pos }) {
   const en = isEn();
   const tz = pos?.tz || currentPos.tz;
   renderStormBanner(noaaScales, noaaAlert);
@@ -810,7 +812,8 @@ function renderNoaaSection({ magSeries, chartSeries, speed, bz, hpiGw, goesSub, 
     : (etaClock ? `虛線右側＝已測得太陽風，預估於 ${etaClock} 前陸續到達` : '時間軸已換算為到達地球的當地時間');
   const displayBz = Number.isFinite(bal.cleanLatestBz) ? bal.cleanLatestBz : bz;
   const pTxt = bal.pdyn !== null ? ` · ${bal.pdyn}nPa` : '';
-  $('bzRawVal').textContent = `Bz ${displayBz !== null ? (displayBz >= 0 ? '+' : '') + displayBz.toFixed(1) : '--'} · ${speed ? Math.round(speed) : '--'}km/s${hpiGw !== null ? ' · ' + Math.round(hpiGw) + 'GW' : ''}${pTxt} ↗`;
+  const dstTxt = (kyotoDst && Number.isFinite(kyotoDst.dst) && kyotoDst.dst <= -30) ? ` · Dst ${kyotoDst.dst}` : '';
+  $('bzRawVal').textContent = `Bz ${displayBz !== null ? (displayBz >= 0 ? '+' : '') + displayBz.toFixed(1) : '--'} · ${speed ? Math.round(speed) : '--'}km/s${hpiGw !== null ? ' · ' + Math.round(hpiGw) + 'GW' : ''}${pTxt}${dstTxt} ↗`;
   $('bzChart').innerHTML = buildBzChartSVG(chartSeries, tz, speed, bal);
 
   const pNoaa = $('pNoaa');
@@ -829,14 +832,14 @@ function renderFromState(st) {
   if (!st) return;
   const en = isEn();
   const {
-    pos: stPos, magSeries, chartSeries, speed, bz, kp, ovation, hpiGw, goesSub, noaaScales, noaaAlert, predKp1h, bal,
+    pos: stPos, magSeries, chartSeries, speed, bz, kp, ovation, hpiGw, goesSub, noaaScales, noaaAlert, kyotoDst, enlilForecast, predKp1h, bal,
     noaaOk, noaaLagMin, hereHrs, dirResults, weatherSourceLabel, usedMet, cloudConsensus,
     sunAltNow, mltNow, moon, sc, scNext, bestDark, nights3, multiDayPts, kpForecast, fetchedAt
   } = st;
   const pos = stPos || currentPos;
 
   const etaClock = renderNoaaSection({
-    magSeries, chartSeries, speed, bz, hpiGw, goesSub, noaaScales, noaaAlert, bal, noaaOk, noaaLagMin, pos
+    magSeries, chartSeries, speed, bz, hpiGw, goesSub, noaaScales, noaaAlert, kyotoDst, bal, noaaOk, noaaLagMin, pos
   });
 
   if (!hereHrs || !hereHrs.length) return;
@@ -850,6 +853,7 @@ function renderFromState(st) {
     substormJumpNt: goesSub ? goesSub.jumpNt : 0,
     pdyn: bal.nowPdyn, shockJumpNpa: bal.nowShockJumpNpa,
     newell: bal.nowNewell, preconditionedNewell60: bal.avgNewell60,
+    dst: kyotoDst?.dst ?? null,
     mlt: mltNow, effMoonPct: moon.effMoonPct,
     moonPct: moon.pct, moonAltDeg: moon.altDeg,
     scNext, noaaOk, noaaLagMin, usedMet, cloudConsensus, hereHrs, noaaAlert, predKp1h
@@ -922,7 +926,8 @@ function renderFromState(st) {
   const localizedNights3 = multiDayPts
     ? summarize3NightOutlook({
         cloudPoints: multiDayPts, kpForecast: kpForecast || [], currentKp: kp,
-        lat: pos.lat, lon: pos.lon, timeZone: pos.tz, nowDate: fetchedAt || new Date()
+        lat: pos.lat, lon: pos.lon, timeZone: pos.tz, nowDate: fetchedAt || new Date(),
+        enlilForecast: enlilForecast || null
       })
     : nights3;
   render3NightOutlook(localizedNights3);
@@ -1109,15 +1114,49 @@ async function refreshAll(manual) {
   const safeJson = r => (r && r.ok ? r.json().catch(() => null) : Promise.resolve(null));
   const safeText = r => (r && r.ok ? r.text().catch(() => null) : Promise.resolve(null));
 
-  // Track 1: Live NOAA SWPC (11 fault-isolated, timeout-bounded endpoints in parallel)
+  // Background 6-hour cached WSA-ENLIL CME/HSS forecast (non-blocking so mobile load stays instant)
+  let cachedEnlil = null;
+  try {
+    const rawEnlil = localStorage.getItem('aurora_enlil_v1');
+    if (rawEnlil) {
+      const parsed = JSON.parse(rawEnlil);
+      if (parsed && Number.isFinite(parsed.ts) && (now.getTime() - parsed.ts < 6 * 3600000) && parsed.data) {
+        cachedEnlil = parsed.data;
+      }
+    }
+  } catch (e) {}
+  if (!cachedEnlil) {
+    fetchWithTimeout('https://services.swpc.noaa.gov/json/enlil_time_series.json', { timeoutMs: 12000 })
+      .then(safeJson)
+      .then(enlilJson => {
+        const parsed = enlilJson ? parseEnlilForecast(enlilJson, Date.now()) : null;
+        if (!parsed) return;
+        try { localStorage.setItem('aurora_enlil_v1', JSON.stringify({ ts: Date.now(), data: parsed })); } catch (e) {}
+        if (lastRenderState && lastRenderState.multiDayPts) {
+          lastRenderState.enlilForecast = parsed;
+          const updatedNights = summarize3NightOutlook({
+            cloudPoints: lastRenderState.multiDayPts, kpForecast: lastRenderState.kpForecast || [],
+            currentKp: lastRenderState.kp, lat: lastRenderState.pos.lat, lon: lastRenderState.pos.lon,
+            timeZone: lastRenderState.pos.tz, nowDate: lastRenderState.fetchedAt || new Date(),
+            enlilForecast: parsed
+          });
+          lastRenderState.nights3 = updatedNights;
+          render3NightOutlook(updatedNights);
+        }
+      })
+      .catch(() => {});
+  }
+
+  // Track 1: Live NOAA SWPC (13 parallel fault-isolated, timeout-bounded endpoints + background ENLIL = 14)
   const noaaTask = (async () => {
     const res = {
       bz: null, speed: null, kp: null, ovation: null, hpiGw: null,
       goesSub: null, noaaScales: null, geo1h: null, noaaAlert: null,
+      kyotoDst: null, propSw: null, enlilForecast: cachedEnlil,
       noaaOk: false, magSeries: [], windSeries: [], kpForecast: [], noaaLagMin: null
     };
     try {
-      const [mR, wR, k1R, oR, hpiR, g1R, g2R, kfcR, scR, geoR, alR] = await Promise.all([
+      const [mR, wR, k1R, oR, hpiR, g1R, g2R, kfcR, scR, geoR, alR, dstR, propR] = await Promise.all([
         fetchWithTimeout('https://services.swpc.noaa.gov/json/rtsw/rtsw_mag_1m.json', { timeoutMs: 7500, signal }).catch(() => null),
         fetchWithTimeout('https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json', { timeoutMs: 7500, signal }).catch(() => null),
         fetchWithTimeout('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json', { timeoutMs: 7500, signal }).catch(() => null),
@@ -1128,11 +1167,14 @@ async function refreshAll(manual) {
         fetchWithTimeout('https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json', { timeoutMs: 7500, signal }).catch(() => null),
         fetchWithTimeout('https://services.swpc.noaa.gov/products/noaa-scales.json', { timeoutMs: 7500, signal }).catch(() => null),
         fetchWithTimeout('https://services.swpc.noaa.gov/json/geospace/geospace_pred_est_kp_1_hour.json', { timeoutMs: 7500, signal }).catch(() => null),
-        fetchWithTimeout('https://services.swpc.noaa.gov/products/alerts.json', { timeoutMs: 7500, signal }).catch(() => null)
+        fetchWithTimeout('https://services.swpc.noaa.gov/products/alerts.json', { timeoutMs: 7500, signal }).catch(() => null),
+        fetchWithTimeout('https://services.swpc.noaa.gov/products/kyoto-dst.json', { timeoutMs: 7500, signal }).catch(() => null),
+        fetchWithTimeout('https://services.swpc.noaa.gov/products/geospace/propagated-solar-wind-1-hour.json', { timeoutMs: 7500, signal }).catch(() => null)
       ]);
-      const [mJ, wJ, k1J, ovJson, hpiTxt, g1J, g2J, kfcJ, scJ, geoJ, alJ] = await Promise.all([
+      const [mJ, wJ, k1J, ovJson, hpiTxt, g1J, g2J, kfcJ, scJ, geoJ, alJ, dstJ, propJ] = await Promise.all([
         safeJson(mR), safeJson(wR), safeJson(k1R), safeJson(oR), safeText(hpiR),
-        safeJson(g1R), safeJson(g2R), safeJson(kfcR), safeJson(scR), safeJson(geoR), safeJson(alR)
+        safeJson(g1R), safeJson(g2R), safeJson(kfcR), safeJson(scR), safeJson(geoR), safeJson(alR),
+        safeJson(dstR), safeJson(propR)
       ]);
       if (mySeq !== refreshSeq) return res;
 
@@ -1142,6 +1184,8 @@ async function refreshAll(manual) {
       if (scJ) res.noaaScales = parseNoaaGeomagneticScales(scJ);
       if (geoJ) res.geo1h = parseGeospacePredKp1h(geoJ, now.getTime());
       if (alJ) res.noaaAlert = parseNoaaAlerts(alJ, now.getTime());
+      if (dstJ) res.kyotoDst = parseKyotoDst(dstJ, now.getTime());
+      if (propJ) res.propSw = parsePropagatedSolarWind(propJ, now.getTime());
       const lastMag = res.magSeries.length ? res.magSeries[res.magSeries.length - 1] : null;
       const wind = res.windSeries.length ? res.windSeries[res.windSeries.length - 1] : null;
       let kpObj = k1J ? parseLatestKp(k1J) : null;
@@ -1168,11 +1212,11 @@ async function refreshAll(manual) {
 
       // Progressive UI update: render Solar Wind & Storm Banner right away
       if (mySeq === refreshSeq) {
-        const progBal = computeBallisticCoupling(res.magSeries, res.windSeries.length ? res.windSeries : res.speed, now.getTime());
+        const progBal = computeBallisticCoupling(res.magSeries, res.windSeries.length ? res.windSeries : res.speed, now.getTime(), res.propSw?.etaMin ?? null);
         renderNoaaSection({
           magSeries: res.magSeries, chartSeries: res.magSeries.slice(-120),
           speed: res.speed, bz: res.bz, hpiGw: res.hpiGw, goesSub: res.goesSub,
-          noaaScales: res.noaaScales, noaaAlert: res.noaaAlert, bal: progBal,
+          noaaScales: res.noaaScales, noaaAlert: res.noaaAlert, kyotoDst: res.kyotoDst, bal: progBal,
           noaaOk: res.noaaOk, noaaLagMin: res.noaaLagMin, pos
         });
       }
@@ -1278,9 +1322,9 @@ async function refreshAll(manual) {
       renderLocationHeader();
       moon = updateClockAndPhoto();
 
-      const { magSeries, windSeries, kpForecast, bz, speed, kp, ovation, hpiGw, goesSub, noaaScales, geo1h, noaaAlert, noaaLagMin } = noaa;
+      const { magSeries, windSeries, kpForecast, bz, speed, kp, ovation, hpiGw, goesSub, noaaScales, geo1h, noaaAlert, kyotoDst, propSw, enlilForecast, noaaLagMin } = noaa;
       const { hereHrs, multiDayPts, dirResults, weatherSourceLabel, usedMet, cloudConsensus } = wx;
-      const bal = computeBallisticCoupling(magSeries, windSeries.length ? windSeries : speed, now.getTime());
+      const bal = computeBallisticCoupling(magSeries, windSeries.length ? windSeries : speed, now.getTime(), propSw?.etaMin ?? null);
       const c0 = hereHrs[0].block;
       const sunAltNow = computeSolarElevation(now, pos.lat, pos.lon);
       const mltNow = computeMLT(now, pos.lat, pos.lon);
@@ -1300,7 +1344,7 @@ async function refreshAll(manual) {
       const bestDark = scored12.bestAurora || findBestDarkWindow(hereHrs);
       lastSelectedHourIdx = bestDark ? Math.max(0, lastScoredHours.findIndex(h => h.time === bestDark.time)) : 0;
 
-      // NOW score uses Earth-arriving window (nowBz, nowNewell, nowPdyn) so upstream L1 shocks aren't credited early
+      // NOW score uses Earth-arriving window (nowBz, nowNewell, nowPdyn) + Kyoto Dst ring current
       const sc = computeAuroraScore({
         lat: pos.lat, lon: pos.lon,
         cloudNow: c0, sunAlt: sunAltNow,
@@ -1308,6 +1352,7 @@ async function refreshAll(manual) {
         hpiGw, substormJumpNt: goesSub ? goesSub.jumpNt : 0,
         pdyn: bal.nowPdyn, shockJumpNpa: bal.nowShockJumpNpa,
         newell: bal.nowNewell, preconditionedNewell60: bal.avgNewell60,
+        dst: kyotoDst?.dst ?? null,
         mlt: mltNow, effMoonPct: moon.effMoonPct
       });
 
@@ -1336,17 +1381,19 @@ async function refreshAll(manual) {
         hpiGw, substormJumpNt: goesSub ? Math.round(goesSub.jumpNt * 0.5) : 0,
         pdyn: bal.pdyn, shockJumpNpa: bal.shockJumpNpa,
         newell: bal.nextNewell, preconditionedNewell60: bal.avgNewell60,
+        dst: kyotoDst?.dst ?? null,
         mlt: mltNext, effMoonPct: moonNext.effMoonPct
       });
 
       const nights3 = summarize3NightOutlook({
         cloudPoints: multiDayPts, kpForecast, currentKp: kp,
-        lat: pos.lat, lon: pos.lon, timeZone: pos.tz, nowDate: now
+        lat: pos.lat, lon: pos.lon, timeZone: pos.tz, nowDate: now,
+        enlilForecast
       });
 
       lastRenderState = {
         pos, magSeries, chartSeries: magSeries.slice(-120), speed, bz, kp, ovation, hpiGw, goesSub,
-        noaaScales, noaaAlert, predKp1h, bal, noaaOk, noaaLagMin, hereHrs, dirResults,
+        noaaScales, noaaAlert, kyotoDst, enlilForecast, predKp1h, bal, noaaOk, noaaLagMin, hereHrs, dirResults,
         weatherSourceLabel, usedMet, cloudConsensus, sunAltNow, mltNow, moon, sc, scNext,
         bestDark, nights3, multiDayPts, kpForecast, fetchedAt: now
       };
@@ -1462,8 +1509,10 @@ function useGPS() {
           fetchWithTimeout(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`, { timeoutMs: 4500 }).catch(() => null)
         ]).then(async ([zhRes, enRes]) => {
           if (myLocSeq !== locationSeq) return;
-          const zhName = (zhRes && zhRes.ok) ? formatReverseGeo(await zhRes.json().catch(() => null), 'zh') : null;
-          const enName = (enRes && enRes.ok) ? formatReverseGeo(await enRes.json().catch(() => null), 'en') : null;
+          const zhJson = (zhRes && zhRes.ok) ? await zhRes.json().catch(() => null) : null;
+          const enJson = (enRes && enRes.ok) ? await enRes.json().catch(() => null) : null;
+          const zhName = (zhJson || enJson) ? formatReverseGeo(zhJson || enJson, 'zh', enJson) : null;
+          const enName = enJson ? formatReverseGeo(enJson, 'en') : null;
           if (myLocSeq !== locationSeq) return;
           if (zhName || enName) {
             currentPos.name = zhName || enName || fallback;

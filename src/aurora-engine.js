@@ -297,24 +297,86 @@ export function resolveCityDisplayName(pos, lang = currentLang) {
   return pos.name || pos.nameEn || '';
 }
 
-export function formatReverseGeo(geoJson, lang = currentLang) {
+const SIMP_TO_TRAD_GEO = {
+  '萨': '薩', '兰': '蘭', '岛': '島', '国': '國', '尔': '爾', '亚': '亞', '罗': '羅', '苏': '蘇',
+  '伦': '倫', '纳': '納', '维': '維', '达': '達', '东': '東', '湾': '灣', '区': '區', '县': '縣',
+  '镇': '鎮', '马': '馬', '圣': '聖', '约': '約', '汉': '漢', '奥': '奧', '乌': '烏', '库': '庫',
+  '莱': '萊', '凯': '凱', '卢': '盧', '麦': '麥', '温': '溫', '华': '華', '纽': '紐', '爱': '愛',
+  '诺': '諾', '泽': '澤', '图': '圖', '宁': '寧', '龙': '龍', '门': '門', '头': '頭', '长': '長',
+  '广': '廣', '阳': '陽', '阴': '陰', '岭': '嶺', '峡': '峽', '边': '邊', '铁': '鐵', '银': '銀',
+  '铜': '銅', '锡': '錫', '万': '萬', '与': '與', '丰': '豐', '临': '臨', '义': '義', '乐': '樂',
+  '乔': '喬', '云': '雲', '兴': '興', '关': '關', '内': '內', '冈': '岡', '别': '別', '剑': '劍',
+  '劳': '勞', '勋': '勳', '双': '雙', '发': '發', '叶': '葉', '吴': '吳', '启': '啟', '坝': '壩',
+  '寿': '壽', '岗': '崗', '庄': '莊', '庆': '慶', '开': '開', '张': '張', '归': '歸', '当': '當',
+  '录': '錄', '怀': '懷', '态': '態', '恒': '恆', '扬': '揚', '无': '無', '时': '時', '晋': '晉',
+  '晓': '曉', '术': '術', '机': '機', '来': '來', '杨': '楊', '桥': '橋', '梦': '夢', '欧': '歐',
+  '汇': '匯', '汤': '湯', '沟': '溝', '沧': '滄', '济': '濟', '润': '潤', '淀': '澱', '渔': '漁',
+  '滨': '濱', '滩': '灘', '灵': '靈', '灿': '燦', '环': '環', '现': '現', '玛': '瑪', '瑶': '瑤',
+  '电': '電', '畅': '暢', '盐': '鹽', '盘': '盤', '离': '離', '积': '積', '红': '紅', '纬': '緯',
+  '纯': '純', '纲': '綱', '绿': '綠', '联': '聯', '肃': '肅', '胜': '勝', '腾': '騰', '荣': '榮',
+  '莲': '蓮', '蓝': '藍', '观': '觀', '贝': '貝', '贵': '貴', '费': '費', '贺': '賀', '赞': '贊',
+  '车': '車', '轮': '輪', '软': '軟', '辉': '輝', '辽': '遼', '迈': '邁', '运': '運', '连': '連',
+  '邓': '鄧', '郑': '鄭', '镜': '鏡', '闪': '閃', '闽': '閩', '阁': '閣', '陆': '陸', '陈': '陳',
+  '险': '險', '陕': '陝', '随': '隨', '雾': '霧', '静': '靜', '韩': '韓', '风': '風', '飞': '飛',
+  '驰': '馳', '鲁': '魯', '黄': '黃', '齐': '齊'
+};
+
+function toTraditionalPlace(str) {
+  if (!str || typeof str !== 'string') return '';
+  return str.replace(/[\u4e00-\u9fff]/g, ch => SIMP_TO_TRAD_GEO[ch] || ch);
+}
+
+let zhRegionNames = null;
+function traditionalRegionName(countryCode, fallbackName) {
+  if (typeof countryCode === 'string' && /^[A-Za-z]{2}$/.test(countryCode)) {
+    try {
+      if (!zhRegionNames && typeof Intl !== 'undefined' && Intl.DisplayNames) {
+        zhRegionNames = new Intl.DisplayNames(['zh-Hant-TW'], { type: 'region' });
+      }
+      const n = zhRegionNames ? zhRegionNames.of(countryCode.toUpperCase()) : null;
+      if (n && n !== countryCode.toUpperCase()) return n;
+    } catch (e) {}
+  }
+  return toTraditionalPlace(fallbackName);
+}
+
+export function formatReverseGeo(geoJson, lang = currentLang, enGeoJson = null) {
   if (!geoJson || typeof geoJson !== 'object') return null;
   const en = isEn(lang);
-  const country = typeof geoJson.countryName === 'string' ? geoJson.countryName.trim() : '';
-  const city = typeof geoJson.city === 'string' && geoJson.city.trim()
-    ? geoJson.city.trim()
-    : (typeof geoJson.locality === 'string' && geoJson.locality.trim()
-      ? geoJson.locality.trim()
-      : (typeof geoJson.principalSubdivision === 'string' ? geoJson.principalSubdivision.trim() : ''));
-  const locality = typeof geoJson.locality === 'string' ? geoJson.locality.trim() : '';
-  if (!country && !city) return null;
-  const sep = en ? ' · ' : '・';
-  const prefix = (country && country !== city) ? country + sep : '';
-  if (city && locality && locality !== city) {
-    return en ? `${prefix}${city} (${locality})` : `${prefix}${city}（${locality}）`;
+  const cc = String(geoJson.countryCode || enGeoJson?.countryCode || '').trim().toUpperCase();
+  const isCjkCountry = ['TW', 'HK', 'MO', 'CN', 'JP', 'KR'].includes(cc);
+  const pickCity = (g) => {
+    if (!g || typeof g !== 'object') return '';
+    return (typeof g.city === 'string' && g.city.trim())
+      ? g.city.trim()
+      : (typeof g.locality === 'string' && g.locality.trim()
+        ? g.locality.trim()
+        : (typeof g.principalSubdivision === 'string' ? g.principalSubdivision.trim() : ''));
+  };
+  const pickLoc = (g) => (g && typeof g.locality === 'string' ? g.locality.trim() : '');
+
+  if (en) {
+    const src = enGeoJson || geoJson;
+    const country = typeof src.countryName === 'string' ? src.countryName.trim() : '';
+    const city = pickCity(src);
+    const locality = pickLoc(src);
+    if (!country && !city) return null;
+    const prefix = (country && country !== city) ? country + ' · ' : '';
+    if (city && locality && locality !== city) return `${prefix}${city} (${locality})`;
+    return city ? `${prefix}${city}` : country;
   }
-  if (city) return `${prefix}${city}`;
-  return country;
+
+  // Traditional Chinese mode: always resolve authentic zh-Hant-TW country name via ISO countryCode,
+  // and for non-CJK countries prefer the local Latin city name (e.g. 挪威・Nordreisa) to avoid BigDataCloud's Simplified Chinese transliterations.
+  const rawCountry = typeof geoJson.countryName === 'string' ? geoJson.countryName.trim() : '';
+  const country = traditionalRegionName(cc, rawCountry);
+  const citySrc = (!isCjkCountry && enGeoJson) ? enGeoJson : geoJson;
+  const city = isCjkCountry || !enGeoJson ? toTraditionalPlace(pickCity(citySrc)) : pickCity(citySrc);
+  const locality = isCjkCountry || !enGeoJson ? toTraditionalPlace(pickLoc(citySrc)) : pickLoc(citySrc);
+  if (!country && !city) return null;
+  const prefix = (country && country !== city) ? country + '・' : '';
+  if (city && locality && locality !== city) return `${prefix}${city}（${locality}）`;
+  return city ? `${prefix}${city}` : country;
 }
 
 export function parseUrlLocation(searchStr) {
@@ -724,7 +786,7 @@ export function bzToEnergy(bz, speed = 420) {
  * advection, 3-point causal median spike rejection, epoch-minute wind alignment, exponential 60-min
  * substorm preconditioning, and separate Earth-arriving vs L1 dynamic pressure shock states.
  */
-export function computeBallisticCoupling(magSeries, windSeriesOrSpeed, nowMs = null) {
+export function computeBallisticCoupling(magSeries, windSeriesOrSpeed, nowMs = null, noaaPropEtaMin = null) {
   if (!Array.isArray(magSeries) || !magSeries.length) {
     return {
       etaMin: 45, nowBz: null, nowNewell: null, nextBz: null, nextNewell: null,
@@ -753,6 +815,15 @@ export function computeBallisticCoupling(magSeries, windSeriesOrSpeed, nowMs = n
     latestSpd = windSeriesOrSpeed;
   }
 
+  const shock = isWindArr ? detectPressureShock(windSeriesOrSpeed, nowMs) : { pdyn: null, jumpNpa: 0, active: false };
+  const baseEtaMin = computeL1EtaMin(latestSpd);
+  const etaOffset = (Number.isFinite(noaaPropEtaMin) && noaaPropEtaMin >= 10 && noaaPropEtaMin <= 120)
+    ? Math.max(-20, Math.min(20, Math.round(noaaPropEtaMin - baseEtaMin)))
+    : 0;
+  const etaMin = Math.max(10, Math.min(120, baseEtaMin + etaOffset));
+  const lastTs = parseUtcMs(magSeries[magSeries.length - 1]?.time_tag);
+  const refNowMs = (Number.isFinite(nowMs) && Number.isFinite(lastTs) && nowMs > lastTs) ? nowMs : lastTs;
+
   const lookupWindSpeed = (ts) => {
     if (!isWindArr || !Number.isFinite(ts)) return latestSpd;
     const mk = Math.round(ts / 60000);
@@ -766,11 +837,6 @@ export function computeBallisticCoupling(magSeries, windSeriesOrSpeed, nowMs = n
     return bestV;
   };
 
-  const shock = isWindArr ? detectPressureShock(windSeriesOrSpeed, nowMs) : { pdyn: null, jumpNpa: 0, active: false };
-  const etaMin = computeL1EtaMin(latestSpd);
-  const lastTs = parseUtcMs(magSeries[magSeries.length - 1]?.time_tag);
-  const refNowMs = (Number.isFinite(nowMs) && Number.isFinite(lastTs) && nowMs > lastTs) ? nowMs : lastTs;
-
   const smoothBz = medianSmooth3(magSeries.map(r => Number.isFinite(r?.bz) ? r.bz : 0));
   const smoothBy = medianSmooth3(magSeries.map(r => Number.isFinite(r?.by) ? r.by : 0));
 
@@ -780,7 +846,8 @@ export function computeBallisticCoupling(magSeries, windSeriesOrSpeed, nowMs = n
     const bzClean = smoothBz[i];
     const byClean = smoothBy[i];
     const nw = computeNewellCoupling(v, byClean, bzClean);
-    const arrTs = Number.isFinite(ts) ? ts + computeL1EtaMin(v) * 60000 : NaN;
+    const parcelEta = Math.max(10, Math.min(120, computeL1EtaMin(v) + etaOffset));
+    const arrTs = Number.isFinite(ts) ? ts + parcelEta * 60000 : NaN;
     return { ...r, bz: bzClean, by: byClean, ts, arrTs, v, nw };
   });
   const avgWin = arr => {
@@ -861,7 +928,8 @@ export function computeBallisticCoupling(magSeries, windSeriesOrSpeed, nowMs = n
 function computeAuroraScoreInternal({
   lat = 69.97, lon = 23.27, cloudNow, sunAlt = -15, bz, speed, kp, ovation,
   hpiGw = null, substormJumpNt = 0, pdyn = null, shockJumpNpa = 0,
-  newell = null, preconditionedNewell60 = null, mlt = null, effMoonPct = 0
+  newell = null, preconditionedNewell60 = null, mlt = null, effMoonPct = 0,
+  dst = null
 } = {}) {
   const validCoord = Number.isFinite(lat) && Number.isFinite(lon);
   const safeLat = validCoord ? Math.max(-90, Math.min(90, lat)) : 0;
@@ -885,15 +953,22 @@ function computeAuroraScoreInternal({
   const pVal = (pdyn !== null && Number.isFinite(pdyn)) ? Math.max(0, pdyn) : 0;
   const pJump = (shockJumpNpa !== null && Number.isFinite(shockJumpNpa)) ? Math.max(0, shockJumpNpa) : 0;
   const moonEff = Number.isFinite(effMoonPct) ? Math.max(0, Math.min(100, effMoonPct)) : 0;
+  const dstVal = (dst !== null && Number.isFinite(dst)) ? Math.max(-1000, Math.min(200, dst)) : null;
 
-  // Real-time effective storm proxy Kp (Newell 2007 sublinear power-law calibrated to raw dPhi/dt)
+  // Real-time effective storm proxy Kp (Newell 2007 coupling + Gonzalez et al. 1994 Kyoto Dst storm thresholds)
   const kpFromHpi = curHpi !== null ? Math.min(9, Math.max(0, (curHpi - 8) / 14)) : 0;
   const kpFromNewell = (newell !== null && Number.isFinite(newell))
     ? Math.min(9, Math.max(0, 2.35 * Math.pow(Math.max(0, newell - 800) / 4000, 0.45)))
     : (bzVal < -4 ? Math.min(8, (-bzVal - 2) * 0.35 + Math.max(0, (spdVal - 400) / 150)) : 0);
+  // Ring-current storm depression (Gonzalez et al. 1994: -50 nT moderate, -100 nT intense, -200 nT severe, -350 nT extreme)
+  // Guard against quiet recovery phase (Dst decays over 10-20h after Bz turns north): apply moderate Dst only while active
+  const dstActive = dstVal !== null && (dstVal <= -100 || (dstVal <= -50 && (curKp >= 3.5 || bzVal < -2)));
+  const kpFromDst = dstActive
+    ? Math.min(9.0, 5.0 + 4.0 * Math.log1p((-dstVal - 50) / 75) / Math.log1p(300 / 75))
+    : 0;
   const hasRealShock = pJump >= 3.0 || (pVal >= 6.0 && pJump >= 1.5);
   const subBonusKp = (subJump >= 15 ? 1.0 : 0) + (hasRealShock ? 0.6 : 0);
-  const effKp = Math.min(9.5, Math.max(curKp, kpFromHpi, kpFromNewell) + subBonusKp);
+  const effKp = Math.min(9.5, Math.max(curKp, kpFromHpi, kpFromNewell, kpFromDst) + subBonusKp);
 
   // Twilight darkness baseline (strict -4° threshold; full astronomical contrast reached at -12°)
   const moonDarkFactor = Math.max(0.58, 1 - moonEff * 0.0038);
@@ -1036,6 +1111,7 @@ function computeAuroraScoreInternal({
   if (precondAdj >= 0.5) activeBoosts.push('preconditioned');
   if (substormAdj >= 0.5) activeBoosts.push('substorm');
   if (pdynAdj >= 0.5) activeBoosts.push('pressure-shock');
+  if (kpFromDst >= 5.0) activeBoosts.push('ring-current-dst');
   if (cloudExp < 0.80 && skyScore >= 15 && skyScore <= 42) activeBoosts.push('broken-cloud-softening');
   if (!isTooBright && rawTw < 0.99 && twilightExp < 0.72) activeBoosts.push('twilight-softening');
 
@@ -1051,6 +1127,7 @@ function computeAuroraScoreInternal({
       effKp: +effKp.toFixed(1), neededKp, magLat: Math.round(absMag),
       reachFactor: +reachFactor.toFixed(2), swAdj: +scaledSwAdj.toFixed(1),
       precondAdj: +precondAdj.toFixed(1), substormAdj: +substormAdj.toFixed(1), pdynAdj: +pdynAdj.toFixed(1),
+      dst: dstVal !== null ? Math.round(dstVal) : null, kpFromDst: +kpFromDst.toFixed(1),
       mltFactor: +mltFactor.toFixed(3), sunAlt: +sunAltVal.toFixed(1),
       rawTw: +rawTw.toFixed(2), twilightExp, twilightFactor: +twilightFactor.toFixed(3),
       effMoonPct: Math.round(moonEff), moonDarkFactor: +moonDarkFactor.toFixed(3),
@@ -1106,6 +1183,7 @@ export function explainAuroraScore(params = {}) {
   if (bd.precondAdj >= 0.5) { boostPartsZh.push(`60m 磁尾蓄能 +${bd.precondAdj}`); boostPartsEn.push(`60m preconditioning +${bd.precondAdj}`); }
   if (bd.substormAdj >= 0.5) { boostPartsZh.push(`GOES 副磁暴 +${bd.substormAdj}`); boostPartsEn.push(`GOES substorm +${bd.substormAdj}`); }
   if (bd.pdynAdj >= 0.5) { boostPartsZh.push(`動壓衝擊 +${bd.pdynAdj}`); boostPartsEn.push(`pressure shock +${bd.pdynAdj}`); }
+  if (bd.kpFromDst >= 5.0 && bd.dst !== null) { boostPartsZh.push(`環電流 Dst ${bd.dst} nT`); boostPartsEn.push(`ring current Dst ${bd.dst} nT`); }
   const boostSuffixZh = boostPartsZh.length ? `（已計入：${boostPartsZh.join('、')}）` : '';
   const boostSuffixEn = boostPartsEn.length ? ` (boosts: ${boostPartsEn.join(', ')})` : '';
 
@@ -1744,6 +1822,139 @@ export function parseNoaaGeomagneticScales(json) {
   };
 }
 
+/**
+ * Parse NOAA/Kyoto WDC real-time Dst ring-current index (supports both object-array and legacy 2D-array formats).
+ * Storm classification follows Gonzalez et al. (1994): -50 nT moderate, -100 nT intense, -250 nT extreme.
+ */
+export function parseKyotoDst(json, nowMs = Date.now()) {
+  if (!Array.isArray(json) || !json.length) return null;
+  const pts = [];
+  for (const row of json) {
+    let rawTag, rawVal;
+    if (Array.isArray(row)) {
+      if (row.length < 2 || row[0] === 'time_tag') continue;
+      rawTag = row[0]; rawVal = row[1];
+    } else if (row && typeof row === 'object') {
+      rawTag = row.time_tag; rawVal = row.dst;
+    } else {
+      continue;
+    }
+    const ts = parseUtcMs(rawTag);
+    const dst = toFinite(rawVal);
+    if (!Number.isFinite(ts) || dst === null || dst < -1000 || dst > 200) continue;
+    if (ts > nowMs + 2 * 3600000) continue;
+    pts.push({ ts, dst, timeTag: String(rawTag) });
+  }
+  if (!pts.length) return null;
+  pts.sort((a, b) => a.ts - b.ts);
+  const latest = pts[pts.length - 1];
+  if (nowMs - latest.ts > 12 * 3600000) return null;
+  const recent6 = pts.filter(p => p.ts >= latest.ts - 6 * 3600000);
+  const min6h = Math.min(...recent6.map(p => p.dst));
+  const effDst = Math.min(latest.dst, min6h);
+  const stormClass = effDst <= -250 ? 'extreme' : effDst <= -100 ? 'intense' : effDst <= -50 ? 'moderate' : 'quiet';
+  return { dst: Math.round(latest.dst), min6h: Math.round(min6h), stormClass, timeTag: latest.timeTag };
+}
+
+/**
+ * Parse NOAA Geospace official bow-shock propagated solar wind (1-hour JSON).
+ * Provides live L1-to-bow-shock propagation ETA accounting for DSCOVR/ACE GSE orbit & Parker spiral tilt.
+ */
+export function parsePropagatedSolarWind(json, nowMs = Date.now()) {
+  if (!Array.isArray(json) || json.length < 2) return null;
+  const hdr = Array.isArray(json[0]) ? json[0] : null;
+  const idx = (name, fallback) => {
+    if (!hdr) return fallback;
+    const i = hdr.indexOf(name);
+    return i >= 0 ? i : fallback;
+  };
+  const iTime = idx('time_tag', 0);
+  const iSpd = idx('speed', 1);
+  const iBz = idx('bz', 6);
+  const iProp = idx('propagated_time_tag', 11);
+
+  const pts = [];
+  for (let i = hdr ? 1 : 0; i < json.length; i++) {
+    const r = json[i];
+    if (!Array.isArray(r)) continue;
+    const obsTs = parseUtcMs(r[iTime]);
+    const propTs = parseUtcMs(r[iProp]);
+    const speed = toFinite(r[iSpd]);
+    const bz = toFinite(r[iBz]);
+    if (!Number.isFinite(obsTs) || !Number.isFinite(propTs) || speed === null || speed < 150 || speed > 3000) continue;
+    const etaMin = (propTs - obsTs) / 60000;
+    if (etaMin < 10 || etaMin > 120) continue;
+    pts.push({ obsTs, propTs, etaMin, speed, bz, propTag: String(r[iProp]) });
+  }
+  if (!pts.length) return null;
+  pts.sort((a, b) => a.obsTs - b.obsTs);
+  const latest = pts[pts.length - 1];
+  if (nowMs - latest.obsTs > 3 * 3600000) return null;
+  const tail = pts.slice(-5);
+  const avgEta = Math.round(tail.reduce((s, p) => s + p.etaMin, 0) / tail.length);
+  return {
+    etaMin: avgEta,
+    speed: +latest.speed.toFixed(1),
+    bz: latest.bz !== null ? +latest.bz.toFixed(2) : null,
+    propagatedTimeTag: latest.propTag
+  };
+}
+
+/**
+ * Parse NOAA WSA-ENLIL 3D heliospheric MHD forecast (0-96h ahead).
+ * Identifies modeled CME ejecta passages (cloud > 0) and high-speed streams (v_r >= 550 km/s) or shocks (n >= 15 cm^-3).
+ */
+export function parseEnlilForecast(rows, nowMs = Date.now()) {
+  if (!Array.isArray(rows) || !rows.length) return null;
+  const endMs = nowMs + 96 * 3600000;
+  const future = [];
+  for (const r of rows) {
+    if (!r || typeof r !== 'object') continue;
+    const ts = parseUtcMs(r.time_tag);
+    if (!Number.isFinite(ts) || ts < nowMs - 3600000 || ts > endMs) continue;
+    const v = toFinite(r.v_r);
+    const n = toFinite(r.earth_particles_per_cm3);
+    const cloud = toFinite(r.cloud) ?? 0;
+    if (v === null || v < 150 || v > 3500) continue;
+    future.push({ ts, v, n: n !== null && n >= 0 ? n : 0, isCme: cloud > 0 });
+  }
+  if (!future.length) return null;
+  future.sort((a, b) => a.ts - b.ts);
+
+  // Downsample to hourly peak envelopes so downstream outlook & SWR caching stay tiny (< 3 KB)
+  const hourlyMap = new Map();
+  for (const p of future) {
+    const hKey = Math.floor(p.ts / 3600000) * 3600000;
+    const cur = hourlyMap.get(hKey);
+    if (!cur) {
+      hourlyMap.set(hKey, { ts: hKey, maxV: p.v, maxN: p.n, isCme: p.isCme });
+    } else {
+      if (p.v > cur.maxV) cur.maxV = p.v;
+      if (p.n > cur.maxN) cur.maxN = p.n;
+      if (p.isCme) cur.isCme = true;
+    }
+  }
+  const hourly = Array.from(hourlyMap.values()).sort((a, b) => a.ts - b.ts);
+  let maxSpeed = 0, maxDensity = 0, hasCme = false, firstCmeTs = null, peakTs = null;
+  for (const h of hourly) {
+    if (h.maxV > maxSpeed) { maxSpeed = h.maxV; peakTs = h.ts; }
+    if (h.maxN > maxDensity) maxDensity = h.maxN;
+    if (h.isCme) {
+      hasCme = true;
+      if (firstCmeTs === null) firstCmeTs = h.ts;
+    }
+  }
+  return {
+    hourly,
+    hasCme,
+    firstCmeTs,
+    peakTs,
+    maxSpeed: Math.round(maxSpeed),
+    maxDensity: +maxDensity.toFixed(1),
+    active: hasCme || maxSpeed >= 550 || maxDensity >= 15
+  };
+}
+
 /** MET Norway Locationforecast 2.0 12h parser (with total-cloud cap, fog & precipitation occlusion) */
 export function parseMetNorwayHourly12(metJson, lat, lon, timeZone, nowDate) {
   const series = metJson?.properties?.timeseries;
@@ -2059,7 +2270,8 @@ export function findBestDarkWindow(hrs) {
  */
 export function summarize3NightOutlook({
   cloudPoints = [], kpForecast = [], currentKp = null,
-  lat = 69.97, lon = 23.27, timeZone = 'UTC', nowDate = new Date(), lang
+  lat = 69.97, lon = 23.27, timeZone = 'UTC', nowDate = new Date(), lang,
+  enlilForecast = null
 } = {}) {
   const en = isEn(lang);
   const safeNow = (nowDate instanceof Date && Number.isFinite(nowDate.getTime())) ? nowDate : new Date();
@@ -2078,6 +2290,7 @@ export function summarize3NightOutlook({
   const neededKpMidnight = requiredKpForMagLat(absMag + 2.0);
   const labelsZh = ['今晚', '明晚', '後晚'];
   const labelsEn = ['Tonight', 'Tomorrow', '+2 Nights'];
+  const enlilHours = Array.isArray(enlilForecast?.hourly) ? enlilForecast.hourly : [];
 
   return [0, 1, 2].map(offset => {
     const key = addDays(startNightIso, offset);
@@ -2102,6 +2315,16 @@ export function summarize3NightOutlook({
     const maxKp = hasKpData ? +Math.max(...kpVals).toFixed(1) : (offset === 0 && Number.isFinite(currentKp) ? +currentKp.toFixed(1) : null);
     const effMaxKp = maxKp ?? 0;
     const gScale = effMaxKp >= 9 ? 5 : effMaxKp >= 8 ? 4 : effMaxKp >= 7 ? 3 : effMaxKp >= 6 ? 2 : effMaxKp >= 5 ? 1 : 0;
+
+    // Optional WSA-ENLIL modeled CME / High-Speed Stream arrival tag for this night (informational only)
+    const enlilNight = enlilHours.filter(h => Number.isFinite(h.ts) && nightKeyOf(h.ts) === key);
+    const enlilCme = enlilNight.some(h => h.isCme);
+    const enlilMaxSpeed = enlilNight.length ? Math.round(Math.max(...enlilNight.map(h => h.maxV || 0))) : null;
+    const enlilMaxDensity = enlilNight.length ? Math.max(...enlilNight.map(h => h.maxN || 0)) : 0;
+    let enlilTag = '';
+    if (enlilCme) enlilTag = en ? `CME ~${enlilMaxSpeed}km/s` : `CME ~${enlilMaxSpeed}km/s`;
+    else if (enlilMaxSpeed >= 550) enlilTag = en ? `Fast SW ${enlilMaxSpeed}km/s` : `高速風 ${enlilMaxSpeed}km/s`;
+    else if (enlilMaxDensity >= 15) enlilTag = en ? `Shock ${Math.round(enlilMaxDensity)}p/cc` : `高密度 ${Math.round(enlilMaxDensity)}p/cc`;
 
     let tone = '', badge = '', badgeColor = 'var(--muted)';
     if (absMag < 32) {
@@ -2143,7 +2366,7 @@ export function summarize3NightOutlook({
         badge = en ? 'Quiet' : '偏弱'; badgeColor = '#66bdff';
       }
     }
-    return { key, label, bestClear, maxKp: maxKp ?? 0, kpAvailable: maxKp !== null, gScale, darkCount: darkPts.length, tone, badge, badgeColor };
+    return { key, label, bestClear, maxKp: maxKp ?? 0, kpAvailable: maxKp !== null, gScale, darkCount: darkPts.length, tone, badge, badgeColor, enlilTag, enlilMaxSpeed };
   });
 }
 

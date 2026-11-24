@@ -374,7 +374,7 @@
           </div>
           <ul class="ts-pillars" id="tsPillars">
             <li><strong>晴空度</strong>：低雲／中雲／霧與降水計重度遮蔽、高捲雲以 30% 計（上限為總雲量 +8%），採平滑非線性指數 0.85→0.72（強極光雲縫自動放寬）。</li>
-            <li><strong>極光活動</strong>：整合 NOAA 11 源（L1 太陽風因果 3 點濾波與 60 分鐘磁尾蓄能、Geospace 1h Kp、OVATION 雙線性內插、半球功率 GW、雙 GOES 與 SWPC 警報）。</li>
+            <li><strong>極光活動</strong>：整合 NOAA 14 源（L1 因果 3 點濾波與官方彈道傳播、Geospace 1h Kp、OVATION 雙線性、HPI、雙 GOES、京都 Dst 環電流、WSA-ENLIL 與 SWPC 警報）。</li>
             <li><strong>夜空暗度</strong>：太陽需低於 -4°（-12° 全暗），並依 Krisciunas–Schaefer 月光衝日效應與極光亮度動態調整扣分。</li>
           </ul>
         </section>
@@ -384,8 +384,8 @@
           <h3 id="tsSciTitle" class="ts-h3">科學驗證與官方資料來源</h3>
           <div class="ts-stat-grid" id="tsStatGrid">
             <div class="ts-stat"><strong>NASA JPL 0.006°</strong><span>22 點 DE441 日月校準</span></div>
-            <div class="ts-stat"><strong>72 歷史案例 0 漏報</strong><span>MCC 1.00 · AUC 1.00</span></div>
-            <div class="ts-stat"><strong>11 NOAA 即時源</strong><span>L1 太陽風・MHD・雙 GOES</span></div>
+            <div class="ts-stat"><strong>17,255h NASA 盲測</strong><span>實測 ROC-AUC 0.92–0.94</span></div>
+            <div class="ts-stat"><strong>14 NOAA 即時源</strong><span>L1・MHD・Dst・ENLIL</span></div>
             <div class="ts-stat"><strong>2.5km Yr.no</strong><span>MET Norway 雙模型比對</span></div>
           </div>
           <div id="tsHonestNote" class="ts-note">

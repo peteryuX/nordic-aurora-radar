@@ -26,8 +26,8 @@ jobs:
         with:
           node-version: '22'
       - name: Syntax check all ES modules, SW & test scripts
-        run: node --check src/aurora-engine.js src/charts.js src/app.js sw.js tests/aurora.test.mjs tests/benchmark.mjs
-      - name: Run 37 automated physics, chaos, monotonicity, SVG fuzz & security tests
+        run: node --check src/aurora-engine.js src/charts.js src/app.js sw.js tests/aurora.test.mjs tests/benchmark.mjs tests/realworld-validation.mjs
+      - name: Run 39 automated physics, chaos, monotonicity, SVG fuzz & security tests
         run: node --test tests/aurora.test.mjs
       - name: Run quantitative calibration (72 storms) & NASA JPL DE441 (22 checkpoints) benchmark
         run: node tests/benchmark.mjs
@@ -45,3 +45,5 @@ jobs:
         run: LIVE_TEST=1 node --test tests/aurora.test.mjs
       - name: Run live multi-source cross-validation benchmark
         run: LIVE_TEST=1 node tests/benchmark.mjs
+      - name: Run independent public-data out-of-sample audit (NASA OMNI2, GFZ Hp30, NOAA Prop, 9 Airport METARs)
+        run: node tests/realworld-validation.mjs
