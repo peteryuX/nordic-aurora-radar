@@ -310,17 +310,20 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
 }
 
 /** 360° Land-Safe Clear-Sky Radar SVG (unified Clear Sky % polarity: higher = greener = better) */
-export function buildCompassRadarSVG(dirResults, originPos, lang) {
-  if (!Array.isArray(dirResults) || dirResults.length < 5) return '';
+export function buildCompassRadarSVG(dirResults, _originPos, lang) {
+  if (!Array.isArray(dirResults) || dirResults.length < 3) return '';
   const en = isEn(lang);
   const byKey = {};
   for (const d of dirResults) {
     if (d && typeof d.key === 'string') byKey[d.key] = d;
   }
-  if (!byKey.here || !byKey.N || !byKey.E || !byKey.S || !byKey.W) return '';
+  if (!byKey.here) return '';
+  const validCardinals = ['N', 'E', 'S', 'W'].filter(k => byKey[k]);
+  if (validCardinals.length < 2) return '';
 
-  const colOf = (clearPct, sea, unavail) => unavail ? '#8ea6c4' : (sea ? '#66bdff' : (clearPct >= 65 ? '#34f0b0' : clearPct >= 35 ? '#ffcf5c' : '#ff6b7b'));
-  const fillOf = (clearPct, sea, unavail) => unavail ? 'rgba(142,166,196,0.10)' : (sea ? 'rgba(102,189,255,0.12)' : (clearPct >= 65 ? 'rgba(52,240,176,0.22)' : clearPct >= 35 ? 'rgba(255,207,92,0.20)' : 'rgba(255,107,123,0.19)'));
+  const colOf = (clearPct, sea, unavail, hazard) => unavail ? '#8ea6c4' : (sea ? '#66bdff' : (hazard ? '#ff8a96' : (clearPct >= 65 ? '#34f0b0' : clearPct >= 35 ? '#ffcf5c' : '#ff6b7b')));
+  const fillOf = (clearPct, sea, unavail, hazard) => unavail ? 'rgba(142,166,196,0.10)' : (sea ? 'rgba(102,189,255,0.12)' : (hazard ? 'rgba(255,107,123,0.18)' : (clearPct >= 65 ? 'rgba(52,240,176,0.22)' : clearPct >= 35 ? 'rgba(255,207,92,0.20)' : 'rgba(255,107,123,0.19)')));
+  const glyphOf = (clearPct, sea, unavail, hazard) => unavail ? '' : (sea ? '' : (hazard ? '⚠ ' : (clearPct >= 65 ? '✓ ' : clearPct >= 35 ? '~ ' : '✕ ')));
 
   const sectorPath = (a1Deg, a2Deg, rIn, rOut) => {
     const toR = d => d * Math.PI / 180;
@@ -338,13 +341,18 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
     { k: 'W', a1: 135,  a2: 225, tx: 64,  ty: 158 }
   ];
 
-  const oLat = clampNum(originPos?.lat, -90, 90, NaN);
-  const oLon = clampNum(originPos?.lon, -180, 180, NaN);
-
   const wedges = cfg.map(s => {
     const d = byKey[s.k];
+    if (!d) {
+      return `
+        <g class="radar-sector radar-closed">
+          <path d="${sectorPath(s.a1, s.a2, 52, 146)}" fill="rgba(142,166,196,0.05)" stroke="rgba(142,166,196,0.22)" stroke-width="1.2" stroke-dasharray="4 4"/>
+          <text x="${s.tx}" y="${s.ty + 4}" text-anchor="middle" fill="#6f87a5" font-size="10.5" font-weight="700">${en ? 'No Winter Rd' : '無冬季路'}</text>
+        </g>`;
+    }
     const unavail = Boolean(d.unavailable) || !Number.isFinite(Number(d.avg3h));
     const clearPct = Math.round(100 - clampNum(d.avg3h, 0, 100, 100));
+    const hazard = !d.isOcean && !unavail && ((d.maxWind3h || 0) >= 12 || ((d.maxWind3h || 0) >= 9 && (d.maxPrecip3h || 0) >= 0.2 && (d.temp ?? 5) <= 1.5));
     const cleanLbl = String(d.label || s.k).replace(/^[⬆️⬇️➡️⬅️]+\s*/, '');
     const shortLblRaw = cleanLbl.includes('km')
       ? (en
@@ -353,25 +361,21 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
           : cleanLbl.replace(/^往/, '').replace(/\s+km$/, 'km'))
       : cleanLbl.replace(/^往[東西南北]+\s*/, '');
     const shortLbl = escSvg(shortLblRaw);
-    const col = colOf(clearPct, d.isOcean, unavail);
-    const valTxt = unavail ? '--' : `${en ? '' : '晴 '}${clearPct}%`;
-    const body = `
+    const col = colOf(clearPct, d.isOcean, unavail, hazard);
+    const glyph = glyphOf(clearPct, d.isOcean, unavail, hazard);
+    const valTxt = unavail ? '--' : `${glyph}${clearPct}%`;
+    return `
       <g class="radar-sector">
-        <path d="${sectorPath(s.a1, s.a2, 52, 146)}" fill="${fillOf(clearPct, d.isOcean, unavail)}" stroke="${col}" stroke-width="1.8" ${(d.isOcean || unavail) ? 'stroke-dasharray="5 4"' : ''}/>
+        <path d="${sectorPath(s.a1, s.a2, 52, 146)}" fill="${fillOf(clearPct, d.isOcean, unavail, hazard)}" stroke="${col}" stroke-width="1.8" ${(d.isOcean || unavail || hazard) ? 'stroke-dasharray="5 4"' : ''}/>
         <text x="${s.tx}" y="${s.ty - 5}" text-anchor="middle" fill="#f2f7ff" font-size="11.5" font-weight="800">${d.isOcean ? (en ? 'Sea' : '海面') : shortLbl}</text>
-        <text x="${s.tx}" y="${s.ty + 15}" text-anchor="middle" fill="${col}" font-size="15.5" font-weight="900">${valTxt}</text>
+        <text x="${s.tx}" y="${s.ty + 15}" text-anchor="middle" fill="${col}" font-size="15" font-weight="900">${valTxt}</text>
       </g>`;
-    const dLat = clampNum(d.lat, -90, 90, NaN);
-    const dLon = clampNum(d.lon, -180, 180, NaN);
-    if (d.isOcean || unavail || !Number.isFinite(oLat) || !Number.isFinite(oLon) || !Number.isFinite(dLat) || !Number.isFinite(dLon)) return body;
-    const href = `https://www.google.com/maps/dir/?api=1&amp;origin=${oLat},${oLon}&amp;destination=${dLat},${dLon}&amp;travelmode=driving`;
-    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${body}</a>`;
   }).join('');
 
   const h = byKey.here;
   const hUnavail = Boolean(h.unavailable) || !Number.isFinite(Number(h.avg3h));
   const hClear = Math.round(100 - clampNum(h.avg3h, 0, 100, 100));
-  const hCol = colOf(hClear, false, hUnavail);
+  const hCol = colOf(hClear, false, hUnavail, false);
   const hTxt = hUnavail ? '--' : `${en ? '' : '晴 '}${hClear}%`;
   return `
     <circle cx="160" cy="160" r="148" fill="rgba(4,9,18,0.72)" stroke="rgba(255,255,255,0.12)" stroke-width="1.4"/>

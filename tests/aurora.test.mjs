@@ -283,12 +283,17 @@ test('10. Solar wind trend banner aligns with Newell chart energy zone', () => {
   assert.match(trendEn.text, /Active zone/);
 });
 
-test('11. All NORDIC_CORRIDORS are land-safe, unique, fit SVG wedges, and stay west of Russian border', () => {
+test('11. All 10 NORDIC_CORRIDORS are winter-open, land-safe, unique, fit SVG wedges, and stay west of Russian border', () => {
+  assert.equal(api.NORDIC_CORRIDORS.length, 10);
+  const validKeys = new Set(['E', 'N', 'S', 'W']);
   for (const c of api.NORDIC_CORRIDORS) {
-    assert.equal(c.pts.length, 4);
-    assert.deepEqual([...new Set(c.pts.map(p => p.key))].sort(), ['E', 'N', 'S', 'W']);
+    assert.ok(c.pts.length >= 2 && c.pts.length <= 4, `Expected 2..4 winter-open corridors, got ${c.pts.length}`);
+    const keys = c.pts.map(p => p.key);
+    assert.equal(new Set(keys).size, keys.length, 'Duplicate cardinal keys in corridor');
     for (const p of c.pts) {
+      assert.ok(validKeys.has(p.key), `Invalid cardinal key ${p.key}`);
       assert.ok(Number.isFinite(p.lat) && Number.isFinite(p.lon));
+      assert.ok(Number.isFinite(p.roadKm) && p.roadKm > 0, `Missing verified roadKm on ${p.label}`);
       assert.ok(p.lon <= 30.85, `Point ${p.label} lon=${p.lon} crosses Russian border`);
       assert.equal(p.isOcean, false);
       const shortName = p.label.replace(/^往[東西南北]+\s*/, '');
@@ -613,12 +618,16 @@ test('23. NOAA G1-G5 scales parser & 3-Night Outlook handle active watches, dark
   assert.equal(nights[1].bestClear, 90);
 });
 
-test('24. All GLOBAL_CORRIDORS (Reykjavik, Fairbanks, Yellowknife, Queenstown, Hobart) are valid and matched', () => {
-  assert.equal(api.GLOBAL_CORRIDORS.length, 5);
+test('24. All 8 GLOBAL_CORRIDORS (Reykjavik, Akureyri, Fairbanks, Yellowknife, Whitehorse, Queenstown, Lake Tekapo, Hobart) are valid and matched', () => {
+  assert.equal(api.GLOBAL_CORRIDORS.length, 8);
+  const validKeys = new Set(['E', 'N', 'S', 'W']);
   for (const c of api.GLOBAL_CORRIDORS) {
-    assert.equal(c.pts.length, 4);
-    assert.deepEqual([...new Set(c.pts.map(p => p.key))].sort(), ['E', 'N', 'S', 'W']);
+    assert.ok(c.pts.length >= 2 && c.pts.length <= 4, `Expected 2..4 winter-open corridors, got ${c.pts.length}`);
+    const keys = c.pts.map(p => p.key);
+    assert.equal(new Set(keys).size, keys.length, 'Duplicate cardinal keys in global corridor');
     for (const p of c.pts) {
+      assert.ok(validKeys.has(p.key), `Invalid cardinal key ${p.key}`);
+      assert.ok(Number.isFinite(p.roadKm) && p.roadKm > 0, `Missing roadKm on ${p.label}`);
       assert.equal(p.isOcean, false);
       const shortName = p.label.replace(/^往[東西南北]+\s*/, '');
       assert.ok(shortName.length <= 13, `Global wedge label too long (${shortName.length}): ${shortName}`);
@@ -1420,8 +1429,8 @@ test('40. Dark-window countdown, distance km, Chinese search, cross-tab action s
 
   const svgZh = api.buildCompassRadarSVG(dirs, { lat: 69.6492, lon: 18.9553 }, 'zh');
   const svgEn = api.buildCompassRadarSVG(dirs, { lat: 69.6492, lon: 18.9553 }, 'en');
-  assert.ok(svgZh.includes('晴 80%') && svgZh.includes('晴 15%'), 'ZH radar SVG should show Clear Sky %');
-  assert.ok(svgEn.includes('>80%<') && !cjkRe.test(svgEn), 'EN radar SVG should show Clear Sky % with zero CJK');
+  assert.ok(svgZh.includes('✓ 80%') && svgZh.includes('晴 15%'), 'ZH radar SVG should show Clear Sky % with status glyph');
+  assert.ok(svgEn.includes('✓ 80%') && !cjkRe.test(svgEn), 'EN radar SVG should show Clear Sky % with status glyph and zero CJK');
 
   // 5. Cross-tab synthesizeTonightAction (DRIVE, GO, WAIT, SLEEP, DAYLIGHT)
   const scCloudyActive = api.computeAuroraScore({ lat: 69.65, lon: 18.96, cloudNow: 88, sunAlt: -20, bz: -8, speed: 550, kp: 4 });
@@ -1547,8 +1556,113 @@ test('41. Modular storage.js (SWR LRU, legacy cleanup, corrupt-JSON recovery, of
   );
 });
 
+test('42. Winter safety gates, geodesic 70°N cache, 3-sector radar SVG, sustained 3-Night outlook & global extreme edge cases', () => {
+  // 1. Gale & blowing-snow corridors must NEVER be promoted to DRIVE
+  const blizzardDirs = [
+    { key: 'here', label: '📍 目前位置', avg3h: 92, isOcean: false, temp: -6, maxWind3h: 4, maxPrecip3h: 0 },
+    { key: 'N', label: '往北 Lyngen', avg3h: 15, isOcean: false, roadKm: 75, temp: -8, maxWind3h: 15, maxPrecip3h: 0.4 },
+    { key: 'S', label: '往南 Skibotn', avg3h: 20, isOcean: false, roadKm: 118, temp: -5, maxWind3h: 10, maxPrecip3h: 0.6 },
+    { key: 'E', label: '往東 Kvaløya', avg3h: 88, isOcean: false, roadKm: 35, temp: -4, maxWind3h: 5, maxPrecip3h: 0 }
+  ];
+  assert.equal(api.isCorridorHazard(blizzardDirs[1]), true, '15 m/s gale must be hazard');
+  assert.equal(api.isCorridorHazard(blizzardDirs[2]), true, '10 m/s + freezing precip blowing snow must be hazard');
+  assert.equal(api.isCorridorHazard(blizzardDirs[3]), false, '5 m/s calm route must not be hazard');
 
+  const sumHazZh = api.summarizeCompass(blizzardDirs, 'zh');
+  const sumHazEn = api.summarizeCompass(blizzardDirs, 'en');
+  assert.equal(sumHazZh.good, false, 'Must not recommend driving when only clearer routes are hazardous');
+  assert.equal(sumHazZh.hazardOnly, true);
+  assert.match(sumHazZh.text, /強風／吹雪|風險/);
+  assert.match(sumHazEn.text, /hazardous|high wind/i);
 
+  const actHaz = api.synthesizeTonightAction({
+    lat: 69.65, lon: 18.96,
+    sc: { total: 12, skyScore: 10, auroraScore: 72, darkScore: 100, isTooBright: false, outOfZone: null, effKp: 4, magLat: 66.5 },
+    dirResults: blizzardDirs, kp: 4.0, lang: 'en'
+  });
+  assert.notEqual(actHaz.actionType, 'drive', 'synthesizeTonightAction must NEVER recommend DRIVE into gale/blizzard');
 
+  // When a safe clear route ALSO exists alongside a gale route, prefer the safe route
+  const mixedDirs = [
+    blizzardDirs[0],
+    blizzardDirs[1],
+    { key: 'S', label: '往南 Skibotn', avg3h: 22, isOcean: false, roadKm: 118, temp: -7, maxWind3h: 4, maxPrecip3h: 0 }
+  ];
+  const sumSafe = api.summarizeCompass(mixedDirs, 'en');
+  assert.equal(sumSafe.good, true);
+  assert.equal(sumSafe.bestKey, 'S', 'Must pick safe clear Skibotn over gale-force Lyngen');
+  const actSafe = api.synthesizeTonightAction({
+    lat: 69.65, lon: 18.96,
+    sc: { total: 12, skyScore: 10, auroraScore: 72, darkScore: 100, isTooBright: false, outOfZone: null, effKp: 4, magLat: 66.5 },
+    dirResults: mixedDirs, kp: 4.0, lang: 'en'
+  });
+  assert.equal(actSafe.actionType, 'drive');
+  assert.match(actSafe.lead, /118 km road/, 'Drive lead must cite verified roadKm');
 
+  // 2. High-latitude 70°N offline SWR cache uses true geodesic km (<= 20 km), not broken degree hypot
+  const mem = new Map();
+  const mockStore = {
+    getItem: k => (mem.has(k) ? mem.get(k) : null),
+    setItem: (k, v) => mem.set(k, String(v)),
+    removeItem: k => mem.delete(k)
+  };
+  const nowMs = Date.parse('2026-11-24T22:00:00Z');
+  storage.writeSwrCacheEntry({ lat: 70.0, lon: 23.0 }, { ts: nowMs, lat: 70.0, lon: 23.0, score: { total: 77 } }, mockStore);
+  // 0.30° E at 70°N is only ~11.4 km (old Math.hypot <= 0.15 wrongly missed it!)
+  assert.equal(storage.findMatchingOfflineCache({ lat: 70.0, lon: 23.3 }, nowMs + 60000, mockStore)?.score?.total, 77);
+  // 0.80° E at 70°N is ~30.5 km (> 20 km) -> must NOT match
+  assert.equal(storage.findMatchingOfflineCache({ lat: 70.0, lon: 23.8 }, nowMs + 60000, mockStore), null);
 
+  // 3. 3-sector buildCompassRadarSVG (Akureyri / Abisko / Yellowknife / Tekapo): zero Google Maps <a> links + non-color glyphs
+  const akureyriPts = api.computeCompassPoints(65.6885, -18.1262);
+  assert.equal(akureyriPts.length, 4, 'Akureyri has here + 3 winter-open corridors (no closed F26 south)');
+  const akDirs = akureyriPts.map((p, i) => ({
+    ...p, avg3h: i === 1 ? 15 : (i === 2 ? 50 : 20), maxWind3h: i === 3 ? 14 : 3, maxPrecip3h: 0, temp: -4
+  }));
+  const akSvgEn = api.buildCompassRadarSVG(akDirs, { lat: 65.6885, lon: -18.1262 }, 'en');
+  const akSvgZh = api.buildCompassRadarSVG(akDirs, { lat: 65.6885, lon: -18.1262 }, 'zh');
+  assert.ok(akSvgEn.includes('No Winter Rd') && akSvgZh.includes('無冬季路'), 'Closed direction must show No Winter Rd');
+  assert.ok(akSvgEn.includes('✓ 85%') && akSvgEn.includes('~ 50%') && akSvgEn.includes('⚠ 80%'), 'SVG wedges must render Red-Light-safe status glyphs');
+  assert.ok(!akSvgEn.includes('google.com/maps') && !akSvgEn.includes('<a '), 'SVG wedges must NOT contain accidental Google Maps links');
+
+  // 4. 3-Night Outlook anti-cherry-pick: 1 fluke clear hour in overcast night averages to 2h sustained clear sky
+  const flukePts = [
+    { dtMs: Date.parse('2026-11-24T20:00:00Z'), clear: 10, block: 90, isDay: false },
+    { dtMs: Date.parse('2026-11-24T21:00:00Z'), clear: 80, block: 20, isDay: false },
+    { dtMs: Date.parse('2026-11-24T22:00:00Z'), clear: 10, block: 90, isDay: false },
+    { dtMs: Date.parse('2026-11-24T23:00:00Z'), clear: 10, block: 90, isDay: false }
+  ];
+  const n3 = api.summarize3NightOutlook({
+    cloudPoints: flukePts,
+    kpForecast: [{ ts: Date.parse('2026-11-24T21:00:00Z'), kp: 3.0 }],
+    currentKp: 3.0, lat: 69.97, lon: 23.27, timeZone: 'Europe/Oslo',
+    nowDate: new Date('2026-11-24T19:00:00Z'), lang: 'en'
+  });
+  assert.equal(n3[0].bestClear, 45, 'Single fluke 80% hour flanked by 10% overcast must average to 45% (2h sustained)');
+  assert.equal(n3[0].clearDarkHrs, 1);
+
+  // 5. Global extremes (Antimeridian, Antarctica, Equator, Pole) & 5 new hubs (Inari, Kiruna, Akureyri, Whitehorse, Tekapo)
+  for (const [lat, lon] of [[-44.0, 179.9], [-77.85, 166.67], [0.0, 0.0], [89.5, 0.0]]) {
+    const pts = api.computeCompassPoints(lat, lon, 60);
+    assert.equal(pts.length, 5);
+    assert.equal(pts[1].isGeneric, true, 'Non-hub generic fallback points must carry isGeneric=true');
+    for (const p of pts) {
+      assert.ok(Number.isFinite(p.lat) && p.lat >= -90 && p.lat <= 90);
+      assert.ok(Number.isFinite(p.lon) && p.lon >= -180 && p.lon <= 180);
+    }
+    const sc = api.computeAuroraScore({ lat, lon, cloudNow: 20, sunAlt: -15, kp: 3, bz: -3, speed: 450 });
+    assert.ok(Number.isFinite(sc.total) && sc.total >= 0 && sc.total <= 99);
+  }
+  for (const [lat, lon, zhKey, enKey] of [
+    [68.9060, 27.0275, 'Inari', 'Finland · Inari'],
+    [67.8558, 20.2253, 'Kiruna', 'Sweden · Kiruna'],
+    [65.6885, -18.1262, 'Akureyri', 'Iceland · Akureyri'],
+    [60.7212, -135.0568, 'Whitehorse', 'Canada · Whitehorse'],
+    [-44.0047, 170.4771, 'Lake Tekapo', 'New Zealand · Lake Tekapo']
+  ]) {
+    const m = api.matchKnownCity(lat, lon);
+    assert.ok(m && m.zh.includes(zhKey) && m.en === enKey, `Missing KNOWN_CITIES entry for ${enKey}`);
+  }
+  assert.equal(api.normalizeChineseCityQuery('阿克雷里'), 'Akureyri');
+  assert.equal(api.normalizeChineseCityQuery('蒂卡波'), 'Lake Tekapo');
+});

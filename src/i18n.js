@@ -7,6 +7,7 @@
 
 export const SKY_CAMS = {
   uit: {
+    region: 'nordic',
     lat: 69.35, lon: 20.36, tz: 'Europe/Oslo',
     url: 'https://fox.phys.uit.no/ASC/Latest_ASC01.png',
     page: 'https://fox.phys.uit.no/ASC/',
@@ -14,6 +15,7 @@ export const SKY_CAMS = {
     capEn: 'Source: UiT Tromsø Geophysical Observatory All-Sky Camera (Skibotn, ~1 min live)'
   },
   irf: {
+    region: 'nordic',
     lat: 67.84, lon: 20.41, tz: 'Europe/Stockholm',
     url: 'https://www.irf.se/alis/allsky/krn/latest_medium.jpeg',
     page: 'https://www.irf.se/alis/allsky/krn/',
@@ -21,6 +23,7 @@ export const SKY_CAMS = {
     capEn: 'Source: Swedish Institute of Space Physics (IRF Kiruna) Live All-Sky Camera'
   },
   sgo: {
+    region: 'nordic',
     lat: 67.37, lon: 26.63, tz: 'Europe/Helsinki',
     url: 'https://www.sgo.fi/Data/RealTime/Kuvat/UCL.jpg',
     page: 'https://www.sgo.fi/Data/RealTime/allsky.php',
@@ -28,6 +31,7 @@ export const SKY_CAMS = {
     capEn: 'Source: Sodankylä Geophysical Observatory (SGO Finland) Live All-Sky Camera'
   },
   kho: {
+    region: 'nordic',
     lat: 78.15, lon: 16.04, tz: 'Arctic/Longyearbyen',
     url: 'https://kho.unis.no/Quicklooks/kho_sony.jpg',
     page: 'https://kho.unis.no/',
@@ -35,11 +39,28 @@ export const SKY_CAMS = {
     capEn: 'Source: Kjell Henriksen Observatory (KHO Svalbard 78°N) Live All-Sky Camera'
   },
   fmi: {
+    region: 'nordic',
     isMag: true,
     url: 'https://cdn.fmi.fi/weather-observations/products/magnetic-disturbance-observations/map-latest-en.png',
     page: 'https://en.ilmatieteenlaitos.fi/auroras-and-space-weather',
     capZh: '資料來源：芬蘭氣象局 FMI 北歐地面磁力儀即時擾動圖（橘／紅點＝當地正發生副磁暴）',
     capEn: 'Source: Finnish Meteorological Institute (FMI) Live Nordic Ground Magnetometer Map'
+  },
+  uaf: {
+    region: 'na',
+    lat: 65.12, lon: -147.43, tz: 'America/Anchorage',
+    url: 'https://optics.gi.alaska.edu/realtime/latest/pkr_latest_rgb.jpg',
+    page: 'https://optics.gi.alaska.edu/realtime/latest/',
+    capZh: '資料來源：阿拉斯加大學地球物理研究所 UAF Poker Flat 全天空極光相機（Fairbanks 近郊）',
+    capEn: 'Source: UAF Geophysical Institute Poker Flat All-Sky Camera (near Fairbanks, AK)'
+  },
+  amax: {
+    region: 'na',
+    lat: 62.45, lon: -114.37, tz: 'America/Yellowknife',
+    url: 'https://auroramax.phys.ucalgary.ca/recent/recent_480p.jpg',
+    page: 'https://auroramax.com/',
+    capZh: '資料來源：加拿大太空總署 CSA / 卡加利大學 AuroraMAX 全天空極光相機（Yellowknife）',
+    capEn: 'Source: Canadian Space Agency / UCalgary AuroraMAX All-Sky Camera (Yellowknife, NT)'
   }
 };
 
@@ -52,6 +73,9 @@ export const STATIC_TEXT_MAP = {
     'If GPS is blocked in an in-app browser, open in Safari/Chrome or tap the city name above.'
   ],
   clkLbl: ['當地', 'Local'],
+  pickerGrpNordic: ['北歐極光帶', 'Nordic Belt'],
+  pickerGrpNa: ['北美＆冰島', 'N. America & Iceland'],
+  pickerGrpSouth: ['南半球極光', 'Southern Hemisphere'],
   searchBtn: ['搜尋', 'Go'],
   ringSubLbl: ['觀測指數', 'Score'],
   fSkyLbl: ['晴空率', 'Clear Sky'],
@@ -59,20 +83,26 @@ export const STATIC_TEXT_MAP = {
   fDarkLbl: ['夜空暗度', 'Darkness'],
   h2Wave: ['未來 12 小時晴空與極光預報', '12-Hour Forecast'],
   hrLegRight: ['點圖表查單小時', 'Tap hour'],
-  h2Energy: ['太陽風能量走勢（提前預告）', 'Solar Wind Arrival'],
+  h2Energy: ['太陽風能量', 'Solar Wind Arrival'],
   h2Outlook: ['未來 3 晚極光與晴空展望', '3-Night Outlook'],
   h2Radar: ['周邊 360° 找晴空', '360° Clear-Sky Radar'],
   roadLbl: ['冬季即時路況／封路查詢：', 'Winter road & closure status:'],
   roadNo: ['挪威 Vegvesen ↗', 'Norway Vegvesen ↗'],
+  roadSe: ['瑞典 Trafikverket ↗', 'Sweden Trafikverket ↗'],
   roadIs: ['冰島 Umferðin ↗', 'Iceland Umferðin ↗'],
   roadFi: ['芬蘭路況 ↗', 'Finland Roads ↗'],
-  h2Cam: ['北歐天文台即時全天空實拍', 'Nordic All-Sky Cameras'],
-  subCam: ['約每分鐘實拍上傳，肉眼直接確認現場雲量與極光：', 'Live photos uploaded ~every minute from Nordic observatories:'],
+  h2Cam: ['天文台即時全天空實拍', 'Observatory All-Sky Cameras'],
+  subCam: [
+    '約每分鐘實拍，請留意畫面內建 UTC 時間戳記確認是否即時：',
+    'Live observatory frames — check the embedded UTC timestamp to confirm freshness:'
+  ],
   camBtnUit: ['Tromsø 近郊', 'Near Tromsø'],
   camBtnIrf: ['Kiruna', 'Kiruna'],
   camBtnSgo: ['Sodankylä', 'Sodankylä'],
   camBtnKho: ['Svalbard', 'Svalbard'],
   camBtnFmi: ['北歐地磁圖', 'Nordic Mag Map'],
+  camBtnUaf: ['Fairbanks', 'Fairbanks'],
+  camBtnAmax: ['Yellowknife', 'Yellowknife'],
   h2Windy: ['即時動態雲圖', 'Live Cloud Map'],
   subWindy: ['已自動對準目前位置，按左下角 ▶ 可播放接下來幾小時雲層移動趨勢：', 'Centered on your location — press ▶ bottom-left to animate cloud movement:'],
   subOv: ['查看綠色／黃色極光帶目前是否覆蓋所在區域（每 5 分鐘自動更新）：', 'Check if the auroral oval covers your region (updates every 5 min):'],
@@ -98,6 +128,10 @@ export const STATIC_TEXT_MAP = {
   tsSeal2: ['零 Cookie・零追蹤碼', 'Zero Cookies · Zero Trackers'],
   tsSeal3: ['GPS 僅留存本機瀏覽器', 'GPS Stays Local in Browser'],
   tsSealLink: ['GitHub MIT 開源原始碼 ↗', 'MIT Open Source on GitHub ↗'],
+  tsPwaTip: [
+    '離線小提示：Safari 點「分享 → 加入主畫面」或 Chrome 點「安裝應用程式」，即可在極區無訊號時秒開快取。',
+    'Offline tip: Add to Home Screen (Safari Share / Chrome Install) for instant cached access in no-signal zones.'
+  ],
   tsLegalFoot: [
     '氣象：MET Norway (CC BY 4.0) / Open-Meteo；太空天氣：NOAA SWPC (Public Domain)。僅供觀星參考，冬季行車請以當地交通管制為準。',
     'Weather: MET Norway (CC BY 4.0) / Open-Meteo; Space weather: NOAA SWPC (Public Domain). For stargazing reference only — obey local winter road closures.'
@@ -127,7 +161,7 @@ export const LOADING_PLACEHOLDER_MAP = {
 
 const ARIA_LABELS = {
   redBtn: ['紅光夜視模式', 'Red-light night vision', true],
-  alertBtn: ['達標自動提醒', 'Aurora alerts', true],
+  alertBtn: ['螢幕常亮監測提醒', 'Screen-on aurora monitor', true],
   trustBtn: ['算法、數據與拍攝貼士', 'Formula, telemetry & photo tips', true],
   refBtn: ['立即更新', 'Sync now', true],
   gpsBtn: ['GPS 定位', 'Use GPS location', true],
@@ -165,7 +199,7 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
   }
 
   const ci = $('cityInput');
-  if (ci) ci.placeholder = en ? 'Search city (e.g. Reykjavik, Fairbanks, Hobart)' : '輸入中／英文地名（例：冰島、特羅姆瑟、Hobart）';
+  if (ci) ci.placeholder = en ? 'Search city (e.g. Akureyri, Fairbanks, Lake Tekapo)' : '輸入中／英文地名（例：冰島、特羅姆瑟、蒂卡波）';
 
   const hrl = $('hrLegLeft');
   if (hrl) {
@@ -177,8 +211,8 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
   const rl = $('radarLeg');
   if (rl) {
     rl.innerHTML = en
-      ? `<span><span class="leg-dot" style="background:var(--green);"></span>Clear ≥65%</span><span><span class="leg-dot" style="background:var(--amber);"></span>Partly 35–64%</span><span><span class="leg-dot" style="background:var(--red);"></span>Cloudy &lt;35%</span>`
-      : `<span><span class="leg-dot" style="background:var(--green);"></span>晴朗 ≥65%</span><span><span class="leg-dot" style="background:var(--amber);"></span>局部雲隙 35–64%</span><span><span class="leg-dot" style="background:var(--red);"></span>厚雲 &lt;35%</span>`;
+      ? `<span><span class="leg-dot" style="background:var(--green);"></span>✓ Clear ≥65%</span><span><span class="leg-dot" style="background:var(--amber);"></span>~ Partly 35–64%</span><span><span class="leg-dot" style="background:var(--red);"></span>✕ Cloudy &lt;35% / ⚠ Wind</span>`
+      : `<span><span class="leg-dot" style="background:var(--green);"></span>✓ 晴朗 ≥65%</span><span><span class="leg-dot" style="background:var(--amber);"></span>~ 局部 35–64%</span><span><span class="leg-dot" style="background:var(--red);"></span>✕ 厚雲 / ⚠ 強風雪</span>`;
   }
 
   const ovCapEl = $('ovCap');
@@ -204,11 +238,11 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
   if (tsG) {
     tsG.innerHTML = en
       ? `<div class="ts-stat"><strong>NASA JPL 0.006°</strong><span>22 DE441 sun/moon checks</span></div>` +
-        `<div class="ts-stat"><strong>17,255h NASA OMNI</strong><span>Blind ROC-AUC 0.92–0.94</span></div>` +
+        `<div class="ts-stat"><strong>17,255h NASA OMNI</strong><span>Geomagnetic AUC 0.92–0.94 (excl. clouds)</span></div>` +
         `<div class="ts-stat"><strong>14 NOAA Live Feeds</strong><span>L1 · MHD · Dst · ENLIL</span></div>` +
         `<div class="ts-stat"><strong>2.5km Yr.no</strong><span>Dual-model cloud check</span></div>`
       : `<div class="ts-stat"><strong>NASA JPL 0.006°</strong><span>22 點 DE441 日月校準</span></div>` +
-        `<div class="ts-stat"><strong>17,255h NASA 盲測</strong><span>實測 ROC-AUC 0.92–0.94</span></div>` +
+        `<div class="ts-stat"><strong>17,255h NASA 盲測</strong><span>地磁預測 AUC 0.92–0.94（不含雲層）</span></div>` +
         `<div class="ts-stat"><strong>14 NOAA 即時源</strong><span>L1・MHD・Dst・ENLIL</span></div>` +
         `<div class="ts-stat"><strong>2.5km Yr.no</strong><span>MET Norway 雙模型比對</span></div>`;
   }

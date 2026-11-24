@@ -7,7 +7,7 @@
  */
 
 import {
-  matchKnownCity, hasCjkChars, getMoonState, scoreHourlyForecast12
+  matchKnownCity, hasCjkChars, getMoonState, scoreHourlyForecast12, computeDistanceKm
 } from './aurora-engine.js';
 
 export const STORAGE_KEYS = {
@@ -131,13 +131,13 @@ export function writeSwrCacheEntry(pos, entry, storeOpt) {
 export function findMatchingOfflineCache(pos, nowMs = Date.now(), storeOpt) {
   const map = readSwrCacheMap(storeOpt);
   let best = null;
-  let bestDist = Infinity;
+  let bestDistKm = Infinity;
   for (const entry of Object.values(map)) {
     if (!entry || typeof entry !== 'object' || !entry.score || typeof entry.score.total !== 'number') continue;
     if (!Number.isFinite(entry.ts) || nowMs - entry.ts >= SWR_MAX_AGE_MS) continue;
     if (!Number.isFinite(entry.lat) || !Number.isFinite(entry.lon)) continue;
-    const dist = Math.hypot(entry.lat - pos.lat, entry.lon - pos.lon);
-    if (dist <= 0.15 && dist < bestDist) { bestDist = dist; best = entry; }
+    const distKm = computeDistanceKm(entry.lat, entry.lon, pos.lat, pos.lon);
+    if (distKm <= 20 && distKm < bestDistKm) { bestDistKm = distKm; best = entry; }
   }
   if (best) return best;
 
@@ -146,7 +146,7 @@ export function findMatchingOfflineCache(pos, nowMs = Date.now(), storeOpt) {
   if (legacy && legacy.score && typeof legacy.score.total === 'number'
     && Number.isFinite(legacy.ts) && nowMs - legacy.ts < SWR_MAX_AGE_MS
     && Number.isFinite(legacy.lat) && Number.isFinite(legacy.lon)
-    && Math.hypot(legacy.lat - pos.lat, legacy.lon - pos.lon) <= 0.15) {
+    && computeDistanceKm(legacy.lat, legacy.lon, pos.lat, pos.lon) <= 20) {
     return legacy;
   }
   return null;

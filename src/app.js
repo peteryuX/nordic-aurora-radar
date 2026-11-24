@@ -25,7 +25,7 @@ const {
   parseUrlLocation, buildShareUrl, computeSolarElevation, computeDistanceKm,
   computeDarkWindow, getMoonState, computeViewingGeometry, classifyViewingMode,
   computeMLT, explainAuroraScore, summarize3NightOutlook, evaluateVerdict,
-  synthesizeTonightAction, summarizeEnergyTrend, summarizeCompass,
+  isCorridorHazard, synthesizeTonightAction, summarizeEnergyTrend, summarizeCompass,
   shouldTriggerAuroraAlert, utcTagToLocalHM
 } = Engine;
 
@@ -191,11 +191,11 @@ async function toggleAlertMode() {
       Notification.requestPermission().catch(() => {});
     }
     try { if (navigator.wakeLock) state.wakeLockObj = await navigator.wakeLock.request('screen'); } catch {}
-    toast(en ? 'Alerts ON — keep screen unlocked/plugged in for web polling' : '已開啟提醒（網頁版請保持螢幕未鎖定或插電常亮）');
+    toast(en ? 'Screen-on monitor ON — keep screen unlocked & plugged in' : '已開啟螢幕常亮監測（請保持螢幕未鎖定並接上電源）');
   } else {
     btn?.classList.remove('alert-on');
     try { if (state.wakeLockObj) { await state.wakeLockObj.release(); state.wakeLockObj = null; } } catch {}
-    toast(en ? 'Alerts turned off' : '已關閉自動提醒');
+    toast(en ? 'Screen-on monitor turned off' : '已關閉螢幕常亮監測');
   }
 }
 
@@ -263,11 +263,11 @@ function togglePicker(forceClose) {
   btn.setAttribute('aria-expanded', String(open));
 }
 
-function findNearestNordicCam(lat, lon) {
-  let bestKey = 'uit';
+function findNearestCamInRegion(lat, lon, region) {
+  let bestKey = null;
   let minKm = Infinity;
   for (const [k, cam] of Object.entries(SKY_CAMS)) {
-    if (cam.isMag || !Number.isFinite(cam.lat)) continue;
+    if (cam.region !== region || cam.isMag || !Number.isFinite(cam.lat)) continue;
     const d = computeDistanceKm(lat, lon, cam.lat, cam.lon);
     if (Number.isFinite(d) && d < minKm) { minKm = d; bestKey = k; }
   }
@@ -328,11 +328,30 @@ function syncSatTab() {
   if (ovImg) ovImg.src = `https://services.swpc.noaa.gov/images/animations/ovation/${hemi}/latest.jpg?t=${Date.now()}`;
 
   const camCard = $('skyCamCard');
-  const nearest = findNearestNordicCam(state.pos.lat, state.pos.lon);
-  const nearNordic = state.pos.lat >= 0 && Number.isFinite(nearest.distKm) && nearest.distKm <= 800;
-  if (camCard) camCard.style.display = nearNordic ? 'block' : 'none';
-  if (nearNordic) {
-    if (!state.camUserPicked) state.camKey = nearest.key;
+  const nearNordic = findNearestCamInRegion(state.pos.lat, state.pos.lon, 'nordic');
+  const nearNa = findNearestCamInRegion(state.pos.lat, state.pos.lon, 'na');
+  let activeRegion = null;
+  let nearestKey = null;
+  if (state.pos.lat >= 0 && nearNordic.distKm <= 1000) {
+    activeRegion = 'nordic';
+    nearestKey = nearNordic.key;
+  } else if (state.pos.lat >= 0 && nearNa.distKm <= 1800) {
+    activeRegion = 'na';
+    nearestKey = nearNa.key;
+  }
+
+  if (camCard) camCard.style.display = activeRegion ? 'block' : 'none';
+  if (activeRegion) {
+    setText('h2Cam', activeRegion === 'na'
+      ? (en ? 'North America All-Sky Cameras' : '北美天文台即時全天空實拍')
+      : (en ? 'Nordic All-Sky Cameras' : '北歐天文台即時全天空實拍'));
+    document.querySelectorAll('#camChips .chip').forEach(c => {
+      c.style.display = c.dataset.region === activeRegion ? '' : 'none';
+    });
+    if (!state.camUserPicked || SKY_CAMS[state.camKey]?.region !== activeRegion) {
+      state.camKey = nearestKey;
+      state.camUserPicked = false;
+    }
     selectSkyCam(state.camKey);
   }
 }
@@ -377,6 +396,7 @@ function updateClockAndPhoto() {
 
   const moon = getMoonState(now, state.pos.lat, state.pos.lon);
   const liveKp = Math.max(state.renderState?.kp ?? 2, state.renderState?.sc?.effKp ?? 0);
+  const aurScore = state.renderState?.sc?.auroraScore ?? 0;
   const geom = computeViewingGeometry({
     lat: state.pos.lat, lon: state.pos.lon, kp: liveKp,
     mlt: computeMLT(now, state.pos.lat, state.pos.lon)
@@ -387,26 +407,34 @@ function updateClockAndPhoto() {
     : geom.shortText;
   const tempNow = state.renderState?.hereHrs?.[0]?.temp;
   const isFreezing = Number.isFinite(tempNow) && tempNow <= 0;
+  const fastBright = aurScore >= 60;
 
   const list = $('tsPhotoList');
   if (list) {
-    const expLine = moon.effMoonPct >= 55
+    const expLine = fastBright
       ? (en
-          ? `<li><strong>Exposure (Bright Moon)</strong>: Flash OFF, Night Mode <strong>2–3s</strong>; keep moon behind you or highlights wash out.</li>`
-          : `<li><strong>曝光（月光偏亮）</strong>：關閃光燈、開夜間模式並將秒數壓在 <strong>2–3 秒</strong>，背對月亮避免天空過曝白掉。</li>`)
-      : (en
-          ? `<li><strong>Exposure (Dark Sky)</strong>: Flash OFF, Night Mode <strong>5–10s</strong> (brace on tripod/rail); phones reveal faint green/red before naked eye.</li>`
-          : `<li><strong>曝光（暗空夜）</strong>：關閃光燈、開夜間模式設 <strong>5–10 秒</strong>（靠欄杆或上腳架）；淡白霧先試拍，手機比肉眼先看見綠光。</li>`);
+          ? `<li><strong>Exposure (Active Aurora)</strong>: Flash OFF, use <strong>1–3s</strong> shutter (fast curtains blur into mush at 5–10s); raise ISO if needed.</li>`
+          : `<li><strong>曝光（活躍極光）</strong>：關閃光燈，快門壓在 <strong>1–3 秒</strong>（舞動極光曝 5–10 秒會糊成一片綠霧），寧可拉高 ISO。</li>`)
+      : (moon.effMoonPct >= 55
+          ? (en
+              ? `<li><strong>Exposure (Bright Moon)</strong>: Flash OFF, Night Mode <strong>2–3s</strong>; keep moon behind you or highlights wash out.</li>`
+              : `<li><strong>曝光（月光偏亮）</strong>：關閃光燈、開夜間模式並將秒數壓在 <strong>2–3 秒</strong>，背對月亮避免天空過曝白掉。</li>`)
+          : (en
+              ? `<li><strong>Exposure (Faint Arc)</strong>: Flash OFF, Night Mode <strong>5–10s</strong> (brace on tripod/rail); switch to 1–3s once curtains dance.</li>`
+              : `<li><strong>曝光（微弱極光）</strong>：關閃光燈、開夜間模式設 <strong>5–10 秒</strong>（上腳架或靠欄杆）；一旦開始舞動立即縮回 1–3 秒。</li>`));
     const aimLine = en
       ? `<li><strong>Framing</strong>: Point toward <strong>${escapeHtml(aimTxt)}</strong>.${modeInfo.text ? ` ${escapeHtml(modeInfo.text)}.` : ''}</li>`
       : `<li><strong>取景方向</strong>：朝 <strong>${escapeHtml(aimTxt)}</strong> 取景。${modeInfo.text ? `${escapeHtml(modeInfo.text)}。` : ''}</li>`;
+    const etiquetteTxt = en
+      ? `Turn on Red-Light mode (top-right) and dim screen so you preserve night vision and avoid ruining nearby shots.`
+      : `開啟右上角紅光模式並調暗螢幕，保護暗適應且不干擾旁人長曝。`;
     const fieldLine = isFreezing
       ? (en
-          ? `<li><strong>Sub-Zero Protection (${Math.round(tempNow)}°C)</strong>: Keep spare batteries in an inner pocket; seal camera/phone in a zip bag before entering warm indoors to prevent lens fog.</li>`
-          : `<li><strong>低溫防踩雷（${Math.round(tempNow)}°C）</strong>：備用電池放貼身內袋防瞬間掉電；進溫暖室內前先裝進夾鏈袋密封，避免鏡頭起霧結霜。</li>`)
+          ? `<li><strong>Sub-Zero (${Math.round(tempNow)}°C) &amp; Etiquette</strong>: Keep spare batteries warm; zip-bag gear before entering indoors to stop condensation. ${etiquetteTxt}</li>`
+          : `<li><strong>低溫（${Math.round(tempNow)}°C）與暗空禮儀</strong>：備用電池放貼身內袋、進室內前裝夾鏈袋防結霜；${etiquetteTxt}</li>`)
       : (en
-          ? `<li><strong>Dark-Sky Etiquette</strong>: Turn on Red-Light mode (top-right) and dim your screen so you preserve night vision and avoid ruining nearby long exposures.</li>`
-          : `<li><strong>暗空禮儀</strong>：開啟右上角紅光模式並調暗螢幕，保護暗適應且不干擾旁人長曝。</li>`);
+          ? `<li><strong>Dark-Sky Etiquette</strong>: ${etiquetteTxt}</li>`
+          : `<li><strong>暗空禮儀</strong>：${etiquetteTxt}</li>`);
     list.innerHTML = expLine + aimLine + fieldLine;
   }
   return moon;
@@ -520,7 +548,8 @@ function render3NightOutlook(nights) {
     }
   });
   grid.innerHTML = nights.map((n, i) => {
-    const clearTxt = n.bestClear !== null ? (en ? `Clear ${n.bestClear}%` : `最佳晴空 ${n.bestClear}%`) : (en ? 'No dark hrs' : '無暗空');
+    const hrsTag = (n.clearDarkHrs > 0) ? `·${n.clearDarkHrs}h` : '';
+    const clearTxt = n.bestClear !== null ? (en ? `Clear ${n.bestClear}%${hrsTag}` : `晴空 ${n.bestClear}%${hrsTag}`) : (en ? 'No dark hrs' : '無暗空');
     const kpTxt = n.kpAvailable === false
       ? (en ? 'Kp --' : 'Kp 待更新')
       : `Kp ${Number(n.maxKp || 0).toFixed(1)}${n.gScale >= 1 ? ` · G${n.gScale}` : ''}`;
@@ -529,7 +558,7 @@ function render3NightOutlook(nights) {
     return `<div class="outlook-day ${i === bestIdx ? 'od-best' : ''}">
       <div class="od-date">${escapeHtml(n.label)}</div>
       <div class="od-badge" style="color:${bCol};"><span class="leg-dot" style="background:${bCol};margin-right:2px;"></span>${escapeHtml(n.badge)}</div>
-      <div class="od-stat">${escapeHtml(clearTxt)}<br/>${escapeHtml(kpTxt)}${enlilLine}</div>
+      <div class="od-stat"><span style="white-space:nowrap;">${escapeHtml(clearTxt)}</span><br/>${escapeHtml(kpTxt)}${enlilLine}</div>
     </div>`;
   }).join('');
 }
@@ -540,6 +569,19 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales,
   renderStormBanner(noaaScales, noaaAlert);
 
   const enSum = summarizeEnergyTrend(chartSeries, speed, bal);
+  const bzBadge = $('bzBadge');
+  if (bzBadge) {
+    const liveBz = Number.isFinite(bal?.cleanLatestBz)
+      ? bal.cleanLatestBz
+      : (chartSeries?.length && Number.isFinite(chartSeries[chartSeries.length - 1]?.bz) ? chartSeries[chartSeries.length - 1].bz : null);
+    if (enSum.raw) {
+      bzBadge.textContent = enSum.raw;
+      bzBadge.className = 'sw-badge' + (liveBz !== null && liveBz <= -4 ? ' sw-good' : (liveBz !== null && liveBz < 0 ? ' sw-warn' : ''));
+    } else {
+      bzBadge.textContent = '';
+      bzBadge.className = 'sw-badge';
+    }
+  }
   const eb = $('energyBanner');
   if (eb) {
     eb.className = 'callout ' + (enSum.good || goesSub?.active || bal.shockActive ? 'good' : 'warn');
@@ -601,6 +643,7 @@ function renderRoadLinks(pos, en) {
   if (pos.lat >= 55 && pos.lon >= -26 && pos.lon <= 35) {
     links = [
       { id: 'roadNo', url: 'https://www.vegvesen.no/trafikk', zh: '挪威 Vegvesen ↗', en: 'Norway Vegvesen ↗' },
+      { id: 'roadSe', url: 'https://www.trafikverket.se/trafikinformation/vag/', zh: '瑞典 Trafikverket ↗', en: 'Sweden Trafikverket ↗' },
       { id: 'roadIs', url: 'https://umferdin.is/en', zh: '冰島 Umferðin ↗', en: 'Iceland Umferðin ↗' },
       { id: 'roadFi', url: 'https://liikennetilanne.fintraffic.fi/', zh: '芬蘭路況 ↗', en: 'Finland Roads ↗' }
     ];
@@ -641,19 +684,31 @@ function renderCompassPanel(dirResults, pos, en) {
   cBox.innerHTML = dirResults.slice(1).map(d => {
     const isBest = sum && sum.bestKey === d.key;
     const unavail = Boolean(d.unavailable) || !Number.isFinite(d.avg3h);
+    const hazard = isCorridorHazard(d);
     const clear3h = unavail ? null : Math.max(0, Math.min(100, Math.round(100 - d.avg3h)));
     const clearNow = unavail ? null : Math.max(0, Math.min(100, Math.round(100 - d.nowC)));
-    const col = unavail ? '' : (d.isOcean ? 'c-blue' : (clear3h >= 65 ? 'c-green' : clear3h >= 35 ? 'c-amber' : 'c-red'));
-    const distKm = Number.isFinite(d.distKm) ? d.distKm : Math.round(computeDistanceKm(pos.lat, pos.lon, d.lat, d.lon));
-    const distTag = Number.isFinite(distKm) && distKm > 0 ? ` · ~${distKm} km` : '';
-    const windTag = (!d.isOcean && !unavail && (d.maxWind3h || 0) >= 12)
-      ? (en ? ` · 💨 Gale ${Math.round(d.maxWind3h)}m/s` : ` · 💨 強風 ${Math.round(d.maxWind3h)}m/s`)
-      : '';
-    const roadTag = (!d.isOcean && !unavail && (d.maxPrecip3h || 0) >= 0.2)
+    const col = unavail ? '' : (d.isOcean ? 'c-blue' : (hazard ? 'c-red' : (clear3h >= 65 ? 'c-green' : clear3h >= 35 ? 'c-amber' : 'c-red')));
+    const kmVal = Number.isFinite(d.roadKm) ? d.roadKm : (Number.isFinite(d.distKm) ? d.distKm : Math.round(computeDistanceKm(pos.lat, pos.lon, d.lat, d.lon)));
+    const distTag = d.isGeneric
+      ? (en ? ' · straight-line (verify road)' : ' · 直線參考（請確認路況）')
+      : (Number.isFinite(kmVal) && kmVal > 0 ? (en ? ` · ~${kmVal} km road` : ` · 公路 ~${kmVal} km`) : '');
+    const windMs = Number(d.maxWind3h) || 0;
+    const precipMm = Number(d.maxPrecip3h) || 0;
+    const windTag = (!d.isOcean && !unavail && windMs >= 12)
+      ? (en ? ` · ⚠ Gale ${Math.round(windMs)}m/s` : ` · ⚠ 強風 ${Math.round(windMs)}m/s`)
+      : ((!d.isOcean && !unavail && windMs >= 9 && (d.temp ?? 5) <= 1.5)
+          ? (en ? ` · ⚠ Drifting snow ${Math.round(windMs)}m/s` : ` · ⚠ 吹雪風 ${Math.round(windMs)}m/s`)
+          : '');
+    const roadTag = (!d.isOcean && !unavail && precipMm >= 0.2)
       ? (d.temp <= 1.5
-          ? (en ? ' · ❄️ Snow/Ice risk' : ' · ❄️ 降雪／結冰風險')
-          : (en ? ' · 🌧️ Rain' : ' · 🌧️ 降雨'))
+          ? (en ? ' · Snow/Ice risk' : ' · 降雪／結冰風險')
+          : (en ? ' · Rain' : ' · 降雨'))
       : '';
+    const coldTag = (!d.isOcean && !unavail && Number.isFinite(d.temp) && d.temp <= -25)
+      ? (en ? ' · ⚠ Extreme cold' : ' · ⚠ 極寒凍傷風險')
+      : '';
+    const noteText = en ? (d.roadNoteEn || '') : (d.roadNote || '');
+    const noteHtml = noteText ? `<div class="dir-note">${escapeHtml(noteText)}</div>` : '';
     const nav = (d.isOcean || unavail)
       ? (d.isOcean
           ? `<span style="font-size:0.75rem;color:var(--blue);font-weight:700;">${en ? 'Open Sea' : '海域參考'}</span>`
@@ -661,10 +716,10 @@ function renderCompassPanel(dirResults, pos, en) {
       : `<a class="btn btn-blue" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/dir/?api=1&origin=${pos.lat},${pos.lon}&destination=${d.lat},${d.lon}&travelmode=driving">${en ? 'Drive' : '導航'}</a>`;
     const statLine = unavail
       ? (en ? 'Forecast temporarily unavailable' : '此方向氣象暫時無法取得')
-      : `${en ? '3h Clear' : '3h 晴空'} <strong class="${col}">${clear3h}%</strong>｜${en ? 'Now' : '目前'} ${clearNow}%｜${fmtTempC(d.temp)}${windTag}${roadTag}`;
-    return `<div class="dir ${isBest ? 'best' : ''} ${d.isOcean ? 'sea' : ''}">
+      : `${en ? '3h Clear' : '3h 晴空'} <strong class="${col}">${clear3h}%</strong>｜${en ? 'Now' : '目前'} ${clearNow}%｜${fmtTempC(d.temp)}${windTag}${roadTag}${coldTag}`;
+    return `<div class="dir ${isBest ? 'best' : ''} ${hazard ? 'hazard' : ''} ${d.isOcean ? 'sea' : ''}">
       <div><div style="font-weight:800;font-size:0.9rem;">${escapeHtml(tDirLabel(d.label))}${isBest ? ' ★' : ''}<span style="font-weight:600;font-size:0.74rem;color:var(--muted);">${distTag}</span></div>
-      <div style="font-size:0.74rem;color:var(--muted);">${statLine}</div></div>
+      <div style="font-size:0.74rem;color:var(--muted);">${statLine}</div>${noteHtml}</div>
       ${nav}
     </div>`;
   }).join('');
@@ -738,10 +793,15 @@ function renderFromState(st) {
 
   const t0Int = Math.round(hereHrs[0].temp) || 0;
   const wc0Int = Math.round(hereHrs[0].windChill ?? hereHrs[0].temp) || 0;
+  const wind0 = Number(hereHrs[0].windMs) || 0;
+  const precip0 = Number(hereHrs[0].precip) || 0;
   const wcTag = (t0Int - wc0Int >= 3) ? (en ? ` · Feels ${fmtTempC(wc0Int)}` : ` · 體感${fmtTempC(wc0Int)}`) : '';
-  const skyPrecipTag = (hereHrs[0].precip || 0) >= 0.2
-    ? (t0Int <= 1 ? (en ? ' · Snow' : ' · 降雪') : (en ? ' · Rain' : ' · 降雨'))
-    : '';
+  const coldWarnTag = (t0Int <= -25 || wc0Int <= -32) ? (en ? ' · ⚠ Extreme cold' : ' · ⚠ 極寒注意') : '';
+  const skyPrecipTag = (wind0 >= 9 && t0Int <= 1 && precip0 >= 0.2)
+    ? (en ? ' · ⚠ Blowing snow' : ' · ⚠ 吹雪')
+    : (precip0 >= 0.2
+        ? (t0Int <= 1 ? (en ? ' · Snow' : ' · 降雪') : (en ? ' · Rain' : ' · 降雨'))
+        : '');
   const aurSubText = sc.outOfZone === 'low-lat'
     ? (en ? `Mag ${sc.magLat}°` : `地磁 ${sc.magLat}°`)
     : (sc.outOfZone === 'need-storm'
@@ -752,7 +812,7 @@ function renderFromState(st) {
   const darkWin = computeDarkWindow(refNow, pos.lat, pos.lon, pos.tz);
   renderGauge(sc, {
     isTooBright: sc.isTooBright,
-    skySub: `${fmtTempC(t0Int)}${wcTag}${skyPrecipTag}`,
+    skySub: `${fmtTempC(t0Int)}${wcTag}${coldWarnTag}${skyPrecipTag}`,
     aurSub: aurSubText,
     darkSub: formatDarkCountdownSub(darkWin, moon, en)
   });

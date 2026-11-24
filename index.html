@@ -8,7 +8,7 @@
   <meta name="keywords" content="aurora forecast, northern lights, nordic aurora radar, Tromso aurora, Alta aurora, Lofoten aurora, Abisko aurora, NOAA SWPC, Yr.no cloud forecast, 極光預報, 極光雷達, 北歐極光" />
   <meta name="google-site-verification" content="9uDTXgYt6cLyIyEW8tmFensPSWjd_Yc3Xj_U_BoEsS0" />
   <meta name="referrer" content="no-referrer" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://fox.phys.uit.no https://www.irf.se https://www.sgo.fi https://kho.unis.no https://cdn.fmi.fi https://services.swpc.noaa.gov; connect-src 'self' https://services.swpc.noaa.gov https://api.met.no https://api.open-meteo.com https://geocoding-api.open-meteo.com https://api.bigdatacloud.net; frame-src https://embed.windy.com; object-src 'none'; base-uri 'self'; form-action 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://fox.phys.uit.no https://www.irf.se https://www.sgo.fi https://kho.unis.no https://cdn.fmi.fi https://optics.gi.alaska.edu https://auroramax.phys.ucalgary.ca https://services.swpc.noaa.gov; connect-src 'self' https://services.swpc.noaa.gov https://api.met.no https://api.open-meteo.com https://geocoding-api.open-meteo.com https://api.bigdatacloud.net; frame-src https://embed.windy.com; object-src 'none'; base-uri 'self'; form-action 'none';" />
   <meta name="theme-color" content="#040912" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
@@ -38,7 +38,7 @@
         "operatingSystem": "Web, iOS, Android (PWA)",
         "isAccessibleForFree": true,
         "inLanguage": ["zh-Hant", "en"],
-        "description": "Free, open-source real-time Nordic and global aurora forecast radar combining MET Norway (Yr.no) 2.5km layered clouds, 11 NOAA SWPC space-weather feeds (L1 solar wind Bz, Newell coupling, Geospace 1h MHD Kp, dual GOES magnetometers, OVATION, HPI, SWPC alerts), NASA JPL DE441-verified twilight/moonlight physics, and a 360° clear-sky driving radar.",
+        "description": "Free, open-source real-time Nordic and global aurora forecast radar combining MET Norway (Yr.no) 2.5km layered clouds, 14 NOAA SWPC space-weather feeds (L1 solar wind Bz, Newell coupling, Geospace 1h MHD Kp, dual GOES magnetometers, OVATION, HPI, Kyoto Dst, WSA-ENLIL, SWPC alerts), NASA JPL DE441-verified twilight/moonlight physics, and a 360° clear-sky driving radar.",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
         "codeRepository": "https://github.com/peteryuX/nordic-aurora-radar",
         "license": "https://opensource.org/licenses/MIT"
@@ -59,7 +59,7 @@
             "name": "Which aurora destinations are supported?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "It works globally for any GPS location or city search, with dedicated road-verified 360° clear-sky corridors for Alta, Tromsø, Lofoten, Senja, Abisko, Kiruna, Kirkenes, Rovaniemi, Reykjavik, Fairbanks, Yellowknife, Queenstown, and Hobart."
+              "text": "It works globally for any GPS location or city search, with dedicated winter-road verified 360° clear-sky corridors for Alta, Tromsø, Lofoten, Senja, Narvik, Abisko, Kiruna, Kirkenes, Rovaniemi, Inari, Reykjavik, Akureyri, Fairbanks, Yellowknife, Whitehorse, Queenstown, Lake Tekapo, and Hobart."
             }
           },
           {
@@ -85,7 +85,7 @@
         <button id="redBtn" class="icon-btn" type="button" title="紅光夜視模式" aria-label="紅光夜視模式">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
-        <button id="alertBtn" class="icon-btn" type="button" title="達標自動提醒" aria-label="達標自動提醒">
+        <button id="alertBtn" class="icon-btn" type="button" title="螢幕常亮監測提醒" aria-label="螢幕常亮監測提醒">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         </button>
         <button id="trustBtn" class="icon-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet" title="算法、數據與拍攝貼士" aria-label="算法、數據與拍攝貼士">
@@ -122,23 +122,43 @@
       </div>
 
       <div id="picker" class="picker">
-        <div class="chips" id="presetChips">
-          <button class="chip on" type="button" data-zh="挪威・Alta" data-en="Norway · Alta" data-lat="69.9689" data-lon="23.2716">Alta</button>
-          <button class="chip" type="button" data-zh="挪威・Tromsø" data-en="Norway · Tromsø" data-lat="69.6492" data-lon="18.9553">Tromsø</button>
-          <button class="chip" type="button" data-zh="挪威・Lofoten" data-en="Norway · Lofoten" data-lat="68.2342" data-lon="14.5683">Lofoten</button>
-          <button class="chip" type="button" data-zh="挪威・Senja" data-en="Norway · Senja" data-lat="69.3470" data-lon="17.4820">Senja</button>
-          <button class="chip" type="button" data-zh="挪威・Narvik" data-en="Norway · Narvik" data-lat="68.4385" data-lon="17.4273">Narvik</button>
-          <button class="chip" type="button" data-zh="瑞典・Abisko" data-en="Sweden · Abisko" data-lat="68.3495" data-lon="18.8312">Abisko</button>
-          <button class="chip" type="button" data-zh="挪威・Kirkenes" data-en="Norway · Kirkenes" data-lat="69.7271" data-lon="30.0458">Kirkenes</button>
-          <button class="chip" type="button" data-zh="芬蘭・Rovaniemi" data-en="Finland · Rovaniemi" data-lat="66.5039" data-lon="25.7294">Rovaniemi</button>
-          <button class="chip" type="button" data-zh="冰島・Reykjavik" data-en="Iceland · Reykjavik" data-lat="64.1466" data-lon="-21.9426">Reykjavik</button>
-          <button class="chip" type="button" data-zh="美國・Fairbanks" data-en="USA · Fairbanks" data-lat="64.8378" data-lon="-147.7164">Fairbanks</button>
-          <button class="chip" type="button" data-zh="加拿大・Yellowknife" data-en="Canada · Yellowknife" data-lat="62.4540" data-lon="-114.3718">Yellowknife</button>
-          <button class="chip" type="button" data-zh="紐西蘭・Queenstown" data-en="New Zealand · Queenstown" data-lat="-45.0312" data-lon="168.6626">Queenstown</button>
-          <button class="chip" type="button" data-zh="澳洲・Hobart" data-en="Australia · Hobart" data-lat="-42.8821" data-lon="147.3272">Hobart</button>
+        <div id="presetChips">
+          <div class="picker-grp">
+            <div id="pickerGrpNordic" class="picker-lbl">北歐極光帶</div>
+            <div class="chips">
+              <button class="chip on" type="button" data-zh="挪威・Alta" data-en="Norway · Alta" data-lat="69.9689" data-lon="23.2716">Alta</button>
+              <button class="chip" type="button" data-zh="挪威・Tromsø" data-en="Norway · Tromsø" data-lat="69.6492" data-lon="18.9553">Tromsø</button>
+              <button class="chip" type="button" data-zh="挪威・Lofoten" data-en="Norway · Lofoten" data-lat="68.2342" data-lon="14.5683">Lofoten</button>
+              <button class="chip" type="button" data-zh="挪威・Senja" data-en="Norway · Senja" data-lat="69.3470" data-lon="17.4820">Senja</button>
+              <button class="chip" type="button" data-zh="挪威・Narvik" data-en="Norway · Narvik" data-lat="68.4385" data-lon="17.4273">Narvik</button>
+              <button class="chip" type="button" data-zh="瑞典・Abisko" data-en="Sweden · Abisko" data-lat="68.3495" data-lon="18.8312">Abisko</button>
+              <button class="chip" type="button" data-zh="瑞典・Kiruna" data-en="Sweden · Kiruna" data-lat="67.8558" data-lon="20.2253">Kiruna</button>
+              <button class="chip" type="button" data-zh="挪威・Kirkenes" data-en="Norway · Kirkenes" data-lat="69.7271" data-lon="30.0458">Kirkenes</button>
+              <button class="chip" type="button" data-zh="芬蘭・Rovaniemi" data-en="Finland · Rovaniemi" data-lat="66.5039" data-lon="25.7294">Rovaniemi</button>
+              <button class="chip" type="button" data-zh="芬蘭・Inari" data-en="Finland · Inari" data-lat="68.9060" data-lon="27.0275">Inari</button>
+            </div>
+          </div>
+          <div class="picker-grp">
+            <div id="pickerGrpNa" class="picker-lbl">北美＆冰島</div>
+            <div class="chips">
+              <button class="chip" type="button" data-zh="冰島・Reykjavik" data-en="Iceland · Reykjavik" data-lat="64.1466" data-lon="-21.9426">Reykjavik</button>
+              <button class="chip" type="button" data-zh="冰島・Akureyri" data-en="Iceland · Akureyri" data-lat="65.6885" data-lon="-18.1262">Akureyri</button>
+              <button class="chip" type="button" data-zh="美國・Fairbanks" data-en="USA · Fairbanks" data-lat="64.8378" data-lon="-147.7164">Fairbanks</button>
+              <button class="chip" type="button" data-zh="加拿大・Yellowknife" data-en="Canada · Yellowknife" data-lat="62.4540" data-lon="-114.3718">Yellowknife</button>
+              <button class="chip" type="button" data-zh="加拿大・Whitehorse" data-en="Canada · Whitehorse" data-lat="60.7212" data-lon="-135.0568">Whitehorse</button>
+            </div>
+          </div>
+          <div class="picker-grp">
+            <div id="pickerGrpSouth" class="picker-lbl">南半球極光</div>
+            <div class="chips">
+              <button class="chip" type="button" data-zh="紐西蘭・Queenstown" data-en="New Zealand · Queenstown" data-lat="-45.0312" data-lon="168.6626">Queenstown</button>
+              <button class="chip" type="button" data-zh="紐西蘭・Lake Tekapo" data-en="New Zealand · Lake Tekapo" data-lat="-44.0047" data-lon="170.4771">Lake Tekapo</button>
+              <button class="chip" type="button" data-zh="澳洲・Hobart" data-en="Australia · Hobart" data-lat="-42.8821" data-lon="147.3272">Hobart</button>
+            </div>
+          </div>
         </div>
         <form id="cityForm" class="search-row">
-          <input id="cityInput" type="text" placeholder="輸入中／英文地名（例：冰島、特羅姆瑟、Hobart）" />
+          <input id="cityInput" type="text" placeholder="輸入中／英文地名（例：冰島、特羅姆瑟、蒂卡波）" />
           <button id="searchBtn" class="btn btn-blue" type="submit">搜尋</button>
         </form>
       </div>
@@ -216,7 +236,7 @@
 
       <!-- Card 3: Solar Wind Energy & Earth-Arrival Timeline -->
       <section class="card">
-        <h2><span id="h2Energy">太陽風能量走勢（提前預告）</span></h2>
+        <h2><span id="h2Energy">太陽風能量</span><span id="bzBadge" class="sw-badge"></span></h2>
         <div id="energyBanner" class="callout">讀取衛星即時太陽風中...</div>
         <div class="chart-box">
           <svg id="bzChart" class="chart-svg" viewBox="0 0 420 170"></svg>
@@ -246,6 +266,7 @@
         <div class="road-links" id="roadLinks">
           <span id="roadLbl" class="road-lbl">冬季即時路況／封路查詢：</span>
           <a id="roadNo" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="https://www.vegvesen.no/trafikk">挪威 Vegvesen ↗</a>
+          <a id="roadSe" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="https://www.trafikverket.se/trafikinformation/vag/">瑞典 Trafikverket ↗</a>
           <a id="roadIs" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="https://umferdin.is/en">冰島 Umferðin ↗</a>
           <a id="roadFi" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="https://liikennetilanne.fintraffic.fi/">芬蘭路況 ↗</a>
         </div>
@@ -255,18 +276,20 @@
     <!-- VIEW 3: LIVE CLOUD MAP, ALL-SKY CAMS & OVATION -->
     <section id="v-sat" class="view">
       <div class="card" id="skyCamCard">
-        <h2 id="h2Cam">北歐天文台即時全天空實拍</h2>
-        <p id="subCam" class="card-sub">約每分鐘實拍上傳，肉眼直接確認現場雲量與極光：</p>
+        <h2 id="h2Cam">天文台即時全天空實拍</h2>
+        <p id="subCam" class="card-sub">約每分鐘實拍，請留意畫面內建 UTC 時間戳記確認是否即時：</p>
         <div class="chips" id="camChips" style="margin-bottom:10px;">
-          <button id="camBtnUit" class="chip on" type="button" data-cam="uit">Tromsø 近郊</button>
-          <button id="camBtnIrf" class="chip" type="button" data-cam="irf">Kiruna</button>
-          <button id="camBtnSgo" class="chip" type="button" data-cam="sgo">Sodankylä</button>
-          <button id="camBtnKho" class="chip" type="button" data-cam="kho">Svalbard</button>
-          <button id="camBtnFmi" class="chip" type="button" data-cam="fmi">北歐地磁圖</button>
+          <button id="camBtnUit" class="chip on" type="button" data-cam="uit" data-region="nordic">Tromsø 近郊</button>
+          <button id="camBtnIrf" class="chip" type="button" data-cam="irf" data-region="nordic">Kiruna</button>
+          <button id="camBtnSgo" class="chip" type="button" data-cam="sgo" data-region="nordic">Sodankylä</button>
+          <button id="camBtnKho" class="chip" type="button" data-cam="kho" data-region="nordic">Svalbard</button>
+          <button id="camBtnFmi" class="chip" type="button" data-cam="fmi" data-region="nordic">北歐地磁圖</button>
+          <button id="camBtnUaf" class="chip" type="button" data-cam="uaf" data-region="na" style="display:none;">Fairbanks</button>
+          <button id="camBtnAmax" class="chip" type="button" data-cam="amax" data-region="na" style="display:none;">Yellowknife</button>
         </div>
         <div id="camDayNotice" class="callout warn" style="display:none; margin-bottom:10px;"></div>
         <div class="sat-img-wrap">
-          <img id="skyCamImg" class="sat-img" alt="Nordic Live All-Sky Camera" loading="lazy" />
+          <img id="skyCamImg" class="sat-img" alt="Observatory Live All-Sky Camera" loading="lazy" />
           <div id="skyCamCap" class="sat-cap"><a class="src-link" target="_blank" rel="noopener noreferrer" href="https://fox.phys.uit.no/ASC/">資料來源：挪威北極大學 UiT 全天空極光相機（Skibotn 天文台，約每分鐘實拍）↗</a></div>
         </div>
       </div>
@@ -367,7 +390,7 @@
           <h3 id="tsSciTitle" class="ts-h3">科學驗證與官方資料來源</h3>
           <div class="ts-stat-grid" id="tsStatGrid">
             <div class="ts-stat"><strong>NASA JPL 0.006°</strong><span>22 點 DE441 日月校準</span></div>
-            <div class="ts-stat"><strong>17,255h NASA 盲測</strong><span>實測 ROC-AUC 0.92–0.94</span></div>
+            <div class="ts-stat"><strong>17,255h NASA 盲測</strong><span>地磁預測 AUC 0.92–0.94（不含雲層）</span></div>
             <div class="ts-stat"><strong>14 NOAA 即時源</strong><span>L1・MHD・Dst・ENLIL</span></div>
             <div class="ts-stat"><strong>2.5km Yr.no</strong><span>MET Norway 雙模型比對</span></div>
           </div>
@@ -392,6 +415,7 @@
             <span class="ts-seal" id="tsSeal3">GPS 僅留存本機瀏覽器</span>
             <a id="tsSealLink" class="ts-seal ts-seal-link" target="_blank" rel="noopener noreferrer" href="https://github.com/peteryuX/nordic-aurora-radar">GitHub MIT 開源原始碼 ↗</a>
           </div>
+          <p id="tsPwaTip" class="ts-pwa-tip">離線小提示：Safari 點「分享 → 加入主畫面」或 Chrome 點「安裝應用程式」，即可在極區無訊號時秒開快取。</p>
           <p id="tsLegalFoot" class="ts-legal-foot">氣象：MET Norway (CC BY 4.0) / Open-Meteo；太空天氣：NOAA SWPC (Public Domain)。僅供觀星參考，冬季行車請以當地交通管制為準。</p>
         </section>
       </div>
