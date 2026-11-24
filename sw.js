@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aurora-radar-shell-v6';
+const CACHE_NAME = 'aurora-radar-shell-v7';
 const FETCH_TIMEOUT_MS = 3500;
 const SHELL_ASSETS = [
   './',
@@ -14,7 +14,12 @@ const SHELL_ASSETS = [
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(SHELL_ASSETS))
+      .then(cache => Promise.all(
+        SHELL_ASSETS.map(url => fetch(new Request(url, { cache: 'reload' })).then(res => {
+          if (!res.ok) throw new Error(`Shell asset HTTP ${res.status}: ${url}`);
+          return cache.put(url, res);
+        }))
+      ))
       .then(() => self.skipWaiting())
   );
 });
