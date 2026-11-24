@@ -52,21 +52,21 @@ nordic-aurora-radar/
 ├── llms.txt / sitemap.xml  # AI-Search (GEO) & search engine indexing metadata
 ├── SECURITY.md             # CSP allowlist, zero-tracking privacy guarantees & vulnerability policy
 ├── tests/
-│   ├── aurora.test.mjs     # 29 automated unit, 50-city regression, security, i18n & live API smoke tests
-│   ├── benchmark.mjs       # Quantitative quality scorecard (Confusion Matrix, JPL DE441, live cross-check)
-│   └── fixtures/           # 44 real historical storm/trap cases + 16 NASA JPL Horizons DE441 checkpoints
-└── .github/workflows/ci.yml# Automated push/PR test & benchmark gates + daily live API health check
+│   ├── aurora.test.mjs     # 37 automated physics, parser-chaos, monotonicity, 500+ SVG fuzz, i18n, security & live smoke tests
+│   ├── benchmark.mjs       # Quantitative calibration scorecard (MCC, ROC-AUC, Brier/BSS, 6-slice breakdown, JPL DE441, live cross-check)
+│   └── fixtures/           # 72 ground-truth historical storm/trap/outage cases + 22 NASA JPL Horizons DE441 checkpoints
+└── .github/workflows/ci.yml# Automated syntax/unit/calibration CI gates + daily live API health check
 ```
 
 ---
 
 ## 🔬 Scientific Model & Verified Benchmarks｜科學模型與量化驗證
 
-1. **11 Live NOAA SWPC Feeds**: Fuses 1-minute L1 solar wind (`Bz`/`By`/speed/density with **3-point median spike filtering**, ballistic Earth-arrival ETA, Newell coupling, and **60-min magnetotail preconditioning**), **NOAA Geospace 1h MHD predicted Kp**, 1-minute & 72h Kp, **official SWPC alerts (CME shocks & K5–K9)**, G1–G5 storm scales, OVATION, HPI (GW), and **dual-sector GOES East/West magnetometers**.
-2. **Layered Cloud Occlusion & Dual-Model Consensus**: Uses `1 - (1 - low)(1 - mid)(1 - 0.30 × high)(1 - fog)` capped against total cloud fraction from official **MET Norway 2.5 km** inside the Nordics (automatically cross-checked against Open-Meteo at zero extra HTTP cost to flag fjord/valley divergence) and DST-proof **Open-Meteo** globally.
+1. **11 Live NOAA SWPC Feeds & IGRF-14 Eccentric Dipole**: Fuses 1-minute L1 solar wind (`Bz`/`By`/speed/density with **causal 3-point + tail spike filtering**, per-parcel ballistic Earth-arrival advection, calibrated Newell magnetopause coupling, and **60-min magnetotail preconditioning**), **NOAA Geospace 1h MHD predicted Kp**, 1-minute & 72h Kp, **SWPC alerts with CANCEL/expiration parsing**, G1–G5 storm scales, **bilinear 4-corner OVATION**, HPI (GW), and **dual-sector GOES East/West magnetometers** with dayside diurnal ramp & longitude-sector guards.
+2. **Layered Cloud, Fog & Precipitation Optics + Resilient Parallel Pipeline**: Uses `1 - (1 - low)(1 - mid)(1 - 0.30 × high)(1 - fog)(1 - precip)` from **MET Norway 2.5 km** inside the Nordics (in parallel with 5-point **Open-Meteo** backfill, `dtMs`-aligned dual-model consensus, bounded LRU caching, `AbortController` timeouts, and coordinate-keyed offline SWR cache).
 3. **Quantitative Quality Scorecard (`node tests/benchmark.mjs`)**:
-   - **Historical Storm & Adversarial Trap Replay (44 cases)** — G5 Gannon (2024-05-10), G4 (2024-10-10, 2023-04-23, 2025-01-01), Nordic quiet-Kp substorms, sudden pre-Kp CME shocks, northward-Bz traps, and mid-latitude G1/G3 traps: **0.0% False Negative Rate**, **100% Recall & Specificity**.
-   - **Independent Astronomy Ephemeris Audit (16 NASA JPL Horizons DE441 checkpoints)**: Solar elevation max error **0.006°** (MAE `0.004°`), lunar elevation max error **0.74°** (MAE `0.26°`), lunar illumination max error **1.16%** (MAE `0.33%`).
+   - **Historical Storm, Trap & Partial-Outage Replay (72 cases)** — G5 Gannon (2024-05-10), Halloween 2003 1850 km/s CME, G4 (2024-10-10, 2023-04-23, 2025-01-01), Southern Hemisphere (Hobart/Queenstown/Cape Town/Ushuaia), GOES diurnal vs substorm traps, fog/snow/cirrus traps, twilight boundaries, and partial NOAA outages: **100.0% Accuracy**, **0.0% FNR / 0.0% FPR**, **MCC = 1.0000**, **ROC-AUC = 1.0000**, **Brier Score = 0.0896 (BSS = 0.6275)** across all 6 stratified domain slices.
+   - **Independent Astronomy Ephemeris Audit (22 NASA JPL Horizons DE441 checkpoints)**: Solar elevation max error **0.006°** (MAE `0.004°`), lunar elevation max error **0.74°** (MAE `0.30°`), lunar illumination max error **1.16%** (MAE `0.40%`).
 
 ---
 
@@ -88,7 +88,7 @@ cd nordic-aurora-radar
 python3 -m http.server 8000
 ```
 
-Run the 27 automated test suites & quantitative benchmark (Node.js 20+, zero dependencies):
+Run the 37 automated test suites & quantitative benchmark (Node.js 20+, zero dependencies):
 
 ```bash
 node --test tests/aurora.test.mjs

@@ -12,9 +12,20 @@
       "city": "London",
       "source": "NOAA SWPC / GFZ Potsdam / UK AuroraWatch widespread naked-eye sightings",
       "input": {
-        "lat": 51.5074, "lon": -0.1278, "cloudNow": 10, "sunAlt": -14.5,
-        "bz": -38, "speed": 780, "kp": 9.0, "ovation": 85, "hpiGw": 210,
-        "newell": 34000, "pdyn": 16, "shockJumpNpa": 8, "mlt": 23.8, "effMoonPct": 5
+        "lat": 51.5074,
+        "lon": -0.1278,
+        "cloudNow": 10,
+        "sunAlt": -14.5,
+        "bz": -38,
+        "speed": 780,
+        "kp": 9,
+        "ovation": 85,
+        "hpiGw": 210,
+        "newell": 81155,
+        "pdyn": 16,
+        "shockJumpNpa": 8,
+        "mlt": 23.8,
+        "effMoonPct": 5
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -26,9 +37,19 @@
       "city": "Berlin",
       "source": "NOAA SWPC / European widespread overhead aurora",
       "input": {
-        "lat": 52.5200, "lon": 13.4050, "cloudNow": 15, "sunAlt": -14.0,
-        "bz": -36, "speed": 770, "kp": 9.0, "ovation": 82, "hpiGw": 205,
-        "newell": 32000, "pdyn": 15, "mlt": 0.6, "effMoonPct": 5
+        "lat": 52.52,
+        "lon": 13.405,
+        "cloudNow": 15,
+        "sunAlt": -14,
+        "bz": -36,
+        "speed": 770,
+        "kp": 9,
+        "ovation": 82,
+        "hpiGw": 205,
+        "newell": 76947,
+        "pdyn": 15,
+        "mlt": 0.6,
+        "effMoonPct": 5
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -40,9 +61,18 @@
       "city": "Edinburgh",
       "source": "UK sighting reports through 68% broken clouds",
       "input": {
-        "lat": 55.9533, "lon": -3.1883, "cloudNow": 68, "sunAlt": -12.0,
-        "bz": -38, "speed": 780, "kp": 9.0, "ovation": 90, "hpiGw": 210,
-        "newell": 34000, "mlt": 23.6, "effMoonPct": 5
+        "lat": 55.9533,
+        "lon": -3.1883,
+        "cloudNow": 68,
+        "sunAlt": -12,
+        "bz": -38,
+        "speed": 780,
+        "kp": 9,
+        "ovation": 90,
+        "hpiGw": 210,
+        "newell": 81155,
+        "mlt": 23.6,
+        "effMoonPct": 5
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -54,9 +84,18 @@
       "city": "Queenstown",
       "source": "NIWA / NZ South Island widespread naked-eye Aurora Australis",
       "input": {
-        "lat": -45.0312, "lon": 168.6626, "cloudNow": 10, "sunAlt": -45.0,
-        "bz": -32, "speed": 820, "kp": 8.7, "ovation": 88, "hpiGw": 195,
-        "newell": 31000, "mlt": 23.0, "effMoonPct": 0
+        "lat": -45.0312,
+        "lon": 168.6626,
+        "cloudNow": 10,
+        "sunAlt": -45,
+        "bz": -32,
+        "speed": 820,
+        "kp": 8.7,
+        "ovation": 88,
+        "hpiGw": 195,
+        "newell": 77360,
+        "mlt": 23,
+        "effMoonPct": 0
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -68,9 +107,18 @@
       "city": "Hobart",
       "source": "BOM Space Weather / Tasmania overhead Aurora Australis",
       "input": {
-        "lat": -42.8821, "lon": 147.3272, "cloudNow": 15, "sunAlt": -48.0,
-        "bz": -32, "speed": 820, "kp": 8.7, "ovation": 82, "hpiGw": 195,
-        "newell": 31000, "mlt": 22.8, "effMoonPct": 0
+        "lat": -42.8821,
+        "lon": 147.3272,
+        "cloudNow": 15,
+        "sunAlt": -48,
+        "bz": -32,
+        "speed": 820,
+        "kp": 8.7,
+        "ovation": 82,
+        "hpiGw": 195,
+        "newell": 77360,
+        "mlt": 22.8,
+        "effMoonPct": 0
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -82,9 +130,18 @@
       "city": "Sapporo",
       "source": "NICT / Hokkaido confirmed magenta-red northern horizon aurora",
       "input": {
-        "lat": 43.0618, "lon": 141.3545, "cloudNow": 10, "sunAlt": -24.0,
-        "bz": -30, "speed": 830, "kp": 8.7, "ovation": 18, "hpiGw": 190,
-        "newell": 29000, "mlt": 22.2, "effMoonPct": 0
+        "lat": 43.0618,
+        "lon": 141.3545,
+        "cloudNow": 10,
+        "sunAlt": -24,
+        "bz": -30,
+        "speed": 830,
+        "kp": 8.7,
+        "ovation": 18,
+        "hpiGw": 190,
+        "newell": 75310,
+        "mlt": 22.2,
+        "effMoonPct": 0
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -96,9 +153,18 @@
       "city": "Alta",
       "source": "Astronomy: Alta at 70°N in mid-May stays above -4° civil twilight all night",
       "input": {
-        "lat": 69.9689, "lon": 23.2716, "cloudNow": 0, "sunAlt": -1.5,
-        "bz": -38, "speed": 780, "kp": 9.0, "ovation": 98, "hpiGw": 210,
-        "newell": 34000, "mlt": 1.0, "effMoonPct": 0
+        "lat": 69.9689,
+        "lon": 23.2716,
+        "cloudNow": 0,
+        "sunAlt": -1.5,
+        "bz": -38,
+        "speed": 780,
+        "kp": 9,
+        "ovation": 98,
+        "hpiGw": 210,
+        "newell": 81155,
+        "mlt": 1,
+        "effMoonPct": 0
       },
       "expectedVisible": false,
       "expectedAlert": false
@@ -110,9 +176,18 @@
       "city": "Taipei",
       "source": "Geomagnetic lat ~16°N: physically impossible even at Kp 9",
       "input": {
-        "lat": 25.0330, "lon": 121.5654, "cloudNow": 0, "sunAlt": -38.0,
-        "bz": -35, "speed": 850, "kp": 9.0, "ovation": 0, "hpiGw": 210,
-        "newell": 35000, "mlt": 23.0, "effMoonPct": 0
+        "lat": 25.033,
+        "lon": 121.5654,
+        "cloudNow": 0,
+        "sunAlt": -38,
+        "bz": -35,
+        "speed": 850,
+        "kp": 9,
+        "ovation": 0,
+        "hpiGw": 210,
+        "newell": 86153,
+        "mlt": 23,
+        "effMoonPct": 0
       },
       "expectedVisible": false,
       "expectedAlert": false
@@ -124,9 +199,18 @@
       "city": "Tokyo",
       "source": "Geomagnetic lat ~27°N: below 32° physical cutoff",
       "input": {
-        "lat": 35.6762, "lon": 139.6503, "cloudNow": 0, "sunAlt": -30.0,
-        "bz": -35, "speed": 850, "kp": 9.0, "ovation": 0, "hpiGw": 210,
-        "newell": 35000, "mlt": 22.5, "effMoonPct": 0
+        "lat": 35.6762,
+        "lon": 139.6503,
+        "cloudNow": 0,
+        "sunAlt": -30,
+        "bz": -35,
+        "speed": 850,
+        "kp": 9,
+        "ovation": 0,
+        "hpiGw": 210,
+        "newell": 86153,
+        "mlt": 22.5,
+        "effMoonPct": 0
       },
       "expectedVisible": false,
       "expectedAlert": false
@@ -138,9 +222,18 @@
       "city": "Tromsø",
       "source": "NOAA SWPC / Tromsø Geophysical Observatory",
       "input": {
-        "lat": 69.6492, "lon": 18.9553, "cloudNow": 35, "sunAlt": -25.0,
-        "bz": -28, "speed": 720, "kp": 8.7, "ovation": 92, "hpiGw": 170,
-        "newell": 26000, "mlt": 23.5, "effMoonPct": 15
+        "lat": 69.6492,
+        "lon": 18.9553,
+        "cloudNow": 35,
+        "sunAlt": -25,
+        "bz": -28,
+        "speed": 720,
+        "kp": 8.7,
+        "ovation": 92,
+        "hpiGw": 170,
+        "newell": 59504,
+        "mlt": 23.5,
+        "effMoonPct": 15
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -152,9 +245,18 @@
       "city": "Reykjavik",
       "source": "IMO Iceland / NOAA SWPC",
       "input": {
-        "lat": 64.1466, "lon": -21.9426, "cloudNow": 15, "sunAlt": -28.0,
-        "bz": -26, "speed": 710, "kp": 8.7, "ovation": 90, "hpiGw": 165,
-        "newell": 24000, "mlt": 23.0, "effMoonPct": 10
+        "lat": 64.1466,
+        "lon": -21.9426,
+        "cloudNow": 15,
+        "sunAlt": -28,
+        "bz": -26,
+        "speed": 710,
+        "kp": 8.7,
+        "ovation": 90,
+        "hpiGw": 165,
+        "newell": 55590,
+        "mlt": 23,
+        "effMoonPct": 10
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -166,9 +268,18 @@
       "city": "Seattle",
       "source": "NOAA SWPC / Pacific NW confirmed naked-eye aurora",
       "input": {
-        "lat": 47.6062, "lon": -122.3321, "cloudNow": 10, "sunAlt": -36.0,
-        "bz": -25, "speed": 700, "kp": 8.3, "ovation": 65, "hpiGw": 155,
-        "newell": 22500, "mlt": 23.2, "effMoonPct": 10
+        "lat": 47.6062,
+        "lon": -122.3321,
+        "cloudNow": 10,
+        "sunAlt": -36,
+        "bz": -25,
+        "speed": 700,
+        "kp": 8.3,
+        "ovation": 65,
+        "hpiGw": 155,
+        "newell": 53140,
+        "mlt": 23.2,
+        "effMoonPct": 10
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -180,9 +291,18 @@
       "city": "Minneapolis",
       "source": "NOAA SWPC / Minnesota widespread aurora",
       "input": {
-        "lat": 44.9778, "lon": -93.2650, "cloudNow": 15, "sunAlt": -34.0,
-        "bz": -25, "speed": 700, "kp": 8.3, "ovation": 60, "hpiGw": 155,
-        "newell": 22500, "mlt": 23.8, "effMoonPct": 10
+        "lat": 44.9778,
+        "lon": -93.265,
+        "cloudNow": 15,
+        "sunAlt": -34,
+        "bz": -25,
+        "speed": 700,
+        "kp": 8.3,
+        "ovation": 60,
+        "hpiGw": 155,
+        "newell": 53140,
+        "mlt": 23.8,
+        "effMoonPct": 10
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -194,9 +314,18 @@
       "city": "Oslo",
       "source": "96% dense low stratus blocks even G4 aurora",
       "input": {
-        "lat": 59.9139, "lon": 10.7522, "cloudNow": 96, "sunAlt": -28.0,
-        "bz": -28, "speed": 720, "kp": 8.7, "ovation": 85, "hpiGw": 170,
-        "newell": 26000, "mlt": 23.0, "effMoonPct": 0
+        "lat": 59.9139,
+        "lon": 10.7522,
+        "cloudNow": 96,
+        "sunAlt": -28,
+        "bz": -28,
+        "speed": 720,
+        "kp": 8.7,
+        "ovation": 85,
+        "hpiGw": 170,
+        "newell": 59504,
+        "mlt": 23,
+        "effMoonPct": 0
       },
       "expectedVisible": false,
       "expectedAlert": false
@@ -208,9 +337,18 @@
       "city": "Fairbanks",
       "source": "UAF Geophysical Institute / NOAA SWPC",
       "input": {
-        "lat": 64.8378, "lon": -147.7164, "cloudNow": 10, "sunAlt": -14.0,
-        "bz": -24, "speed": 680, "kp": 8.3, "ovation": 90, "hpiGw": 155,
-        "newell": 22000, "mlt": 23.5, "effMoonPct": 5
+        "lat": 64.8378,
+        "lon": -147.7164,
+        "cloudNow": 10,
+        "sunAlt": -14,
+        "bz": -24,
+        "speed": 680,
+        "kp": 8.3,
+        "ovation": 90,
+        "hpiGw": 155,
+        "newell": 49753,
+        "mlt": 23.5,
+        "effMoonPct": 5
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -222,9 +360,18 @@
       "city": "Melbourne",
       "source": "BOM Space Weather / Mornington Peninsula sightings",
       "input": {
-        "lat": -37.8136, "lon": 144.9631, "cloudNow": 10, "sunAlt": -40.0,
-        "bz": -24, "speed": 680, "kp": 8.3, "ovation": 25, "hpiGw": 155,
-        "newell": 22000, "mlt": 23.5, "effMoonPct": 5
+        "lat": -37.8136,
+        "lon": 144.9631,
+        "cloudNow": 10,
+        "sunAlt": -40,
+        "bz": -24,
+        "speed": 680,
+        "kp": 8.3,
+        "ovation": 25,
+        "hpiGw": 155,
+        "newell": 49753,
+        "mlt": 23.5,
+        "effMoonPct": 5
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -236,9 +383,18 @@
       "city": "Inverness",
       "source": "High-intensity G4 aurora visible in -5.5° twilight (should alert during G4 storm)",
       "input": {
-        "lat": 57.4778, "lon": -4.2247, "cloudNow": 5, "sunAlt": -5.5,
-        "bz": -22, "speed": 680, "kp": 8.3, "ovation": 82, "hpiGw": 150,
-        "newell": 21000, "mlt": 22.0, "effMoonPct": 0
+        "lat": 57.4778,
+        "lon": -4.2247,
+        "cloudNow": 5,
+        "sunAlt": -5.5,
+        "bz": -22,
+        "speed": 680,
+        "kp": 8.3,
+        "ovation": 82,
+        "hpiGw": 150,
+        "newell": 46949,
+        "mlt": 22,
+        "effMoonPct": 0
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -250,9 +406,18 @@
       "city": "Alta",
       "source": "NOAA SWPC / Arctic Norway winter G4 display",
       "input": {
-        "lat": 69.9689, "lon": 23.2716, "cloudNow": 15, "sunAlt": -32.0,
-        "bz": -18, "speed": 580, "kp": 8.0, "ovation": 92, "hpiGw": 140,
-        "newell": 18500, "mlt": 22.0, "effMoonPct": 2
+        "lat": 69.9689,
+        "lon": 23.2716,
+        "cloudNow": 15,
+        "sunAlt": -32,
+        "bz": -18,
+        "speed": 580,
+        "kp": 8,
+        "ovation": 92,
+        "hpiGw": 140,
+        "newell": 33222,
+        "mlt": 22,
+        "effMoonPct": 2
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -264,9 +429,18 @@
       "city": "Banff",
       "source": "SpaceWeatherLive / Alberta confirmed bright display",
       "input": {
-        "lat": 51.1784, "lon": -115.5708, "cloudNow": 10, "sunAlt": -45.0,
-        "bz": -18, "speed": 580, "kp": 8.0, "ovation": 85, "hpiGw": 140,
-        "newell": 18500, "mlt": 23.5, "effMoonPct": 2
+        "lat": 51.1784,
+        "lon": -115.5708,
+        "cloudNow": 10,
+        "sunAlt": -45,
+        "bz": -18,
+        "speed": 580,
+        "kp": 8,
+        "ovation": 85,
+        "hpiGw": 140,
+        "newell": 33222,
+        "mlt": 23.5,
+        "effMoonPct": 2
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -278,9 +452,18 @@
       "city": "Helsinki",
       "source": "FMI Finland / G4 aurora visible through 72% broken clouds",
       "input": {
-        "lat": 60.1699, "lon": 24.9384, "cloudNow": 72, "sunAlt": -38.0,
-        "bz": -18, "speed": 580, "kp": 8.0, "ovation": 78, "hpiGw": 140,
-        "newell": 18500, "mlt": 22.2, "effMoonPct": 0
+        "lat": 60.1699,
+        "lon": 24.9384,
+        "cloudNow": 72,
+        "sunAlt": -38,
+        "bz": -18,
+        "speed": 580,
+        "kp": 8,
+        "ovation": 78,
+        "hpiGw": 140,
+        "newell": 33222,
+        "mlt": 22.2,
+        "effMoonPct": 0
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -292,9 +475,19 @@
       "city": "Alta",
       "source": "Auroral oval reality: Alta (mag 67°) gets bright arcs at Kp 1.7 when Bz < -5 nT",
       "input": {
-        "lat": 69.9689, "lon": 23.2716, "cloudNow": 10, "sunAlt": -28.0,
-        "bz": -5.5, "speed": 460, "kp": 1.7, "ovation": 42, "hpiGw": 34,
-        "newell": 6200, "preconditionedNewell60": 5400, "mlt": 0.0, "effMoonPct": 10
+        "lat": 69.9689,
+        "lon": 23.2716,
+        "cloudNow": 10,
+        "sunAlt": -28,
+        "bz": -5.5,
+        "speed": 460,
+        "kp": 1.7,
+        "ovation": 42,
+        "hpiGw": 34,
+        "newell": 11071,
+        "preconditionedNewell60": 11340,
+        "mlt": 0,
+        "effMoonPct": 10
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -306,10 +499,20 @@
       "city": "Abisko",
       "source": "McPherron substorm cycle: 60-min southward loading + GOES dipolarization (+28 nT)",
       "input": {
-        "lat": 68.3495, "lon": 18.8312, "cloudNow": 5, "sunAlt": -30.0,
-        "bz": -1.0, "speed": 450, "kp": 1.3, "ovation": 35, "hpiGw": 38,
-        "newell": 2200, "preconditionedNewell60": 5800, "substormJumpNt": 28,
-        "mlt": 23.5, "effMoonPct": 5
+        "lat": 68.3495,
+        "lon": 18.8312,
+        "cloudNow": 5,
+        "sunAlt": -30,
+        "bz": -1,
+        "speed": 450,
+        "kp": 1.3,
+        "ovation": 35,
+        "hpiGw": 38,
+        "newell": 3831,
+        "preconditionedNewell60": 12180,
+        "substormJumpNt": 28,
+        "mlt": 23.5,
+        "effMoonPct": 5
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -321,9 +524,18 @@
       "city": "Yellowknife",
       "source": "Yellowknife (mag 69°) green curtains remain clearly visible under full moon",
       "input": {
-        "lat": 62.4540, "lon": -114.3718, "cloudNow": 10, "sunAlt": -36.0,
-        "bz": -4.5, "speed": 510, "kp": 2.5, "ovation": 48, "hpiGw": 42,
-        "newell": 5600, "mlt": 0.2, "effMoonPct": 85
+        "lat": 62.454,
+        "lon": -114.3718,
+        "cloudNow": 10,
+        "sunAlt": -36,
+        "bz": -4.5,
+        "speed": 510,
+        "kp": 2.5,
+        "ovation": 48,
+        "hpiGw": 42,
+        "newell": 11121,
+        "mlt": 0.2,
+        "effMoonPct": 85
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -335,9 +547,18 @@
       "city": "Rovaniemi",
       "source": "FMI Lapland / typical G1 active night",
       "input": {
-        "lat": 66.5039, "lon": 25.7294, "cloudNow": 15, "sunAlt": -32.0,
-        "bz": -7.0, "speed": 540, "kp": 5.0, "ovation": 72, "hpiGw": 68,
-        "newell": 8800, "mlt": 23.8, "effMoonPct": 15
+        "lat": 66.5039,
+        "lon": 25.7294,
+        "cloudNow": 15,
+        "sunAlt": -32,
+        "bz": -7,
+        "speed": 540,
+        "kp": 5,
+        "ovation": 72,
+        "hpiGw": 68,
+        "newell": 16095,
+        "mlt": 23.8,
+        "effMoonPct": 15
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -349,9 +570,18 @@
       "city": "Oslo",
       "source": "MET Norway / Oslo northern horizon aurora during G1",
       "input": {
-        "lat": 59.9139, "lon": 10.7522, "cloudNow": 5, "sunAlt": -28.0,
-        "bz": -7.0, "speed": 530, "kp": 5.0, "ovation": 30, "hpiGw": 68,
-        "newell": 8500, "mlt": 0.0, "effMoonPct": 0
+        "lat": 59.9139,
+        "lon": 10.7522,
+        "cloudNow": 5,
+        "sunAlt": -28,
+        "bz": -7,
+        "speed": 530,
+        "kp": 5,
+        "ovation": 30,
+        "hpiGw": 68,
+        "newell": 15699,
+        "mlt": 0,
+        "effMoonPct": 0
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -363,9 +593,18 @@
       "city": "Edinburgh",
       "source": "AuroraWatch UK Red Alert / Scotland widespread sightings",
       "input": {
-        "lat": 55.9533, "lon": -3.1883, "cloudNow": 10, "sunAlt": -26.0,
-        "bz": -10.0, "speed": 560, "kp": 6.0, "ovation": 35, "hpiGw": 85,
-        "newell": 12000, "mlt": 0.0, "effMoonPct": 0
+        "lat": 55.9533,
+        "lon": -3.1883,
+        "cloudNow": 10,
+        "sunAlt": -26,
+        "bz": -10,
+        "speed": 560,
+        "kp": 6,
+        "ovation": 35,
+        "hpiGw": 85,
+        "newell": 21426,
+        "mlt": 0,
+        "effMoonPct": 0
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -377,9 +616,18 @@
       "city": "Hobart",
       "source": "BOM Space Weather / Tasmania Aurora Australis sightings",
       "input": {
-        "lat": -42.8821, "lon": 147.3272, "cloudNow": 10, "sunAlt": -28.0,
-        "bz": -10.0, "speed": 560, "kp": 6.0, "ovation": 30, "hpiGw": 85,
-        "newell": 12000, "mlt": 0.0, "effMoonPct": 0
+        "lat": -42.8821,
+        "lon": 147.3272,
+        "cloudNow": 10,
+        "sunAlt": -28,
+        "bz": -10,
+        "speed": 560,
+        "kp": 6,
+        "ovation": 30,
+        "hpiGw": 85,
+        "newell": 21426,
+        "mlt": 0,
+        "effMoonPct": 0
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -391,10 +639,21 @@
       "city": "Edinburgh",
       "source": "Real-time L1 shock (Bz -18, 690 km/s, Pdyn 11 nPa, GOES +32 nT) while Kp lags at 2.3",
       "input": {
-        "lat": 55.9533, "lon": -3.1883, "cloudNow": 10, "sunAlt": -25.0,
-        "bz": -18, "speed": 690, "kp": 2.3, "ovation": 4, "hpiGw": 115,
-        "newell": 18500, "substormJumpNt": 32, "pdyn": 11, "shockJumpNpa": 7,
-        "mlt": 22.5, "effMoonPct": 0
+        "lat": 55.9533,
+        "lon": -3.1883,
+        "cloudNow": 10,
+        "sunAlt": -25,
+        "bz": -18,
+        "speed": 690,
+        "kp": 2.3,
+        "ovation": 4,
+        "hpiGw": 115,
+        "newell": 41878,
+        "substormJumpNt": 32,
+        "pdyn": 11,
+        "shockJumpNpa": 7,
+        "mlt": 22.5,
+        "effMoonPct": 0
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -406,10 +665,21 @@
       "city": "Queenstown",
       "source": "Real-time L1 shock while Kp lags at 2.5",
       "input": {
-        "lat": -45.0312, "lon": 168.6626, "cloudNow": 15, "sunAlt": -30.0,
-        "bz": -16, "speed": 660, "kp": 2.5, "ovation": 4, "hpiGw": 105,
-        "newell": 16500, "substormJumpNt": 24, "pdyn": 10, "shockJumpNpa": 6,
-        "mlt": 23.0, "effMoonPct": 0
+        "lat": -45.0312,
+        "lon": 168.6626,
+        "cloudNow": 15,
+        "sunAlt": -30,
+        "bz": -16,
+        "speed": 660,
+        "kp": 2.5,
+        "ovation": 4,
+        "hpiGw": 105,
+        "newell": 36487,
+        "substormJumpNt": 24,
+        "pdyn": 10,
+        "shockJumpNpa": 6,
+        "mlt": 23,
+        "effMoonPct": 0
       },
       "expectedVisible": true,
       "expectedAlert": true
@@ -421,9 +691,18 @@
       "city": "Berlin",
       "source": "Adversarial mid-lat trap: G1 oval stays over Nordics/Scotland, OVATION 0% over Berlin",
       "input": {
-        "lat": 52.5200, "lon": 13.4050, "cloudNow": 0, "sunAlt": -25.0,
-        "bz": -7.0, "speed": 500, "kp": 5.0, "ovation": 0, "hpiGw": 60,
-        "newell": 7500, "mlt": 0.0, "effMoonPct": 0
+        "lat": 52.52,
+        "lon": 13.405,
+        "cloudNow": 0,
+        "sunAlt": -25,
+        "bz": -7,
+        "speed": 500,
+        "kp": 5,
+        "ovation": 0,
+        "hpiGw": 60,
+        "newell": 14526,
+        "mlt": 0,
+        "effMoonPct": 0
       },
       "expectedVisible": false,
       "expectedAlert": false
@@ -435,9 +714,18 @@
       "city": "Melbourne",
       "source": "Adversarial mid-lat trap: G1 oval stays south of Tasmania, OVATION 0% over Melbourne",
       "input": {
-        "lat": -37.8136, "lon": 144.9631, "cloudNow": 0, "sunAlt": -30.0,
-        "bz": -7.0, "speed": 500, "kp": 5.0, "ovation": 0, "hpiGw": 60,
-        "newell": 7500, "mlt": 0.0, "effMoonPct": 0
+        "lat": -37.8136,
+        "lon": 144.9631,
+        "cloudNow": 0,
+        "sunAlt": -30,
+        "bz": -7,
+        "speed": 500,
+        "kp": 5,
+        "ovation": 0,
+        "hpiGw": 60,
+        "newell": 14526,
+        "mlt": 0,
+        "effMoonPct": 0
       },
       "expectedVisible": false,
       "expectedAlert": false
@@ -449,9 +737,18 @@
       "city": "Sapporo",
       "source": "Adversarial low-geomag trap (mag 35°): Sapporo requires G4/G5 (Kp 8-9), not G3 Kp 7",
       "input": {
-        "lat": 43.0618, "lon": 141.3545, "cloudNow": 0, "sunAlt": -25.0,
-        "bz": -14.0, "speed": 600, "kp": 7.0, "ovation": 0, "hpiGw": 100,
-        "newell": 15000, "mlt": 0.0, "effMoonPct": 0
+        "lat": 43.0618,
+        "lon": 141.3545,
+        "cloudNow": 0,
+        "sunAlt": -25,
+        "bz": -14,
+        "speed": 600,
+        "kp": 7,
+        "ovation": 0,
+        "hpiGw": 100,
+        "newell": 29396,
+        "mlt": 0,
+        "effMoonPct": 0
       },
       "expectedVisible": false,
       "expectedAlert": false
@@ -463,9 +760,18 @@
       "city": "Oslo",
       "source": "Magnetosphere closed under northward IMF — must NOT false-alarm!",
       "input": {
-        "lat": 59.9139, "lon": 10.7522, "cloudNow": 0, "sunAlt": -28.0,
-        "bz": 6.5, "speed": 720, "kp": 1.7, "ovation": 4, "hpiGw": 14,
-        "newell": 350, "mlt": 23.5, "effMoonPct": 0
+        "lat": 59.9139,
+        "lon": 10.7522,
+        "cloudNow": 0,
+        "sunAlt": -28,
+        "bz": 6.5,
+        "speed": 720,
+        "kp": 1.7,
+        "ovation": 4,
+        "hpiGw": 14,
+        "newell": 69,
+        "mlt": 23.5,
+        "effMoonPct": 0
       },
       "expectedVisible": false,
       "expectedAlert": false
@@ -477,9 +783,18 @@
       "city": "Tromsø",
       "source": "Adversarial northward-IMF trap even inside auroral oval: Newell 300 -> quiet sky",
       "input": {
-        "lat": 69.6492, "lon": 18.9553, "cloudNow": 0, "sunAlt": -30.0,
-        "bz": 8.0, "speed": 750, "kp": 2.0, "ovation": 10, "hpiGw": 16,
-        "newell": 300, "mlt": 23.0, "effMoonPct": 0
+        "lat": 69.6492,
+        "lon": 18.9553,
+        "cloudNow": 0,
+        "sunAlt": -30,
+        "bz": 8,
+        "speed": 750,
+        "kp": 2,
+        "ovation": 10,
+        "hpiGw": 16,
+        "newell": 48,
+        "mlt": 23,
+        "effMoonPct": 0
       },
       "expectedVisible": false,
       "expectedAlert": false
@@ -491,9 +806,18 @@
       "city": "Oslo",
       "source": "Oval remains far north in Finnmark — Oslo stays quiet",
       "input": {
-        "lat": 59.9139, "lon": 10.7522, "cloudNow": 0, "sunAlt": -28.0,
-        "bz": -2.0, "speed": 420, "kp": 1.7, "ovation": 2, "hpiGw": 18,
-        "newell": 2200, "mlt": 0.0, "effMoonPct": 0
+        "lat": 59.9139,
+        "lon": 10.7522,
+        "cloudNow": 0,
+        "sunAlt": -28,
+        "bz": -2,
+        "speed": 420,
+        "kp": 1.7,
+        "ovation": 2,
+        "hpiGw": 18,
+        "newell": 5093,
+        "mlt": 0,
+        "effMoonPct": 0
       },
       "expectedVisible": false,
       "expectedAlert": false
@@ -505,9 +829,18 @@
       "city": "Edinburgh",
       "source": "Oval sits ~10° poleward of Scotland — must score 0",
       "input": {
-        "lat": 55.9533, "lon": -3.1883, "cloudNow": 0, "sunAlt": -30.0,
-        "bz": 1.5, "speed": 380, "kp": 2.0, "ovation": 0, "hpiGw": 15,
-        "newell": 400, "mlt": 0.0, "effMoonPct": 0
+        "lat": 55.9533,
+        "lon": -3.1883,
+        "cloudNow": 0,
+        "sunAlt": -30,
+        "bz": 1.5,
+        "speed": 380,
+        "kp": 2,
+        "ovation": 0,
+        "hpiGw": 15,
+        "newell": 351,
+        "mlt": 0,
+        "effMoonPct": 0
       },
       "expectedVisible": false,
       "expectedAlert": false
@@ -519,9 +852,18 @@
       "city": "Hobart",
       "source": "Oval sits far south over Southern Ocean — must score 0",
       "input": {
-        "lat": -42.8821, "lon": 147.3272, "cloudNow": 0, "sunAlt": -32.0,
-        "bz": 2.0, "speed": 360, "kp": 1.5, "ovation": 0, "hpiGw": 12,
-        "newell": 300, "mlt": 0.0, "effMoonPct": 0
+        "lat": -42.8821,
+        "lon": 147.3272,
+        "cloudNow": 0,
+        "sunAlt": -32,
+        "bz": 2,
+        "speed": 360,
+        "kp": 1.5,
+        "ovation": 0,
+        "hpiGw": 12,
+        "newell": 219,
+        "mlt": 0,
+        "effMoonPct": 0
       },
       "expectedVisible": false,
       "expectedAlert": false
@@ -533,9 +875,18 @@
       "city": "Tromsø",
       "source": "Quiet sky (Newell 120, HPI 9 GW, OVATION 6%) — clear stars, no active aurora",
       "input": {
-        "lat": 69.6492, "lon": 18.9553, "cloudNow": 0, "sunAlt": -30.0,
-        "bz": 4.0, "speed": 310, "kp": 0.3, "ovation": 6, "hpiGw": 9,
-        "newell": 120, "mlt": 22.0, "effMoonPct": 0
+        "lat": 69.6492,
+        "lon": 18.9553,
+        "cloudNow": 0,
+        "sunAlt": -30,
+        "bz": 4,
+        "speed": 310,
+        "kp": 0.3,
+        "ovation": 6,
+        "hpiGw": 9,
+        "newell": 56,
+        "mlt": 22,
+        "effMoonPct": 0
       },
       "expectedVisible": false,
       "expectedAlert": false
@@ -547,9 +898,18 @@
       "city": "Alta",
       "source": "Faint quiet oval washed out by 90% full moon glare",
       "input": {
-        "lat": 69.9689, "lon": 23.2716, "cloudNow": 0, "sunAlt": -30.0,
-        "bz": -1.0, "speed": 350, "kp": 0.7, "ovation": 10, "hpiGw": 11,
-        "newell": 800, "mlt": 22.0, "effMoonPct": 90
+        "lat": 69.9689,
+        "lon": 23.2716,
+        "cloudNow": 0,
+        "sunAlt": -30,
+        "bz": -1,
+        "speed": 350,
+        "kp": 0.7,
+        "ovation": 10,
+        "hpiGw": 11,
+        "newell": 2740,
+        "mlt": 22,
+        "effMoonPct": 90
       },
       "expectedVisible": false,
       "expectedAlert": false
@@ -561,9 +921,18 @@
       "city": "Reykjavik",
       "source": "Thick North Atlantic cloud deck (88%) hides moderate aurora",
       "input": {
-        "lat": 64.1466, "lon": -21.9426, "cloudNow": 88, "sunAlt": -28.0,
-        "bz": -4.0, "speed": 480, "kp": 3.0, "ovation": 45, "hpiGw": 42,
-        "newell": 5200, "mlt": 23.5, "effMoonPct": 0
+        "lat": 64.1466,
+        "lon": -21.9426,
+        "cloudNow": 88,
+        "sunAlt": -28,
+        "bz": -4,
+        "speed": 480,
+        "kp": 3,
+        "ovation": 45,
+        "hpiGw": 42,
+        "newell": 9490,
+        "mlt": 23.5,
+        "effMoonPct": 0
       },
       "expectedVisible": false,
       "expectedAlert": false
@@ -575,9 +944,18 @@
       "city": "Alta",
       "source": "Thick Arctic coastal stratus (95%) blocks aurora completely",
       "input": {
-        "lat": 69.9689, "lon": 23.2716, "cloudNow": 95, "sunAlt": -30.0,
-        "bz": -9.0, "speed": 580, "kp": 5.0, "ovation": 85, "hpiGw": 75,
-        "newell": 11000, "mlt": 0.0, "effMoonPct": 0
+        "lat": 69.9689,
+        "lon": 23.2716,
+        "cloudNow": 95,
+        "sunAlt": -30,
+        "bz": -9,
+        "speed": 580,
+        "kp": 5,
+        "ovation": 85,
+        "hpiGw": 75,
+        "newell": 20930,
+        "mlt": 0,
+        "effMoonPct": 0
       },
       "expectedVisible": false,
       "expectedAlert": false
@@ -589,9 +967,18 @@
       "city": "Kiruna",
       "source": "Daylight completely overwhelms aurora emission",
       "input": {
-        "lat": 67.8558, "lon": 20.2253, "cloudNow": 0, "sunAlt": 8.0,
-        "bz": -20, "speed": 700, "kp": 8.0, "ovation": 95, "hpiGw": 150,
-        "newell": 22000, "mlt": 12.0, "effMoonPct": 0
+        "lat": 67.8558,
+        "lon": 20.2253,
+        "cloudNow": 0,
+        "sunAlt": 8,
+        "bz": -20,
+        "speed": 700,
+        "kp": 8,
+        "ovation": 95,
+        "hpiGw": 150,
+        "newell": 45795,
+        "mlt": 12,
+        "effMoonPct": 0
       },
       "expectedVisible": false,
       "expectedAlert": false
@@ -603,9 +990,18 @@
       "city": "Reykjavik",
       "source": "Sky still too bright above -4° civil twilight threshold",
       "input": {
-        "lat": 64.1466, "lon": -21.9426, "cloudNow": 0, "sunAlt": -2.5,
-        "bz": -3.0, "speed": 430, "kp": 3.0, "ovation": 35, "hpiGw": 35,
-        "newell": 3800, "mlt": 20.5, "effMoonPct": 0
+        "lat": 64.1466,
+        "lon": -21.9426,
+        "cloudNow": 0,
+        "sunAlt": -2.5,
+        "bz": -3,
+        "speed": 430,
+        "kp": 3,
+        "ovation": 35,
+        "hpiGw": 35,
+        "newell": 6789,
+        "mlt": 20.5,
+        "effMoonPct": 0
       },
       "expectedVisible": false,
       "expectedAlert": false
@@ -617,11 +1013,669 @@
       "city": "Singapore",
       "source": "Geomagnetic lat ~8°S: physically impossible",
       "input": {
-        "lat": 1.3521, "lon": 103.8198, "cloudNow": 0, "sunAlt": -55.0,
-        "bz": -40, "speed": 900, "kp": 9.0, "ovation": 0, "hpiGw": 220,
-        "newell": 38000, "mlt": 0.0, "effMoonPct": 0
+        "lat": 1.3521,
+        "lon": 103.8198,
+        "cloudNow": 0,
+        "sunAlt": -55,
+        "bz": -40,
+        "speed": 900,
+        "kp": 9,
+        "ovation": 0,
+        "hpiGw": 220,
+        "newell": 101632,
+        "mlt": 0,
+        "effMoonPct": 0
       },
       "expectedVisible": false,
+      "expectedAlert": false
+    },
+    {
+      "id": "sh_invercargill_g2",
+      "category": "G2-Moderate",
+      "event": "G2 Moderate Storm (Kp 6.0) over Southland NZ",
+      "city": "Invercargill",
+      "source": "NIWA / Invercargill naked-eye Aurora Australis",
+      "input": {
+        "lat": -46.4132,
+        "lon": 168.3538,
+        "cloudNow": 10,
+        "sunAlt": -32,
+        "bz": -10,
+        "speed": 560,
+        "kp": 6,
+        "ovation": 32,
+        "hpiGw": 85,
+        "newell": 21426,
+        "mlt": 0,
+        "effMoonPct": 5
+      },
+      "expectedVisible": true,
+      "expectedAlert": true
+    },
+    {
+      "id": "sh_dunedin_g4_oct2024",
+      "category": "G4-Severe",
+      "event": "2024-10-10 G4 Severe Storm over Otago NZ",
+      "city": "Dunedin",
+      "source": "Otago Museum / NZ Aurora Australis reports",
+      "input": {
+        "lat": -45.8788,
+        "lon": 170.5028,
+        "cloudNow": 25,
+        "sunAlt": -34,
+        "bz": -26,
+        "speed": 710,
+        "kp": 8.3,
+        "ovation": 75,
+        "hpiGw": 165,
+        "newell": 55590,
+        "mlt": 23.5,
+        "effMoonPct": 10
+      },
+      "expectedVisible": true,
+      "expectedAlert": true
+    },
+    {
+      "id": "sh_capetown_g5_gannon",
+      "category": "G5-Superstorm",
+      "event": "2024-05-10 G5 Gannon Superstorm over South Africa (Eccentric Dipole)",
+      "city": "Cape Town",
+      "source": "SANSA / confirmed Cape Town & Hermanus red Aurora Australis sightings",
+      "input": {
+        "lat": -33.9249,
+        "lon": 18.4241,
+        "cloudNow": 10,
+        "sunAlt": -42,
+        "bz": -38,
+        "speed": 800,
+        "kp": 9,
+        "ovation": 20,
+        "hpiGw": 210,
+        "newell": 83941,
+        "mlt": 23.8,
+        "effMoonPct": 0
+      },
+      "expectedVisible": true,
+      "expectedAlert": true
+    },
+    {
+      "id": "sh_hobart_g4_broken_clouds",
+      "category": "Broken-Cloud-Storm",
+      "event": "G4 Storm through 70% Broken Clouds in Tasmania",
+      "city": "Hobart",
+      "source": "BOM / Hobart bright aurora visible through cloud breaks",
+      "input": {
+        "lat": -42.8821,
+        "lon": 147.3272,
+        "cloudNow": 70,
+        "sunAlt": -36,
+        "bz": -22,
+        "speed": 690,
+        "kp": 8,
+        "ovation": 68,
+        "hpiGw": 155,
+        "newell": 47872,
+        "mlt": 0,
+        "effMoonPct": 0
+      },
+      "expectedVisible": true,
+      "expectedAlert": true
+    },
+    {
+      "id": "sh_ushuaia_g5_gannon",
+      "category": "G5-Superstorm",
+      "event": "2024-05-10 G5 Gannon Superstorm in Tierra del Fuego",
+      "city": "Ushuaia",
+      "source": "Confirmed widespread pink/red aurora in Ushuaia (inv lat ~-41.5°)",
+      "input": {
+        "lat": -54.8019,
+        "lon": -68.303,
+        "cloudNow": 10,
+        "sunAlt": -45,
+        "bz": -38,
+        "speed": 780,
+        "kp": 9,
+        "ovation": 35,
+        "hpiGw": 210,
+        "newell": 81155,
+        "mlt": 23.5,
+        "effMoonPct": 0
+      },
+      "expectedVisible": true,
+      "expectedAlert": true
+    },
+    {
+      "id": "sh_mcmurdo_polar_summer_trap",
+      "category": "Daylight-Trap",
+      "event": "Antarctic Summer Midnight Sun (+14° Sun) During G4 Storm",
+      "city": "McMurdo",
+      "source": "Antarctic December midnight sun blocks all aurora viewing",
+      "input": {
+        "lat": -77.8419,
+        "lon": 166.6863,
+        "cloudNow": 0,
+        "sunAlt": 14,
+        "bz": -24,
+        "speed": 700,
+        "kp": 8.3,
+        "ovation": 90,
+        "hpiGw": 160,
+        "newell": 51714,
+        "mlt": 0,
+        "effMoonPct": 0
+      },
+      "expectedVisible": false,
+      "expectedAlert": false
+    },
+    {
+      "id": "sh_queenstown_g1_fair",
+      "category": "Fair-Camera-First",
+      "event": "G1 Minor Storm in Queenstown (Low Horizon Camera-First)",
+      "city": "Queenstown",
+      "source": "Low southern horizon glow visible on camera during G1 (not wake-up alert)",
+      "input": {
+        "lat": -45.0312,
+        "lon": 168.6626,
+        "cloudNow": 35,
+        "sunAlt": -30,
+        "bz": -6.5,
+        "speed": 500,
+        "kp": 5,
+        "ovation": 20,
+        "hpiGw": 55,
+        "newell": 13827,
+        "mlt": 0,
+        "effMoonPct": 20
+      },
+      "expectedVisible": true,
+      "expectedAlert": false
+    },
+    {
+      "id": "halloween_2003_oslo_g5",
+      "category": "G5-Superstorm",
+      "event": "2003-10-30 Halloween G5 Superstorm (1850 km/s CME, Bz -50 nT)",
+      "city": "Oslo",
+      "source": "NOAA SWPC / historic extreme CME overhead in Southern Norway",
+      "input": {
+        "lat": 59.9139,
+        "lon": 10.7522,
+        "cloudNow": 15,
+        "sunAlt": -30,
+        "bz": -50,
+        "speed": 1850,
+        "kp": 9,
+        "ovation": 95,
+        "hpiGw": 250,
+        "newell": 308231,
+        "pdyn": 38,
+        "shockJumpNpa": 25,
+        "mlt": 23.5,
+        "effMoonPct": 0
+      },
+      "expectedVisible": true,
+      "expectedAlert": true
+    },
+    {
+      "id": "halloween_2003_sapporo_g5",
+      "category": "G5-Superstorm",
+      "event": "2003-10-30 Halloween G5 Superstorm over Hokkaido",
+      "city": "Sapporo",
+      "source": "NICT Japan / confirmed Hokkaido crimson aurora",
+      "input": {
+        "lat": 43.0618,
+        "lon": 141.3545,
+        "cloudNow": 10,
+        "sunAlt": -30,
+        "bz": -48,
+        "speed": 1850,
+        "kp": 9,
+        "ovation": 22,
+        "hpiGw": 240,
+        "newell": 299955,
+        "mlt": 23,
+        "effMoonPct": 0
+      },
+      "expectedVisible": true,
+      "expectedAlert": true
+    },
+    {
+      "id": "halloween_2003_london_g5",
+      "category": "G5-Superstorm",
+      "event": "2003-10-30 Halloween G5 Superstorm over London",
+      "city": "London",
+      "source": "UK sightings across Southern England",
+      "input": {
+        "lat": 51.5074,
+        "lon": -0.1278,
+        "cloudNow": 30,
+        "sunAlt": -26,
+        "bz": -45,
+        "speed": 1700,
+        "kp": 9,
+        "ovation": 85,
+        "hpiGw": 230,
+        "newell": 256689,
+        "mlt": 23.5,
+        "effMoonPct": 0
+      },
+      "expectedVisible": true,
+      "expectedAlert": true
+    },
+    {
+      "id": "goes_diurnal_quiet_trap_tromso",
+      "category": "GOES-Diurnal-Trap",
+      "event": "Quiet Night with Mild GOES Diurnal Drift (+11 nT < 15 nT)",
+      "city": "Tromsø",
+      "source": "Normal quiet geostationary diurnal Hp drift must not false-alarm",
+      "input": {
+        "lat": 69.6492,
+        "lon": 18.9553,
+        "cloudNow": 10,
+        "sunAlt": -28,
+        "bz": 2.5,
+        "speed": 340,
+        "kp": 0.7,
+        "ovation": 8,
+        "hpiGw": 11,
+        "newell": 143,
+        "substormJumpNt": 11,
+        "mlt": 22,
+        "effMoonPct": 10
+      },
+      "expectedVisible": false,
+      "expectedAlert": false
+    },
+    {
+      "id": "goes_true_dipolarization_alta",
+      "category": "Nordic-Substorm",
+      "event": "True Magnetotail Dipolarization (+34 nT) During Low Kp in Alta",
+      "city": "Alta",
+      "source": "GOES nightside dipolarization triggers bright Arctic substorm",
+      "input": {
+        "lat": 69.9689,
+        "lon": 23.2716,
+        "cloudNow": 40,
+        "sunAlt": -28,
+        "bz": -2,
+        "speed": 420,
+        "kp": 1.3,
+        "ovation": 28,
+        "hpiGw": 30,
+        "newell": 5093,
+        "substormJumpNt": 34,
+        "mlt": 23.5,
+        "effMoonPct": 5
+      },
+      "expectedVisible": true,
+      "expectedAlert": true
+    },
+    {
+      "id": "goes_dipolarization_overcast_trap",
+      "category": "Overcast-Block",
+      "event": "GOES Substorm (+38 nT) Under 92% Solid Overcast",
+      "city": "Alta",
+      "source": "Substorm alert must stay suppressed when sky is 92% overcast",
+      "input": {
+        "lat": 69.9689,
+        "lon": 23.2716,
+        "cloudNow": 92,
+        "sunAlt": -30,
+        "bz": -4,
+        "speed": 480,
+        "kp": 2.3,
+        "ovation": 50,
+        "hpiGw": 45,
+        "newell": 9490,
+        "substormJumpNt": 38,
+        "mlt": 0,
+        "effMoonPct": 0
+      },
+      "expectedVisible": false,
+      "expectedAlert": false
+    },
+    {
+      "id": "trap_heavy_snowfall_tromso",
+      "category": "Snow-Fog-Trap",
+      "event": "Heavy Arctic Snowstorm (98% effective cloud) During G2 Storm",
+      "city": "Tromsø",
+      "source": "Dense snowfall stratus blocks G2 aurora completely",
+      "input": {
+        "lat": 69.6492,
+        "lon": 18.9553,
+        "cloudNow": 98,
+        "sunAlt": -30,
+        "bz": -10,
+        "speed": 580,
+        "kp": 6,
+        "ovation": 85,
+        "hpiGw": 90,
+        "newell": 22453,
+        "mlt": 0,
+        "effMoonPct": 0
+      },
+      "expectedVisible": false,
+      "expectedAlert": false
+    },
+    {
+      "id": "trap_coastal_fog_lofoten",
+      "category": "Snow-Fog-Trap",
+      "event": "100% Coastal Sea Fog During G3 Storm in Lofoten",
+      "city": "Lofoten",
+      "source": "100% fog_area_fraction overrides clear upper sky",
+      "input": {
+        "lat": 68.2342,
+        "lon": 14.5683,
+        "cloudNow": 100,
+        "sunAlt": -30,
+        "bz": -14,
+        "speed": 640,
+        "kp": 7,
+        "ovation": 90,
+        "hpiGw": 120,
+        "newell": 32038,
+        "mlt": 0,
+        "effMoonPct": 0
+      },
+      "expectedVisible": false,
+      "expectedAlert": false
+    },
+    {
+      "id": "cirrus_only_g1_abisko",
+      "category": "G1-Minor",
+      "event": "100% Thin High Cirrus (30% eff cloud) During G1 Storm in Abisko",
+      "city": "Abisko",
+      "source": "Bright G1 aurora shines clearly through thin 100% high cirrus (30% effective occlusion)",
+      "input": {
+        "lat": 68.3495,
+        "lon": 18.8312,
+        "cloudNow": 30,
+        "sunAlt": -32,
+        "bz": -7,
+        "speed": 540,
+        "kp": 5,
+        "ovation": 72,
+        "hpiGw": 68,
+        "newell": 16095,
+        "mlt": 23.5,
+        "effMoonPct": 10
+      },
+      "expectedVisible": true,
+      "expectedAlert": true
+    },
+    {
+      "id": "broken_cloud_weak_aurora_trap",
+      "category": "False-Alarm-Trap",
+      "event": "78% Cloud Cover with Quiet Kp 1.0 Northward IMF in Alta",
+      "city": "Alta",
+      "source": "Storm-gap softening must NOT fire when aurora is quiet",
+      "input": {
+        "lat": 69.9689,
+        "lon": 23.2716,
+        "cloudNow": 78,
+        "sunAlt": -30,
+        "bz": 1,
+        "speed": 360,
+        "kp": 1,
+        "ovation": 12,
+        "hpiGw": 15,
+        "newell": 512,
+        "mlt": 23,
+        "effMoonPct": 0
+      },
+      "expectedVisible": false,
+      "expectedAlert": false
+    },
+    {
+      "id": "twilight_boundary_bright_3_9_alta",
+      "category": "Daylight-Trap",
+      "event": "Exact Twilight Gate Just Above Threshold (sunAlt -3.9°)",
+      "city": "Alta",
+      "source": "Hard daylight gate blocks >= -4.0° even during G5 superstorm",
+      "input": {
+        "lat": 69.9689,
+        "lon": 23.2716,
+        "cloudNow": 0,
+        "sunAlt": -3.9,
+        "bz": -35,
+        "speed": 800,
+        "kp": 9,
+        "ovation": 95,
+        "hpiGw": 200,
+        "newell": 79463,
+        "mlt": 0,
+        "effMoonPct": 0
+      },
+      "expectedVisible": false,
+      "expectedAlert": false
+    },
+    {
+      "id": "twilight_boundary_exact_4_0_alta",
+      "category": "Daylight-Trap",
+      "event": "Exact Twilight Gate Boundary (sunAlt -4.0°)",
+      "city": "Alta",
+      "source": "Boundary condition sunAlt >= -4.0° strictly returns 0",
+      "input": {
+        "lat": 69.9689,
+        "lon": 23.2716,
+        "cloudNow": 0,
+        "sunAlt": -4,
+        "bz": -35,
+        "speed": 800,
+        "kp": 9,
+        "ovation": 95,
+        "hpiGw": 200,
+        "newell": 79463,
+        "mlt": 0,
+        "effMoonPct": 0
+      },
+      "expectedVisible": false,
+      "expectedAlert": false
+    },
+    {
+      "id": "twilight_boundary_4_5_g5_alta",
+      "category": "Twilight-Storm",
+      "event": "G5 Superstorm Just Below Twilight Gate (sunAlt -4.5°)",
+      "city": "Alta",
+      "source": "Bright G5 aurora just below -4° unlocks Twilight/Visible state (never Quiet!)",
+      "input": {
+        "lat": 69.9689,
+        "lon": 23.2716,
+        "cloudNow": 5,
+        "sunAlt": -4.5,
+        "bz": -35,
+        "speed": 800,
+        "kp": 9,
+        "ovation": 95,
+        "hpiGw": 200,
+        "newell": 79463,
+        "mlt": 0,
+        "effMoonPct": 0
+      },
+      "expectedVisible": true,
+      "expectedAlert": true
+    },
+    {
+      "id": "midnight_sun_solstice_svalbard_g5",
+      "category": "Daylight-Trap",
+      "event": "Svalbard Summer Solstice Midnight Sun (+12° Sun) During G5",
+      "city": "Longyearbyen",
+      "source": "Arctic midnight sun completely prevents optical aurora viewing",
+      "input": {
+        "lat": 78.2232,
+        "lon": 15.6267,
+        "cloudNow": 0,
+        "sunAlt": 12,
+        "bz": -35,
+        "speed": 800,
+        "kp": 9,
+        "ovation": 95,
+        "hpiGw": 200,
+        "newell": 79463,
+        "mlt": 0,
+        "effMoonPct": 0
+      },
+      "expectedVisible": false,
+      "expectedAlert": false
+    },
+    {
+      "id": "outage_ovation_hpi_null_alta_g2",
+      "category": "Partial-Outage",
+      "event": "NOAA OVATION & HPI Outage During G2 Storm in Alta",
+      "city": "Alta",
+      "source": "Must remain accurate using Kp + L1 solar wind when OVATION & HPI are null",
+      "input": {
+        "lat": 69.9689,
+        "lon": 23.2716,
+        "cloudNow": 15,
+        "sunAlt": -30,
+        "bz": -10,
+        "speed": 580,
+        "kp": 6,
+        "ovation": null,
+        "hpiGw": null,
+        "newell": 22453,
+        "mlt": 0,
+        "effMoonPct": 5
+      },
+      "expectedVisible": true,
+      "expectedAlert": true
+    },
+    {
+      "id": "outage_rtsw_null_tromso_g3",
+      "category": "Partial-Outage",
+      "event": "NOAA RTSW L1 Solar Wind Outage During G3 Storm in Tromsø",
+      "city": "Tromsø",
+      "source": "Must remain accurate via Kp + OVATION + HPI when DSCOVR/ACE L1 is offline",
+      "input": {
+        "lat": 69.6492,
+        "lon": 18.9553,
+        "cloudNow": 15,
+        "sunAlt": -30,
+        "bz": null,
+        "speed": null,
+        "kp": 7,
+        "ovation": 82,
+        "hpiGw": 120,
+        "newell": null,
+        "mlt": 0,
+        "effMoonPct": 5
+      },
+      "expectedVisible": true,
+      "expectedAlert": true
+    },
+    {
+      "id": "outage_kp_only_fallback_abisko",
+      "category": "Partial-Outage",
+      "event": "Kp-Only Fallback (All Other NOAA Feeds Null) During G1 in Abisko",
+      "city": "Abisko",
+      "source": "Graceful degradation when only planetary Kp is reachable",
+      "input": {
+        "lat": 68.3495,
+        "lon": 18.8312,
+        "cloudNow": 10,
+        "sunAlt": -30,
+        "bz": null,
+        "speed": null,
+        "kp": 5,
+        "ovation": null,
+        "hpiGw": null,
+        "newell": null,
+        "mlt": 0,
+        "effMoonPct": 0
+      },
+      "expectedVisible": true,
+      "expectedAlert": true
+    },
+    {
+      "id": "outage_midlat_kp_only_quiet_berlin",
+      "category": "Partial-Outage",
+      "event": "Kp-Only Fallback Quiet Night in Mid-Lat Berlin",
+      "city": "Berlin",
+      "source": "Mid-latitude hard gate must remain active during partial NOAA outages",
+      "input": {
+        "lat": 52.52,
+        "lon": 13.405,
+        "cloudNow": 0,
+        "sunAlt": -30,
+        "bz": null,
+        "speed": null,
+        "kp": 1.5,
+        "ovation": null,
+        "hpiGw": null,
+        "newell": null,
+        "mlt": 0,
+        "effMoonPct": 0
+      },
+      "expectedVisible": false,
+      "expectedAlert": false
+    },
+    {
+      "id": "fair_camera_first_alta_kp1",
+      "category": "Fair-Camera-First",
+      "event": "Mild Quiet-Oval Camera Arc in Alta (Kp 1.0, Bz -2.2)",
+      "city": "Alta",
+      "source": "Faint oval arc worth camera check (score 18–39) without waking user at 3 AM",
+      "input": {
+        "lat": 69.9689,
+        "lon": 23.2716,
+        "cloudNow": 10,
+        "sunAlt": -28,
+        "bz": -2.2,
+        "speed": 390,
+        "kp": 1,
+        "ovation": 22,
+        "hpiGw": 20,
+        "newell": 4893,
+        "mlt": 22,
+        "effMoonPct": 10
+      },
+      "expectedVisible": true,
+      "expectedAlert": false
+    },
+    {
+      "id": "fair_camera_first_reykjavik_moon",
+      "category": "Fair-Camera-First",
+      "event": "Moderate Activity Under Bright Moon & Light Cloud in Reykjavik",
+      "city": "Reykjavik",
+      "source": "Visible on camera/faint naked eye (score 18–39), below push-alert threshold",
+      "input": {
+        "lat": 64.1466,
+        "lon": -21.9426,
+        "cloudNow": 30,
+        "sunAlt": -28,
+        "bz": -3,
+        "speed": 410,
+        "kp": 2,
+        "ovation": 26,
+        "hpiGw": 24,
+        "newell": 6371,
+        "mlt": 22.5,
+        "effMoonPct": 80
+      },
+      "expectedVisible": true,
+      "expectedAlert": false
+    },
+    {
+      "id": "fair_camera_first_oslo_g1_cloudy",
+      "category": "Fair-Camera-First",
+      "event": "G1 Storm with 50% Cloud Cover in Oslo (Camera-First Band)",
+      "city": "Oslo",
+      "source": "Marginal sub-auroral G1 with half cloud cover -> visible Fair, not wake-up Alert",
+      "input": {
+        "lat": 59.9139,
+        "lon": 10.7522,
+        "cloudNow": 50,
+        "sunAlt": -28,
+        "bz": -6.5,
+        "speed": 500,
+        "kp": 5,
+        "ovation": 25,
+        "hpiGw": 58,
+        "newell": 13827,
+        "mlt": 0,
+        "effMoonPct": 15
+      },
+      "expectedVisible": true,
       "expectedAlert": false
     }
   ]

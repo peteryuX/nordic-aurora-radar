@@ -1,5 +1,12 @@
 name: Aurora Radar CI & Live API Check
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 on:
   push:
     branches: [main]
@@ -12,19 +19,23 @@ on:
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run automated scientific & UI regression suite
+      - name: Syntax check all ES modules, SW & test scripts
+        run: node --check src/aurora-engine.js src/charts.js src/app.js sw.js tests/aurora.test.mjs tests/benchmark.mjs
+      - name: Run 37 automated physics, chaos, monotonicity, SVG fuzz & security tests
         run: node --test tests/aurora.test.mjs
-      - name: Run quantitative forecast & NASA JPL ephemeris benchmark
+      - name: Run quantitative calibration (72 storms) & NASA JPL DE441 (22 checkpoints) benchmark
         run: node tests/benchmark.mjs
 
   live-api-health:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

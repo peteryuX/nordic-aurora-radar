@@ -161,6 +161,66 @@
       "jplSunAltDeg": 88.101,
       "jplMoonAltDeg": 8.975,
       "jplMoonIllumPct": 43.16
+    },
+    {
+      "id": "chatham_antimeridian",
+      "label": "Chatham Islands Antimeridian Winter",
+      "utc": "2026-06-21T12:00:00Z",
+      "lat": -43.95,
+      "lon": -176.55,
+      "jplSunAltDeg": -69.342,
+      "jplMoonAltDeg": -6.967,
+      "jplMoonIllumPct": 45.07
+    },
+    {
+      "id": "alta_leap_day",
+      "label": "Alta Leap Day Night",
+      "utc": "2024-02-29T22:00:00Z",
+      "lat": 69.9689,
+      "lon": 23.2716,
+      "jplSunAltDeg": -27.228,
+      "jplMoonAltDeg": -8.046,
+      "jplMoonIllumPct": 75.67
+    },
+    {
+      "id": "tromso_civil_twilight_minus4",
+      "label": "Tromsø Evening Civil/Nautical Twilight",
+      "utc": "2026-03-20T18:05:00Z",
+      "lat": 69.6492,
+      "lon": 18.9553,
+      "jplSunAltDeg": -6.242,
+      "jplMoonAltDeg": 10.698,
+      "jplMoonIllumPct": 3.62
+    },
+    {
+      "id": "reykjavik_nautical_minus12",
+      "label": "Reykjavik Nautical Twilight (-12 deg boundary)",
+      "utc": "2026-03-20T21:40:00Z",
+      "lat": 64.1466,
+      "lon": -21.9426,
+      "jplSunAltDeg": -12.964,
+      "jplMoonAltDeg": 6.411,
+      "jplMoonIllumPct": 4.28
+    },
+    {
+      "id": "alta_moon_horizon_crossing",
+      "label": "Tromsø Moon Near Horizon Crossing",
+      "utc": "2025-10-15T21:35:00Z",
+      "lat": 69.6492,
+      "lon": 18.9553,
+      "jplSunAltDeg": -28.574,
+      "jplMoonAltDeg": 1.792,
+      "jplMoonIllumPct": 27.58
+    },
+    {
+      "id": "south_pole_winter",
+      "label": "South Pole Deep Polar Night",
+      "utc": "2026-06-21T00:00:00Z",
+      "lat": -89.5,
+      "lon": 0.0,
+      "jplSunAltDeg": -23.94,
+      "jplMoonAltDeg": -4.153,
+      "jplMoonIllumPct": 40.29
     }
   ]
 }

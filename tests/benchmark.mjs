@@ -40,7 +40,30 @@ function calcMetrics({ tp, fn, tn, fp }) {
   const precision = (tp + fp) ? tp / (tp + fp) : 1;
   const f1 = (precision + recall) ? (2 * precision * recall) / (precision + recall) : 0;
   const accuracy = total ? (tp + tn) / total : 1;
-  return { tp, fn, tn, fp, total, recall, fnr, specificity, precision, f1, accuracy };
+  const mccDen = Math.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn));
+  const mcc = mccDen > 0 ? (tp * tn - fp * fn) / mccDen : 0;
+  return { tp, fn, tn, fp, total, recall, fnr, specificity, precision, f1, accuracy, mcc };
+}
+
+function classifyDomainSlice(ev) {
+  if (ev.category === 'Partial-Outage') return 'Partial Feed Outages';
+  if (['False-Alarm-Trap', 'Low-Lat-Control', 'GOES-Diurnal-Trap'].includes(ev.category)) return 'False-Alarm & Controls';
+  if (['Overcast-Block', 'Daylight-Trap', 'Snow-Fog-Trap', 'Broken-Cloud-Storm', 'Twilight-Storm'].includes(ev.category)) return 'Weather & Daylight Traps';
+  if (ev.input.lat < 0) return 'Southern Hemisphere';
+  if (ev.input.lat >= 62) return 'Arctic Oval';
+  return 'Sub-Auroral & Mid-Lat';
+}
+
+function calcRocAuc(posScores, negScores) {
+  if (!posScores.length || !negScores.length) return 1;
+  let wins = 0;
+  for (const p of posScores) {
+    for (const n of negScores) {
+      if (p > n) wins += 1;
+      else if (p === n) wins += 0.5;
+    }
+  }
+  return wins / (posScores.length * negScores.length);
 }
 
 async function fetchJsonRetry(url, headers, retries = 1) {
@@ -64,6 +87,20 @@ export function evaluateHistoricalBenchmark() {
   const alrt = { tp: 0, fn: 0, tn: 0, fp: 0 };
   const visMisses = [];
   const alertMisses = [];
+  const posScores = [];
+  const negScores = [];
+  const alertScores = [];
+  const fairOnlyScores = [];
+  let brierSum = 0;
+  let posCount = 0;
+
+  const tiers = [
+    { label: '0–17  (Blocked/Quiet)', lo: 0, hi: 17, n: 0, visPos: 0, alrtPos: 0, scoreSum: 0 },
+    { label: '18–39 (Fair/Camera)  ', lo: 18, hi: 39, n: 0, visPos: 0, alrtPos: 0, scoreSum: 0 },
+    { label: '40–64 (Good)         ', lo: 40, hi: 64, n: 0, visPos: 0, alrtPos: 0, scoreSum: 0 },
+    { label: '65–99 (Prime)        ', lo: 65, hi: 99, n: 0, visPos: 0, alrtPos: 0, scoreSum: 0 }
+  ];
+  const sliceMap = new Map();
 
   for (const ev of data.events) {
     const sc = api.computeAuroraScore(ev.input);
@@ -83,14 +120,79 @@ export function evaluateHistoricalBenchmark() {
     else if (ev.expectedAlert && !predAlert) { alrt.fn++; alertMisses.push({ type: 'FN', ev, sc, alertRes }); }
     else if (!ev.expectedAlert && !predAlert) alrt.tn++;
     else { alrt.fp++; alertMisses.push({ type: 'FP', ev, sc, alertRes }); }
+
+    // Continuous calibration & separation tracking
+    const pProb = sc.total / 99;
+    const y = ev.expectedVisible ? 1 : 0;
+    brierSum += Math.pow(pProb - y, 2);
+    if (ev.expectedVisible) {
+      posCount++;
+      posScores.push(sc.total);
+      if (ev.expectedAlert) alertScores.push(sc.total);
+      else fairOnlyScores.push(sc.total);
+    } else {
+      negScores.push(sc.total);
+    }
+
+    const tier = tiers.find(t => sc.total >= t.lo && sc.total <= t.hi);
+    if (tier) {
+      tier.n++;
+      if (ev.expectedVisible) tier.visPos++;
+      if (ev.expectedAlert) tier.alrtPos++;
+      tier.scoreSum += sc.total;
+    }
+
+    const sName = classifyDomainSlice(ev);
+    if (!sliceMap.has(sName)) {
+      sliceMap.set(sName, { name: sName, tp: 0, fn: 0, tn: 0, fp: 0, posSum: 0, posN: 0, negSum: 0, negN: 0 });
+    }
+    const sl = sliceMap.get(sName);
+    if (ev.expectedVisible) {
+      sl.posSum += sc.total; sl.posN++;
+      if (predVis) sl.tp++; else sl.fn++;
+    } else {
+      sl.negSum += sc.total; sl.negN++;
+      if (!predVis) sl.tn++; else sl.fp++;
+    }
   }
+
+  const N = data.events.length;
+  const brier = N ? +(brierSum / N).toFixed(4) : 0;
+  const baseRate = N ? posCount / N : 0.5;
+  const brierRef = baseRate * (1 - baseRate);
+  const bss = brierRef > 0 ? +(1 - brier / brierRef).toFixed(4) : 1;
+  const rocAuc = +calcRocAuc(posScores, negScores).toFixed(4);
+  const minPos = posScores.length ? Math.min(...posScores) : 0;
+  const maxNeg = negScores.length ? Math.max(...negScores) : 0;
+  const gapMargin = minPos - maxNeg;
+  const meanOf = arr => arr.length ? +(arr.reduce((s, x) => s + x, 0) / arr.length).toFixed(1) : null;
+
+  const slices = [...sliceMap.values()].map(sl => ({
+    name: sl.name,
+    ...calcMetrics(sl),
+    meanPos: sl.posN ? +(sl.posSum / sl.posN).toFixed(1) : null,
+    meanNeg: sl.negN ? +(sl.negSum / sl.negN).toFixed(1) : null
+  }));
 
   return {
     visibility: calcMetrics(vis),
     alert: calcMetrics(alrt),
+    calibration: {
+      brier, bss, rocAuc, minPos, maxNeg, gapMargin,
+      meanAlert: meanOf(alertScores),
+      meanFairOnly: meanOf(fairOnlyScores),
+      meanNeg: meanOf(negScores),
+      tiers: tiers.map(t => ({
+        label: t.label, n: t.n,
+        visRate: t.n ? +(100 * t.visPos / t.n).toFixed(1) : null,
+        alertRate: t.n ? +(100 * t.alrtPos / t.n).toFixed(1) : null,
+        meanScore: t.n ? +(t.scoreSum / t.n).toFixed(1) : null
+      }))
+    },
+    slices,
     visMisses,
     alertMisses,
-    count: data.events.length
+    count: N
   };
 }
 
@@ -153,7 +255,7 @@ export async function evaluateLiveCrossCheck() {
   const cityChecks = await Promise.all(CITIES.map(async c => {
     const [metJ, omJ] = await Promise.all([
       fetchJsonRetry(`https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=${c.lat}&lon=${c.lon}`, hdrs),
-      fetchJsonRetry(`https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}&hourly=temperature_2m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high&timezone=auto&timeformat=unixtime&forecast_days=1`, hdrs)
+      fetchJsonRetry(`https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}&hourly=temperature_2m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,precipitation,weather_code,visibility&timezone=auto&timeformat=unixtime&forecast_days=2`, hdrs)
     ]);
     const metHrs = api.parseMetNorwayHourly12(metJ, c.lat, c.lon, c.tz, now);
     const omHrs = api.parseOpenMeteoHourly12(omJ.hourly, c.lat, c.lon, c.tz, now, omJ.utc_offset_seconds);
@@ -187,16 +289,19 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const hist = evaluateHistoricalBenchmark();
   const astro = evaluateAstronomyBenchmark();
 
-  console.log('\n================================================================');
+  console.log('\n====================================================================');
   console.log('  NORDIC AURORA RADAR — QUANTITATIVE FORECAST QUALITY REPORT');
-  console.log('================================================================\n');
+  console.log('====================================================================\n');
 
   console.log(`[1] Historical Storm & False-Alarm Replay (${hist.count} Ground-Truth Cases)`);
   const v = hist.visibility;
+  const cal = hist.calibration;
   console.log(`  Visibility Confusion Matrix : TP=${v.tp}  FN=${v.fn}  TN=${v.tn}  FP=${v.fp}`);
   console.log(`  Recall (Sensitivity)        : ${pct(v.tp, v.tp + v.fn)}  (False Negative Rate: ${pct(v.fn, v.tp + v.fn)})`);
   console.log(`  Specificity (Trap Rejection): ${pct(v.tn, v.tn + v.fp)}  (False Positive Rate: ${pct(v.fp, v.tn + v.fp)})`);
   console.log(`  Precision / F1 / Accuracy   : ${pct(v.tp, v.tp + v.fp)} / ${(v.f1 * 100).toFixed(1)}% / ${pct(v.tp + v.tn, v.total)}`);
+  console.log(`  MCC / ROC-AUC / Brier (BSS) : MCC=${v.mcc.toFixed(4)} | AUC=${cal.rocAuc.toFixed(4)} | BS=${cal.brier} (BSS=${cal.bss})`);
+  console.log(`  Score Tier Separation       : Alert mean=${cal.meanAlert} | Fair-only mean=${cal.meanFairOnly} | Neg mean=${cal.meanNeg} | Gap(minPos-maxNeg)=${cal.minPos}-${cal.maxNeg} (+${cal.gapMargin})`);
   if (hist.visMisses.length) {
     console.log('  Visibility Misclassifications:');
     for (const m of hist.visMisses) {
@@ -206,7 +311,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
 
   const a = hist.alert;
   console.log(`\n  Alert Engine Matrix         : TP=${a.tp}  FN=${a.fn}  TN=${a.tn}  FP=${a.fp}`);
-  console.log(`  Alert Recall / Specificity  : ${pct(a.tp, a.tp + a.fn)} / ${pct(a.tn, a.tn + a.fp)}  (Accuracy: ${pct(a.tp + a.tn, a.total)})`);
+  console.log(`  Alert Recall / Spec / MCC   : ${pct(a.tp, a.tp + a.fn)} / ${pct(a.tn, a.tn + a.fp)} / MCC=${a.mcc.toFixed(4)} (Acc: ${pct(a.tp + a.tn, a.total)})`);
   if (hist.alertMisses.length) {
     console.log('  Alert Misclassifications:');
     for (const m of hist.alertMisses) {
@@ -214,20 +319,41 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     }
   }
 
+  console.log('\n  Ordinal Score-Tier Reliability Table:');
+  console.log('  Tier                  |  N | MeanScore | Emp. Vis % | Emp. Alert %');
+  console.log('  ----------------------+----+-----------+------------+-------------');
+  for (const t of cal.tiers) {
+    console.log(
+      `  ${t.label} | ${String(t.n).padStart(2)} | ${String(t.meanScore ?? '--').padStart(9)} | ${String(t.visRate !== null ? t.visRate + '%' : '--').padStart(10)} | ${String(t.alertRate !== null ? t.alertRate + '%' : '--').padStart(12)}`
+    );
+  }
+
+  console.log('\n  Stratified Domain Breakdown:');
+  console.log('  Domain Slice             |  N | TP/FN/TN/FP | Recall |  Spec  | MeanPos | MeanNeg');
+  console.log('  -------------------------+----+-------------+--------+--------+---------+--------');
+  for (const s of hist.slices) {
+    const rec = s.tp + s.fn ? pct(s.tp, s.tp + s.fn) : '   --';
+    const spec = s.tn + s.fp ? pct(s.tn, s.tn + s.fp) : '   --';
+    const mat = `${s.tp}/${s.fn}/${s.tn}/${s.fp}`;
+    console.log(
+      `  ${s.name.padEnd(24)} | ${String(s.total).padStart(2)} | ${mat.padStart(11)} | ${rec.padStart(6)} | ${spec.padStart(6)} | ${String(s.meanPos ?? '--').padStart(7)} | ${String(s.meanNeg ?? '--').padStart(7)}`
+    );
+  }
+
   console.log(`\n[2] Independent Astronomy Ephemeris Audit (${astro.count} NASA JPL Horizons DE441 Checkpoints)`);
   console.log(`  Solar Elevation Error       : MAE=${astro.sunAlt.mae}°  Max=${astro.sunAlt.max}° (worst: ${astro.sunAlt.worstId})`);
   console.log(`  Lunar Elevation Error       : MAE=${astro.moonAlt.mae}°  Max=${astro.moonAlt.max}° (worst: ${astro.moonAlt.worstId})`);
   console.log(`  Lunar Illumination Error    : MAE=${astro.moonIllum.mae}%  Max=${astro.moonIllum.max}% (worst: ${astro.moonIllum.worstId})`);
 
-  // Telemetry spike rejection check
+  // Telemetry spike rejection check (interior AND tail spike!)
   const quietWithSpike = Array.from({ length: 80 }, (_, i) => ({
     time_tag: new Date(Date.parse('2026-11-24T20:00:00Z') + i * 60000).toISOString().slice(0, 19),
-    bz: i === 65 ? -45.0 : 1.0,
+    bz: (i === 65 || i === 79) ? -45.0 : 1.0,
     by: 0.5
   }));
   const balSpike = api.computeBallisticCoupling(quietWithSpike, 400);
-  console.log(`\n[3] Telemetry Robustness (1-min -45 nT Sensor Spike Rejection)`);
-  console.log(`  Filtered incoming Bz (true +1.0 nT): ${balSpike.nextBz} nT (residual error: ${Math.abs(balSpike.nextBz - 1.0).toFixed(2)} nT)`);
+  console.log(`\n[3] Telemetry Robustness (Interior + Latest-Tail 1-min -45 nT Sensor Spike Rejection)`);
+  console.log(`  Filtered incoming Bz (true +1.0 nT): ${balSpike.nextBz} nT | cleanLatestBz: ${balSpike.cleanLatestBz} nT`);
 
   let liveFailed = false;
   if (process.env.LIVE_TEST === '1') {
@@ -249,16 +375,27 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     }
   }
 
-  console.log('\n================================================================\n');
+  console.log('\n====================================================================\n');
 
-  // Strict quality gate assertions
+  // Strict quality & calibration gate assertions
   const failed = [];
   if (v.fn > 0) failed.push(`Visibility FNR > 0 (${v.fn} false negatives)`);
-  if (v.accuracy < 0.94) failed.push(`Visibility accuracy ${(v.accuracy * 100).toFixed(1)}% < 94%`);
-  if (astro.sunAlt.max > 0.25) failed.push(`Solar elevation max error ${astro.sunAlt.max}° > 0.25°`);
-  if (astro.moonAlt.max > 2.5) failed.push(`Lunar elevation max error ${astro.moonAlt.max}° > 2.5°`);
-  if (astro.moonIllum.max > 2.5) failed.push(`Lunar illumination max error ${astro.moonIllum.max}% > 2.5%`);
-  if (Math.abs(balSpike.nextBz - 1.0) > 0.05) failed.push(`Spike filter failed: ${balSpike.nextBz}`);
+  if (v.accuracy < 0.95) failed.push(`Visibility accuracy ${(v.accuracy * 100).toFixed(1)}% < 95%`);
+  if (v.mcc < 0.90) failed.push(`Visibility MCC ${v.mcc.toFixed(3)} < 0.90`);
+  if (a.mcc < 0.88) failed.push(`Alert MCC ${a.mcc.toFixed(3)} < 0.88`);
+  if (cal.rocAuc < 0.98) failed.push(`ROC-AUC ${cal.rocAuc} < 0.98`);
+  if (cal.brier > 0.14) failed.push(`Brier score ${cal.brier} > 0.14`);
+  if (cal.bss < 0.45) failed.push(`Brier skill score ${cal.bss} < 0.45`);
+  for (const s of hist.slices) {
+    if (s.fn > 0) failed.push(`Slice "${s.name}" has ${s.fn} false negative(s)`);
+    if (s.accuracy < 0.90) failed.push(`Slice "${s.name}" accuracy ${(s.accuracy * 100).toFixed(1)}% < 90%`);
+  }
+  if (astro.sunAlt.max > 0.15) failed.push(`Solar elevation max error ${astro.sunAlt.max}° > 0.15°`);
+  if (astro.moonAlt.max > 2.0) failed.push(`Lunar elevation max error ${astro.moonAlt.max}° > 2.0°`);
+  if (astro.moonIllum.max > 2.0) failed.push(`Lunar illumination max error ${astro.moonIllum.max}% > 2.0%`);
+  if (Math.abs(balSpike.nextBz - 1.0) > 0.05 || Math.abs(balSpike.cleanLatestBz - 1.0) > 0.05) {
+    failed.push(`Spike filter failed: nextBz=${balSpike.nextBz}, cleanLatestBz=${balSpike.cleanLatestBz}`);
+  }
   if (liveFailed) failed.push('Live cross-check failed');
 
   if (failed.length) {

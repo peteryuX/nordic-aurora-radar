@@ -9,15 +9,34 @@ import {
   isEn, getZoneParts, parseUtcMs, utcTagToLocalHM, computeL1EtaMin, bzToEnergy
 } from './aurora-engine.js';
 
-export function buildSkySceneSVG({ cloudPct, auroraScore, moonUp, moonPct, isTooBright }) {
-  const bgTop = isTooBright ? '#245d92' : '#030a16';
-  const bgBot = isTooBright ? '#7fb4dc' : '#0d223d';
-  const starOp = isTooBright ? 0 : Math.max(0.05, (100 - cloudPct) / 100);
-  const aurOp = (isTooBright || auroraScore <= 0) ? 0 : Math.max(0.06, (auroraScore / 100) * Math.max(0.18, (100 - cloudPct * 0.85) / 100));
-  const cloudOp = Math.min(0.95, Math.max(0.08, (cloudPct / 100) * 0.94));
-  const showMoon = moonUp && !isTooBright;
-  const moonOp = showMoon ? Math.max(0.22, (100 - cloudPct * 0.7) / 100) : 0;
-  const moonR = 11 + (moonPct / 100) * 9;
+function clampNum(v, lo, hi, fb = 0) {
+  const n = typeof v === 'number' ? v : (v === null || v === undefined || v === '' ? NaN : Number(v));
+  return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : fb;
+}
+
+function escSvg(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+export function buildSkySceneSVG({ cloudPct, auroraScore, moonUp, moonPct, isTooBright } = {}) {
+  const cPct = clampNum(cloudPct, 0, 100, 0);
+  const aSc = clampNum(auroraScore, 0, 100, 0);
+  const mPct = clampNum(moonPct, 0, 100, 0);
+  const bright = Boolean(isTooBright);
+
+  const bgTop = bright ? '#245d92' : '#030a16';
+  const bgBot = bright ? '#7fb4dc' : '#0d223d';
+  const starOp = bright ? 0 : Math.max(0.05, (100 - cPct) / 100);
+  const aurOp = (bright || aSc <= 0) ? 0 : Math.max(0.06, (aSc / 100) * Math.max(0.18, (100 - cPct * 0.85) / 100));
+  const cloudOp = Math.min(0.95, Math.max(0.08, (cPct / 100) * 0.94));
+  const showMoon = Boolean(moonUp) && !bright;
+  const moonOp = showMoon ? Math.max(0.22, (100 - cPct * 0.7) / 100) : 0;
+  const moonR = 11 + (mPct / 100) * 9;
 
   const stars = [
     [40,28,1.5],[95,52,1.2],[148,24,1.8],[215,40,1.1],[275,20,1.6],
@@ -25,7 +44,7 @@ export function buildSkySceneSVG({ cloudPct, auroraScore, moonUp, moonPct, isToo
     [70,82,1.1],[180,74,1.4],[305,78,1.2],[440,86,1.3],[560,72,1.5]
   ].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#ffffff" opacity="${(starOp * 0.85).toFixed(2)}"/>`).join('');
 
-  const clouds = cloudPct >= 15 ? `
+  const clouds = cPct >= 15 ? `
     <g opacity="${cloudOp.toFixed(2)}">
       <ellipse cx="110" cy="78" rx="130" ry="34" fill="#324864"/>
       <ellipse cx="290" cy="64" rx="165" ry="42" fill="#293d56"/>
@@ -70,29 +89,36 @@ export function buildSkySceneSVG({ cloudPct, auroraScore, moonUp, moonPct, isToo
  */
 export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
   const en = isEn(lang);
-  if (!series || series.length < 2) {
+  if (!Array.isArray(series) || series.length < 2) {
     return `<text x="210" y="90" text-anchor="middle" fill="#8ea6c4" font-size="13" font-weight="700">${en ? 'No live satellite energy data' : '暫無衛星即時太陽風曲線'}</text>`;
   }
   const W = 420, H = 170, padL = 56, padR = 14, padT = 28, padB = 26;
   const plotW = W - padL - padR, plotH = H - padT - padB;
-  const yOf = e => padT + ((100 - e) / 100) * plotH;
+  const yOf = e => padT + ((100 - clampNum(e, 0, 100, 4)) / 100) * plotH;
 
   // Zone boundaries match summarizeEnergyTrend: <25 Quiet, 25-61 Rising, >=62 Active
   const yBurst = yOf(62), yWarm = yOf(25);
-  const etaMin = balOpt?.etaMin ?? computeL1EtaMin(speed);
+  const etaMin = clampNum(balOpt?.etaMin ?? computeL1EtaMin(speed), 8, 95, 45);
   const arrMsList = series.map(s => {
-    const ms = parseUtcMs(s.time_tag);
+    const ms = parseUtcMs(s?.time_tag);
     return Number.isFinite(ms) ? ms + etaMin * 60000 : NaN;
   });
-  const validTime = Number.isFinite(arrMsList[0]) && Number.isFinite(arrMsList[arrMsList.length - 1]) && arrMsList[arrMsList.length - 1] > arrMsList[0];
+  const spanRawMs = arrMsList[arrMsList.length - 1] - arrMsList[0];
+  const validTime = Number.isFinite(arrMsList[0])
+    && Number.isFinite(arrMsList[arrMsList.length - 1])
+    && spanRawMs > 0
+    && spanRawMs <= 24 * 3600000;
   const minMs = validTime ? arrMsList[0] : 0;
   const maxMs = validTime ? arrMsList[arrMsList.length - 1] : (series.length - 1);
-  const xOfMs = ms => padL + ((ms - minMs) / (maxMs - minMs)) * plotW;
-  const xOf = i => validTime && Number.isFinite(arrMsList[i]) ? xOfMs(arrMsList[i]) : (padL + (i / (series.length - 1)) * plotW);
+  const xOfMs = ms => clampNum(padL + ((ms - minMs) / (maxMs - minMs)) * plotW, padL, W - padR, padL);
+  const xOf = i => (validTime && Number.isFinite(arrMsList[i]))
+    ? xOfMs(arrMsList[i])
+    : clampNum(padL + (i / (series.length - 1)) * plotW, padL, W - padR, padL);
 
-  const energies = (balOpt && Array.isArray(balOpt.energy120) && balOpt.energy120.length === series.length)
+  const rawEnergies = (balOpt && Array.isArray(balOpt.energy120) && balOpt.energy120.length === series.length)
     ? balOpt.energy120
-    : series.map(s => bzToEnergy(s.bz, speed));
+    : series.map(s => bzToEnergy(s?.bz, speed));
+  const energies = rawEnergies.map(e => clampNum(e, 0, 100, 4));
 
   // Split into contiguous segments whenever L1 data has a >5 min dropout
   const segments = [];
@@ -137,21 +163,22 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
   let xTicksSvg = '';
   if (validTime) {
     const spanMin = (maxMs - minMs) / 60000;
-    const stepMin = spanMin > 165 ? 60 : 30;
+    const stepMin = spanMin > 360 ? 180 : (spanMin > 165 ? 60 : 30);
     const stepMs = stepMin * 60000;
     const firstTick = Math.ceil(minMs / stepMs) * stepMs;
-    for (let t = firstTick; t <= maxMs; t += stepMs) {
+    let guardCount = 0;
+    for (let t = firstTick; t <= maxMs && guardCount < 24; t += stepMs, guardCount++) {
       const tx = xOfMs(t);
       if (tx < padL + 12 || tx > W - padR - 12) continue;
       const z = getZoneParts(new Date(t), timeZone);
       xTicksSvg += `
         <line x1="${tx.toFixed(1)}" y1="${padT}" x2="${tx.toFixed(1)}" y2="${baseY}" stroke="rgba(255,255,255,0.08)" stroke-dasharray="2 4"/>
-        <text x="${tx.toFixed(1)}" y="${H - 7}" text-anchor="middle" fill="#a9c0da" font-size="12.5" font-weight="700">${z.hourStr}:${z.minStr}</text>`;
+        <text x="${tx.toFixed(1)}" y="${H - 7}" text-anchor="middle" fill="#a9c0da" font-size="12.5" font-weight="700">${escSvg(z.hourStr)}:${escSvg(z.minStr)}</text>`;
     }
   }
   if (!xTicksSvg) {
-    const tStart = utcTagToLocalHM(series[0].time_tag, timeZone, etaMin);
-    const tEnd = utcTagToLocalHM(series[series.length - 1].time_tag, timeZone, etaMin);
+    const tStart = escSvg(utcTagToLocalHM(series[0]?.time_tag, timeZone, etaMin));
+    const tEnd = escSvg(utcTagToLocalHM(series[series.length - 1]?.time_tag, timeZone, etaMin));
     xTicksSvg = `
       <text x="${padL}" y="${H - 7}" fill="#a9c0da" font-size="12.5" font-weight="700">${tStart}</text>
       <text x="${W - padR}" y="${H - 7}" text-anchor="end" fill="#66e8ff" font-size="12.5" font-weight="800">${tEnd}</text>`;
@@ -161,9 +188,10 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
   let futureBandSvg = '';
   if (balOpt && Number.isInteger(balOpt.arrivingIdx) && balOpt.arrivingIdx > 4 && balOpt.arrivingIdx < series.length - 4) {
     const ax = xOf(balOpt.arrivingIdx);
-    const tNowEarth = utcTagToLocalHM(series[balOpt.arrivingIdx].time_tag, timeZone, etaMin);
+    const tNowEarth = escSvg(utcTagToLocalHM(series[balOpt.arrivingIdx]?.time_tag, timeZone, etaMin));
     const lxClamped = Math.max(padL + 132, Math.min(W - 154, ax));
-    futureBandSvg = `<rect x="${ax.toFixed(1)}" y="${padT}" width="${(W - padR - ax).toFixed(1)}" height="${plotH}" fill="rgba(34,211,238,0.06)"/>`;
+    const futureW = Math.max(0, W - padR - ax);
+    futureBandSvg = `<rect x="${ax.toFixed(1)}" y="${padT}" width="${futureW.toFixed(1)}" height="${plotH}" fill="rgba(34,211,238,0.06)"/>`;
     arriveSvg = `
       <line x1="${ax.toFixed(1)}" y1="${padT}" x2="${ax.toFixed(1)}" y2="${baseY}" stroke="#22d3ee" stroke-dasharray="3 3" stroke-width="1.5" opacity="0.88"/>
       <circle cx="${ax.toFixed(1)}" cy="${yOf(energies[balOpt.arrivingIdx]).toFixed(1)}" r="3.8" fill="#22d3ee" stroke="#040912" stroke-width="1.5"/>
@@ -204,17 +232,17 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
 /** 12-Hour Combined Clear-Sky & Viewing-Score Chart (aligned with Chart 1 X/Y geometry) */
 export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
   const en = isEn(lang);
-  if (!hrs || hrs.length < 2) {
+  if (!Array.isArray(hrs) || hrs.length < 2) {
     return `<text x="210" y="95" text-anchor="middle" fill="#8ea6c4" font-size="13">${en ? 'Loading 12h forecast...' : '讀取 12 小時晴空曲線中...'}</text>`;
   }
   const W = 420, H = 194, padL = 56, padR = 14, padT = 28, padB = 44;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const xOf = i => padL + (i / (hrs.length - 1)) * plotW;
-  const yOf = pct => padT + ((100 - pct) / 100) * plotH;
+  const yOf = pct => padT + ((100 - clampNum(pct, 0, 100, 0)) / 100) * plotH;
   const stepW = plotW / (hrs.length - 1);
 
-  const dayBands = hrs.map((h, i) => h.isDay
-    ? `<rect x="${Math.max(padL, xOf(i) - stepW / 2).toFixed(1)}" y="${padT}" width="${Math.min(stepW, W - padR - Math.max(padL, xOf(i) - stepW / 2)).toFixed(1)}" height="${plotH}" fill="rgba(102,189,255,0.10)"/>`
+  const dayBands = hrs.map((h, i) => h?.isDay
+    ? `<rect x="${Math.max(padL, xOf(i) - stepW / 2).toFixed(1)}" y="${padT}" width="${Math.max(0, Math.min(stepW, W - padR - Math.max(padL, xOf(i) - stepW / 2))).toFixed(1)}" height="${plotH}" fill="rgba(102,189,255,0.10)"/>`
     : '').join('');
 
   const vGrid = hrs.map((_, i) => i % 2 === 0
@@ -223,26 +251,29 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
 
   const barW = Math.max(8, Math.min(18, stepW * 0.44));
   const scoreBars = hrs.map((h, i) => {
-    if (!Number.isFinite(h.score) || h.score <= 0) return '';
+    const scVal = clampNum(h?.score, 0, 100, NaN);
+    if (!Number.isFinite(scVal) || scVal <= 0) return '';
     const x = xOf(i) - barW / 2;
-    const y = yOf(h.score);
+    const y = yOf(scVal);
     const bh = Math.max(3, padT + plotH - y);
     const isSel = i === selectedIdx;
     return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="3" fill="${isSel ? 'rgba(168,85,247,0.78)' : 'rgba(168,85,247,0.34)'}" stroke="${isSel ? '#d8b4fe' : 'rgba(192,132,252,0.5)'}" stroke-width="1"/>`;
   }).join('');
 
-  const linePts = hrs.map((h, i) => `${xOf(i).toFixed(1)},${yOf(h.clear).toFixed(1)}`).join(' ');
+  const linePts = hrs.map((h, i) => `${xOf(i).toFixed(1)},${yOf(h?.clear).toFixed(1)}`).join(' ');
   const areaPts = `${padL},${padT + plotH} ${linePts} ${W - padR},${padT + plotH}`;
-  const bestIdx = bestDark ? hrs.findIndex(h => h.time === bestDark.time && !h.isDay) : -1;
+  const bestIdx = bestDark ? hrs.findIndex(h => h && h.time === bestDark.time && !h.isDay) : -1;
 
   const dots = hrs.map((h, i) => {
-    const x = xOf(i), y = yOf(h.clear);
+    const clearVal = clampNum(h?.clear, 0, 100, 0);
+    const x = xOf(i), y = yOf(clearVal);
     const isBest = i === bestIdx;
     const isSel = i === selectedIdx;
     const showTick = (i % 2 === 0);
-    const c = h.isDay ? '#66bdff' : (h.clear >= 65 ? '#34f0b0' : h.clear >= 35 ? '#ffcf5c' : '#ff6b7b');
-    const tInt = Math.round(h.temp) || 0;
-    const hhmm = h.time.length >= 5 ? h.time.slice(0, 5) : `${h.time.slice(0, 2)}:00`;
+    const c = h?.isDay ? '#66bdff' : (clearVal >= 65 ? '#34f0b0' : clearVal >= 35 ? '#ffcf5c' : '#ff6b7b');
+    const tInt = Math.round(clampNum(h?.temp, -90, 65, 0)) || 0;
+    const rawTime = typeof h?.time === 'string' ? h.time : '';
+    const hhmm = escSvg(rawTime.length >= 5 ? rawTime.slice(0, 5) : (rawTime.length >= 2 ? `${rawTime.slice(0, 2)}:00` : '--:--'));
     const lbl = showTick ? `<text x="${x.toFixed(1)}" y="${H - 24}" text-anchor="middle" fill="${isSel ? '#ffffff' : (isBest ? '#34f0b0' : '#a9c0da')}" font-size="12.5" font-weight="${isBest || isSel ? '800' : '700'}">${hhmm}</text>` : '';
     const tempLbl = showTick ? `<text x="${x.toFixed(1)}" y="${H - 7}" text-anchor="middle" fill="#92abc7" font-size="11.5" font-weight="600">${tInt > 0 ? '+' : ''}${tInt}°</text>` : '';
     const starTxt = en ? '★ Best' : '★ 最佳';
@@ -280,12 +311,16 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
 
 /** 360° Land-Safe Clear-Sky Radar SVG */
 export function buildCompassRadarSVG(dirResults, originPos, lang) {
-  if (!dirResults || dirResults.length < 5) return '';
+  if (!Array.isArray(dirResults) || dirResults.length < 5) return '';
   const en = isEn(lang);
   const byKey = {};
-  for (const d of dirResults) byKey[d.key] = d;
-  const colOf = (c, sea) => sea ? '#66bdff' : (c <= 35 ? '#34f0b0' : c <= 65 ? '#ffcf5c' : '#ff6b7b');
-  const fillOf = (c, sea) => sea ? 'rgba(102,189,255,0.12)' : (c <= 35 ? 'rgba(52,240,176,0.22)' : c <= 65 ? 'rgba(255,207,92,0.20)' : 'rgba(255,107,123,0.19)');
+  for (const d of dirResults) {
+    if (d && typeof d.key === 'string') byKey[d.key] = d;
+  }
+  if (!byKey.here || !byKey.N || !byKey.E || !byKey.S || !byKey.W) return '';
+
+  const colOf = (c, sea, unavail) => unavail ? '#8ea6c4' : (sea ? '#66bdff' : (c <= 35 ? '#34f0b0' : c <= 65 ? '#ffcf5c' : '#ff6b7b'));
+  const fillOf = (c, sea, unavail) => unavail ? 'rgba(142,166,196,0.10)' : (sea ? 'rgba(102,189,255,0.12)' : (c <= 35 ? 'rgba(52,240,176,0.22)' : c <= 65 ? 'rgba(255,207,92,0.20)' : 'rgba(255,107,123,0.19)'));
 
   const sectorPath = (a1Deg, a2Deg, rIn, rOut) => {
     const toR = d => d * Math.PI / 180;
@@ -303,31 +338,47 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
     { k: 'W', a1: 135,  a2: 225, tx: 64,  ty: 158 }
   ];
 
+  const oLat = clampNum(originPos?.lat, -90, 90, NaN);
+  const oLon = clampNum(originPos?.lon, -180, 180, NaN);
+
   const wedges = cfg.map(s => {
     const d = byKey[s.k];
-    const cleanLbl = d.label.replace(/^[⬆️⬇️➡️⬅️]+\s*/, '');
-    const shortLbl = cleanLbl.includes('km')
-      ? (en ? cleanLbl.replace('往北 ', 'N ').replace('往南 ', 'S ').replace('往東 ', 'E ').replace('往西 ', 'W ').replace(/\s+km$/, 'km') : cleanLbl.replace(/^往/, '').replace(/\s+km$/, 'km'))
+    const unavail = Boolean(d.unavailable) || !Number.isFinite(Number(d.avg3h));
+    const avg = clampNum(d.avg3h, 0, 100, 100);
+    const cleanLbl = String(d.label || s.k).replace(/^[⬆️⬇️➡️⬅️]+\s*/, '');
+    const shortLblRaw = cleanLbl.includes('km')
+      ? (en
+          ? cleanLbl.replace('往東北 ', 'NE ').replace('往西北 ', 'NW ').replace('往東南 ', 'SE ').replace('往西南 ', 'SW ')
+              .replace('往北 ', 'N ').replace('往南 ', 'S ').replace('往東 ', 'E ').replace('往西 ', 'W ').replace(/\s+km$/, 'km')
+          : cleanLbl.replace(/^往/, '').replace(/\s+km$/, 'km'))
       : cleanLbl.replace(/^往[東西南北]+\s*/, '');
-    const col = colOf(d.avg3h, d.isOcean);
+    const shortLbl = escSvg(shortLblRaw);
+    const col = colOf(avg, d.isOcean, unavail);
+    const valTxt = unavail ? '--' : `${en ? '' : '雲 '}${Math.round(avg)}%`;
     const body = `
       <g class="radar-sector">
-        <path d="${sectorPath(s.a1, s.a2, 52, 146)}" fill="${fillOf(d.avg3h, d.isOcean)}" stroke="${col}" stroke-width="1.8" ${d.isOcean ? 'stroke-dasharray="5 4"' : ''}/>
+        <path d="${sectorPath(s.a1, s.a2, 52, 146)}" fill="${fillOf(avg, d.isOcean, unavail)}" stroke="${col}" stroke-width="1.8" ${(d.isOcean || unavail) ? 'stroke-dasharray="5 4"' : ''}/>
         <text x="${s.tx}" y="${s.ty - 5}" text-anchor="middle" fill="#f2f7ff" font-size="11.5" font-weight="800">${d.isOcean ? (en ? 'Sea' : '海面') : shortLbl}</text>
-        <text x="${s.tx}" y="${s.ty + 15}" text-anchor="middle" fill="${col}" font-size="15.5" font-weight="900">${en ? '' : '雲 '}${d.avg3h}%</text>
+        <text x="${s.tx}" y="${s.ty + 15}" text-anchor="middle" fill="${col}" font-size="15.5" font-weight="900">${valTxt}</text>
       </g>`;
-    if (d.isOcean) return body;
-    const href = `https://www.google.com/maps/dir/?api=1&origin=${originPos.lat},${originPos.lon}&destination=${d.lat},${d.lon}&travelmode=driving`;
+    const dLat = clampNum(d.lat, -90, 90, NaN);
+    const dLon = clampNum(d.lon, -180, 180, NaN);
+    if (d.isOcean || unavail || !Number.isFinite(oLat) || !Number.isFinite(oLon) || !Number.isFinite(dLat) || !Number.isFinite(dLon)) return body;
+    const href = `https://www.google.com/maps/dir/?api=1&amp;origin=${oLat},${oLon}&amp;destination=${dLat},${dLon}&amp;travelmode=driving`;
     return `<a href="${href}" target="_blank" rel="noopener noreferrer">${body}</a>`;
   }).join('');
 
   const h = byKey.here;
+  const hUnavail = Boolean(h.unavailable) || !Number.isFinite(Number(h.avg3h));
+  const hAvg = clampNum(h.avg3h, 0, 100, 100);
+  const hCol = colOf(hAvg, false, hUnavail);
+  const hTxt = hUnavail ? '--' : `${en ? '' : '雲 '}${Math.round(hAvg)}%`;
   return `
     <circle cx="160" cy="160" r="148" fill="rgba(4,9,18,0.72)" stroke="rgba(255,255,255,0.12)" stroke-width="1.4"/>
     <circle cx="160" cy="160" r="98" fill="none" stroke="rgba(255,255,255,0.10)" stroke-dasharray="4 4"/>
     ${wedges}
-    <circle cx="160" cy="160" r="48" fill="#060e1c" stroke="${colOf(h.avg3h, false)}" stroke-width="2.6"/>
+    <circle cx="160" cy="160" r="48" fill="#060e1c" stroke="${hCol}" stroke-width="2.6"/>
     <text x="160" y="154" text-anchor="middle" fill="#9fb5d0" font-size="11.5" font-weight="700">${en ? 'Here' : '目前位置'}</text>
-    <text x="160" y="176" text-anchor="middle" fill="${colOf(h.avg3h, false)}" font-size="17" font-weight="900">${en ? '' : '雲 '}${h.avg3h}%</text>
+    <text x="160" y="176" text-anchor="middle" fill="${hCol}" font-size="17" font-weight="900">${hTxt}</text>
   `;
 }

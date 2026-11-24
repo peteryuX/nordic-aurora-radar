@@ -1,4 +1,5 @@
-const CACHE_NAME = 'aurora-radar-shell-v4';
+const CACHE_NAME = 'aurora-radar-shell-v5';
+const FETCH_TIMEOUT_MS = 3500;
 const SHELL_ASSETS = [
   './',
   './index.html',
@@ -15,7 +16,6 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(SHELL_ASSETS))
       .then(() => self.skipWaiting())
-      .catch(() => {})
   );
 });
 
@@ -27,6 +27,12 @@ self.addEventListener('activate', event => {
   );
 });
 
+function fetchWithTimeout(req, timeoutMs) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  return fetch(req, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
+}
+
 // Conservative network-first strategy strictly for same-origin app shell;
 // never intercepts third-party live APIs (NOAA, MET Norway, Open-Meteo, Windy, sky cams).
 self.addEventListener('fetch', event => {
@@ -35,15 +41,26 @@ self.addEventListener('fetch', event => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
+  const isNav = req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html');
+  const cacheKey = isNav ? './index.html' : req;
+
   event.respondWith(
-    fetch(req)
+    fetchWithTimeout(req, FETCH_TIMEOUT_MS)
       .then(res => {
         if (res && res.ok) {
           const clone = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(req, clone)).catch(() => {});
+          caches.open(CACHE_NAME).then(c => c.put(cacheKey, clone)).catch(() => {});
+          return res;
         }
-        return res;
+        // Fallback to cached shell on 5xx upstream errors
+        return caches.match(cacheKey, { ignoreSearch: true }).then(hit => hit || res);
       })
-      .catch(() => caches.match(req, { ignoreSearch: true }).then(hit => hit || caches.match('./index.html')))
+      .catch(() => {
+        if (isNav) {
+          return caches.match('./index.html').then(hit => hit || new Response('Offline', { status: 503, statusText: 'Offline' }));
+        }
+        // Never serve index.html as a fallback for .js/.css/.json/.svg (prevents MIME corruption)
+        return caches.match(req, { ignoreSearch: true }).then(hit => hit || new Response('', { status: 503, statusText: 'Offline' }));
+      })
   );
 });
