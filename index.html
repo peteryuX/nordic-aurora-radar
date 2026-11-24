@@ -8,7 +8,7 @@
   <meta name="keywords" content="aurora forecast, northern lights, nordic aurora radar, Tromso aurora, Alta aurora, Lofoten aurora, Abisko aurora, NOAA SWPC, Yr.no cloud forecast, 極光預報, 極光雷達, 北歐極光" />
   <meta name="google-site-verification" content="9uDTXgYt6cLyIyEW8tmFensPSWjd_Yc3Xj_U_BoEsS0" />
   <meta name="referrer" content="no-referrer" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://fox.phys.uit.no https://www.irf.se https://www.sgo.fi https://kho.unis.no https://cdn.fmi.fi https://optics.gi.alaska.edu https://auroramax.phys.ucalgary.ca https://services.swpc.noaa.gov; connect-src 'self' https://services.swpc.noaa.gov https://api.met.no https://api.open-meteo.com https://geocoding-api.open-meteo.com https://api.bigdatacloud.net; frame-src https://embed.windy.com; object-src 'none'; base-uri 'self'; form-action 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://fox.phys.uit.no https://www.irf.se https://www.sgo.fi https://kho.unis.no https://cdn.fmi.fi https://optics.gi.alaska.edu https://auroramax.phys.ucalgary.ca https://services.swpc.noaa.gov; connect-src 'self' https://services.swpc.noaa.gov https://api.met.no https://api.open-meteo.com https://geocoding-api.open-meteo.com https://api.bigdatacloud.net https://mesonet.agron.iastate.edu; frame-src https://embed.windy.com; object-src 'none'; base-uri 'self'; form-action 'none';" />
   <meta name="theme-color" content="#040912" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
@@ -376,10 +376,10 @@
         <section class="ts-sec">
           <h3 id="tsSciTitle" class="ts-h3">官方資料來源與驗證</h3>
           <div class="ts-stat-grid" id="tsStatGrid">
-            <div class="ts-stat"><strong>NASA JPL 0.006°</strong><span>22 點 DE441 日月校準</span></div>
-            <div class="ts-stat"><strong>17,255h NASA 盲測</strong><span>地磁預測 AUC 0.92–0.94（不含雲層）</span></div>
-            <div class="ts-stat"><strong>14 NOAA 即時源</strong><span>L1・MHD・Dst・ENLIL</span></div>
-            <div class="ts-stat"><strong>2.5km Yr.no</strong><span>MET Norway 雙模型比對</span></div>
+            <div class="ts-stat"><strong>JPL 0.006°・IGRF 0.24°</strong><span>日月天文與全球地磁校準</span></div>
+            <div class="ts-stat"><strong>NASA / GFZ 盲測</strong><span>純太陽風地磁 AUC 0.87–0.95</span></div>
+            <div class="ts-stat"><strong>6 萬時機場雷射驗證</strong><span>METAR +1h 晴空 AUC 0.90</span></div>
+            <div class="ts-stat"><strong>雙模型雲層比對</strong><span>北歐 Yr.no 2.5km・全球雙源</span></div>
           </div>
           <div class="ts-src-links">
             <a id="pNoaa" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/planetary-k-index">NOAA ↗</a>

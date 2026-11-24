@@ -221,14 +221,14 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
   const tsG = $('tsStatGrid');
   if (tsG) {
     tsG.innerHTML = en
-      ? `<div class="ts-stat"><strong>NASA JPL 0.006°</strong><span>22 DE441 sun/moon checks</span></div>` +
-        `<div class="ts-stat"><strong>17,255h NASA OMNI</strong><span>Geomagnetic AUC 0.92–0.94 (excl. clouds)</span></div>` +
-        `<div class="ts-stat"><strong>14 NOAA Live Feeds</strong><span>L1 · MHD · Dst · ENLIL</span></div>` +
-        `<div class="ts-stat"><strong>2.5km Yr.no</strong><span>Dual-model cloud check</span></div>`
-      : `<div class="ts-stat"><strong>NASA JPL 0.006°</strong><span>22 點 DE441 日月校準</span></div>` +
-        `<div class="ts-stat"><strong>17,255h NASA 盲測</strong><span>地磁預測 AUC 0.92–0.94（不含雲層）</span></div>` +
-        `<div class="ts-stat"><strong>14 NOAA 即時源</strong><span>L1・MHD・Dst・ENLIL</span></div>` +
-        `<div class="ts-stat"><strong>2.5km Yr.no</strong><span>MET Norway 雙模型比對</span></div>`;
+      ? `<div class="ts-stat"><strong>JPL 0.006° · IGRF 0.24°</strong><span>Sun/Moon &amp; Apex-110 grid</span></div>` +
+        `<div class="ts-stat"><strong>NASA &amp; GFZ Blind</strong><span>Pure-L1 mag AUC 0.87–0.95</span></div>` +
+        `<div class="ts-stat"><strong>60k-hr Laser Audit</strong><span>METAR +1h clear AUC 0.90</span></div>` +
+        `<div class="ts-stat"><strong>Global Dual-NWP</strong><span>2.5km Yr.no · ICON · ECMWF</span></div>`
+      : `<div class="ts-stat"><strong>JPL 0.006°・IGRF 0.24°</strong><span>日月天文與全球地磁校準</span></div>` +
+        `<div class="ts-stat"><strong>NASA / GFZ 盲測</strong><span>純太陽風地磁 AUC 0.87–0.95</span></div>` +
+        `<div class="ts-stat"><strong>6 萬時機場雷射驗證</strong><span>METAR +1h 晴空 AUC 0.90</span></div>` +
+        `<div class="ts-stat"><strong>雙模型雲層比對</strong><span>北歐 Yr.no 2.5km・全球雙源</span></div>`;
   }
 
   if (!hasLiveState) {

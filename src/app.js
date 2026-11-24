@@ -687,7 +687,7 @@ function renderFromState(st) {
   const en = isEn();
   const {
     pos: stPos, magSeries, chartSeries, speed, bz, kp, ovation, hpiGw, goesSub, noaaScales, noaaAlert, kyotoDst, enlilForecast, predKp1h, bal,
-    noaaOk, noaaLagMin, hereHrs, dirResults, weatherSourceLabel, usedMet, cloudConsensus,
+    noaaOk, noaaLagMin, hereHrs, dirResults, weatherSourceLabel, usedMet, cloudConsensus, metarObs, metarFusion,
     sunAltNow, mltNow, moon, sc, scNext, bestDark, nights3, multiDayPts, kpForecast, fetchedAt
   } = st;
   const pos = stPos || state.pos;
@@ -742,7 +742,16 @@ function renderFromState(st) {
   if (hpiGw !== null && Number.isFinite(hpiGw)) rawParts.push(`HPI ${Math.round(hpiGw)} GW`);
   if (safeBal.pdyn !== null && Number.isFinite(safeBal.pdyn)) rawParts.push(`${safeBal.pdyn} nPa`);
   if (kyotoDst && Number.isFinite(kyotoDst.dst)) rawParts.push(`Dst ${kyotoDst.dst} nT`);
-  renderTrustSheetLive(expNow, sc, rawParts.join(' · '));
+  if (metarObs && metarFusion?.applied) {
+    const ceilStr = metarObs.ceilingM ? ` ${metarObs.ceilingM}m` : '';
+    rawParts.push(`METAR ${metarObs.icao} ${metarObs.skyCode}${ceilStr} (${metarObs.ageMin}m)`);
+  }
+  const metarNote = (metarObs && metarFusion?.discrepancyFlag)
+    ? (en
+        ? ` (${metarObs.icao} airport laser ${metarObs.ageMin}m ago measured ${metarObs.clearPct}% clear${metarObs.ceilingM ? ` · ceiling ${metarObs.ceilingM}m` : ''} — forecast adjusted)`
+        : `（鄰近 ${metarObs.icao} 機場 ${metarObs.ageMin} 分前雷射實測晴空 ${metarObs.clearPct}%${metarObs.ceilingM ? `・雲底 ${metarObs.ceilingM}m` : ''}，已即時修正預報）`)
+    : '';
+  renderTrustSheetLive(expNow, sc, rawParts.join(' · '), metarNote);
 
   setHtml('skySvg', buildSkySceneSVG({
     cloudPct: c0, auroraScore: sc.auroraScore, moonUp: moon.up, moonPct: moon.pct, isTooBright: sc.isTooBright
@@ -759,6 +768,9 @@ function renderFromState(st) {
     : (precip0 >= 0.2
         ? (t0Int <= 1 ? (en ? ' · Snow' : ' · 降雪') : (en ? ' · Rain' : ' · 降雨'))
         : '');
+  const metarSkyTag = (metarObs && metarFusion?.discrepancyFlag)
+    ? (en ? ' · Laser adj' : ' · 實測修正')
+    : '';
   const aurSubText = sc.outOfZone === 'low-lat'
     ? (en ? `Mag ${sc.magLat}°` : `地磁 ${sc.magLat}°`)
     : (sc.outOfZone === 'need-storm'
@@ -769,7 +781,7 @@ function renderFromState(st) {
   const darkWin = computeDarkWindow(refNow, pos.lat, pos.lon, pos.tz);
   renderGauge(sc, {
     isTooBright: sc.isTooBright,
-    skySub: `${fmtTempC(t0Int)}${wcTag}${coldWarnTag}${skyPrecipTag}`,
+    skySub: `${fmtTempC(t0Int)}${wcTag}${coldWarnTag}${skyPrecipTag}${metarSkyTag}`,
     aurSub: aurSubText,
     darkSub: formatDarkCountdownSub(darkWin, moon, en)
   });
@@ -1099,7 +1111,7 @@ async function shareStatus() {
 }
 
 // ====== Trust, Telemetry & Photo-Tips Bottom-Sheet ======
-function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = '') {
+function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = '', metarNote = '') {
   const exp = expOpt || state.explainState;
   const sc = scOpt || state.renderState?.sc;
   if (!exp || !sc) return;
@@ -1124,7 +1136,7 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = '') {
     badge.textContent = exp.bottleneck.label;
     badge.className = `ts-badge ${bCls}`;
   }
-  setText('tsDiagTxt', exp.bottleneck.headline);
+  setText('tsDiagTxt', `${exp.bottleneck.headline}${metarNote}`);
   setText('tsConfRow', `${exp.confidence.badgeText}${rawTelemetry ? ` · ${rawTelemetry}` : ''}`);
 }
 

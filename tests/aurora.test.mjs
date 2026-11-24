@@ -1674,3 +1674,96 @@ test('42. Winter safety gates, geodesic 70°N cache, 3-sector radar SVG, sustain
   assert.equal(api.normalizeChineseCityQuery('阿克雷里'), 'Akureyri');
   assert.equal(api.normalizeChineseCityQuery('蒂卡波'), 'Lake Tekapo');
 });
+
+test('43. Global dual-model NWP routing/blending & Airport METAR Laser Ceilometer Optimal Interpolation', () => {
+  const nowMs = Date.parse('2026-11-24T21:30:00Z');
+
+  // 1. Station matching (all key hubs within 55 km; distant ocean/Tokyo returns null)
+  const nearTromso = api.findNearestMetarStation(69.6492, 18.9553);
+  assert.equal(nearTromso?.icao, 'ENTC');
+  assert.ok(nearTromso.distKm <= 10);
+  const nearMsp = api.findNearestMetarStation(44.9778, -93.2650);
+  assert.equal(nearMsp?.icao, 'KMSP');
+  assert.equal(nearMsp?.iemId, 'MSP', 'CONUS US stations must use 3-letter FAA ID on IEM');
+  assert.equal(api.findNearestMetarStation(35.6762, 139.6503), null, 'Tokyo outside 55km registry must return null');
+  assert.equal(api.findNearestMetarStation(NaN, 18), null);
+
+  // 2. IEM JSON & MET Norway raw METAR parsers + 90-min freshness / chaos rejection
+  const iemOvc = api.parseIemMetarCurrent({
+    data: [{ station: 'CYZF', utc_valid: '2026-11-24T21:00:00Z', skyc1: 'OVC', skyl1: 300, wxcodes: ['-SN', 'BR'], raw: 'CYZF 242100Z OVC003 -SN BR' }]
+  }, nowMs);
+  assert.ok(iemOvc && iemOvc.effCloud === 100 && iemOvc.ceilingM === 91 && iemOvc.skyCode === 'OVC' && iemOvc.ageMin === 30);
+
+  const iemClr = api.parseIemMetarCurrent({
+    data: [{ station: 'PAFA', utc_valid: '2026-11-24T21:10:00Z', skyc1: 'CLR', skyl1: null, raw: 'PAFA 242110Z CLR' }]
+  }, nowMs);
+  assert.ok(iemClr && iemClr.effCloud === 0 && iemClr.clearPct === 100 && iemClr.ceilingM === null);
+
+  // Stale (>90m) & malformed payloads must safely return null
+  assert.equal(api.parseIemMetarCurrent({ data: [{ station: 'PAFA', utc_valid: '2026-11-24T19:00:00Z', skyc1: 'CLR' }] }, nowMs), null);
+  assert.equal(api.parseIemMetarCurrent(null, nowMs), null);
+  assert.equal(api.parseIemMetarCurrent({ data: [{}] }, nowMs), null);
+
+  const metNo = api.parseMetNorwayMetarText(
+    'ENTC 242050Z 19010KT 9999 FEW012 01/M01 Q1029=\nENTC 242120Z 19014KT 9999 -RA SCT008 BKN011 01/M00 Q1028=',
+    nowMs
+  );
+  assert.ok(metNo && metNo.icao === 'ENTC' && metNo.ageMin === 10 && metNo.effCloud >= 85 && metNo.ceilingM === 335);
+  assert.equal(api.parseMetNorwayMetarText('garbage text', nowMs), null);
+
+  // 3. Strictly causal Optimal Interpolation assimilation (innovation decays across +0h..+3h, untouched at +4h)
+  const baseHrs = Array.from({ length: 6 }, (_, i) => ({
+    time: `${String(21 + i).padStart(2, '0')}:00`, dtMs: nowMs + i * 3600000,
+    block: 10, clear: 90, txt: '🌟 晴', temp: -5, precip: 0, windMs: 2, isDay: false, sunAlt: -20
+  }));
+  const fus = api.assimilateMetarNowcast(baseHrs, iemOvc, 5);
+  assert.equal(fus.applied, true);
+  assert.equal(fus.discrepancyFlag, true, '90% forecast-vs-METAR gap must flag discrepancy');
+  assert.ok(fus.hours[0].block > fus.hours[1].block && fus.hours[1].block > fus.hours[2].block && fus.hours[2].block > fus.hours[3].block, 'OI weight must decay monotonically +0h -> +3h');
+  assert.equal(fus.hours[4].block, 10, 'Hours >= +4h must remain untouched NWP forecast');
+  assert.equal(fus.hours[0].block + fus.hours[0].clear, 100);
+  // Distant station (>55km) must NOT be assimilated
+  assert.equal(api.assimilateMetarNowcast(baseHrs, iemOvc, 80).applied, false);
+
+  // 4. Regional dual-model selector, extractor, 50/50 blender & global dual-model confidence
+  assert.equal(api.selectOpenMeteoModels(69.65, 18.96), null, 'Nordic box uses MET Norway primary');
+  assert.deepEqual(api.selectOpenMeteoModels(64.13, -21.94), ['best_match', 'icon_seamless'], 'Iceland must use best_match + icon_seamless');
+  assert.deepEqual(api.selectOpenMeteoModels(62.46, -114.44), ['best_match', 'ecmwf_ifs025'], 'Canada/Global must use best_match + ecmwf_ifs025');
+
+  const multiHourly = {
+    time: [Math.floor(nowMs / 1000), Math.floor(nowMs / 1000) + 3600],
+    cloud_cover_best_match: [20, 40], cloud_cover_low_best_match: [20, 40], cloud_cover_mid_best_match: [0, 0], cloud_cover_high_best_match: [0, 0],
+    cloud_cover_icon_seamless: [80, 60], cloud_cover_low_icon_seamless: [80, 60], cloud_cover_mid_icon_seamless: [0, 0], cloud_cover_high_icon_seamless: [0, 0],
+    precipitation_best_match: [0, 0], temperature_2m_best_match: [1, 1], wind_speed_10m_best_match: [10, 10]
+  };
+  const hBm = api.extractOpenMeteoModelHourly(multiHourly, 'best_match');
+  const hIc = api.extractOpenMeteoModelHourly(multiHourly, 'icon_seamless');
+  const hrs1 = api.parseOpenMeteoHourly12(hBm, 64.13, -21.94, 'Atlantic/Reykjavik', new Date(nowMs), 0);
+  const hrs2 = api.parseOpenMeteoHourly12(hIc, 64.13, -21.94, 'Atlantic/Reykjavik', new Date(nowMs), 0);
+  const blended = api.blendHourlyForecasts(hrs1, hrs2);
+  assert.equal(blended[0].block, 50, '50/50 physical blend of 20% and 80% must equal 50%');
+  assert.equal(blended[1].block, 50, '50/50 physical blend of 40% and 60% must equal 50%');
+
+  // Global dual-model consensus outside Nordics must unlock High confidence & NOT claim MET Norway 2.5km
+  const expGlobal = api.explainAuroraScore({
+    lat: 64.13, lon: -21.94, cloudNow: 15, sunAlt: -20, bz: -5, speed: 500, kp: 3.5,
+    usedMet: false, noaaOk: true, noaaLagMin: 5, lang: 'en',
+    cloudConsensus: { metAvg3h: 15, omAvg3h: 20, diffPct: 5, mae3h: 5, matchedHours: 3, level: 'high' }
+  });
+  assert.equal(expGlobal.confidence.level, 'high', 'Dual-model consensus outside Nordics must achieve High confidence');
+  assert.ok(!expGlobal.confidence.headline.includes('MET Norway'), `Non-Nordic confidence copy must not mention MET Norway: ${expGlobal.confidence.headline}`);
+
+  // 5. Hardened METAR edge-case regressions (TEMPO/RMK strip, CB/VV///, compound -DZRA, Feb-31 Date.UTC rollover)
+  const tempoClr = api.parseMetNorwayMetarText('ENTC 242120Z 19008KT CAVOK 01/M01 Q1028 TEMPO BKN015 RMK WIND 2600FT 30017KT=', nowMs);
+  assert.ok(tempoClr && tempoClr.effCloud === 0 && tempoClr.skyCode === 'CLR', 'Future TEMPO BKN015 must NOT overwrite current CAVOK');
+  const cbSky = api.parseMetarSkyCover([], [], '', 'ENTC 242120Z 19014KT 9999 -DZRA BKN008CB 01/M00 Q1028');
+  assert.ok(cbSky && cbSky.effCloud >= 85 && cbSky.skyCode === 'BKN' && cbSky.ceilingM === 244 && cbSky.hasPrecipFog, 'Must parse BKN008CB and compound -DZRA');
+  const vvObs = api.parseMetarSkyCover([], [], '', 'CYZF 242100Z 02008KT 1/2SM SN VV/// M10/M10');
+  assert.ok(vvObs && vvObs.effCloud === 100 && vvObs.skyCode === 'VV', 'VV/// obscured sky must yield effCloud=100, skyCode=VV');
+  const snOnly = api.parseMetarSkyCover([], [], '-SN', 'ENTC 242100Z -SN');
+  assert.ok(snOnly && snOnly.skyCode === 'WX' && snOnly.effCloud >= 85, 'Snow without sky layer must NOT return skyCode CLR');
+  // Feb 31 Date.UTC rollover guard: Jan 31 METAR evaluated on Mar 4 must be rejected as stale (NOT wrapped to Mar 3!)
+  const mar4Ms = Date.parse('2026-03-04T00:10:00Z');
+  assert.equal(api.parseMetNorwayMetarText('ENTC 312350Z 19008KT CAVOK 00/M02 Q1010=', mar4Ms), null, 'Date.UTC Feb-31 rollover must not resurrect stale Jan-31 METAR');
+});
+
