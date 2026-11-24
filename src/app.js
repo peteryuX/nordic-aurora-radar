@@ -14,7 +14,7 @@ const {
   isInNordicMetBox, computeCompassPoints, getZoneParts, formatReverseGeo,
   parseUrlLocation, buildShareUrl, computeSolarElevation, getMoonState,
   computeViewingGeometry, classifyViewingMode, computeMLT,
-  computeDataLagMin, computeBallisticCoupling, computeAuroraScore,
+  computeDataLagMin, computeBallisticCoupling, computeAuroraScore, explainAuroraScore,
   parseMagSeries, parseWindSeries, parseKpForecast, lookupForecastKp,
   parseLatestKp, lookupOvationProb, parseHemiPower, parseGoesSubstorm, mergeGoesSubstorm,
   parseGeospacePredKp1h, parseNoaaAlerts, parseNoaaGeomagneticScales,
@@ -170,6 +170,9 @@ function applyStaticI18n() {
   if (ci) ci.placeholder = en ? 'Search city (e.g. Reykjavik, Fairbanks, Hobart)' : '輸入英文地名（例：Reykjavik, Fairbanks, Hobart）';
   setT('searchBtn', '搜尋', 'Go');
   setT('ringSubLbl', '觀測指數', 'Score');
+  setT('trustBtn', '算法與可信度 ⓘ', 'Method & Trust ⓘ');
+  const rb = $('ringBtn');
+  if (rb) rb.setAttribute('aria-label', en ? 'View score formula and credibility' : '查看指數算法與可信度');
   setT('fSkyLbl', '晴空率', 'Clear Sky');
   setT('fAurLbl', '極光活動', 'Aurora');
   setT('fDarkLbl', '夜空暗度', 'Darkness');
@@ -178,10 +181,48 @@ function applyStaticI18n() {
   const hrl = $('hrLegLeft');
   if (hrl) {
     hrl.innerHTML = en
-      ? `<span class="leg-dot" style="background:var(--green);"></span>Clear Sky % ｜ <span class="leg-dot" style="background:#a855f7;"></span>Viewing Score`
-      : `<span class="leg-dot" style="background:var(--green);"></span>綠線＝晴空率 % ｜ <span class="leg-dot" style="background:#a855f7;"></span>紫柱＝觀測指數`;
+      ? `<span class="leg-dot" style="background:var(--green);"></span>Clear Sky % (higher = clearer) ｜ <span class="leg-dot" style="background:#a855f7;"></span>Score (higher = better)`
+      : `<span class="leg-dot" style="background:var(--green);"></span>綠線＝晴空率（越高越晴）｜<span class="leg-dot" style="background:#a855f7;"></span>紫柱＝指數（越高越好）`;
   }
-  setT('hrLegRight', '每 2 小時刻度・點圖表查看單小時', '2h ticks · Tap hour to inspect');
+  setT('hrLegRight', '點圖表查單小時', 'Tap hour');
+  setT('trustSheetTitle', '指數算法與資料可信度', 'Score Formula & Credibility');
+  setT('tsLblSky', '晴空度', 'Clear Sky');
+  setT('tsLblAur', '極光活動', 'Aurora');
+  setT('tsLblDark', '夜空暗度', 'Darkness');
+  setT('tsLblOut', '總分', 'Score');
+  setT('tsTierTitle', '分數越高越適合看（0–99 分級與三因子公式）', 'Higher = Better (0–99 Tiers & 3-Pillar Formula)');
+  setT('tsT1', '極佳條件', 'Optimal');
+  setT('tsT2', '適合觀測', 'Good');
+  setT('tsT3', '有機會看見', 'Possible');
+  setT('tsT4', '雲厚／過亮／弱', 'Blocked / Weak');
+  const tsP = $('tsPillars');
+  if (tsP) {
+    tsP.innerHTML = en
+      ? `<li><strong>Clear Sky</strong>: Low/mid clouds & fog weigh 100%, high cirrus 30% (capped at total cloud +8%), nonlinear exponent 0.85 (0.72 during broken-cloud strong storms).</li>` +
+        `<li><strong>Aurora</strong>: Fuses 11 live NOAA feeds (3-pt median L1 solar wind & 60m magnetotail preconditioning, Geospace 1h MHD Kp, OVATION, HPI GW, dual GOES & SWPC alerts).</li>` +
+        `<li><strong>Darkness</strong>: Sun must drop below -4° (-12° full dark), with Krisciunas–Schaefer lunar opposition surge tapering automatically during bright storms.</li>`
+      : `<li><strong>晴空度</strong>：低雲／中雲／霧以 100% 計遮蔽、高捲雲以 30% 計（上限為總雲量 +8%），採非線性指數 0.85（強極光雲縫放寬至 0.72）。</li>` +
+        `<li><strong>極光活動</strong>：整合 NOAA 11 源（L1 太陽風 3 點濾波與 60 分鐘磁尾蓄能、Geospace 1h Kp、OVATION、半球功率 GW、雙 GOES 副磁暴與 SWPC 警報）。</li>` +
+        `<li><strong>夜空暗度</strong>：太陽需低於 -4°（-12° 全暗），並依 Krisciunas–Schaefer 月光衝日效應與極光亮度動態調整扣分。</li>`;
+  }
+  setT('tsSciTitle', '科學驗證與官方資料來源', 'Scientific Verification & Sources');
+  const tsG = $('tsStatGrid');
+  if (tsG) {
+    tsG.innerHTML = en
+      ? `<div class="ts-stat"><strong>NASA JPL 0.006°</strong><span>DE441 sun/moon calibration</span></div>` +
+        `<div class="ts-stat"><strong>44 Storms · 0% FNR</strong><span>G1–G5 & trap replay suite</span></div>` +
+        `<div class="ts-stat"><strong>11 NOAA Live Feeds</strong><span>L1 Wind · MHD · Dual GOES</span></div>` +
+        `<div class="ts-stat"><strong>2.5km Yr.no</strong><span>Dual-model cloud check</span></div>`
+      : `<div class="ts-stat"><strong>NASA JPL 0.006°</strong><span>DE441 日月天文校準</span></div>` +
+        `<div class="ts-stat"><strong>44 歷史風暴 0 漏報</strong><span>G1–G5 與假警報重播</span></div>` +
+        `<div class="ts-stat"><strong>11 NOAA 即時源</strong><span>L1 太陽風・MHD・雙 GOES</span></div>` +
+        `<div class="ts-stat"><strong>2.5km Yr.no</strong><span>MET Norway 雙模型比對</span></div>`;
+  }
+  setT('tsPrivTitle', '隱私與安全信任章', 'Privacy & Security Seal');
+  setT('tsSeal1', '嚴格 CSP 白名單・零第三方 JS', 'Strict CSP · Zero 3rd-Party JS');
+  setT('tsSeal2', '零 Cookie・零追蹤碼', 'Zero Cookies · Zero Trackers');
+  setT('tsSeal3', 'GPS 僅留存本機瀏覽器', 'GPS Stays Local in Browser');
+  setT('tsSealLink', 'GitHub MIT 開源原始碼 ↗', 'MIT Open Source on GitHub ↗');
   setT('h2Outlook', '未來 3 晚極光與晴空展望', '3-Night Outlook');
   setT('outlookSub', 'NOAA 72h Kp 預報 · 官方夜間分層雲量（僅計太陽低於 -4°）', 'NOAA 72h Kp forecast · Official dark-sky clouds (sun < -4°)');
   setT('h2Radar', '周邊 360° 晴空雷達', '360° Clear-Sky Radar');
@@ -652,33 +693,35 @@ function renderFromState(st) {
   if (!hereHrs.length) return;
   const c0 = hereHrs[0].block;
 
+  // Single source of truth for confidence precedence & live Trust Sheet diagnosis
+  const expNow = explainAuroraScore({
+    lat: currentPos.lat, lon: currentPos.lon,
+    cloudNow: c0, sunAlt: sunAltNow,
+    bz: bal.nowBz ?? bz, speed, kp, ovation, hpiGw,
+    substormJumpNt: goesSub ? goesSub.jumpNt : 0,
+    pdyn: bal.pdyn, shockJumpNpa: bal.shockJumpNpa,
+    newell: bal.nowNewell, preconditionedNewell60: bal.avgNewell60,
+    mlt: mltNow, effMoonPct: moon.effMoonPct,
+    moonPct: moon.pct, moonAltDeg: moon.altDeg,
+    scNext, noaaOk, noaaLagMin, usedMet, cloudConsensus, hereHrs, noaaAlert
+  });
+
   // +ETA Forward Forecast Strip (never hide incoming storm even if current hour is outOfZone!)
   const fcEl = $('fcNextTxt');
   const confEl = $('fcConfTxt');
   if (fcEl && confEl) {
     if (sc.outOfZone && (!scNext || scNext.outOfZone)) {
       fcEl.innerHTML = en ? `Next 1h est.: Score <strong>0</strong> (Latitude limit)` : `未來 1 小時預估：指數 <strong>0</strong>（緯度限制）`;
-      confEl.textContent = en ? 'Conf: High' : '信心：高';
     } else {
       const diff = scNext.total - sc.total;
       const arrow = diff >= 6 ? (en ? '↗ Rising' : '↗ 增強') : (diff <= -6 ? (en ? '↘ Fading' : '↘ 轉弱') : (en ? '→ Steady' : '→ 持平'));
       fcEl.innerHTML = en
         ? `${etaClock ? `Est. ${etaClock}` : `In ~${bal.etaMin} min`}: Score <strong>${scNext.total}</strong> (${arrow})`
         : `${etaClock ? `${etaClock} 預估` : `約 ${bal.etaMin} 分鐘後預估`}：指數 <strong>${scNext.total}</strong>（${arrow}）`;
-      const cSpan = hereHrs.length >= 3 ? (Math.max(hereHrs[0].block, hereHrs[1].block, hereHrs[2].block) - Math.min(hereHrs[0].block, hereHrs[1].block, hereHrs[2].block)) : 0;
-      if (noaaLagMin > 45) {
-        confEl.textContent = en ? 'Conf: Med (Sat lag)' : '信心：中（延遲）';
-      } else if (cloudConsensus && cloudConsensus.level === 'low') {
-        confEl.textContent = en ? 'Conf: Low (Models diverge)' : '信心：低（雲量分歧·看實拍）';
-      } else if (cSpan >= 45) {
-        confEl.textContent = en ? 'Conf: Med (Fast clouds)' : '信心：中（雲快）';
-      } else if (cloudConsensus && cloudConsensus.level === 'medium') {
-        confEl.textContent = en ? 'Conf: Med (Cloud spread)' : '信心：中（雲量微差）';
-      } else {
-        confEl.textContent = noaaOk && usedMet ? (en ? 'Conf: High' : '信心：高') : (en ? 'Conf: Med' : '信心：中');
-      }
     }
+    confEl.textContent = expNow.confidence.badgeText;
   }
+  renderTrustSheetLive(expNow, sc);
 
   $('skySvg').innerHTML = buildSkySceneSVG({
     cloudPct: c0, auroraScore: sc.auroraScore, moonUp: moon.up, moonPct: moon.pct, isTooBright: sc.isTooBright
@@ -1105,13 +1148,84 @@ async function shareStatus() {
   }
 }
 
+// ====== Trust & Score Transparency Bottom-Sheet ======
+let trustTriggerEl = null;
+let lastExplainState = null;
+
+function renderTrustSheetLive(expOpt = null, scOpt = null) {
+  const exp = expOpt || lastExplainState;
+  const sc = scOpt || lastRenderState?.sc;
+  if (!exp || !sc) return;
+  lastExplainState = exp;
+  const en = isEn();
+  const colOut = scoreCssColor(sc.color);
+
+  const titleEl = $('tsLiveTitle');
+  if (titleEl) {
+    titleEl.innerHTML = en
+      ? `Why is it <strong id="tsLiveTotal" style="color:${colOut}">${sc.total}</strong> right now? (Higher = better)`
+      : `為何現在是 <strong id="tsLiveTotal" style="color:${colOut}">${sc.total}</strong> 分？（越高越好）`;
+  }
+  const setCell = (id, val, col) => {
+    const el = $(id);
+    if (el) { el.textContent = val; el.style.color = col; }
+  };
+  setCell('tsValSky', `${sc.skyScore}%`, barColor(sc.skyScore));
+  setCell('tsValAur', sc.auroraScore, barColor(sc.auroraScore));
+  setCell('tsValDark', `${sc.darkScore}%`, sc.isTooBright ? 'var(--blue)' : barColor(sc.darkScore));
+  setCell('tsValOut', sc.total, colOut);
+
+  const badge = $('tsLiveBadge');
+  if (badge) {
+    const bCls = exp.score.statusTier === 'optimal'
+      ? 'ok'
+      : (exp.bottleneck.key === 'gate-low-lat' || exp.bottleneck.key === 'clouds' ? 'block' : (exp.bottleneck.key === 'gate-daylight' || exp.bottleneck.key === 'quiet-aurora' ? 'info' : 'warn'));
+    badge.textContent = exp.bottleneck.label;
+    badge.className = `ts-badge ${bCls}`;
+  }
+  const diag = $('tsDiagTxt');
+  if (diag) diag.textContent = `${exp.bottleneck.headline} ${exp.bottleneck.detail}`;
+
+  const confRow = $('tsConfRow');
+  if (confRow) confRow.textContent = `${exp.confidence.badgeText} · ${exp.confidence.details.join(' / ')}`;
+
+  const limTitle = $('tsLimitTitle');
+  const limList = $('tsLimitList');
+  if (limTitle) limTitle.textContent = exp.disclaimer.title;
+  if (limList) {
+    limList.innerHTML = exp.disclaimer.items.map(it => `<li>${it.text}</li>`).join('');
+  }
+}
+
+function openTrustSheet(triggerEl) {
+  trustTriggerEl = triggerEl || document.activeElement;
+  if (lastRenderState) renderFromState(lastRenderState);
+  const sheet = $('trustSheet');
+  if (!sheet) return;
+  sheet.classList.add('open');
+  sheet.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('sheet-open');
+  $('trustCloseBtn')?.focus();
+}
+
+function closeTrustSheet() {
+  const sheet = $('trustSheet');
+  if (!sheet?.classList.contains('open')) return;
+  sheet.classList.remove('open');
+  sheet.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('sheet-open');
+  trustTriggerEl?.focus?.();
+}
+
 // Expose test helpers for automated visual verification scripts
 window.__AURORA_APP__ = {
   getState: () => lastRenderState,
   renderFromState,
   selectForecastHour,
   toggleRedMode,
-  switchView
+  switchView,
+  openTrustSheet,
+  closeTrustSheet
 };
 
 // ====== Event Binding & Bootstrap ======
@@ -1124,6 +1238,24 @@ function bindEvents() {
   $('gpsBtn')?.addEventListener('click', useGPS);
   $('shareBtn')?.addEventListener('click', shareStatus);
   $('cityForm')?.addEventListener('submit', searchCity);
+  $('ringBtn')?.addEventListener('click', (e) => openTrustSheet(e.currentTarget));
+  $('trustBtn')?.addEventListener('click', (e) => openTrustSheet(e.currentTarget));
+  $('trustCloseBtn')?.addEventListener('click', closeTrustSheet);
+  $('trustSheet')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closeTrustSheet(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeTrustSheet(); });
+
+  const sheetHdr = document.querySelector('#trustSheet .sheet-hdr');
+  const sheetPanel = document.querySelector('#trustSheet .sheet-panel');
+  if (sheetHdr && sheetPanel) {
+    let startY = 0, dy = 0;
+    sheetHdr.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; dy = 0; sheetPanel.style.transition = 'none'; }, { passive: true });
+    sheetHdr.addEventListener('touchmove', (e) => { dy = Math.max(0, e.touches[0].clientY - startY); sheetPanel.style.transform = `translateY(${dy}px)`; }, { passive: true });
+    sheetHdr.addEventListener('touchend', () => {
+      sheetPanel.style.transition = '';
+      sheetPanel.style.transform = '';
+      if (dy > 70) closeTrustSheet();
+    });
+  }
 
   document.querySelectorAll('#presetChips .chip').forEach(btn => {
     btn.addEventListener('click', () => pickPreset(btn.dataset.zh, btn.dataset.en, parseFloat(btn.dataset.lat), parseFloat(btn.dataset.lon), btn));

@@ -679,7 +679,7 @@ export function computeBallisticCoupling(magSeries, windSeriesOrSpeed, nowMs = n
 
 // ====== Aurora Visibility Scoring Engine (Calibrated Across 50 Global Cities) ======
 
-export function computeAuroraScore({
+function computeAuroraScoreInternal({
   lat = 69.97, lon = 23.27, cloudNow, sunAlt = -15, bz, speed, kp, ovation,
   hpiGw = null, substormJumpNt = 0, pdyn = null, shockJumpNpa = 0,
   newell = null, preconditionedNewell60 = null, mlt = null, effMoonPct = 0
@@ -689,7 +689,8 @@ export function computeAuroraScore({
   const mltShiftDeg = (mlt !== null && Number.isFinite(mlt)) ? (2.0 * Math.cos((mlt - 0.5) * Math.PI / 12)) : 0;
   const effMagForOval = absMag + mltShiftDeg;
   const neededKp = requiredKpForMagLat(effMagForOval);
-  const skyScore = Math.max(0, Math.min(100, Math.round(100 - (cloudNow ?? 100))));
+  const effCloudNow = Number.isFinite(cloudNow) ? Math.max(0, Math.min(100, Math.round(cloudNow))) : 100;
+  const skyScore = Math.max(0, Math.min(100, Math.round(100 - effCloudNow)));
 
   const curKp = (kp !== null && Number.isFinite(kp)) ? kp : 0;
   const curOv = (ovation !== null && Number.isFinite(ovation)) ? ovation : null;
@@ -699,6 +700,7 @@ export function computeAuroraScore({
   const subJump = (substormJumpNt !== null && Number.isFinite(substormJumpNt)) ? substormJumpNt : 0;
   const pVal = (pdyn !== null && Number.isFinite(pdyn)) ? pdyn : 0;
   const pJump = (shockJumpNpa !== null && Number.isFinite(shockJumpNpa)) ? shockJumpNpa : 0;
+  const moonEff = Number.isFinite(effMoonPct) ? Math.max(0, Math.min(100, effMoonPct)) : 0;
 
   // Real-time effective storm proxy Kp so sudden CMEs / substorms before 1m/3h Kp updates are NEVER missed
   const kpFromHpi = curHpi !== null ? Math.min(9, Math.max(0, (curHpi - 8) / 14)) : 0;
@@ -708,28 +710,51 @@ export function computeAuroraScore({
   const subBonusKp = (subJump >= 15 ? 1.0 : 0) + ((pVal >= 6 || pJump >= 3) ? 0.6 : 0);
   const effKp = Math.min(9.5, Math.max(curKp, kpFromHpi, kpFromNewell) + subBonusKp);
 
-  // Twilight darkness baseline (base threshold -4°; extreme G4-G5 storms can appear slightly earlier at -3.5°)
-  const moonDarkFactor = Math.max(0.58, 1 - (effMoonPct ?? 0) * 0.0038);
+  // Twilight darkness baseline (strict -4° threshold; full astronomical contrast reached at -12°)
+  const moonDarkFactor = Math.max(0.58, 1 - moonEff * 0.0038);
   const baseTooBright = sunAlt >= -4;
   const rawTw = baseTooBright ? 0 : Math.min(1, (-sunAlt - 4) / 8);
   const darkScore = Math.round(100 * rawTw * moonDarkFactor);
 
   // Hard physical gate 1: < 32° geomagnetic (Taiwan 16°, Tokyo 28°, Singapore) -> impossible
   if (absMag < 32) {
-    return {
+    const reqStatic = requiredKpForMagLat(absMag);
+    const result = {
       total: 0, skyScore, auroraScore: 0, darkScore, isTooBright: baseTooBright, twilightFactor: rawTw,
-      magLat: Math.round(absMag), neededKp: requiredKpForMagLat(absMag), outOfZone: 'low-lat',
+      magLat: Math.round(absMag), neededKp: reqStatic, outOfZone: 'low-lat',
       grade: '🌏 緯度過低', color: '#ff8a96'
+    };
+    return {
+      result,
+      breakdown: {
+        cloudNow: effCloudNow, skyScore, cloudExp: 0.85, skyFactor: +Math.pow(skyScore / 100, 0.85).toFixed(3),
+        auroraScore: 0, aurFactor: 0, baseAur: null, effKp: +effKp.toFixed(1), neededKp: reqStatic,
+        magLat: Math.round(absMag), reachFactor: 0, swAdj: 0, precondAdj: 0, substormAdj: 0, pdynAdj: 0,
+        mltFactor: 1, sunAlt: +Number(sunAlt).toFixed(1), rawTw: +rawTw.toFixed(2), twilightExp: 0.85,
+        twilightFactor: baseTooBright ? 0 : +Math.pow(rawTw, 0.85).toFixed(3), effMoonPct: Math.round(moonEff),
+        moonDarkFactor: +moonDarkFactor.toFixed(3), moonWeight: 0.45, darkScore, darkFactor: 0, activeBoosts: []
+      }
     };
   }
 
   // Hard physical gate 2: Mid-lat cities where neither global Kp, real-time solar wind proxy, nor horizon reach suffices
   // Tolerance +1.8 Kp (~3.7° poleward -> ~14° green / ~23° upper rays above horizon) prevents contradicting viewing geometry
   if (!(baseTooBright && absMag >= 45) && neededKp >= 2.5 && (effKp + 1.8) < neededKp && (curOv ?? 0) < 5) {
-    return {
+    const result = {
       total: 0, skyScore, auroraScore: 0, darkScore, isTooBright: baseTooBright, twilightFactor: rawTw,
       magLat: Math.round(absMag), neededKp, outOfZone: 'need-storm',
       grade: lat >= 0 ? '🌍 極光帶偏北' : '🌍 極光帶偏南', color: '#ff8a96'
+    };
+    return {
+      result,
+      breakdown: {
+        cloudNow: effCloudNow, skyScore, cloudExp: 0.85, skyFactor: +Math.pow(skyScore / 100, 0.85).toFixed(3),
+        auroraScore: 0, aurFactor: 0, baseAur: null, effKp: +effKp.toFixed(1), neededKp,
+        magLat: Math.round(absMag), reachFactor: 0, swAdj: 0, precondAdj: 0, substormAdj: 0, pdynAdj: 0,
+        mltFactor: 1, sunAlt: +Number(sunAlt).toFixed(1), rawTw: +rawTw.toFixed(2), twilightExp: 0.85,
+        twilightFactor: baseTooBright ? 0 : +Math.pow(rawTw, 0.85).toFixed(3), effMoonPct: Math.round(moonEff),
+        moonDarkFactor: +moonDarkFactor.toFixed(3), moonWeight: 0.45, darkScore, darkFactor: 0, activeBoosts: []
+      }
     };
   }
 
@@ -789,15 +814,16 @@ export function computeAuroraScore({
 
   // Intensity-aware twilight & lunar attenuation (IBC III/IV storms cut through twilight & moonlight!)
   const isTooBright = baseTooBright;
-  const twilightFactor = isTooBright ? 0 : Math.pow(rawTw, auroraScore >= 75 ? 0.58 : 0.85);
+  const twilightExp = auroraScore >= 75 ? 0.58 : 0.85;
+  const twilightFactor = isTooBright ? 0 : Math.pow(rawTw, twilightExp);
   const moonWeight = 0.45 * Math.max(0.25, 1 - Math.max(0, auroraScore - 60) / 60);
   const darkFactor = twilightFactor * ((1 - moonWeight) + moonWeight * moonDarkFactor);
 
-  // Soften cloud exponent slightly during strong storms with broken gaps (15-35% clear sky)
+  // Soften cloud exponent slightly during strong storms with broken gaps (15-38% clear sky)
   const cloudExp = (auroraScore >= 80 && skyScore >= 15 && skyScore <= 38) ? 0.72 : 0.85;
+  const skyFactor = Math.pow(skyScore / 100, cloudExp);
   let total = 0;
   if (!isTooBright) {
-    const skyFactor = Math.pow(skyScore / 100, cloudExp);
     total = Math.max(0, Math.min(99, Math.round(skyFactor * auroraScore * darkFactor)));
   }
 
@@ -818,9 +844,339 @@ export function computeAuroraScore({
     grade = '🌌 晴朗但極光弱'; color = '#66bdff';
   }
 
-  return {
+  const activeBoosts = [];
+  if (precondAdj >= 0.5) activeBoosts.push('preconditioned');
+  if (substormAdj >= 0.5) activeBoosts.push('substorm');
+  if (pdynAdj >= 0.5) activeBoosts.push('pressure-shock');
+  if (cloudExp === 0.72) activeBoosts.push('broken-cloud-softening');
+  if (!isTooBright && rawTw < 0.99 && twilightExp === 0.58) activeBoosts.push('twilight-softening');
+
+  const result = {
     total, skyScore, auroraScore, darkScore, isTooBright, twilightFactor: +rawTw.toFixed(2),
     effKp: +effKp.toFixed(1), magLat: Math.round(absMag), neededKp, outOfZone: null, grade, color
+  };
+  return {
+    result,
+    breakdown: {
+      cloudNow: effCloudNow, skyScore, cloudExp, skyFactor: +skyFactor.toFixed(3),
+      auroraScore, aurFactor: +(auroraScore / 100).toFixed(3), baseAur: +baseAur.toFixed(1),
+      effKp: +effKp.toFixed(1), neededKp, magLat: Math.round(absMag),
+      reachFactor: +reachFactor.toFixed(2), swAdj: +scaledSwAdj.toFixed(1),
+      precondAdj: +precondAdj.toFixed(1), substormAdj: +substormAdj.toFixed(1), pdynAdj: +pdynAdj.toFixed(1),
+      mltFactor: +mltFactor.toFixed(3), sunAlt: +Number(sunAlt).toFixed(1),
+      rawTw: +rawTw.toFixed(2), twilightExp, twilightFactor: +twilightFactor.toFixed(3),
+      effMoonPct: Math.round(moonEff), moonDarkFactor: +moonDarkFactor.toFixed(3),
+      moonWeight: +moonWeight.toFixed(4), darkScore, darkFactor: +darkFactor.toFixed(3),
+      activeBoosts
+    }
+  };
+}
+
+export function computeAuroraScore(params = {}) {
+  return computeAuroraScoreInternal(params).result;
+}
+
+/**
+ * Code-faithful live transparency & credibility explainer for the Trust Sheet and confidence badge.
+ * Single source of truth for: live score equation, primary bottleneck diagnosis, unified confidence
+ * precedence (model-diverge low always overrides medium sat-lag), and honest physical limits.
+ */
+export function explainAuroraScore(params = {}) {
+  const {
+    scNext = null, noaaOk = true, noaaLagMin = null, usedMet = false,
+    cloudConsensus = null, hereHrs = null, cloudSpan3h = null,
+    kp = null, ovation = null, moonPct = null, moonAltDeg = null,
+    noaaAlert = null, predKp1h = null, lang
+  } = params;
+  const en = isEn(lang);
+  const { result: sc, breakdown: bd } = computeAuroraScoreInternal(params);
+
+  const boosts = [...bd.activeBoosts];
+  if (noaaAlert?.active) boosts.push('cme-alert');
+  if (Number.isFinite(predKp1h) && Number.isFinite(kp) && predKp1h - kp >= 1.5) boosts.push('geospace-surge');
+
+  const span3h = Number.isFinite(cloudSpan3h)
+    ? Math.round(cloudSpan3h)
+    : (Array.isArray(hereHrs) && hereHrs.length >= 3
+        ? Math.round(Math.max(hereHrs[0].block, hereHrs[1].block, hereHrs[2].block) - Math.min(hereHrs[0].block, hereHrs[1].block, hereHrs[2].block))
+        : null);
+
+  const skyF = bd.skyFactor.toFixed(2);
+  const darkF = bd.darkFactor.toFixed(2);
+  const ovStr = (ovation !== null && Number.isFinite(ovation)) ? Math.round(ovation) : '--';
+  const kpStr = (kp !== null && Number.isFinite(kp)) ? Number(kp).toFixed(1) : '--';
+  const sunAltStr = `${bd.sunAlt > 0 ? '+' : ''}${bd.sunAlt.toFixed(1)}`;
+  const darkPct = Math.round(bd.darkFactor * 100);
+  const reachPct = Math.round(bd.reachFactor * 100);
+  const moonWtPct = Math.round(bd.moonWeight * 100);
+  const moonDetailZh = (Number.isFinite(moonPct) && Number.isFinite(moonAltDeg)) ? `（月相 ${Math.round(moonPct)}%、仰角 ${Math.round(moonAltDeg)}°）` : '';
+  const moonDetailEn = (Number.isFinite(moonPct) && Number.isFinite(moonAltDeg)) ? ` (${Math.round(moonPct)}% phase, ${Math.round(moonAltDeg)}° alt)` : '';
+
+  const boostPartsZh = [];
+  const boostPartsEn = [];
+  if (bd.precondAdj >= 0.5) { boostPartsZh.push(`60m 磁尾蓄能 +${bd.precondAdj}`); boostPartsEn.push(`60m preconditioning +${bd.precondAdj}`); }
+  if (bd.substormAdj >= 0.5) { boostPartsZh.push(`GOES 副磁暴 +${bd.substormAdj}`); boostPartsEn.push(`GOES substorm +${bd.substormAdj}`); }
+  if (bd.pdynAdj >= 0.5) { boostPartsZh.push(`動壓衝擊 +${bd.pdynAdj}`); boostPartsEn.push(`pressure shock +${bd.pdynAdj}`); }
+  const boostSuffixZh = boostPartsZh.length ? `（已計入：${boostPartsZh.join('、')}）` : '';
+  const boostSuffixEn = boostPartsEn.length ? ` (boosts: ${boostPartsEn.join(', ')})` : '';
+
+  // 1. Deterministic bottleneck diagnosis
+  let statusTier = 'limited', bKey = 'quiet-aurora', limitingPillar = 'aurora';
+  let bLabel = '', bHeadline = '', bDetail = '';
+  const tierPrefixZh = sc.total >= 40 ? `目前分數 ${sc.total}（適合觀測），未達極佳的` : `目前分數 ${sc.total}，`;
+  const tierPrefixEn = sc.total >= 40 ? `Score is ${sc.total} (good) — ` : `Score is ${sc.total} — `;
+
+  if (sc.outOfZone === 'low-lat') {
+    statusTier = 'gated'; bKey = 'gate-low-lat'; limitingPillar = 'gate';
+    bLabel = en ? 'Latitude Gate' : '緯度硬門檻';
+    bHeadline = en
+      ? `Score is 0: geomagnetic latitude is ${bd.magLat}°, below the 32° physical floor.`
+      : `指數歸零：此地地磁緯度僅 ${bd.magLat}°，低於 32° 物理門檻。`;
+    bDetail = en
+      ? 'Auroras normally occur above 60° geomagnetic; visibility below 32° is effectively zero.'
+      : '極光帶平時位於地磁 60° 以上，低於 32° 幾乎不可能觀測到極光。';
+  } else if (sc.outOfZone === 'need-storm') {
+    statusTier = 'gated'; bKey = 'gate-need-storm'; limitingPillar = 'gate';
+    bLabel = en ? 'Oval Out of Reach' : '極光帶尚未擴張';
+    bHeadline = en
+      ? `Score is 0: auroral oval is poleward — effective Kp ${bd.effKp} is below the Kp ≥ ${bd.neededKp} reach threshold.`
+      : `指數歸零：極光帶仍在高緯度，目前有效 Kp ${bd.effKp} 未達此地門檻（需 Kp ≥ ${bd.neededKp}）。`;
+    bDetail = en
+      ? `At ${bd.magLat}° mag lat, even with the +1.8 Kp horizon margin the oval is too far away, and overhead OVATION is ${ovStr}% (< 5%).`
+      : `地磁 ${bd.magLat}° 計入 +1.8 Kp 地平線視野寬容後仍距極光帶太遠，且頭頂 OVATION 機率為 ${ovStr}%（< 5%）。`;
+  } else if (sc.isTooBright) {
+    statusTier = 'gated'; bKey = 'gate-daylight'; limitingPillar = 'gate';
+    bLabel = en ? 'Daylight Gate' : '天色過亮';
+    bHeadline = en
+      ? `Score is 0: Sun is at ${sunAltStr}° elevation and must drop below -4° for aurora contrast.`
+      : `指數歸零：目前太陽仰角 ${sunAltStr}°，需降至 -4° 以下才能觀測極光。`;
+    bDetail = en
+      ? `Underlying geomagnetic energy is ${bd.auroraScore}/100 with ${bd.skyScore}% clear sky; scoring unlocks below -4°.`
+      : `目前背景極光能量為 ${bd.auroraScore}/100、有效晴空 ${bd.skyScore}%，待暮光低於 -4° 後指數才會啟用。`;
+  } else if (sc.total >= 65) {
+    statusTier = 'optimal'; bKey = 'optimal'; limitingPillar = 'none';
+    bLabel = en ? 'All Pillars Aligned' : '三項條件齊備';
+    bHeadline = en
+      ? `Score is high (${sc.total}): clear sky (${bd.skyScore}%), active aurora (${bd.auroraScore}/100), and dark sky (${darkPct}%) align.`
+      : `目前分數高達 ${sc.total}：晴空（${bd.skyScore}%）、活躍極光（${bd.auroraScore}/100）與暗空（${darkPct}%）同時到位。`;
+    bDetail = en
+      ? `Formula: sky ${skyF} × aurora ${bd.auroraScore} × darkness ${darkF} = ${sc.total}${boostSuffixEn}.`
+      : `乘積計算：晴空係數 ${skyF} × 極光 ${bd.auroraScore} × 暗空係數 ${darkF} = ${sc.total}${boostSuffixZh}。`;
+  } else {
+    statusTier = sc.total >= 40 ? 'good' : 'limited';
+    if (bd.darkFactor <= bd.skyFactor && bd.darkFactor <= bd.aurFactor) {
+      limitingPillar = 'darkness';
+      if (bd.rawTw < 0.99) {
+        bKey = 'twilight';
+        bLabel = en ? 'Twilight Sky' : '暮光偏亮';
+        bHeadline = en
+          ? `${tierPrefixEn}main bottleneck is twilight: Sun is at ${sunAltStr}° (full darkness at -12°), leaving darkness factor at ${darkF}.`
+          : `${tierPrefixZh}主要瓶頸是暮光：太陽仰角 ${sunAltStr}°（需降至 -12° 才達全暗），暗空係數目前為 ${darkF}。`;
+        bDetail = en
+          ? `Using ${bd.twilightExp === 0.58 ? 'strong-storm twilight exponent 0.58 (aurora ≥ 75)' : 'standard twilight exponent 0.85'}; sky ${bd.skyScore}% clear, aurora ${bd.auroraScore}/100.`
+          : `目前套用${bd.twilightExp === 0.58 ? '強極光暮光指數 0.58（≥75 分較耐暮光）' : '標準暮光指數 0.85'}；晴空 ${bd.skyScore}%、極光 ${bd.auroraScore}/100。`;
+      } else {
+        bKey = 'moonlight';
+        bLabel = en ? 'Moonlight Glow' : '月光干擾';
+        bHeadline = en
+          ? `${tierPrefixEn}main bottleneck is moonlight: ${bd.effMoonPct}% effective lunar brightness${moonDetailEn} trims darkness factor to ${darkF}.`
+          : `${tierPrefixZh}主要瓶頸是月光背景亮度：有效月光 ${bd.effMoonPct}%${moonDetailZh}，使暗空係數降至 ${darkF}。`;
+        bDetail = en
+          ? `Computed via Krisciunas–Schaefer opposition surge with storm-tapered moon weight (${moonWtPct}%); bright storms reduce moon impact.`
+          : `依 Krisciunas–Schaefer 衝日效應與極光亮度衰減權重（本次月光權重 ${moonWtPct}%）計算，強極光爆發時月光影響會自動減輕。`;
+      }
+    } else if (bd.skyFactor <= bd.aurFactor) {
+      limitingPillar = 'sky';
+      if (bd.cloudExp === 0.72 || sc.grade === '⚡ 雲縫極光') {
+        bKey = 'cloud-gaps';
+        bLabel = en ? 'Strong Storm · Cloud Gaps' : '雲縫強極光';
+        bHeadline = en
+          ? `Score (${sc.total}) is capped by ${bd.cloudNow}% effective cloud, yet strong aurora (${bd.auroraScore}/100) can pierce breaks.`
+          : `目前分數 ${sc.total} 主要受雲層壓抑（有效雲量 ${bd.cloudNow}%），但極光夠強（${bd.auroraScore}/100），雲隙有機會透出綠光。`;
+        bDetail = en
+          ? `Because aurora ≥ 80 with 15–38% clear sky, the cloud exponent softens from 0.85 to 0.72 (sky factor ${skyF})${boostSuffixEn}.`
+          : `因極光 ≥ 80 且晴空落於 15–38%，引擎將雲量非線性指數由 0.85 放寬至 0.72（晴空係數 ${skyF}）${boostSuffixZh}。`;
+      } else {
+        bKey = 'clouds';
+        bLabel = en ? 'Cloud Cover' : '雲層遮蔽';
+        bHeadline = en
+          ? `${tierPrefixEn}main bottleneck is cloud cover: ${bd.cloudNow}% effective cloud (${bd.skyScore}% clear) cuts sky factor to ${skyF}.`
+          : `${tierPrefixZh}主要瓶頸是雲層：有效遮蔽 ${bd.cloudNow}%（晴空 ${bd.skyScore}%），使晴空係數降至 ${skyF}。`;
+        bDetail = en
+          ? `Low/mid clouds & fog weigh 100%, high cirrus 30% (capped at total cloud +8%), exponent ${bd.cloudExp}; aurora energy is ${bd.auroraScore}/100.`
+          : `低／中層雲與霧以 100% 計遮蔽、高捲雲以 30% 計（並以總雲量 +8% 設上限），非線性指數 ${bd.cloudExp}；目前極光能量 ${bd.auroraScore}/100。`;
+      }
+    } else {
+      limitingPillar = 'aurora';
+      if (bd.reachFactor < 0.85) {
+        bKey = 'oval-reach';
+        bLabel = en ? 'Mid-Lat Oval Reach' : '極光帶距離';
+        bHeadline = en
+          ? `${tierPrefixEn}main bottleneck is oval distance: effective Kp ${bd.effKp} vs Kp ${bd.neededKp} attenuates solar-wind boosts to ${reachPct}%.`
+          : `${tierPrefixZh}主要瓶頸是極光帶尚未擴張到位：有效 Kp ${bd.effKp} 距門檻 Kp ${bd.neededKp} 仍有落差，太陽風增益已衰減至 ${reachPct}%。`;
+        bDetail = en
+          ? `At ${bd.magLat}° mag lat with overhead OVATION at ${ovStr}% (< 15%), poleward storm surges are scaled down; sky is ${bd.skyScore}% clear.`
+          : `此地地磁 ${bd.magLat}° 且頭頂 OVATION 僅 ${ovStr}%（< 15%），高緯度太陽風訊號不會被過度放大；晴空 ${bd.skyScore}%。`;
+      } else {
+        bKey = 'quiet-aurora';
+        bLabel = en ? 'Quiet Aurora' : '極光活動偏弱';
+        bHeadline = en
+          ? `${tierPrefixEn}main bottleneck is weak geomagnetic activity: aurora energy is ${bd.auroraScore}/100 (Kp ${kpStr}, OVATION ${ovStr}%).`
+          : `${tierPrefixZh}主要瓶頸是地磁活動偏弱：極光能量目前為 ${bd.auroraScore}/100（Kp ${kpStr}、OVATION ${ovStr}%）。`;
+        bDetail = en
+          ? `Sky & darkness are comparatively favorable (${bd.skyScore}% clear, darkness factor ${darkF})${boostSuffixEn}; waiting for southward Bz or a substorm.`
+          : `天空與暗度條件相對足夠（晴空 ${bd.skyScore}%、暗空係數 ${darkF}）${boostSuffixZh}，等待太陽風 Bz 轉南或副磁暴觸發。`;
+      }
+    }
+  }
+
+  // 2. Unified confidence precedence (low model-diverge ALWAYS beats medium sat-lag!)
+  const reasons = [];
+  let confLevel = 'high';
+  let primaryReason = 'consensus-high';
+  if (sc.outOfZone && (!scNext || scNext.outOfZone)) {
+    confLevel = 'high';
+    primaryReason = 'latitude-gate';
+    reasons.push('latitude-gate');
+  } else {
+    if (cloudConsensus && cloudConsensus.level === 'low') reasons.push('model-diverge');
+    if (!noaaOk) reasons.push('noaa-offline');
+    if (Number.isFinite(noaaLagMin) && noaaLagMin > 45) reasons.push('sat-lag');
+    if (Number.isFinite(span3h) && span3h >= 45) reasons.push('fast-clouds');
+    if (cloudConsensus && cloudConsensus.level === 'medium') reasons.push('cloud-spread');
+    if (!usedMet) reasons.push('single-model');
+
+    if (reasons.includes('model-diverge')) {
+      confLevel = 'low';
+      primaryReason = 'model-diverge';
+    } else if (reasons.length > 0) {
+      confLevel = 'medium';
+      primaryReason = reasons[0];
+    } else {
+      confLevel = 'high';
+      primaryReason = 'consensus-high';
+      reasons.push('consensus-high');
+    }
+  }
+
+  const confBadgeMap = {
+    'latitude-gate': en ? 'Conf: High' : '信心：高',
+    'model-diverge': en ? 'Conf: Low (Models diverge)' : '信心：低（雲量分歧·看實拍）',
+    'noaa-offline': en ? 'Conf: Med (NOAA offline)' : '信心：中（NOAA 離線）',
+    'sat-lag': en ? 'Conf: Med (Sat lag)' : '信心：中（延遲）',
+    'fast-clouds': en ? 'Conf: Med (Fast clouds)' : '信心：中（雲快）',
+    'cloud-spread': en ? 'Conf: Med (Cloud spread)' : '信心：中（雲量微差）',
+    'single-model': en ? 'Conf: Med (Single model)' : '信心：中（單一氣象）',
+    'consensus-high': en ? 'Conf: High' : '信心：高'
+  };
+
+  const lagStr = Number.isFinite(noaaLagMin) ? Math.round(noaaLagMin) : '--';
+  const spanStr = Number.isFinite(span3h) ? span3h : '--';
+  const ccDiff = cloudConsensus ? cloudConsensus.diffPct : null;
+  const ccMet = cloudConsensus ? cloudConsensus.metAvg3h : null;
+  const ccOm = cloudConsensus ? cloudConsensus.omAvg3h : null;
+
+  const reasonDetail = (key) => {
+    if (key === 'latitude-gate') {
+      return en
+        ? 'High confidence: score is governed by deterministic geomagnetic latitude and oval geometry.'
+        : '信心高：此地受地磁緯度與極光帶幾何限制，結果具高度確定性。';
+    }
+    if (key === 'model-diverge') {
+      return en
+        ? `MET Norway 2.5km (${ccMet}% 3h avg cloud) and Open-Meteo (${ccOm}%) diverge by ${ccDiff}% (≥ 35% threshold) — check the sky or webcams.`
+        : `MET Norway 2.5km（3h 均雲 ${ccMet}%）與 Open-Meteo（${ccOm}%）分歧達 ${ccDiff}%（≥ 35% 門檻），請以實際抬頭與天文台實拍為準。`;
+    }
+    if (key === 'noaa-offline') {
+      return en
+        ? 'NOAA space-weather feed is offline; aurora scoring lacks full live satellite telemetry.'
+        : 'NOAA 太空天氣連線異常，極光指數暫無法取得完整即時衛星觀測。';
+    }
+    if (key === 'sat-lag') {
+      return en
+        ? `NOAA L1 satellite telemetry lags by ${lagStr} min (> 45 min threshold); sudden southward Bz or shocks may not be reflected yet.`
+        : `NOAA L1 衛星磁場資料延遲 ${lagStr} 分鐘（> 45 分鐘門檻），突發 Bz 轉南或衝擊波可能尚未反映。`;
+    }
+    if (key === 'fast-clouds') {
+      return en
+        ? `3-hour cloud cover swings by ${spanStr}% (≥ 45% threshold) — fast-moving cloud decks can shift clear-window timing.`
+        : `未來 3 小時雲量起伏達 ${spanStr}%（≥ 45% 門檻），雲團移動迅速，晴空空檔時間點可能提前或延後。`;
+    }
+    if (key === 'cloud-spread') {
+      return en
+        ? `MET Norway (${ccMet}%) and Open-Meteo (${ccOm}%) differ by ${ccDiff}% over the next 3h (20–34% spread), adding local cloud uncertainty.`
+        : `MET Norway（${ccMet}%）與 Open-Meteo（${ccOm}%）3 小時雲量相差 ${ccDiff}%（20–34% 區間），局部雲縫存在不確定性。`;
+    }
+    if (key === 'single-model') {
+      return en
+        ? 'Outside MET Norway 2.5km coverage (55–72°N, 4–33°E) or using Open-Meteo fallback — single-model cloud forecast without dual-model cross-check.'
+        : '此地位於北歐 MET Norway 2.5km 範圍外或改由 Open-Meteo 單一模型提供，缺少雙模型雲量交叉驗證。';
+    }
+    if (cloudConsensus) {
+      return en
+        ? `High confidence: NOAA telemetry is live (${lagStr} min lag), MET Norway vs Open-Meteo 3h cloud spread is ${ccDiff}% (< 20%), and clouds are steady (${spanStr}% 3h swing).`
+        : `信心高：NOAA 衛星即時同步（延遲 ${lagStr} 分鐘）、MET Norway 與 Open-Meteo 3h 雲量僅差 ${ccDiff}%（< 20%），且雲層穩定（3h 變幅 ${spanStr}%）。`;
+    }
+    return en
+      ? `High confidence: NOAA telemetry is live (${lagStr} min lag) with MET Norway 2.5km clouds (${spanStr}% 3h swing).`
+      : `信心高：NOAA 衛星即時同步（延遲 ${lagStr} 分鐘），採用挪威官方 2.5km 分層雲量（3h 變幅 ${spanStr}%）。`;
+  };
+
+  const confDetails = reasons.map(reasonDetail);
+  const confHeadline = confDetails[0];
+
+  const formulaText = statusTier === 'gated'
+    ? `${bLabel} → 0`
+    : `${skyF} × ${bd.auroraScore} × ${darkF} = ${sc.total}`;
+
+  return {
+    score: {
+      total: sc.total,
+      grade: tGrade(sc.grade, lang),
+      statusTier,
+      formulaText
+    },
+    breakdown: { ...bd, activeBoosts: boosts },
+    bottleneck: {
+      key: bKey,
+      limitingPillar,
+      label: bLabel,
+      headline: bHeadline,
+      detail: bDetail
+    },
+    confidence: {
+      level: confLevel,
+      label: confLevel === 'high' ? (en ? 'High' : '高') : (confLevel === 'low' ? (en ? 'Low' : '低') : (en ? 'Medium' : '中')),
+      badgeText: confBadgeMap[primaryReason] || (en ? 'Conf: Med' : '信心：中'),
+      primaryReason,
+      reasons,
+      metrics: {
+        noaaLagMin: Number.isFinite(noaaLagMin) ? Math.round(noaaLagMin) : null,
+        cloudDiffPct: ccDiff,
+        metAvg3h: ccMet,
+        omAvg3h: ccOm,
+        cloudSpan3h: span3h,
+        usedMet: !!usedMet,
+        dualModel: !!cloudConsensus,
+        noaaOk: !!noaaOk
+      },
+      headline: confHeadline,
+      details: confDetails
+    },
+    disclaimer: {
+      title: en ? 'Physical & Forecast Limits' : '物理與預報極限（誠實說明）',
+      items: en
+        ? [
+            { key: 'fjord-clouds', text: 'Nordic fjord & coastal cloud error (±15–25%): even 2.5 km models struggle with steep-terrain stratus and coastal fog; check the sky or nearby webcams when models diverge.' },
+            { key: 'substorm-timing', text: 'Stochastic substorm timing: stored magnetotail energy can trigger a bright outburst within 5–15 min—or stall—making exact onset timing inherently unpredictable.' },
+            { key: 'local-site', text: 'Local light pollution & horizon: the score assumes an unobstructed dark-sky horizon; city lights, mountains, and local mist directly reduce naked-eye visibility.' }
+          ]
+        : [
+            { key: 'fjord-clouds', text: '北歐峽灣與沿海地形雲量誤差約 ±15–25%：即使採用 2.5 km 高解析模式，山谷地形雲與海霧仍可能快速生消，雙模型分歧時請搭配實拍雲況。' },
+            { key: 'substorm-timing', text: '副磁暴爆發具隨機性：磁尾累積能量可在 5–15 分鐘內突然釋放或短暫停歇，即使太陽風條件相近，爆發精準時刻仍無法提前定點預測。' },
+            { key: 'local-site', text: '未計入當地光害與遮蔽：指數假設開闊暗空地平線；市區路燈、建築、山脈遮擋及低空霧氣均會明顯降低肉眼可見度。' }
+          ]
+    }
   };
 }
 

@@ -731,4 +731,66 @@ test('27. Geospace 1h MHD Kp, NOAA SWPC Alerts, dual GOES merger, +1h L1 sync & 
   }
 });
 
+test('28. explainAuroraScore single-source-of-truth across 44 events, confidence precedence & Chart 1/2 X/Y alignment', () => {
+  const histData = JSON.parse(fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'historical-events.json'), 'utf8'));
+  for (const ev of histData.events) {
+    const raw = api.computeAuroraScore(ev.input);
+    const expZh = api.explainAuroraScore({ ...ev.input, lang: 'zh' });
+    const expEn = api.explainAuroraScore({ ...ev.input, lang: 'en' });
+    assert.equal(expZh.score.total, raw.total, `Score drift on ${ev.id}`);
+    assert.equal(expEn.score.total, raw.total, `EN score drift on ${ev.id}`);
+    assert.ok(expZh.bottleneck.headline && !expZh.bottleneck.headline.includes('undefined') && !expZh.bottleneck.headline.includes('NaN'));
+    assert.ok(expEn.bottleneck.headline && !expEn.bottleneck.headline.includes('undefined') && !expEn.bottleneck.headline.includes('NaN'));
+    assert.equal(expZh.disclaimer.items.length, 3);
+    assert.equal(expEn.disclaimer.items.length, 3);
+  }
+
+  // Hard gates
+  assert.equal(api.explainAuroraScore({ lat: 25.03, lon: 121.57, cloudNow: 0, sunAlt: -30, kp: 9 }).bottleneck.key, 'gate-low-lat');
+  assert.equal(api.explainAuroraScore({ lat: 52.52, lon: 13.41, cloudNow: 0, sunAlt: -30, kp: 1, ovation: 0 }).bottleneck.key, 'gate-need-storm');
+  assert.equal(api.explainAuroraScore({ lat: 69.97, lon: 23.27, cloudNow: 0, sunAlt: -2.0, kp: 5 }).bottleneck.key, 'gate-daylight');
+
+  // Physics breakdowns: broken-cloud 0.72, twilight 0.58, mid-lat reachFactor < 0.85, moon weight tapering
+  const broken = api.explainAuroraScore({ lat: 60.17, lon: 24.94, cloudNow: 72, sunAlt: -30, bz: -18, speed: 600, kp: 8, ovation: 80, hpiGw: 140, newell: 18500, mlt: 0 });
+  assert.equal(broken.bottleneck.key, 'cloud-gaps');
+  assert.equal(broken.breakdown.cloudExp, 0.72);
+
+  const tw = api.explainAuroraScore({ lat: 57.48, lon: -4.22, cloudNow: 5, sunAlt: -5.5, bz: -22, speed: 680, kp: 8.3, ovation: 82, hpiGw: 150, newell: 21000, mlt: 22 });
+  assert.equal(tw.bottleneck.key, 'twilight');
+  assert.equal(tw.breakdown.twilightExp, 0.58);
+
+  const reach = api.explainAuroraScore({ lat: 52.52, lon: 13.41, cloudNow: 0, sunAlt: -30, bz: -7, speed: 500, kp: 5.0, ovation: 0, hpiGw: 60, newell: 7500, mlt: 0 });
+  assert.equal(reach.bottleneck.key, 'oval-reach');
+  assert.ok(reach.breakdown.reachFactor < 0.85);
+
+  const modMoon = api.explainAuroraScore({ lat: 69.97, lon: 23.27, cloudNow: 0, sunAlt: -30, kp: 2, ovation: 30, effMoonPct: 90 });
+  const stormMoon = api.explainAuroraScore({ lat: 69.97, lon: 23.27, cloudNow: 0, sunAlt: -30, kp: 8, ovation: 95, hpiGw: 160, newell: 22000, effMoonPct: 90 });
+  assert.ok(stormMoon.breakdown.moonWeight < modMoon.breakdown.moonWeight, 'Moon weight must taper during bright storms');
+
+  // Confidence precedence: model-diverge (low) MUST beat sat-lag (medium) while listing BOTH reasons & exact numbers
+  const conf = api.explainAuroraScore({
+    lat: 68.35, lon: 18.83, cloudNow: 20, sunAlt: -25, kp: 3, ovation: 45,
+    usedMet: true, noaaOk: true, noaaLagMin: 60,
+    cloudConsensus: { metAvg3h: 20, omAvg3h: 60, diffPct: 40, level: 'low' },
+    lang: 'en'
+  });
+  assert.equal(conf.confidence.level, 'low');
+  assert.equal(conf.confidence.primaryReason, 'model-diverge');
+  assert.ok(conf.confidence.reasons.includes('model-diverge') && conf.confidence.reasons.includes('sat-lag'));
+  assert.ok(conf.confidence.details.join(' ').includes('40%') && conf.confidence.details.join(' ').includes('60'));
+
+  // Unified Chart 1 & Chart 2 left-axis alignment (padL = 52) and higher-is-better cues
+  const ser = Array.from({ length: 40 }, (_, i) => ({
+    time_tag: new Date(Date.parse('2026-11-24T20:00:00Z') + i * 60000).toISOString().slice(0, 19), bz: -3, by: 1
+  }));
+  const hrs = Array.from({ length: 12 }, (_, i) => ({
+    time: `${String((20 + i) % 24).padStart(2, '0')}:00`, clear: 50, block: 50, score: 25, temp: 0, isDay: false
+  }));
+  const svg1 = api.buildBzChartSVG(ser, 'UTC', 420, api.computeBallisticCoupling(ser, 420), 'zh');
+  const svg2 = api.buildSkyWaveSVG(hrs, hrs[2], 2, 'zh');
+  assert.ok(svg1.includes('x1="52"') && svg2.includes('x1="52"'), 'Chart 1 & Chart 2 must share identical padL=52 axis');
+  assert.ok(svg1.includes('↑ 越高越強') && svg2.includes('↑ 越高越好'), 'Both charts must state higher=better clearly');
+});
+
+
 

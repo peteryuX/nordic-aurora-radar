@@ -141,7 +141,7 @@
               <h1 id="vTitle" class="sky-title">連線同步最新天空實況...</h1>
               <p id="vLead" class="sky-lead">結合官方高解析分層雲量、NOAA 衛星與精準天文暗度。</p>
             </div>
-            <div class="ring-wrap">
+            <button id="ringBtn" class="ring-wrap ring-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet" aria-label="查看指數算法與可信度">
               <svg class="ring-svg" viewBox="0 0 126 126">
                 <circle class="ring-bg-disc" cx="63" cy="63" r="56"></circle>
                 <circle class="ring-track" cx="63" cy="63" r="52"></circle>
@@ -152,7 +152,8 @@
                 <div id="ringSubLbl" class="ring-sub">觀測指數</div>
                 <div id="ringGrade" class="ring-grade">計算中</div>
               </div>
-            </div>
+              <span class="ring-info-dot" aria-hidden="true">i</span>
+            </button>
           </div>
         </div>
 
@@ -185,6 +186,7 @@
             <div class="trust-pills">
               <a id="pNoaa" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/planetary-k-index">NOAA ↗</a>
               <a id="pMet" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="https://www.yr.no/en/forecast/daily-table/69.969,23.272">氣象 ↗</a>
+              <button id="trustBtn" class="tpill tpill-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet">算法與可信度 ⓘ</button>
             </div>
             <span id="syncTime">同步中</span>
           </div>
@@ -208,14 +210,14 @@
       <section class="card">
         <h2><span id="h2Wave">未來 12 小時晴空與極光預報</span></h2>
         <div id="homeBest" class="callout">載入中...</div>
+        <div class="hr-legend hr-legend-top">
+          <span id="hrLegLeft"><span class="leg-dot" style="background:var(--green);"></span>綠線＝晴空率（越高越晴）｜<span class="leg-dot" style="background:#a855f7;"></span>紫柱＝指數（越高越好）</span>
+          <span id="hrLegRight">點圖表查單小時</span>
+        </div>
         <div class="chart-box">
           <svg id="skyWaveChart" class="chart-svg" viewBox="0 0 420 194"></svg>
         </div>
         <div id="hourDetail" class="hr-detail"><span>點擊圖上任一時段查看詳細預報（晴空率、體感溫度、月光與 Kp）</span></div>
-        <div class="hr-legend">
-          <span id="hrLegLeft"><span class="leg-dot" style="background:var(--green);"></span>綠線＝晴空率 % ｜ <span class="leg-dot" style="background:#a855f7;"></span>紫柱＝觀測指數</span>
-          <span id="hrLegRight">每 2 小時刻度・點圖表查看單小時</span>
-        </div>
       </section>
 
       <!-- 3-Night Aurora & Clear-Sky Outlook -->
@@ -329,6 +331,82 @@
       </button>
     </div>
   </nav>
+
+  <!-- Accessible Trust & Score Bottom-Sheet (100% Red-Mode & iOS WebView Safe) -->
+  <div id="trustSheet" class="sheet-backdrop" role="dialog" aria-modal="true" aria-labelledby="trustSheetTitle" aria-hidden="true">
+    <div class="sheet-panel">
+      <div class="sheet-hdr">
+        <div class="sheet-handle" aria-hidden="true"></div>
+        <div class="sheet-hdr-row">
+          <h2 id="trustSheetTitle" class="sheet-title">指數算法與資料可信度</h2>
+          <button id="trustCloseBtn" class="sheet-close" type="button" aria-label="關閉">✕</button>
+        </div>
+      </div>
+
+      <div class="sheet-body">
+        <!-- 1. LIVE SCORE & CONFIDENCE BREAKDOWN -->
+        <section class="ts-sec ts-live" aria-label="Live Score Breakdown">
+          <div class="ts-sec-hd">
+            <span id="tsLiveTitle">為何現在是 <strong id="tsLiveTotal">--</strong> 分？（分數越高越好）</span>
+            <span id="tsLiveBadge" class="ts-badge">計算中</span>
+          </div>
+          <div class="ts-eq" id="tsEq">
+            <div class="ts-eq-cell"><span class="ts-eq-lbl" id="tsLblSky">晴空度</span><strong id="tsValSky">--</strong></div>
+            <span class="ts-op">×</span>
+            <div class="ts-eq-cell"><span class="ts-eq-lbl" id="tsLblAur">極光活動</span><strong id="tsValAur">--</strong></div>
+            <span class="ts-op">×</span>
+            <div class="ts-eq-cell"><span class="ts-eq-lbl" id="tsLblDark">夜空暗度</span><strong id="tsValDark">--</strong></div>
+            <span class="ts-op">→</span>
+            <div class="ts-eq-cell ts-eq-out"><span class="ts-eq-lbl" id="tsLblOut">總分</span><strong id="tsValOut">--</strong></div>
+          </div>
+          <p id="tsDiagTxt" class="ts-diag">正在解析即時瓶頸與加權係數...</p>
+          <div id="tsConfRow" class="ts-conf-row">讀取雙模型雲量差與 NOAA 衛星延遲中...</div>
+        </section>
+
+        <!-- 2. SCORE TIERS & EXACT CODE-FAITHFUL 3-PILLAR FORMULA -->
+        <section class="ts-sec">
+          <h3 id="tsTierTitle" class="ts-h3">分數越高越適合看（0–99 分級與三因子公式）</h3>
+          <div class="ts-tiers" id="tsTiers">
+            <div class="ts-tier"><span class="ts-dot t-high"></span><b>65–99</b><span id="tsT1">極佳條件</span></div>
+            <div class="ts-tier"><span class="ts-dot t-good"></span><b>40–64</b><span id="tsT2">適合觀測</span></div>
+            <div class="ts-tier"><span class="ts-dot t-mid"></span><b>18–39</b><span id="tsT3">有機會看見</span></div>
+            <div class="ts-tier"><span class="ts-dot t-low"></span><b>0–17</b><span id="tsT4">雲厚／過亮／弱</span></div>
+          </div>
+          <ul class="ts-pillars" id="tsPillars">
+            <li><strong>晴空度</strong>：低雲／中雲／霧以 100% 計遮蔽、高捲雲以 30% 計（上限為總雲量 +8%），採非線性指數 0.85（強極光雲縫放寬至 0.72）。</li>
+            <li><strong>極光活動</strong>：整合 NOAA 11 源（L1 太陽風 3 點濾波與 60 分鐘磁尾蓄能、Geospace 1h Kp、OVATION、半球功率 GW、雙 GOES 副磁暴與 SWPC 警報）。</li>
+            <li><strong>夜空暗度</strong>：太陽需低於 -4°（-12° 全暗），並依 Krisciunas–Schaefer 月光衝日效應與極光亮度動態調整扣分。</li>
+          </ul>
+        </section>
+
+        <!-- 3. SCIENTIFIC VERIFICATION & HONEST PHYSICAL LIMITS -->
+        <section class="ts-sec">
+          <h3 id="tsSciTitle" class="ts-h3">科學驗證與官方資料來源</h3>
+          <div class="ts-stat-grid" id="tsStatGrid">
+            <div class="ts-stat"><strong>NASA JPL 0.006°</strong><span>DE441 日月天文校準</span></div>
+            <div class="ts-stat"><strong>44 歷史風暴 0 漏報</strong><span>G1–G5 與假警報重播</span></div>
+            <div class="ts-stat"><strong>11 NOAA 即時源</strong><span>L1 太陽風・MHD・雙 GOES</span></div>
+            <div class="ts-stat"><strong>2.5km Yr.no</strong><span>MET Norway 雙模型比對</span></div>
+          </div>
+          <div id="tsHonestNote" class="ts-note">
+            <strong id="tsLimitTitle">物理與預報極限（誠實說明）</strong>
+            <ul id="tsLimitList"></ul>
+          </div>
+        </section>
+
+        <!-- 4. PRIVACY & SECURITY TRUST SEAL -->
+        <section class="ts-sec ts-privacy">
+          <h3 id="tsPrivTitle" class="ts-h3">隱私與安全信任章</h3>
+          <div class="ts-seal-list" id="tsSealList">
+            <span class="ts-seal" id="tsSeal1">嚴格 CSP 白名單・零第三方 JS</span>
+            <span class="ts-seal" id="tsSeal2">零 Cookie・零追蹤碼</span>
+            <span class="ts-seal" id="tsSeal3">GPS 僅留存本機瀏覽器</span>
+            <a id="tsSealLink" class="ts-seal ts-seal-link" target="_blank" rel="noopener noreferrer" href="https://github.com/peteryuX/nordic-aurora-radar">GitHub MIT 開源原始碼 ↗</a>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
 
   <div id="toast" class="toast">OK</div>
   <script type="module" src="src/app.js"></script>
