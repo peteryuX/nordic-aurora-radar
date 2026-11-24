@@ -18,7 +18,7 @@ const {
   parseMagSeries, parseWindSeries, parseKpForecast, lookupForecastKp,
   parseLatestKp, lookupOvationProb, parseHemiPower, parseGoesSubstorm,
   parseNoaaGeomagneticScales, parseMetNorwayHourly12, parseMetNorwayMultiDay,
-  parseOpenMeteoHourly12, parseOpenMeteoMultiDay, scoreHourlyForecast12,
+  parseOpenMeteoHourly12, parseOpenMeteoMultiDay, evaluateCloudConsensus, scoreHourlyForecast12,
   findBestDarkWindow, summarize3NightOutlook, evaluateVerdict,
   summarizeEnergyTrend, summarizeCompass, shouldTriggerAuroraAlert,
   utcTagToLocalHM
@@ -585,7 +585,7 @@ function renderFromState(st) {
   const en = isEn();
   const {
     magSeries, chartSeries, speed, bz, kp, ovation, hpiGw, goesSub, noaaScales, bal,
-    noaaOk, noaaLagMin, hereHrs, dirResults, weatherSourceLabel, usedMet,
+    noaaOk, noaaLagMin, hereHrs, dirResults, weatherSourceLabel, usedMet, cloudConsensus,
     sunAltNow, mltNow, moon, sc, scNext, bestDark, nights3
   } = st;
 
@@ -614,7 +614,7 @@ function renderFromState(st) {
   if (noaaOk) {
     const stale = noaaLagMin !== null && noaaLagMin > 45;
     pNoaa.textContent = stale
-      ? (en ? `NOAA Delayed (${noaaLagMin}m) ↗` : `NOAA 延遲 (${noaaLagMin}分前) ↗`)
+      ? (en ? `NOAA Delayed (${noaaLagMin}m) ↗` : `NOAA 延遲 ${noaaLagMin} 分鐘 ↗`)
       : `NOAA (${lastM ? utcTagToLocalHM(lastM.time_tag, currentPos.tz) : (en ? 'Live' : '已同步')}) ↗`;
   } else {
     pNoaa.textContent = en ? 'NOAA Offline ↗' : 'NOAA 離線 ↗';
@@ -628,18 +628,26 @@ function renderFromState(st) {
   const confEl = $('fcConfTxt');
   if (fcEl && confEl) {
     if (sc.outOfZone && (!scNext || scNext.outOfZone)) {
-      fcEl.innerHTML = en ? `Next 1h est.: <strong>0/100</strong> (Latitude limit)` : `未來 1 小時預估：<strong>0 分</strong>（緯度限制）`;
+      fcEl.innerHTML = en ? `Next 1h est.: Score <strong>0</strong> (Latitude limit)` : `未來 1 小時預估：指數 <strong>0</strong>（緯度限制）`;
       confEl.textContent = en ? 'Conf: High' : '信心：高';
     } else {
       const diff = scNext.total - sc.total;
       const arrow = diff >= 6 ? (en ? '↗ Rising' : '↗ 增強') : (diff <= -6 ? (en ? '↘ Fading' : '↘ 轉弱') : (en ? '→ Steady' : '→ 持平'));
       fcEl.innerHTML = en
-        ? `→ Est. ${etaClock || `+${bal.etaMin}m`}${etaClock ? ` (+${bal.etaMin}m)` : ''}: <strong>${scNext.total}/100</strong> (${arrow})`
-        : `→ 預估 ${etaClock || `未來 ${bal.etaMin} 分`}${etaClock ? `（+${bal.etaMin}分）` : ''}：<strong>${scNext.total} 分</strong>（${arrow}）`;
+        ? `${etaClock ? `Est. ${etaClock}` : `In ~${bal.etaMin} min`}: Score <strong>${scNext.total}</strong> (${arrow})`
+        : `${etaClock ? `${etaClock} 預估` : `約 ${bal.etaMin} 分鐘後預估`}：指數 <strong>${scNext.total}</strong>（${arrow}）`;
       const cSpan = hereHrs.length >= 3 ? (Math.max(hereHrs[0].block, hereHrs[1].block, hereHrs[2].block) - Math.min(hereHrs[0].block, hereHrs[1].block, hereHrs[2].block)) : 0;
-      confEl.textContent = (noaaLagMin > 45)
-        ? (en ? 'Conf: Med (Sat lag)' : '信心：中（延遲）')
-        : (cSpan >= 45 ? (en ? 'Conf: Med (Fast clouds)' : '信心：中（雲快）') : (noaaOk && usedMet ? (en ? 'Conf: High' : '信心：高') : (en ? 'Conf: Med' : '信心：中')));
+      if (noaaLagMin > 45) {
+        confEl.textContent = en ? 'Conf: Med (Sat lag)' : '信心：中（延遲）';
+      } else if (cloudConsensus && cloudConsensus.level === 'low') {
+        confEl.textContent = en ? 'Conf: Low (Models diverge)' : '信心：低（雲量分歧·看實拍）';
+      } else if (cSpan >= 45) {
+        confEl.textContent = en ? 'Conf: Med (Fast clouds)' : '信心：中（雲快）';
+      } else if (cloudConsensus && cloudConsensus.level === 'medium') {
+        confEl.textContent = en ? 'Conf: Med (Cloud spread)' : '信心：中（雲量微差）';
+      } else {
+        confEl.textContent = noaaOk && usedMet ? (en ? 'Conf: High' : '信心：高') : (en ? 'Conf: Med' : '信心：中');
+      }
     }
   }
 
@@ -790,7 +798,7 @@ async function refreshAll(manual) {
   } catch (e) {}
 
   // 2. Layered Cloud Forecasts (MET Norway 2.5km inside Nordics, Open-Meteo DST-proof unixtime globally)
-  let hereHrs = [], multiDayPts = [], dirResults = [], weatherSourceLabel = '氣象', usedMet = false;
+  let hereHrs = [], multiDayPts = [], dirResults = [], weatherSourceLabel = '氣象', usedMet = false, cloudConsensus = null;
   try {
     const pts = computeCompassPoints(currentPos.lat, currentPos.lon, 60);
     const needElev = pts.slice(1).some(p => p.label.includes('60 km'));
@@ -810,15 +818,17 @@ async function refreshAll(manual) {
 
     if (isInNordicMetBox(currentPos.lat, currentPos.lon)) {
       try {
-        const [metList, tzRes] = await Promise.all([
+        const [metList, omRes] = await Promise.all([
           Promise.all(pts.map(p => fetchMetNorwayPoint(p.lat, p.lon))),
-          fetch(`https://api.open-meteo.com/v1/forecast?latitude=${currentPos.lat.toFixed(4)}&longitude=${currentPos.lon.toFixed(4)}&hourly=temperature_2m&timezone=auto&forecast_days=1`).catch(() => null)
+          // Reuse the Nordic timezone lookup to pull Open-Meteo layered clouds at zero extra HTTP cost
+          fetch(`https://api.open-meteo.com/v1/forecast?latitude=${currentPos.lat.toFixed(4)}&longitude=${currentPos.lon.toFixed(4)}&hourly=temperature_2m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high&timezone=auto&timeformat=unixtime&forecast_days=1`).catch(() => null)
         ]);
         if (mySeq !== refreshSeq) return;
-        if (tzRes && tzRes.ok) {
-          const tzJ = await tzRes.json();
+        let omJson = null;
+        if (omRes && omRes.ok) {
+          omJson = await omRes.json();
           if (mySeq !== refreshSeq) return;
-          if (tzJ?.timezone) currentPos.tz = tzJ.timezone;
+          if (omJson?.timezone) currentPos.tz = omJson.timezone;
         }
         if (metList[0]) {
           usedMet = true; metOk = true; weatherSourceLabel = 'Yr.no官方';
@@ -830,6 +840,10 @@ async function refreshAll(manual) {
             const avg3h = first3.length ? Math.round(first3.reduce((s, h) => s + h.block, 0) / first3.length) : 100;
             dirResults.push({ ...pt, nowC: hrs[0]?.block ?? 100, avg3h, min12: hrs.length ? Math.min(...hrs.map(h => h.block)) : 100, temp: hrs[0]?.temp ?? 0 });
           });
+          if (omJson?.hourly && hereHrs.length) {
+            const omHereHrs = parseOpenMeteoHourly12(omJson.hourly, currentPos.lat, currentPos.lon, currentPos.tz, now, omJson.utc_offset_seconds);
+            cloudConsensus = evaluateCloudConsensus(hereHrs, omHereHrs);
+          }
         }
       } catch (e) {}
     }
@@ -884,7 +898,8 @@ async function refreshAll(manual) {
         bz: bal.nowBz ?? bz, speed, kp, ovation,
         hpiGw, substormJumpNt: goesSub ? goesSub.jumpNt : 0,
         pdyn: bal.pdyn, shockJumpNpa: bal.shockJumpNpa,
-        newell: bal.nowNewell, mlt: mltNow, effMoonPct: moon.effMoonPct
+        newell: bal.nowNewell, preconditionedNewell60: bal.avgNewell60,
+        mlt: mltNow, effMoonPct: moon.effMoonPct
       });
 
       const nextDt = new Date(now.getTime() + bal.etaMin * 60000);
@@ -898,7 +913,8 @@ async function refreshAll(manual) {
         bz: bal.nextBz ?? bz, speed, kp: kpNext, ovation,
         hpiGw, substormJumpNt: goesSub ? Math.round(goesSub.jumpNt * 0.5) : 0,
         pdyn: bal.pdyn, shockJumpNpa: bal.shockJumpNpa,
-        newell: bal.nextNewell, mlt: computeMLT(nextDt, currentPos.lat, currentPos.lon),
+        newell: bal.nextNewell, preconditionedNewell60: bal.avgNewell60,
+        mlt: computeMLT(nextDt, currentPos.lat, currentPos.lon),
         effMoonPct: moonNext.effMoonPct
       });
 
@@ -909,7 +925,8 @@ async function refreshAll(manual) {
 
       lastRenderState = {
         magSeries, chartSeries: magSeries.slice(-120), speed, bz, kp, ovation, hpiGw, goesSub, noaaScales, bal,
-        noaaOk, noaaLagMin, hereHrs, dirResults, weatherSourceLabel, usedMet, sunAltNow, mltNow, moon, sc, scNext, bestDark, nights3
+        noaaOk, noaaLagMin, hereHrs, dirResults, weatherSourceLabel, usedMet, cloudConsensus,
+        sunAltNow, mltNow, moon, sc, scNext, bestDark, nights3
       };
       renderFromState(lastRenderState);
       updateClockAndPhoto();

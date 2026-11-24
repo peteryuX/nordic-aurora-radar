@@ -581,12 +581,41 @@ export function bzToEnergy(bz, speed = 420) {
 }
 
 /**
- * Split 3h L1 telemetry into Earth-arriving (now) vs incoming (+ETA) windows.
+ * 3-point rolling median filter for 1-minute satellite magnetometer telemetry.
+ * Rejects single-minute DSCOVR/ACE instrument spikes without delaying or blunting real step shocks.
+ */
+export function medianSmooth3(values) {
+  if (!Array.isArray(values) || values.length < 3) return Array.isArray(values) ? [...values] : [];
+  const out = new Array(values.length);
+  out[0] = values[0];
+  for (let i = 1; i < values.length - 1; i++) {
+    const a = values[i - 1], b = values[i], c = values[i + 1];
+    if (!Number.isFinite(a) || !Number.isFinite(b) || !Number.isFinite(c)) {
+      out[i] = b;
+    } else if ((a <= b && b <= c) || (c <= b && b <= a)) {
+      out[i] = b;
+    } else if ((b <= a && a <= c) || (c <= a && a <= b)) {
+      out[i] = a;
+    } else {
+      out[i] = c;
+    }
+  }
+  out[values.length - 1] = values[values.length - 1];
+  return out;
+}
+
+/**
+ * Split 3h L1 telemetry into Earth-arriving (now) vs incoming (+ETA) windows,
+ * apply 3-point median spike rejection, and compute 60-min substorm preconditioning energy.
  * Anchors to refNowMs (when provided) so DSCOVR/ACE telemetry lag never shifts "Now" into the past.
  */
 export function computeBallisticCoupling(magSeries, windSeriesOrSpeed, nowMs = null) {
   if (!Array.isArray(magSeries) || !magSeries.length) {
-    return { etaMin: 45, nowBz: null, nowNewell: null, nextBz: null, nextNewell: null, pdyn: null, shockActive: false, shockJumpNpa: 0, energy120: [], arrivingIdx: -1 };
+    return {
+      etaMin: 45, nowBz: null, nowNewell: null, nextBz: null, nextNewell: null,
+      avgNewell60: null, preconditioned: false,
+      pdyn: null, shockActive: false, shockJumpNpa: 0, energy120: [], arrivingIdx: -1
+    };
   }
   const isWindArr = Array.isArray(windSeriesOrSpeed) && windSeriesOrSpeed.length > 0;
   const windMap = new Map();
@@ -602,10 +631,15 @@ export function computeBallisticCoupling(magSeries, windSeriesOrSpeed, nowMs = n
   const lastTs = parseUtcMs(magSeries[magSeries.length - 1].time_tag);
   const refNowMs = (Number.isFinite(nowMs) && Number.isFinite(lastTs) && nowMs > lastTs) ? nowMs : lastTs;
 
-  const enriched = magSeries.map(r => {
+  const smoothBz = medianSmooth3(magSeries.map(r => r.bz));
+  const smoothBy = medianSmooth3(magSeries.map(r => r.by ?? 0));
+
+  const enriched = magSeries.map((r, i) => {
     const v = windMap.get(String(r.time_tag).slice(0, 16)) ?? latestSpd;
-    const nw = computeNewellCoupling(v, r.by, r.bz);
-    return { ...r, ts: parseUtcMs(r.time_tag), v, nw };
+    const bzClean = smoothBz[i];
+    const byClean = smoothBy[i];
+    const nw = computeNewellCoupling(v, byClean, bzClean);
+    return { ...r, bz: bzClean, by: byClean, ts: parseUtcMs(r.time_tag), v, nw };
   });
   const avgWin = arr => {
     if (!arr.length) return { bz: null, newell: null };
@@ -617,8 +651,13 @@ export function computeBallisticCoupling(magSeries, windSeriesOrSpeed, nowMs = n
   const targetTs = Math.min(lastTs, refNowMs - etaMin * 60000);
   const incArr = enriched.filter(r => Number.isFinite(r.ts) && r.ts >= lastTs - 30 * 60000);
   const arrArr = enriched.filter(r => Number.isFinite(r.ts) && r.ts >= targetTs - 20 * 60000 && r.ts <= targetTs + 10 * 60000);
+  const preArr = enriched.filter(r => Number.isFinite(r.ts) && r.ts >= targetTs - 60 * 60000 && r.ts <= targetTs);
   const inc = avgWin(incArr.length ? incArr : enriched.slice(-10));
   const nowW = avgWin(arrArr.length ? arrArr : (incArr.length ? incArr : enriched.slice(-10)));
+  const avgNewell60 = preArr.length
+    ? Math.round(preArr.reduce((s, r) => s + r.nw, 0) / preArr.length)
+    : nowW.newell;
+  const preconditioned = Number.isFinite(avgNewell60) && avgNewell60 >= 3200;
 
   const tail120 = enriched.slice(-120);
   const energy120 = tail120.map(r => newellToEnergy(r.nw));
@@ -632,6 +671,7 @@ export function computeBallisticCoupling(magSeries, windSeriesOrSpeed, nowMs = n
 
   return {
     etaMin, nowBz: nowW.bz, nowNewell: nowW.newell, nextBz: inc.bz, nextNewell: inc.newell,
+    avgNewell60, preconditioned,
     pdyn: shock.pdyn, shockActive: shock.active, shockJumpNpa: shock.jumpNpa,
     energy120, arrivingIdx
   };
@@ -642,7 +682,7 @@ export function computeBallisticCoupling(magSeries, windSeriesOrSpeed, nowMs = n
 export function computeAuroraScore({
   lat = 69.97, lon = 23.27, cloudNow, sunAlt = -15, bz, speed, kp, ovation,
   hpiGw = null, substormJumpNt = 0, pdyn = null, shockJumpNpa = 0,
-  newell = null, mlt = null, effMoonPct = 0
+  newell = null, preconditionedNewell60 = null, mlt = null, effMoonPct = 0
 }) {
   const magLat = computeGeomagneticLat(lat, lon);
   const absMag = Math.abs(magLat);
@@ -715,6 +755,19 @@ export function computeAuroraScore({
       : globalScore;
   }
 
+  // Attenuate solar-wind / substorm brightness boost when a mid-latitude city is still equatorward
+  // of the auroral oval with near-zero overhead OVATION (prevents G1/G3 storms far poleward from
+  // inflating scores over Berlin, Melbourne, or Sapporo before the oval actually reaches their sky)
+  const reachMargin = effKp - neededKp;
+  let reachFactor = 1;
+  if (neededKp > 1.5 && (curOv ?? 0) < 15) {
+    if (reachMargin < 0) {
+      reachFactor = Math.max(0.05, Math.pow(Math.max(0, 1 + reachMargin / 1.8), 2.2) * 0.45);
+    } else if (reachMargin < 1.5) {
+      reachFactor = 0.45 + 0.55 * (reachMargin / 1.5);
+    }
+  }
+
   let swAdj;
   if (newell !== null && Number.isFinite(newell)) {
     swAdj = Math.max(-4, Math.min(36, (newell - 1500) / 215));
@@ -724,10 +777,15 @@ export function computeAuroraScore({
     const spAdj = Math.max(0, Math.min(14, (spdVal - 380) / 22)) * (0.2 + 0.8 * southWeight);
     swAdj = bzAdj + spAdj;
   }
-  const substormAdj = Math.max(0, Math.min(18, (subJump - 10) * 0.75));
-  const pdynAdj = Math.max(0, Math.min(12, Math.max((pVal - 4.5) * 2.0, (pJump - 2.2) * 2.5)));
+  const scaledSwAdj = swAdj > 0 ? swAdj * reachFactor : swAdj;
+  // 60-min magnetotail preconditioning boost (sustained southward IMF loads substorm energy even across brief Bz wobbles)
+  const precondAdj = (preconditionedNewell60 !== null && Number.isFinite(preconditionedNewell60) && preconditionedNewell60 >= 3200 && effMagForOval >= 54)
+    ? Math.min(10, (preconditionedNewell60 - 3200) / 700) * reachFactor
+    : 0;
+  const substormAdj = Math.max(0, Math.min(18, (subJump - 10) * 0.75)) * reachFactor;
+  const pdynAdj = Math.max(0, Math.min(12, Math.max((pVal - 4.5) * 2.0, (pJump - 2.2) * 2.5))) * reachFactor;
   const mltFactor = (mlt !== null && Number.isFinite(mlt)) ? (1 + 0.07 * Math.cos((mlt - 0.5) * Math.PI / 12)) : 1;
-  const auroraScore = Math.max(2, Math.min(100, Math.round((baseAur + swAdj + substormAdj + pdynAdj) * mltFactor)));
+  const auroraScore = Math.max(2, Math.min(100, Math.round((baseAur + scaledSwAdj + precondAdj + substormAdj + pdynAdj) * mltFactor)));
 
   // Intensity-aware twilight & lunar attenuation (IBC III/IV storms cut through twilight & moonlight!)
   const isTooBright = baseTooBright;
@@ -1084,6 +1142,20 @@ export function parseOpenMeteoMultiDay(hourly, lat, lon, timeZone, nowDate, utcO
     out.push({ dtMs: midMs, time: isUnix ? `${z.hourStr}:${z.minStr}` : String(hourly.time[i]).slice(11, 16), clear: 100 - effCloud, block: effCloud, sunAlt, isDay: sunAlt >= -4 });
   }
   return out;
+}
+
+/**
+ * Dual-model cloud consensus check (MET Norway MEPS 2.5km vs Open-Meteo ECMWF/GFS).
+ * Compares 3-hour average effective cloud obstruction so users are warned when models strongly diverge (>=35%).
+ */
+export function evaluateCloudConsensus(metHrs, omHrs) {
+  if (!Array.isArray(metHrs) || !metHrs.length || !Array.isArray(omHrs) || !omHrs.length) return null;
+  const n = Math.min(3, metHrs.length, omHrs.length);
+  const metAvg3h = Math.round(metHrs.slice(0, n).reduce((s, h) => s + Number(h.block ?? 0), 0) / n);
+  const omAvg3h = Math.round(omHrs.slice(0, n).reduce((s, h) => s + Number(h.block ?? 0), 0) / n);
+  const diffPct = Math.abs(metAvg3h - omAvg3h);
+  const level = diffPct >= 35 ? 'low' : (diffPct >= 20 ? 'medium' : 'high');
+  return { metAvg3h, omAvg3h, diffPct, level };
 }
 
 // ====== Hourly Forecast, 3-Night Outlook, Verdicts & Compass Summaries ======

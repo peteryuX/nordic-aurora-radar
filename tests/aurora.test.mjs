@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 import * as engine from '../src/aurora-engine.js';
 import * as charts from '../src/charts.js';
+import { evaluateHistoricalBenchmark, evaluateAstronomyBenchmark } from './benchmark.mjs';
 
 const api = { ...engine, ...charts };
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -338,17 +339,29 @@ test('13. Wording consistency audit across all source files: zero awkward legacy
 
 test('14. Live API end-to-end smoke test (enabled with LIVE_TEST=1)', { skip: process.env.LIVE_TEST !== '1' }, async () => {
   const hdrs = { 'User-Agent': 'nordic-aurora-radar-test/1.0' };
+  const fetchRetry = async (url, asText = false) => {
+    for (let i = 0; i < 2; i++) {
+      try {
+        const r = await fetch(url, { headers: hdrs });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return asText ? await r.text() : await r.json();
+      } catch (e) {
+        if (i === 1) throw e;
+        await new Promise(res => setTimeout(res, 600));
+      }
+    }
+  };
   const [mag, wind, kp1m, ov, hpi, goes, kpfc, scales, met, om] = await Promise.all([
-    fetch('https://services.swpc.noaa.gov/json/rtsw/rtsw_mag_1m.json', { headers: hdrs }).then(r => r.json()),
-    fetch('https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json', { headers: hdrs }).then(r => r.json()),
-    fetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json', { headers: hdrs }).then(r => r.json()),
-    fetch('https://services.swpc.noaa.gov/json/ovation_aurora_latest.json', { headers: hdrs }).then(r => r.json()),
-    fetch('https://services.swpc.noaa.gov/text/aurora-nowcast-hemi-power.txt', { headers: hdrs }).then(r => r.text()),
-    fetch('https://services.swpc.noaa.gov/json/goes/primary/magnetometers-6-hour.json', { headers: hdrs }).then(r => r.json()),
-    fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json', { headers: hdrs }).then(r => r.json()),
-    fetch('https://services.swpc.noaa.gov/products/noaa-scales.json', { headers: hdrs }).then(r => r.json()),
-    fetch('https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=69.9689&lon=23.2716', { headers: hdrs }).then(r => r.json()),
-    fetch('https://api.open-meteo.com/v1/forecast?latitude=64.1466&longitude=-21.9426&hourly=temperature_2m,wind_speed_10m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,precipitation&timezone=auto&timeformat=unixtime&forecast_days=4', { headers: hdrs }).then(r => r.json())
+    fetchRetry('https://services.swpc.noaa.gov/json/rtsw/rtsw_mag_1m.json'),
+    fetchRetry('https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json'),
+    fetchRetry('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json'),
+    fetchRetry('https://services.swpc.noaa.gov/json/ovation_aurora_latest.json'),
+    fetchRetry('https://services.swpc.noaa.gov/text/aurora-nowcast-hemi-power.txt', true),
+    fetchRetry('https://services.swpc.noaa.gov/json/goes/primary/magnetometers-6-hour.json'),
+    fetchRetry('https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json'),
+    fetchRetry('https://services.swpc.noaa.gov/products/noaa-scales.json'),
+    fetchRetry('https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=69.9689&lon=23.2716'),
+    fetchRetry('https://api.open-meteo.com/v1/forecast?latitude=64.1466&longitude=-21.9426&hourly=temperature_2m,wind_speed_10m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,precipitation&timezone=auto&timeformat=unixtime&forecast_days=4')
   ]);
 
   const magS = api.parseMagSeries(mag, 180);
@@ -608,3 +621,47 @@ test('24. All GLOBAL_CORRIDORS (Reykjavik, Fairbanks, Yellowknife, Queenstown, H
   assert.equal(sum.good, true);
   assert.ok(!sum.text.includes('同樣多雲'), `20% clear sky must never be called overcast: ${sum.text}`);
 });
+
+test('25. Historical 44-case storm & false-alarm benchmark, 3-pt spike rejection, preconditioning & cloud consensus', () => {
+  const hist = evaluateHistoricalBenchmark();
+  assert.equal(hist.count, 44);
+  assert.equal(hist.visibility.fn, 0, `Visibility FNR must be 0%, got ${hist.visibility.fn} FN`);
+  assert.ok(hist.visibility.accuracy >= 0.95, `Expected >=95% visibility accuracy, got ${(hist.visibility.accuracy * 100).toFixed(1)}%`);
+  assert.equal(hist.alert.fn, 0, `Alert FNR must be 0%, got ${hist.alert.fn} FN`);
+  assert.ok(hist.alert.accuracy >= 0.95, `Expected >=95% alert accuracy, got ${(hist.alert.accuracy * 100).toFixed(1)}%`);
+
+  // 3-point median rejects 1-min -45 nT spike while passing real step shock without attenuation
+  const spiked = Array.from({ length: 80 }, (_, i) => ({
+    time_tag: new Date(Date.parse('2026-11-24T20:00:00Z') + i * 60000).toISOString().slice(0, 19),
+    bz: i === 65 ? -45.0 : 1.0, by: 0.5
+  }));
+  const balSpike = api.computeBallisticCoupling(spiked, 400);
+  assert.equal(balSpike.nextBz, 1);
+
+  const sustained = Array.from({ length: 120 }, (_, i) => ({
+    time_tag: new Date(Date.parse('2026-11-24T19:00:00Z') + i * 60000).toISOString().slice(0, 19),
+    bz: i < 110 ? -6.0 : -0.5, by: 1.0
+  }));
+  const balPre = api.computeBallisticCoupling(sustained, 500);
+  assert.equal(balPre.preconditioned, true);
+  assert.ok(balPre.avgNewell60 >= 5000);
+  const scNoPre = api.computeAuroraScore({ lat: 69.97, lon: 23.27, cloudNow: 10, sunAlt: -25, bz: -0.5, speed: 500, kp: 1.5, ovation: 30, newell: 1800, mlt: 0 });
+  const scWithPre = api.computeAuroraScore({ lat: 69.97, lon: 23.27, cloudNow: 10, sunAlt: -25, bz: -0.5, speed: 500, kp: 1.5, ovation: 30, newell: 1800, preconditionedNewell60: balPre.avgNewell60, mlt: 0 });
+  assert.ok(scWithPre.auroraScore > scNoPre.auroraScore, 'Preconditioning should lift substorm readiness');
+
+  // Dual-model cloud consensus detection
+  const agree = api.evaluateCloudConsensus([{ block: 20 }, { block: 25 }, { block: 30 }], [{ block: 25 }, { block: 30 }, { block: 35 }]);
+  const diverge = api.evaluateCloudConsensus([{ block: 15 }, { block: 20 }, { block: 20 }], [{ block: 75 }, { block: 75 }, { block: 70 }]);
+  assert.equal(agree.level, 'high');
+  assert.equal(diverge.level, 'low');
+  assert.ok(diverge.diffPct >= 50);
+});
+
+test('26. Independent NASA JPL Horizons DE441 solar & lunar ephemeris accuracy across 16 global checkpoints', () => {
+  const astro = evaluateAstronomyBenchmark();
+  assert.equal(astro.count, 16);
+  assert.ok(astro.sunAlt.max < 0.05, `Solar elevation max error vs JPL DE441 too high: ${astro.sunAlt.max}°`);
+  assert.ok(astro.moonAlt.max < 1.2, `Lunar elevation max error vs JPL DE441 too high: ${astro.moonAlt.max}°`);
+  assert.ok(astro.moonIllum.max < 1.5, `Lunar illumination max error vs JPL DE441 too high: ${astro.moonIllum.max}%`);
+});
+

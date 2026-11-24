@@ -1,0 +1,166 @@
+{
+  "source": "NASA JPL Horizons System (DE441 Ephemeris, airless topocentric apparent altitude & illuminated fraction)",
+  "generatedAt": "2026-11-24",
+  "checkpoints": [
+    {
+      "id": "alta_summer_midnight",
+      "label": "Alta Summer Solstice Midnight Sun",
+      "utc": "2026-06-21T00:00:00Z",
+      "lat": 69.9689,
+      "lon": 23.2716,
+      "jplSunAltDeg": 4.82,
+      "jplMoonAltDeg": -8.84,
+      "jplMoonIllumPct": 40.7
+    },
+    {
+      "id": "alta_winter_noon",
+      "label": "Alta Winter Solstice Polar Night Noon",
+      "utc": "2026-12-21T10:30:00Z",
+      "lat": 69.9689,
+      "lon": 23.2716,
+      "jplSunAltDeg": -3.412,
+      "jplMoonAltDeg": 6.986,
+      "jplMoonIllumPct": 89.9
+    },
+    {
+      "id": "alta_equinox_twilight",
+      "label": "Alta Vernal Equinox Evening Twilight",
+      "utc": "2026-03-20T18:00:00Z",
+      "lat": 69.9689,
+      "lon": 23.2716,
+      "jplSunAltDeg": -7.142,
+      "jplMoonAltDeg": 9.633,
+      "jplMoonIllumPct": 3.61
+    },
+    {
+      "id": "tromso_autumn_night",
+      "label": "Tromsø Autumn Aurora Night",
+      "utc": "2025-10-15T22:00:00Z",
+      "lat": 69.6492,
+      "lon": 18.9553,
+      "jplSunAltDeg": -29.03,
+      "jplMoonAltDeg": 3.204,
+      "jplMoonIllumPct": 27.4
+    },
+    {
+      "id": "svalbard_polar_night",
+      "label": "Longyearbyen Deep Polar Night",
+      "utc": "2025-12-21T12:00:00Z",
+      "lat": 78.2232,
+      "lon": 15.6267,
+      "jplSunAltDeg": -12.093,
+      "jplMoonAltDeg": -15.741,
+      "jplMoonIllumPct": 2.08
+    },
+    {
+      "id": "reykjavik_full_moon",
+      "label": "Reykjavik Full Moon Winter Night",
+      "utc": "2025-01-13T23:00:00Z",
+      "lat": 64.1466,
+      "lon": -21.9426,
+      "jplSunAltDeg": -39.935,
+      "jplMoonAltDeg": 42.961,
+      "jplMoonIllumPct": 99.88
+    },
+    {
+      "id": "fairbanks_new_moon",
+      "label": "Fairbanks New Moon Dark Night",
+      "utc": "2025-01-29T08:00:00Z",
+      "lat": 64.8378,
+      "lon": -147.7164,
+      "jplSunAltDeg": -38.62,
+      "jplMoonAltDeg": -44.013,
+      "jplMoonIllumPct": 0.22
+    },
+    {
+      "id": "yellowknife_first_qtr",
+      "label": "Yellowknife First Quarter Moon",
+      "utc": "2025-02-05T05:00:00Z",
+      "lat": 62.454,
+      "lon": -114.3718,
+      "jplSunAltDeg": -34.629,
+      "jplMoonAltDeg": 32.71,
+      "jplMoonIllumPct": 48.18
+    },
+    {
+      "id": "queenstown_southern_winter",
+      "label": "Queenstown Southern Winter Aurora Night",
+      "utc": "2025-06-21T11:00:00Z",
+      "lat": -45.0312,
+      "lon": 168.6626,
+      "jplSunAltDeg": -59.337,
+      "jplMoonAltDeg": -51.829,
+      "jplMoonIllumPct": 20.96
+    },
+    {
+      "id": "hobart_southern_summer",
+      "label": "Hobart Southern Summer Evening",
+      "utc": "2025-12-21T09:00:00Z",
+      "lat": -42.8821,
+      "lon": 147.3272,
+      "jplSunAltDeg": 6.991,
+      "jplMoonAltDeg": 19.424,
+      "jplMoonIllumPct": 1.56
+    },
+    {
+      "id": "mcmurdo_antarctic_night",
+      "label": "McMurdo Station Antarctic Winter",
+      "utc": "2025-06-21T00:00:00Z",
+      "lat": -77.8419,
+      "lon": 166.6863,
+      "jplSunAltDeg": -11.606,
+      "jplMoonAltDeg": -6.97,
+      "jplMoonIllumPct": 25.78
+    },
+    {
+      "id": "equator_equinox_noon",
+      "label": "Quito Equator Equinox High Sun",
+      "utc": "2026-03-20T17:15:00Z",
+      "lat": 0.0,
+      "lon": -78.4678,
+      "jplSunAltDeg": 88.439,
+      "jplMoonAltDeg": 66.078,
+      "jplMoonIllumPct": 3.85
+    },
+    {
+      "id": "london_gannon_storm",
+      "label": "London during 2024-05-10 G5 Gannon Peak",
+      "utc": "2024-05-10T23:00:00Z",
+      "lat": 51.5074,
+      "lon": -0.1278,
+      "jplSunAltDeg": -19.445,
+      "jplMoonAltDeg": 1.556,
+      "jplMoonIllumPct": 9.89
+    },
+    {
+      "id": "sapporo_gannon_storm",
+      "label": "Sapporo during 2024-05-11 G5 Storm",
+      "utc": "2024-05-11T12:30:00Z",
+      "lat": 43.0618,
+      "lon": 141.3545,
+      "jplSunAltDeg": -22.836,
+      "jplMoonAltDeg": 9.615,
+      "jplMoonIllumPct": 13.73
+    },
+    {
+      "id": "abisko_last_qtr",
+      "label": "Abisko Last Quarter Moon Night",
+      "utc": "2025-02-20T22:30:00Z",
+      "lat": 68.3495,
+      "lon": 18.8312,
+      "jplSunAltDeg": -32.037,
+      "jplMoonAltDeg": -26.36,
+      "jplMoonIllumPct": 47.73
+    },
+    {
+      "id": "taipei_subtropical_noon",
+      "label": "Taipei Summer Noon",
+      "utc": "2026-06-21T04:00:00Z",
+      "lat": 25.033,
+      "lon": 121.5654,
+      "jplSunAltDeg": 88.101,
+      "jplMoonAltDeg": 8.975,
+      "jplMoonIllumPct": 43.16
+    }
+  ]
+}
