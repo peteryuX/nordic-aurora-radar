@@ -188,7 +188,6 @@
                 <div id="ringSubLbl" class="ring-sub">觀測指數</div>
                 <div id="ringGrade" class="ring-grade">計算中</div>
               </div>
-              <span class="ring-info-dot" aria-hidden="true">i</span>
             </button>
           </div>
         </div>
@@ -215,17 +214,17 @@
 
           <div id="fcStrip" class="fc-strip">
             <span id="fcNextTxt">未來 1 小時預估：計算中...</span>
-            <button id="fcConfBtn" class="fc-conf-btn" type="button" style="display:none;" aria-haspopup="dialog" aria-controls="trustSheet"></button>
+            <button id="fcConfBtn" class="fc-conf-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet">說明 ›</button>
           </div>
         </div>
       </section>
 
-      <!-- Card 2 (Elevated): 12-Hour Combined Clear-Sky & Aurora Forecast -->
+      <!-- Card 2 (Elevated): 12-Hour Combined Clear-Sky & Score Trend -->
       <section class="card" id="waveCard">
-        <h2><span id="h2Wave">未來 12 小時晴空與極光預報</span></h2>
+        <h2><span id="h2Wave">未來 12 小時逐時趨勢</span></h2>
         <div id="homeBest" class="callout">載入中...</div>
         <div class="hr-legend hr-legend-top">
-          <span id="hrLegLeft"><span class="leg-dot" style="background:var(--green);"></span>綠線＝晴空率｜<span class="leg-dot" style="background:#a855f7;"></span>紫柱＝觀測指數</span>
+          <span id="hrLegLeft"><span class="leg-dot" style="background:var(--green);"></span>綠線＝晴空｜<span class="leg-dot" style="background:#a855f7;"></span>紫柱＝上方指數</span>
           <span id="hrLegRight">點圖表查單小時</span>
         </div>
         <div class="chart-box">

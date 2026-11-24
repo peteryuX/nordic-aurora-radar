@@ -81,7 +81,7 @@ export const STATIC_TEXT_MAP = {
   fSkyLbl: ['晴空率', 'Clear Sky'],
   fAurLbl: ['極光活動', 'Aurora'],
   fDarkLbl: ['夜空暗度', 'Darkness'],
-  h2Wave: ['未來 12 小時晴空與極光預報', '12-Hour Forecast'],
+  h2Wave: ['未來 12 小時逐時趨勢', '12-Hour Trend'],
   hrLegRight: ['點圖表查單小時', 'Tap hour'],
   h2Energy: ['太陽風能量', 'Solar Wind Arrival'],
   h2Outlook: ['未來 3 晚極光與晴空展望', '3-Night Outlook'],
@@ -147,6 +147,7 @@ export const LOADING_PLACEHOLDER_MAP = {
   fAurSub: ['讀取中...', 'Loading...'],
   fDarkSub: ['讀取中...', 'Loading...'],
   fcNextTxt: ['未來 1 小時預估：計算中...', 'Next 1h est.: Calculating...'],
+  fcConfBtn: ['說明 ›', 'Why? ›'],
   pMet: ['Yr.no 官方 ↗', 'Yr.no Official ↗'],
   syncTime: ['同步中', 'Syncing...'],
   energyBanner: ['讀取衛星即時太陽風中...', 'Loading live NOAA solar wind...'],
@@ -204,8 +205,8 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
   const hrl = $('hrLegLeft');
   if (hrl) {
     hrl.innerHTML = en
-      ? `<span class="leg-dot" style="background:var(--green);"></span>Clear Sky % ｜ <span class="leg-dot" style="background:#a855f7;"></span>Viewing Score`
-      : `<span class="leg-dot" style="background:var(--green);"></span>綠線＝晴空率｜<span class="leg-dot" style="background:#a855f7;"></span>紫柱＝觀測指數`;
+      ? `<span class="leg-dot" style="background:var(--green);"></span>Clear Sky % ｜ <span class="leg-dot" style="background:#a855f7;"></span>Top Score`
+      : `<span class="leg-dot" style="background:var(--green);"></span>綠線＝晴空｜<span class="leg-dot" style="background:#a855f7;"></span>紫柱＝上方指數`;
   }
 
   const rl = $('radarLeg');

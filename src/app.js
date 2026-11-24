@@ -548,8 +548,10 @@ function render3NightOutlook(nights) {
     }
   });
   grid.innerHTML = nights.map((n, i) => {
-    const hrsTag = (n.clearDarkHrs > 0) ? `·${n.clearDarkHrs}h` : '';
-    const clearTxt = n.bestClear !== null ? (en ? `Clear ${n.bestClear}%${hrsTag}` : `晴空 ${n.bestClear}%${hrsTag}`) : (en ? 'No dark hrs' : '無暗空');
+    const clearTxt = n.bestClear !== null ? (en ? `Clear ${n.bestClear}%` : `晴空 ${n.bestClear}%`) : (en ? 'No dark hrs' : '無暗空');
+    const hrsLine = (n.bestClear !== null && n.clearDarkHrs > 0)
+      ? `<br/><span style="white-space:nowrap;">${en ? `${n.clearDarkHrs} hrs clear` : `共 ${n.clearDarkHrs} 小時晴`}</span>`
+      : '';
     const kpTxt = n.kpAvailable === false
       ? (en ? 'Kp --' : 'Kp 待更新')
       : `Kp ${Number(n.maxKp || 0).toFixed(1)}${n.gScale >= 1 ? ` · G${n.gScale}` : ''}`;
@@ -558,7 +560,7 @@ function render3NightOutlook(nights) {
     return `<div class="outlook-day ${i === bestIdx ? 'od-best' : ''}">
       <div class="od-date">${escapeHtml(n.label)}</div>
       <div class="od-badge" style="color:${bCol};"><span class="leg-dot" style="background:${bCol};margin-right:2px;"></span>${escapeHtml(n.badge)}</div>
-      <div class="od-stat"><span style="white-space:nowrap;">${escapeHtml(clearTxt)}</span><br/>${escapeHtml(kpTxt)}${enlilLine}</div>
+      <div class="od-stat"><span style="white-space:nowrap;">${escapeHtml(clearTxt)}</span>${hrsLine}<br/>${escapeHtml(kpTxt)}${enlilLine}</div>
     </div>`;
   }).join('');
 }
@@ -757,7 +759,7 @@ function renderFromState(st) {
     scNext, noaaOk, noaaLagMin, usedMet, cloudConsensus, hereHrs, noaaAlert, predKp1h
   });
 
-  // +ETA Forward Forecast Strip & Warning-Only Confidence Button
+  // +ETA Forward Forecast Strip & Always-Visible Readable Formula/Confidence Button
   if (sc.outOfZone && (!scNext || scNext.outOfZone)) {
     setHtml('fcNextTxt', en ? `Next 1h est.: Score <strong>0</strong> (Latitude limit)` : `未來 1 小時預估：指數 <strong>0</strong>（緯度限制）`);
   } else if (scNext) {
@@ -771,8 +773,8 @@ function renderFromState(st) {
   const confBtn = $('fcConfBtn');
   if (confBtn) {
     const degraded = expNow.confidence.level === 'low' || !noaaOk || (noaaLagMin !== null && noaaLagMin > 45) || cloudConsensus?.level === 'low';
-    confBtn.style.display = degraded ? 'inline-flex' : 'none';
-    if (degraded) confBtn.textContent = `⚠ ${expNow.confidence.badgeText}`;
+    confBtn.classList.toggle('warn', degraded);
+    confBtn.textContent = degraded ? `⚠ ${expNow.confidence.badgeText} ›` : (en ? 'Why? ›' : '說明 ›');
   }
 
   // Live raw telemetry inside Trust Sheet
@@ -847,7 +849,9 @@ function renderFromState(st) {
         ? (en ? `Best window tonight: <strong>${bestTimeSafe}</strong> (Score <strong>${bestDark.score}</strong> · Clear ${bestDark.clear}% · Kp ${bestDark.kpFc.toFixed(2)})` : `今晚最佳時段：<strong>${bestTimeSafe}</strong>（指數 <strong>${bestDark.score} 分</strong>｜晴空 ${bestDark.clear}% · Kp ${bestDark.kpFc.toFixed(2)}）`)
         : (bestDark.block <= 40
             ? (en ? `Clearest dark window: <strong>${bestTimeSafe}</strong> (${bestDark.clear}% clear, Score ${bestDark.score})` : `天黑後最晴時段：<strong>${bestTimeSafe}</strong>（晴空 <strong>${bestDark.clear}%</strong>，指數 ${bestDark.score} 分）`)
-            : (en ? `Clouds may thin around <strong>${bestTimeSafe}</strong> (${bestDark.clear}% clear, Score ${bestDark.score}).` : `預計 <strong>${bestTimeSafe}</strong> 雲層較有機會變薄（晴空 <strong>${bestDark.clear}%</strong>，指數 ${bestDark.score} 分）。`)))
+            : (bestDark.clear >= 25 || bestDark.score >= 18
+                ? (en ? `Clouds may thin around <strong>${bestTimeSafe}</strong> (${bestDark.clear}% clear, Score ${bestDark.score}).` : `預計 <strong>${bestTimeSafe}</strong> 雲層較有機會變薄（晴空 <strong>${bestDark.clear}%</strong>，指數 ${bestDark.score} 分）。`)
+                : (en ? `Overcast for the next 12h (max <strong>${bestDark.clear}%</strong> clear) — rest or check Clear Sky radar.` : `未來 12 小時皆偏厚雲（最高僅 <strong>${bestDark.clear}%</strong> 晴空），建議先休息或點「找晴空」。`))))
     : (en ? 'Sky stays bright over the next 12h — check back after dusk.' : '未來 12 小時天色偏亮，請於日落後再查看。');
   const hb = $('homeBest');
   if (hb) {

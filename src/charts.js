@@ -262,7 +262,9 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
 
   const linePts = hrs.map((h, i) => `${xOf(i).toFixed(1)},${yOf(h?.clear).toFixed(1)}`).join(' ');
   const areaPts = `${padL},${padT + plotH} ${linePts} ${W - padR},${padT + plotH}`;
-  const bestIdx = bestDark ? hrs.findIndex(h => h && h.time === bestDark.time && !h.isDay) : -1;
+  const bestIdx = (bestDark && ((bestDark.clear ?? 0) >= 25 || (bestDark.score ?? 0) >= 18))
+    ? hrs.findIndex(h => h && h.time === bestDark.time && !h.isDay)
+    : -1;
 
   const dots = hrs.map((h, i) => {
     const clearVal = clampNum(h?.clear, 0, 100, 0);
