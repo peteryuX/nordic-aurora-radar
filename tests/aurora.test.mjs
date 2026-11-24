@@ -56,11 +56,19 @@ test('4. IGRF-14 / AACGM geomagnetic latitude, NH+SH MLT, and Kp thresholds', ()
   const hobart = api.computeGeomagneticLat(-42.88, 147.33);
   const capeTown = api.computeGeomagneticLat(-33.92, 18.42);
 
+  const minneapolis = api.computeGeomagneticLat(44.98, -93.27);
+  const winnipeg = api.computeGeomagneticLat(49.90, -97.14);
+  const london = api.computeGeomagneticLat(51.51, -0.13);
+
   assert.ok(alta > 65 && alta < 70, `Alta magLat=${alta}`);
   assert.ok(oslo > 56 && oslo < 61, `Oslo magLat=${oslo}`);
   assert.ok(taipei > 13 && taipei < 20, `Taipei magLat=${taipei}`);
-  assert.ok(hobart < -52 && hobart > -55, `Hobart IGRF-14 eccentric invariant lat=${hobart}`);
-  assert.ok(capeTown < -33 && capeTown > -38, `Cape Town eccentric invariant lat=${capeTown} (must unblock G5)`);
+  assert.ok(hobart < -52 && hobart > -55, `Hobart IGRF-14 Apex-110 lat=${hobart}`);
+  assert.ok(capeTown < -40 && capeTown > -44, `Cape Town true IGRF-14 Apex-110 lat=${capeTown} (must unblock G5)`);
+  // Non-dipole Hudson Bay / North Atlantic multipoles verified vs AACGMv2
+  assert.ok(minneapolis > 53 && minneapolis < 55, `Minneapolis IGRF-14 Apex-110 lat=${minneapolis}`);
+  assert.ok(winnipeg > 57.5 && winnipeg < 59.5, `Winnipeg IGRF-14 Apex-110 lat=${winnipeg}`);
+  assert.ok(london > 46.5 && london < 48.5, `London IGRF-14 Apex-110 lat=${london}`);
   // Continuous across equator (zero jump at lat = 0)
   assert.ok(Math.abs(api.computeGeomagneticLat(0.01, 15) - api.computeGeomagneticLat(-0.01, 15)) < 0.5);
 
