@@ -309,7 +309,7 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
   `;
 }
 
-/** 360° Land-Safe Clear-Sky Radar SVG */
+/** 360° Land-Safe Clear-Sky Radar SVG (unified Clear Sky % polarity: higher = greener = better) */
 export function buildCompassRadarSVG(dirResults, originPos, lang) {
   if (!Array.isArray(dirResults) || dirResults.length < 5) return '';
   const en = isEn(lang);
@@ -319,8 +319,8 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
   }
   if (!byKey.here || !byKey.N || !byKey.E || !byKey.S || !byKey.W) return '';
 
-  const colOf = (c, sea, unavail) => unavail ? '#8ea6c4' : (sea ? '#66bdff' : (c <= 35 ? '#34f0b0' : c <= 65 ? '#ffcf5c' : '#ff6b7b'));
-  const fillOf = (c, sea, unavail) => unavail ? 'rgba(142,166,196,0.10)' : (sea ? 'rgba(102,189,255,0.12)' : (c <= 35 ? 'rgba(52,240,176,0.22)' : c <= 65 ? 'rgba(255,207,92,0.20)' : 'rgba(255,107,123,0.19)'));
+  const colOf = (clearPct, sea, unavail) => unavail ? '#8ea6c4' : (sea ? '#66bdff' : (clearPct >= 65 ? '#34f0b0' : clearPct >= 35 ? '#ffcf5c' : '#ff6b7b'));
+  const fillOf = (clearPct, sea, unavail) => unavail ? 'rgba(142,166,196,0.10)' : (sea ? 'rgba(102,189,255,0.12)' : (clearPct >= 65 ? 'rgba(52,240,176,0.22)' : clearPct >= 35 ? 'rgba(255,207,92,0.20)' : 'rgba(255,107,123,0.19)'));
 
   const sectorPath = (a1Deg, a2Deg, rIn, rOut) => {
     const toR = d => d * Math.PI / 180;
@@ -344,7 +344,7 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
   const wedges = cfg.map(s => {
     const d = byKey[s.k];
     const unavail = Boolean(d.unavailable) || !Number.isFinite(Number(d.avg3h));
-    const avg = clampNum(d.avg3h, 0, 100, 100);
+    const clearPct = Math.round(100 - clampNum(d.avg3h, 0, 100, 100));
     const cleanLbl = String(d.label || s.k).replace(/^[⬆️⬇️➡️⬅️]+\s*/, '');
     const shortLblRaw = cleanLbl.includes('km')
       ? (en
@@ -353,11 +353,11 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
           : cleanLbl.replace(/^往/, '').replace(/\s+km$/, 'km'))
       : cleanLbl.replace(/^往[東西南北]+\s*/, '');
     const shortLbl = escSvg(shortLblRaw);
-    const col = colOf(avg, d.isOcean, unavail);
-    const valTxt = unavail ? '--' : `${en ? '' : '雲 '}${Math.round(avg)}%`;
+    const col = colOf(clearPct, d.isOcean, unavail);
+    const valTxt = unavail ? '--' : `${en ? '' : '晴 '}${clearPct}%`;
     const body = `
       <g class="radar-sector">
-        <path d="${sectorPath(s.a1, s.a2, 52, 146)}" fill="${fillOf(avg, d.isOcean, unavail)}" stroke="${col}" stroke-width="1.8" ${(d.isOcean || unavail) ? 'stroke-dasharray="5 4"' : ''}/>
+        <path d="${sectorPath(s.a1, s.a2, 52, 146)}" fill="${fillOf(clearPct, d.isOcean, unavail)}" stroke="${col}" stroke-width="1.8" ${(d.isOcean || unavail) ? 'stroke-dasharray="5 4"' : ''}/>
         <text x="${s.tx}" y="${s.ty - 5}" text-anchor="middle" fill="#f2f7ff" font-size="11.5" font-weight="800">${d.isOcean ? (en ? 'Sea' : '海面') : shortLbl}</text>
         <text x="${s.tx}" y="${s.ty + 15}" text-anchor="middle" fill="${col}" font-size="15.5" font-weight="900">${valTxt}</text>
       </g>`;
@@ -370,9 +370,9 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
 
   const h = byKey.here;
   const hUnavail = Boolean(h.unavailable) || !Number.isFinite(Number(h.avg3h));
-  const hAvg = clampNum(h.avg3h, 0, 100, 100);
-  const hCol = colOf(hAvg, false, hUnavail);
-  const hTxt = hUnavail ? '--' : `${en ? '' : '雲 '}${Math.round(hAvg)}%`;
+  const hClear = Math.round(100 - clampNum(h.avg3h, 0, 100, 100));
+  const hCol = colOf(hClear, false, hUnavail);
+  const hTxt = hUnavail ? '--' : `${en ? '' : '晴 '}${hClear}%`;
   return `
     <circle cx="160" cy="160" r="148" fill="rgba(4,9,18,0.72)" stroke="rgba(255,255,255,0.12)" stroke-width="1.4"/>
     <circle cx="160" cy="160" r="98" fill="none" stroke="rgba(255,255,255,0.10)" stroke-dasharray="4 4"/>

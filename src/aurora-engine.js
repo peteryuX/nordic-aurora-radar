@@ -438,6 +438,148 @@ export function computeSolarElevation(dateObj, lat, lon) {
   return Math.asin(Math.max(-1, Math.min(1, Math.sin(latR) * Math.sin(dec) + Math.cos(latR) * Math.cos(dec) * Math.cos(ha)))) / r;
 }
 
+/** Great-circle Haversine distance in kilometers */
+export function computeDistanceKm(lat1, lon1, lat2, lon2) {
+  if (![lat1, lon1, lat2, lon2].every(Number.isFinite)) return NaN;
+  const r = Math.PI / 180;
+  const dLat = (lat2 - lat1) * r;
+  const dLon = (lon2 - lon1) * r;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(dLon / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)));
+}
+
+const ZH_CITY_ALIASES = [
+  [/冰島|冰岛|雷克雅維克|雷克雅未克/, 'Reykjavik'],
+  [/特羅姆瑟|特罗姆瑟|特龍索/, 'Tromso'],
+  [/阿爾塔|阿尔塔/, 'Alta'],
+  [/羅浮敦|罗浮敦|羅弗敦|斯沃爾韋爾/, 'Svolvaer'],
+  [/塞尼亞|塞尼亚/, 'Senja'],
+  [/納爾維克|纳尔维克/, 'Narvik'],
+  [/阿比斯庫|阿比斯库/, 'Abisko'],
+  [/基律納|基律纳/, 'Kiruna'],
+  [/希爾克內斯|希尔克内斯/, 'Kirkenes'],
+  [/羅瓦涅米|罗瓦涅米|聖誕老人村|圣诞老人村/, 'Rovaniemi'],
+  [/伊納里|伊纳里/, 'Inari'],
+  [/斯瓦巴|斯瓦爾巴|朗伊爾城|朗伊尔城/, 'Longyearbyen'],
+  [/奧斯陸|奥斯陆/, 'Oslo'],
+  [/卑爾根|卑尔根/, 'Bergen'],
+  [/費爾班克斯|费尔班克斯|阿拉斯加/, 'Fairbanks'],
+  [/黃刀|黄刀/, 'Yellowknife'],
+  [/白馬市|白马市/, 'Whitehorse'],
+  [/皇后鎮|皇后镇/, 'Queenstown'],
+  [/荷巴特|霍巴特|塔斯馬尼亞|塔斯马尼亚/, 'Hobart'],
+  [/札幌|北海道/, 'Sapporo'],
+  [/愛丁堡|爱丁堡|蘇格蘭|苏格兰/, 'Edinburgh'],
+  [/台北|臺北/, 'Taipei'],
+  [/東京|东京/, 'Tokyo']
+];
+
+/** Map common Traditional/Simplified Chinese travel city names to geocodable Latin names */
+export function normalizeChineseCityQuery(rawQuery) {
+  const q = String(rawQuery || '').trim();
+  if (!q) return '';
+  for (const [re, target] of ZH_CITY_ALIASES) {
+    if (re.test(q)) return target;
+  }
+  return q;
+}
+
+/**
+ * Compute exact local dark-sky window (-4° usable aurora threshold & -12° full astronomical dark)
+ * using our NASA JPL DE441-verified computeSolarElevation (<1 min precision, <0.3 ms CPU).
+ */
+export function computeDarkWindow(nowDate, lat, lon, timeZone = 'UTC') {
+  const d0 = (nowDate instanceof Date && Number.isFinite(nowDate.getTime())) ? nowDate : new Date();
+  const t0 = d0.getTime();
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return { state: 'unknown', isDarkNow: false, sunAltNow: 0, nextDarkMs: null, nextDarkHM: '', darkInMin: null, darkEndMs: null, darkEndHM: '', darkRemainMin: null };
+  }
+  const sunAltNow = computeSolarElevation(d0, lat, lon);
+  const isDarkNow = sunAltNow < -4;
+  const STEP = 10 * 60000;
+  const refine = (a, b, targetAlt, wantBelow) => {
+    let lo = a, hi = b;
+    for (let i = 0; i < 6; i++) {
+      const mid = (lo + hi) / 2;
+      const alt = computeSolarElevation(new Date(mid), lat, lon);
+      if ((wantBelow ? alt < targetAlt : alt >= targetAlt)) hi = mid;
+      else lo = mid;
+    }
+    return hi;
+  };
+  const fmtHM = (ms) => {
+    if (!Number.isFinite(ms)) return '';
+    const z = getZoneParts(new Date(ms), timeZone);
+    return `${z.hourStr}:${z.minStr}`;
+  };
+
+  let nextDarkMs = null;
+  let darkEndMs = null;
+  if (!isDarkNow) {
+    let prevT = t0, prevAlt = sunAltNow;
+    for (let m = STEP; m <= 24 * 3600000; m += STEP) {
+      const curT = t0 + m;
+      const curAlt = computeSolarElevation(new Date(curT), lat, lon);
+      if (prevAlt >= -4 && curAlt < -4) {
+        nextDarkMs = refine(prevT, curT, -4, true);
+        break;
+      }
+      prevT = curT; prevAlt = curAlt;
+    }
+    if (nextDarkMs === null) {
+      return { state: 'midnight-sun', isDarkNow: false, sunAltNow: +sunAltNow.toFixed(1), nextDarkMs: null, nextDarkHM: '', darkInMin: null, darkEndMs: null, darkEndHM: '', darkRemainMin: null };
+    }
+    // Find when that upcoming dark window ends
+    let pT = nextDarkMs, pA = -4.1;
+    for (let m = STEP; m <= 24 * 3600000; m += STEP) {
+      const cT = nextDarkMs + m;
+      const cA = computeSolarElevation(new Date(cT), lat, lon);
+      if (pA < -4 && cA >= -4) {
+        darkEndMs = refine(pT, cT, -4, false);
+        break;
+      }
+      pT = cT; pA = cA;
+    }
+    return {
+      state: 'twilight-wait',
+      isDarkNow: false,
+      sunAltNow: +sunAltNow.toFixed(1),
+      nextDarkMs,
+      nextDarkHM: fmtHM(nextDarkMs),
+      darkInMin: Math.max(1, Math.round((nextDarkMs - t0) / 60000)),
+      darkEndMs,
+      darkEndHM: fmtHM(darkEndMs),
+      darkRemainMin: null
+    };
+  }
+
+  // Currently dark (sun < -4°): find when dawn arrives within 24h
+  let prevT = t0, prevAlt = sunAltNow;
+  for (let m = STEP; m <= 24 * 3600000; m += STEP) {
+    const curT = t0 + m;
+    const curAlt = computeSolarElevation(new Date(curT), lat, lon);
+    if (prevAlt < -4 && curAlt >= -4) {
+      darkEndMs = refine(prevT, curT, -4, false);
+      break;
+    }
+    prevT = curT; prevAlt = curAlt;
+  }
+  if (darkEndMs === null) {
+    return { state: 'polar-night', isDarkNow: true, sunAltNow: +sunAltNow.toFixed(1), nextDarkMs: null, nextDarkHM: '', darkInMin: 0, darkEndMs: null, darkEndHM: '', darkRemainMin: null };
+  }
+  return {
+    state: 'dark',
+    isDarkNow: true,
+    sunAltNow: +sunAltNow.toFixed(1),
+    nextDarkMs: null,
+    nextDarkHM: '',
+    darkInMin: 0,
+    darkEndMs,
+    darkEndHM: fmtHM(darkEndMs),
+    darkRemainMin: Math.max(1, Math.round((darkEndMs - t0) / 60000))
+  };
+}
+
 /**
  * Analytical ELP lunar phase, topocentric elevation, and physical sky-brightness factor.
  * Uses unrounded Krisciunas & Schaefer (1991) opposition surge so a 50% quarter moon (~9% of Full Moon lux)
@@ -2326,6 +2468,7 @@ export function summarize3NightOutlook({
     else if (enlilMaxSpeed >= 550) enlilTag = en ? `Fast SW ${enlilMaxSpeed}km/s` : `高速風 ${enlilMaxSpeed}km/s`;
     else if (enlilMaxDensity >= 15) enlilTag = en ? `Shock ${Math.round(enlilMaxDensity)}p/cc` : `高密度 ${Math.round(enlilMaxDensity)}p/cc`;
 
+    let bestNightScore = 0;
     let tone = '', badge = '', badgeColor = 'var(--muted)';
     if (absMag < 32) {
       badge = en ? 'Low Lat' : '緯度過低'; badgeColor = '#ff8a96';
@@ -2339,7 +2482,6 @@ export function summarize3NightOutlook({
       badge = gScale >= 1 ? `G${gScale}` : (en ? 'Pending' : '待更新'); badgeColor = gScale >= 1 ? '#ffcf5c' : '#8ea6c4';
     } else {
       // Co-located hour-by-hour scoring (cloud + matched forecast Kp + lunar illuminance at the SAME hour!)
-      let bestNightScore = 0;
       let bestColocatedClear = bestClear;
       for (const p of darkPts) {
         const dt = new Date(p.dtMs);
@@ -2366,7 +2508,7 @@ export function summarize3NightOutlook({
         badge = en ? 'Quiet' : '偏弱'; badgeColor = '#66bdff';
       }
     }
-    return { key, label, bestClear, maxKp: maxKp ?? 0, kpAvailable: maxKp !== null, gScale, darkCount: darkPts.length, tone, badge, badgeColor, enlilTag, enlilMaxSpeed };
+    return { key, label, bestClear, bestNightScore, maxKp: maxKp ?? 0, kpAvailable: maxKp !== null, gScale, darkCount: darkPts.length, tone, badge, badgeColor, enlilTag, enlilMaxSpeed };
   });
 }
 
@@ -2431,12 +2573,12 @@ export function evaluateVerdict({ lat = 69.97, lon = 23.27, bestDark, kp, mlt = 
   if (scoreObj.grade === '⚡ 雲縫極光') {
     return en
       ? { kicker: 'Active · Cloud Gaps', title: 'Strong aurora — watch cloud openings or drive to clear sky', lead: `Bright aurora can pierce cloud breaks toward ${geom.direction}. Check Sky Radar for clearer roads.` }
-      : { kicker: '極光活躍・留意雲縫', title: '極光能量強勁，雲縫間有機會閃現綠光', lead: `可留意 ${geom.direction} 雲隙或開啟「晴空雷達」尋找附近晴朗路段。` };
+      : { kicker: '極光活躍・留意雲縫', title: '極光能量強勁，雲縫間有機會閃現綠光', lead: `可留意 ${geom.direction} 雲隙或開啟「找晴空」尋找附近晴朗路段。` };
   }
   if (scoreObj.auroraScore >= 55 && scoreObj.skyScore < 35) {
     return en
-      ? { kicker: 'Aurora Active', title: 'Strong aurora above, blocked by cloud cover', lead: 'Solar wind is active — open Sky Radar or Live Map to look for nearby clear skies.' }
-      : { kicker: '極光活躍但雲厚', title: '極光能量充足，但目前受厚雲遮蔽', lead: '太陽風活躍中，可點下方「晴空雷達」或「動態雲圖」尋找周邊晴朗區域。' };
+      ? { kicker: 'Aurora Active', title: 'Strong aurora above, blocked by cloud cover', lead: 'Solar wind is active — open Clear Sky radar or Live Map to look for nearby clear skies.' }
+      : { kicker: '極光活躍但雲厚', title: '極光能量充足，但目前受厚雲遮蔽', lead: '太陽風活躍中，可點下方「找晴空」或「實拍雲圖」尋找周邊晴朗區域。' };
   }
   if (scoreObj.skyScore >= 55) {
     return en
@@ -2449,15 +2591,122 @@ export function evaluateVerdict({ lat = 69.97, lon = 23.27, bestDark, kp, mlt = 
         title: 'Heavy cloud cover — low chance right now',
         lead: bestDark && bestDark.block <= 45
           ? `Clouds are expected to thin around ${bestDark.time} (${bestDark.clear}% clear). Check back later.`
-          : 'Dense clouds across the sky right now — check Sky Radar or recheck later.'
+          : 'Dense clouds across the sky right now — check Clear Sky radar or recheck later.'
       }
     : {
         kicker: '雲層過厚',
         title: '目前雲層偏厚，暫時不易觀測',
         lead: bestDark && bestDark.block <= 45
           ? `預計 ${bestDark.time} 雲層較有機會散開（晴空率 ${bestDark.clear}%），屆時再觀察。`
-          : '目前雲量偏高，建議先休息或透過「晴空雷達」查看周邊有沒有晴空空檔。'
+          : '目前雲量偏高，建議先休息或透過「找晴空」查看周邊有沒有晴空空檔。'
       };
+}
+
+/**
+ * Unified cross-tab field decision synthesizer (GO / DRIVE / WAIT / SLEEP / DAYLIGHT / LOW-LAT).
+ * Combines live score, incoming solar wind, dark-window countdown, 360° clear-sky corridors & 3-Night Outlook.
+ */
+export function synthesizeTonightAction({
+  lat = 69.97, lon = 23.27, sc, scNext = null, bal = null, goesSub = null,
+  bestDark = null, dirResults = null, nights3 = null, darkWin = null,
+  kp = null, mlt = null, effMoonPct = 0, lang
+} = {}) {
+  const en = isEn(lang);
+  const base = evaluateVerdict({ lat, lon, bestDark, kp, mlt, effMoonPct, scoreObj: sc, lang });
+  if (!sc || typeof sc !== 'object') {
+    return { ...base, actionType: 'wait', ctaView: null, ctaLabel: '' };
+  }
+  if (sc.outOfZone) {
+    return { ...base, actionType: 'low-lat', ctaView: null, ctaLabel: '' };
+  }
+
+  const fmtDur = (mins) => {
+    if (!Number.isFinite(mins) || mins <= 0) return '';
+    const h = Math.floor(mins / 60), m = mins % 60;
+    if (en) return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+    return h > 0 ? (m > 0 ? `${h} 小時 ${m} 分` : `${h} 小時`) : `${m} 分鐘`;
+  };
+
+  // 1. Daylight / Twilight wait with exact dark-window countdown
+  if (sc.isTooBright) {
+    let lead = base.lead;
+    if (darkWin?.state === 'midnight-sun') {
+      lead = en
+        ? 'Midnight sun season — sky stays too bright all 24h for aurora viewing.'
+        : '目前處於極晝期間，24 小時天色皆過亮，暫無法觀測極光。';
+    } else if (darkWin?.state === 'twilight-wait' && darkWin.nextDarkHM) {
+      const inTxt = fmtDur(darkWin.darkInMin);
+      const bestPart = bestDark
+        ? (en ? ` Best window: ${bestDark.time} (${bestDark.clear}% clear).` : ` 今晚最晴時段約 ${bestDark.time}（晴空 ${bestDark.clear}%）。`)
+        : '';
+      lead = en
+        ? `Dark enough at ${darkWin.nextDarkHM} (in ~${inTxt}).${bestPart}`
+        : `預計 ${darkWin.nextDarkHM} 開始夠暗（約 ${inTxt} 後）。${bestPart}`;
+    }
+    return { ...base, lead, actionType: 'daylight', ctaView: null, ctaLabel: '' };
+  }
+
+  // 2. GO NOW (good/prime score or active substorm with usable sky)
+  if (sc.total >= 40 || (goesSub?.active && sc.skyScore >= 25)) {
+    return { ...base, actionType: 'go', ctaView: null, ctaLabel: '' };
+  }
+
+  // 3. DRIVE (overcast locally, but 360° Clear-Sky Radar finds a clear drivable corridor!)
+  const comp = Array.isArray(dirResults) && dirResults.length >= 2 ? summarizeCompass(dirResults, lang) : null;
+  if (sc.skyScore < 45 && comp && comp.good && comp.bestKey && comp.bestKey !== 'here') {
+    const dest = dirResults.find(d => d && d.key === comp.bestKey);
+    const distKm = (dest && Number.isFinite(dest.distKm)) ? dest.distKm : null;
+    const distTag = distKm !== null ? (en ? ` (~${distKm} km)` : `（約 ${distKm} km）`) : '';
+    const dirName = en ? tDirLabel(dest?.label || comp.bestKey, 'en') : (dest?.label || comp.bestKey);
+    const title = sc.auroraScore >= 50
+      ? (en ? 'Aurora active above — drive to clear sky' : '頭頂極光活躍，建議開車找雲縫')
+      : (en ? 'Cloudy here — clearer skies nearby' : '原地雲層偏厚，周邊有晴空可轉移');
+    const lead = en
+      ? `${dirName}${distTag} has ${comp.bestClear}% clear sky (+${comp.diff}% clearer than here).`
+      : `「${dirName}」${distTag} 未來 3h 晴空率 ${comp.bestClear}%（比原地高 ${comp.diff}%）。`;
+    return {
+      ...base, title, lead, actionType: 'drive',
+      ctaView: 'dir', ctaLabel: en ? 'Open Clear-Sky Radar →' : '查看 360° 找晴空 →'
+    };
+  }
+
+  // 4. WAIT (incoming solar wind surge/shock OR clouds clearing later tonight)
+  const incomingStrong = Boolean(scNext && !scNext.outOfZone && !scNext.isTooBright && (scNext.total >= 35 || bal?.shockActive));
+  if (incomingStrong && bal?.etaMin) {
+    const title = en ? `Activity rising in ~${bal.etaMin} min` : `約 ${bal.etaMin} 分鐘後有機會增強`;
+    const lead = en
+      ? `Incoming solar wind is strengthening (est. score ${scNext.total}). Stay ready or turn on Alerts.`
+      : `偵測到太陽風能量增強中（預估指數升至 ${scNext.total} 分），建議原地稍等或開啟提醒。`;
+    return { ...base, title, lead, actionType: 'wait', ctaView: null, ctaLabel: '' };
+  }
+  if (sc.total < 18 && sc.skyScore < 45 && bestDark && bestDark.clear >= 55) {
+    const title = en ? `Cloudy now — clears around ${bestDark.time}` : `現在雲厚，預計 ${bestDark.time} 轉晴`;
+    const lead = en
+      ? `Clear sky rises to ${bestDark.clear}% around ${bestDark.time} (est. score ${bestDark.score}). Rest until then.`
+      : `預計 ${bestDark.time} 晴空率升至 ${bestDark.clear}%（預估 ${bestDark.score} 分），可先休息等雲散。`;
+    return { ...base, title, lead, actionType: 'wait', ctaView: null, ctaLabel: '' };
+  }
+
+  // 5. SLEEP (overcast here + overcast nearby + no clearing window + quiet wind -> point to best future night)
+  if (sc.total < 18 && sc.skyScore < 40 && sc.auroraScore < 50) {
+    const futureNights = Array.isArray(nights3) ? nights3.slice(1).filter(n => n && (n.tone === 'good' || n.tone === 'warn')) : [];
+    futureNights.sort((a, b) => (b.bestNightScore || 0) - (a.bestNightScore || 0));
+    const bestFuture = futureNights[0];
+    const lead = bestFuture
+      ? (en
+          ? `Overcast locally and nearby with weak activity — save your energy for ${bestFuture.label} (${bestFuture.badge}).`
+          : `原地與周邊皆厚雲且地磁偏弱，建議先休息養足體力，${bestFuture.label}（${bestFuture.badge}）機會較佳。`)
+      : (en
+          ? 'Overcast locally and nearby with weak solar wind — good time to rest and check back later.'
+          : '原地與周邊皆厚雲且太陽風偏弱，建議先休息，稍後或明晚再看。');
+    return {
+      ...base,
+      title: en ? 'Low chance right now — save your energy' : '目前機率偏低，建議先休息',
+      lead, actionType: 'sleep', ctaView: null, ctaLabel: ''
+    };
+  }
+
+  return { ...base, actionType: sc.total >= 18 ? 'wait' : 'sleep', ctaView: null, ctaLabel: '' };
 }
 
 export function summarizeEnergyTrend(series, speed, langOrBal, maybeLang) {
@@ -2496,27 +2745,45 @@ export function summarizeEnergyTrend(series, speed, langOrBal, maybeLang) {
   return { good: false, text: en ? 'Solar wind is currently quiet — turn on Alerts to catch sudden bursts.' : '目前太陽風偏平靜，可開啟通知提醒，有活動增強再出門觀測。', raw, etaMin };
 }
 
+/** Unified Clear-Sky % compass summary (higher % = clearer = better, matching Overview polarity) */
 export function summarizeCompass(dirResults, lang) {
   if (!Array.isArray(dirResults) || dirResults.length < 2) return null;
   const en = isEn(lang);
   const here = dirResults[0];
   if (!here || here.unavailable || !Number.isFinite(here.avg3h)) return null;
+  const hereClear = Math.max(0, Math.min(100, Math.round(100 - here.avg3h)));
   const landOthers = dirResults.slice(1).filter(d => d && !d.isOcean && !d.unavailable && Number.isFinite(d.avg3h)).sort((a, b) => a.avg3h - b.avg3h);
   if (here.avg3h <= 35) {
-    return { bestKey: 'here', good: true, text: en ? `Clear skies right here for the next 3h (avg cloud ${here.avg3h}%) — no need to drive.` : `原地未來 3 小時偏晴（平均雲量僅 ${here.avg3h}%），就近觀測即可。` };
+    return {
+      bestKey: 'here', bestClear: hereClear, hereClear, diff: 0, good: true,
+      text: en ? `Clear skies right here for the next 3h (${hereClear}% clear) — no need to drive.` : `原地未來 3 小時偏晴（晴空率 ${hereClear}%），就近觀測即可。`
+    };
   }
   if (!landOthers.length) {
-    return { bestKey: null, good: false, text: en ? 'Surrounding points are open sea or unavailable. Stay local or check Live Map for inland roads.' : '周邊多為海面或暫無資料，建議留在當地或透過「動態雲圖」查看內陸路線。' };
+    return {
+      bestKey: null, bestClear: null, hereClear, diff: 0, good: false,
+      text: en ? 'Surrounding points are open sea or unavailable. Stay local or check Live Map for inland roads.' : '周邊多為海面或暫無資料，建議留在當地或透過「實拍雲圖」查看內陸路線。'
+    };
   }
   const best = landOthers[0];
-  const diff = here.avg3h - best.avg3h;
+  const bestClear = Math.max(0, Math.min(100, Math.round(100 - best.avg3h)));
+  const diff = bestClear - hereClear;
   if ((diff >= 25 && best.avg3h <= 50) || (best.avg3h <= 30 && diff >= 15)) {
-    return { bestKey: best.key, good: true, text: en ? `Clearer skies toward "${tDirLabel(best.label, 'en')}" (3h avg cloud ${best.avg3h}%, ${diff}% clearer than here).` : `「${best.label}」有明顯晴空空檔（3 小時平均雲量 ${best.avg3h}%，比原地少 ${diff}%）。` };
+    return {
+      bestKey: best.key, bestClear, hereClear, diff, good: true,
+      text: en ? `Clearer skies toward "${tDirLabel(best.label, 'en')}" (${bestClear}% clear, +${diff}% clearer than here).` : `「${best.label}」有明顯晴空空檔（未來 3h 晴空率 ${bestClear}%，比原地高 ${diff}%）。`
+    };
   }
   if (best.avg3h <= 50) {
-    return { bestKey: null, good: false, text: en ? `Nearby routes have similar partly-cloudy skies (~${best.avg3h}% cloud) — watch locally first.` : `周邊與原地皆為局部多雲（最晴方向約 ${best.avg3h}%），差距不大，建議先原地觀察。` };
+    return {
+      bestKey: null, bestClear, hereClear, diff, good: false,
+      text: en ? `Nearby routes have similar partly-cloudy skies (~${bestClear}% clear) — watch locally first.` : `周邊與原地皆為局部雲隙（最晴方向晴空率約 ${bestClear}%），差距不大，建議先原地觀察。`
+    };
   }
-  return { bestKey: null, good: false, text: en ? `Nearby land routes are also overcast (~${best.avg3h}% cloud). Better to wait locally.` : `周邊陸路目前同樣多雲（平均雲量約 ${best.avg3h}%），建議先原地等候放晴。` };
+  return {
+    bestKey: null, bestClear, hereClear, diff, good: false,
+    text: en ? `Nearby land routes are also overcast (~${bestClear}% clear). Better to wait locally.` : `周邊陸路目前同樣雲厚（晴空率約 ${bestClear}%），建議先原地等候放晴。`
+  };
 }
 
 /** Decide whether real-time conditions warrant firing an aurora alert (including storm gaps & incoming CME) */

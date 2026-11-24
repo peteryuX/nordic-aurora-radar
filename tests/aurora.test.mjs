@@ -1228,7 +1228,7 @@ test('36. Full i18n zero-CJK-leak audit across engine outputs & HTML-to-applySta
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   const appJs = fs.readFileSync(path.join(ROOT, 'src/app.js'), 'utf8');
   const htmlIdsWithCjk = [...html.matchAll(/<([a-z0-9]+)\b[^>]*\bid="([^"]+)"[^>]*>([^<]*[\u3400-\u9fff][^<]*)<\/\1>/gi)];
-  const exemptedDynamicIds = new Set(['locName', 'gpsModeTxt', 'clkLbl', 'photoHeading', 'tsLiveTotal']);
+  const exemptedDynamicIds = new Set(['locName', 'tsLiveTotal']);
   for (const [, , id] of htmlIdsWithCjk) {
     if (exemptedDynamicIds.has(id)) continue;
     assert.ok(appJs.includes(`'${id}'`) || appJs.includes(`"${id}"`), `HTML element #${id} has CJK default text but is not referenced in src/app.js i18n!`);
@@ -1361,6 +1361,106 @@ test('39. WSA-ENLIL CME/HSS parser handles reverse-chronological feed & tags mat
   assert.equal(api.formatReverseGeo(zhGeo, 'zh'), '挪威・北雷薩');
   assert.equal(api.formatReverseGeo({ countryCode: 'FI', countryName: '芬兰', city: '伊纳里' }, 'zh', { countryCode: 'FI', countryName: 'Finland', city: 'Inari' }), '芬蘭・Inari');
 });
+
+test('40. Dark-window countdown, distance km, Chinese search, cross-tab action synthesizer & Clear Sky % compass', () => {
+  const cjkRe = /[\u3400-\u9fff\uf900-\ufaff]/;
+
+  // 1. Distance km (Alta <-> Tromso ~173 km; Tromso <-> Reykjavik >1500 km)
+  const dAltaTromso = api.computeDistanceKm(69.9689, 23.2716, 69.6492, 18.9553);
+  assert.ok(dAltaTromso > 160 && dAltaTromso < 185, `Expected ~173 km, got ${dAltaTromso}`);
+  const dTromsoRvk = api.computeDistanceKm(69.6492, 18.9553, 64.1466, -21.9426);
+  assert.ok(dTromsoRvk > 1600, `Expected >1600 km, got ${dTromsoRvk}`);
+
+  // 2. Chinese city query normalization (Traditional & Simplified)
+  assert.equal(api.normalizeChineseCityQuery('冰島'), 'Reykjavik');
+  assert.equal(api.normalizeChineseCityQuery('特罗姆瑟'), 'Tromso');
+  assert.equal(api.normalizeChineseCityQuery('黃刀鎮'), 'Yellowknife');
+  assert.equal(api.normalizeChineseCityQuery('Fairbanks'), 'Fairbanks');
+
+  // 3. computeDarkWindow across all 4 Arctic regimes
+  const dwWait = api.computeDarkWindow(new Date('2026-03-15T12:00:00Z'), 69.6492, 18.9553, 'Europe/Oslo');
+  assert.equal(dwWait.state, 'twilight-wait');
+  assert.ok(dwWait.nextDarkHM && dwWait.darkInMin > 60, `Expected valid dark countdown, got ${JSON.stringify(dwWait)}`);
+
+  const dwDark = api.computeDarkWindow(new Date('2026-03-15T22:00:00Z'), 69.6492, 18.9553, 'Europe/Oslo');
+  assert.equal(dwDark.state, 'dark');
+  assert.ok(dwDark.darkEndHM && dwDark.darkRemainMin > 60, `Expected valid dawn countdown, got ${JSON.stringify(dwDark)}`);
+
+  const dwPolarNight = api.computeDarkWindow(new Date('2026-12-21T12:00:00Z'), 78.15, 16.04, 'Arctic/Longyearbyen');
+  assert.equal(dwPolarNight.state, 'polar-night');
+
+  const dwMidnightSun = api.computeDarkWindow(new Date('2026-06-21T22:00:00Z'), 69.6492, 18.9553, 'Europe/Oslo');
+  assert.equal(dwMidnightSun.state, 'midnight-sun');
+
+  // 4. Unified Clear Sky % polarity in summarizeCompass & buildCompassRadarSVG
+  const dirs = [
+    { key: 'here', label: '📍 目前位置', lat: 69.6492, lon: 18.9553, avg3h: 85, nowC: 90, temp: -3, distKm: 0, isOcean: false },
+    { key: 'E', label: '往東 Skibotn', lat: 69.39, lon: 20.27, avg3h: 20, nowC: 15, temp: -6, distKm: 62, isOcean: false },
+    { key: 'N', label: '往北 Kvaløya', lat: 69.75, lon: 18.5, avg3h: 80, nowC: 80, temp: -2, distKm: 22, isOcean: false },
+    { key: 'S', label: '往南 Balsfjord', lat: 69.24, lon: 19.22, avg3h: 70, nowC: 70, temp: -4, distKm: 47, isOcean: false },
+    { key: 'W', label: '往西 Sommarøy', lat: 69.63, lon: 18.01, avg3h: 90, nowC: 90, temp: -1, distKm: 36, isOcean: false }
+  ];
+  const compZh = api.summarizeCompass(dirs, 'zh');
+  const compEn = api.summarizeCompass(dirs, 'en');
+  assert.equal(compZh.bestKey, 'E');
+  assert.equal(compZh.bestClear, 80);
+  assert.equal(compZh.hereClear, 15);
+  assert.equal(compZh.diff, 65);
+  assert.ok(compZh.text.includes('80%'), `Expected Clear Sky 80% in ZH compass summary: ${compZh.text}`);
+  assert.ok(compEn.text.includes('80% clear') && !cjkRe.test(compEn.text), `Expected EN clear sky summary without CJK: ${compEn.text}`);
+
+  const svgZh = api.buildCompassRadarSVG(dirs, { lat: 69.6492, lon: 18.9553 }, 'zh');
+  const svgEn = api.buildCompassRadarSVG(dirs, { lat: 69.6492, lon: 18.9553 }, 'en');
+  assert.ok(svgZh.includes('晴 80%') && svgZh.includes('晴 15%'), 'ZH radar SVG should show Clear Sky %');
+  assert.ok(svgEn.includes('>80%<') && !cjkRe.test(svgEn), 'EN radar SVG should show Clear Sky % with zero CJK');
+
+  // 5. Cross-tab synthesizeTonightAction (DRIVE, GO, WAIT, SLEEP, DAYLIGHT)
+  const scCloudyActive = api.computeAuroraScore({ lat: 69.65, lon: 18.96, cloudNow: 88, sunAlt: -20, bz: -8, speed: 550, kp: 4 });
+  const driveAct = api.synthesizeTonightAction({ lat: 69.65, lon: 18.96, sc: scCloudyActive, dirResults: dirs, kp: 4, lang: 'en' });
+  assert.equal(driveAct.actionType, 'drive');
+  assert.equal(driveAct.ctaView, 'dir');
+  assert.ok(driveAct.lead.includes('80% clear') && driveAct.lead.includes('62 km') && !cjkRe.test(driveAct.title + driveAct.lead));
+
+  const scClearActive = api.computeAuroraScore({ lat: 69.65, lon: 18.96, cloudNow: 10, sunAlt: -20, bz: -8, speed: 550, kp: 4 });
+  const goAct = api.synthesizeTonightAction({ lat: 69.65, lon: 18.96, sc: scClearActive, dirResults: dirs, kp: 4, lang: 'zh' });
+  assert.equal(goAct.actionType, 'go');
+  assert.equal(goAct.ctaView, null);
+
+  const scDay = api.computeAuroraScore({ lat: 69.65, lon: 18.96, cloudNow: 10, sunAlt: 10, bz: -5, speed: 450, kp: 3 });
+  const dayAct = api.synthesizeTonightAction({ lat: 69.65, lon: 18.96, sc: scDay, darkWin: dwWait, kp: 3, lang: 'en' });
+  assert.equal(dayAct.actionType, 'daylight');
+  assert.ok(dayAct.lead.includes(dwWait.nextDarkHM) && !cjkRe.test(dayAct.lead));
+
+  const allCloudyDirs = dirs.map(d => ({ ...d, avg3h: 92, nowC: 92 }));
+  const scQuietCloudy = api.computeAuroraScore({ lat: 69.65, lon: 18.96, cloudNow: 95, sunAlt: -20, bz: 3, speed: 340, kp: 1 });
+  const sleepAct = api.synthesizeTonightAction({
+    lat: 69.65, lon: 18.96, sc: scQuietCloudy, dirResults: allCloudyDirs,
+    nights3: [
+      { label: 'Tonight', tone: '', bestNightScore: 5, badge: 'Cloudy' },
+      { label: 'Tomorrow', tone: 'good', bestNightScore: 52, badge: 'Promising' },
+      { label: 'Wed', tone: 'good', bestNightScore: 84, badge: 'Promising' }
+    ],
+    kp: 1, lang: 'en'
+  });
+  assert.equal(sleepAct.actionType, 'sleep');
+  assert.ok(sleepAct.lead.includes('Wed'), `Expected SLEEP to recommend strictly highest-scoring future night (Wed), got: ${sleepAct.lead}`);
+
+  // 6. 3-Night Outlook exposes bestNightScore for highest-score highlight
+  const nightsOrd = api.summarize3NightOutlook({
+    cloudPoints: [
+      { dtMs: Date.parse('2026-11-24T22:00:00Z'), clear: 65, isDay: false },
+      { dtMs: Date.parse('2026-11-25T22:00:00Z'), clear: 95, isDay: false }
+    ],
+    kpForecast: [
+      { ts: Date.parse('2026-11-24T21:00:00Z'), kp: 2.5 },
+      { ts: Date.parse('2026-11-25T21:00:00Z'), kp: 5.5 }
+    ],
+    currentKp: 2.5, lat: 69.97, lon: 23.27, timeZone: 'UTC',
+    nowDate: new Date('2026-11-24T20:00:00Z'), lang: 'en'
+  });
+  assert.ok(nightsOrd[1].bestNightScore > nightsOrd[0].bestNightScore, `Expected Night 2 score (${nightsOrd[1].bestNightScore}) > Night 1 (${nightsOrd[0].bestNightScore})`);
+});
+
 
 
 

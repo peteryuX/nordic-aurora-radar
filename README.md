@@ -52,7 +52,7 @@ nordic-aurora-radar/
 ├── llms.txt / sitemap.xml  # AI-Search (GEO) & search engine indexing metadata
 ├── SECURITY.md             # CSP allowlist, zero-tracking privacy guarantees & vulnerability policy
 ├── tests/
-│   ├── aurora.test.mjs          # 39 automated physics, parser-chaos, monotonicity, 500+ SVG fuzz, i18n, security & live smoke tests
+│   ├── aurora.test.mjs          # 40 automated physics, parser-chaos, monotonicity, 500+ SVG fuzz, i18n, security & live smoke tests
 │   ├── benchmark.mjs            # Quantitative calibration scorecard (72 cases MCC/AUC/Brier, 22 JPL DE441, live cross-check)
 │   ├── realworld-validation.mjs # Independent blind public-data audit (17,255h NASA OMNI2, GFZ Hp30, NOAA Prop, 9 Airport METARs)
 │   └── fixtures/                # 72 ground-truth historical storm/trap/outage cases + 22 NASA JPL Horizons DE441 checkpoints
@@ -93,7 +93,7 @@ cd nordic-aurora-radar
 python3 -m http.server 8000
 ```
 
-Run the 39 automated test suites, quantitative benchmarks & independent public-data audit (Node.js 20+, zero dependencies):
+Run the 40 automated test suites, quantitative benchmarks & independent public-data audit (Node.js 20+, zero dependencies):
 
 ```bash
 node --test tests/aurora.test.mjs
