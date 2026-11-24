@@ -105,8 +105,12 @@
           <span id="locName">挪威・Alta</span><span class="chev">▾</span>
         </button>
         <div class="loc-actions">
-          <button id="gpsBtn" class="btn btn-ghost" type="button">GPS</button>
-          <button id="shareBtn" class="btn btn-ghost" type="button">分享</button>
+          <button id="gpsBtn" class="icon-btn loc-icon-btn" type="button" title="GPS 定位" aria-label="GPS 定位">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>
+          </button>
+          <button id="shareBtn" class="icon-btn loc-icon-btn" type="button" title="分享預報連結" aria-label="分享預報連結">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+          </button>
         </div>
       </div>
       <div id="locMeta" class="loc-meta">
@@ -130,6 +134,8 @@
           <button class="chip" type="button" data-zh="冰島・Reykjavik" data-en="Iceland · Reykjavik" data-lat="64.1466" data-lon="-21.9426">Reykjavik</button>
           <button class="chip" type="button" data-zh="美國・Fairbanks" data-en="USA · Fairbanks" data-lat="64.8378" data-lon="-147.7164">Fairbanks</button>
           <button class="chip" type="button" data-zh="加拿大・Yellowknife" data-en="Canada · Yellowknife" data-lat="62.4540" data-lon="-114.3718">Yellowknife</button>
+          <button class="chip" type="button" data-zh="紐西蘭・Queenstown" data-en="New Zealand · Queenstown" data-lat="-45.0312" data-lon="168.6626">Queenstown</button>
+          <button class="chip" type="button" data-zh="澳洲・Hobart" data-en="Australia · Hobart" data-lat="-42.8821" data-lon="147.3272">Hobart</button>
         </div>
         <form id="cityForm" class="search-row">
           <input id="cityInput" type="text" placeholder="輸入中／英文地名（例：冰島、特羅姆瑟、Hobart）" />

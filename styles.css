@@ -108,6 +108,9 @@ body::before {
 .loc-name-btn .chev { color: var(--muted); font-size: 0.85rem; transition: transform 0.15s ease; }
 .loc-name-btn.open .chev { transform: rotate(180deg); }
 .loc-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.loc-icon-btn { width: 40px; height: 40px; border-radius: 11px; }
+.loc-icon-btn svg { width: 18px; height: 18px; }
+.loc-icon-btn.gps-live { color: var(--green); border-color: rgba(52, 240, 176, 0.4); background: var(--green-bg); }
 .loc-meta { font-size: 0.78rem; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .meta-ref-btn {
   background: none; border: 1px solid var(--border); color: var(--muted);

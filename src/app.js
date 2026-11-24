@@ -353,6 +353,7 @@ function renderLocationHeader() {
   const dotCls = state.pos.mode === 'gps' ? 'live' : (state.pos.mode === 'gps-err' ? 'err' : 'manual');
   const dot = $('gpsDot');
   if (dot) dot.className = `gps-dot ${dotCls}`;
+  $('gpsBtn')?.classList.toggle('gps-live', state.pos.mode === 'gps');
   setText('clkLbl', en ? 'Local' : '當地');
 
   syncPresetChipHighlight();
@@ -593,7 +594,40 @@ function formatDarkCountdownSub(darkWin, moon, en) {
   return moon.up ? (en ? `Moon ${moon.pct}%` : `月相 ${moon.pct}%`) : (en ? 'Moon down' : '月亮落下');
 }
 
+function renderRoadLinks(pos, en) {
+  const wrap = $('roadLinks');
+  if (!wrap || !pos) return;
+  let links = null;
+  if (pos.lat >= 55 && pos.lon >= -26 && pos.lon <= 35) {
+    links = [
+      { id: 'roadNo', url: 'https://www.vegvesen.no/trafikk', zh: '挪威 Vegvesen ↗', en: 'Norway Vegvesen ↗' },
+      { id: 'roadIs', url: 'https://umferdin.is/en', zh: '冰島 Umferðin ↗', en: 'Iceland Umferðin ↗' },
+      { id: 'roadFi', url: 'https://liikennetilanne.fintraffic.fi/', zh: '芬蘭路況 ↗', en: 'Finland Roads ↗' }
+    ];
+  } else if (pos.lat >= 45 && pos.lon <= -50) {
+    links = [
+      { id: 'roadAk', url: 'https://511.alaska.gov/', zh: '阿拉斯加 511 ↗', en: 'Alaska 511 ↗' },
+      { id: 'roadNwt', url: 'https://www.inf.gov.nt.ca/en/services/highways/highway-conditions', zh: '黃刀公路路況 ↗', en: 'NWT Highways ↗' },
+      { id: 'roadYk', url: 'https://511yukon.ca/', zh: '育空 511 ↗', en: 'Yukon 511 ↗' }
+    ];
+  } else if (pos.lat <= -30 && pos.lon >= 130) {
+    links = [
+      { id: 'roadNz', url: 'https://www.journeys.nzta.govt.nz/', zh: '紐西蘭 NZTA 路況 ↗', en: 'NZTA Journeys ↗' },
+      { id: 'roadTas', url: 'https://www.police.tas.gov.au/community-alerts/', zh: '塔斯馬尼亞路況 ↗', en: 'Tasmania Alerts ↗' }
+    ];
+  }
+  if (!links) {
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'flex';
+  const lbl = en ? 'Road & closure status:' : '冬季即時路況／封路查詢：';
+  wrap.innerHTML = `<span id="roadLbl" class="road-lbl">${lbl}</span>` +
+    links.map(l => `<a id="${l.id}" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="${l.url}">${en ? l.en : l.zh}</a>`).join('');
+}
+
 function renderCompassPanel(dirResults, pos, en) {
+  renderRoadLinks(pos, en);
   const sum = summarizeCompass(dirResults);
   const cs = $('compassSummary');
   if (cs) {
@@ -954,11 +988,12 @@ function useGPS() {
     return;
   }
   const b = $('gpsBtn');
-  if (b) { b.disabled = true; b.textContent = en ? 'Locating...' : '定位中...'; }
+  if (b) { b.disabled = true; b.classList.add('spinning'); }
+  const stopSpin = () => { if (b) { b.disabled = false; b.classList.remove('spinning'); } };
   const myLocSeq = ++state.locationSeq;
   navigator.geolocation.getCurrentPosition(
     (pos) => {
-      if (myLocSeq !== state.locationSeq) { if (b) { b.disabled = false; b.textContent = 'GPS'; } return; }
+      if (myLocSeq !== state.locationSeq) { stopSpin(); return; }
       state.camUserPicked = false;
       const { latitude: lat, longitude: lon, accuracy } = pos.coords;
       document.querySelectorAll('#presetChips .chip').forEach(c => c.classList.remove('on'));
@@ -972,7 +1007,7 @@ function useGPS() {
         mode: 'gps', accuracy
       };
       renderLocationHeader(); syncBrowserUrl(); togglePicker(true);
-      if (b) { b.disabled = false; b.textContent = 'GPS'; }
+      stopSpin();
       toast((isEn() ? 'Located: ' : '已定位：') + getPosDisplayName());
       refreshAll(true);
 
@@ -988,7 +1023,7 @@ function useGPS() {
       }
     },
     () => {
-      if (b) { b.disabled = false; b.textContent = 'GPS'; }
+      stopSpin();
       if (myLocSeq !== state.locationSeq) return;
       state.pos.mode = 'gps-err'; renderLocationHeader();
       toast(isEn() ? 'GPS permission denied' : 'GPS 權限被拒，請手動選擇地點');

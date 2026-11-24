@@ -52,8 +52,6 @@ export const STATIC_TEXT_MAP = {
     'If GPS is blocked in an in-app browser, open in Safari/Chrome or tap the city name above.'
   ],
   clkLbl: ['當地', 'Local'],
-  gpsBtn: ['GPS', 'GPS'],
-  shareBtn: ['分享', 'Share'],
   searchBtn: ['搜尋', 'Go'],
   ringSubLbl: ['觀測指數', 'Score'],
   fSkyLbl: ['晴空率', 'Clear Sky'],
@@ -132,6 +130,8 @@ const ARIA_LABELS = {
   alertBtn: ['達標自動提醒', 'Aurora alerts', true],
   trustBtn: ['算法、數據與拍攝貼士', 'Formula, telemetry & photo tips', true],
   refBtn: ['立即更新', 'Sync now', true],
+  gpsBtn: ['GPS 定位', 'Use GPS location', true],
+  shareBtn: ['分享預報連結', 'Share forecast link', true],
   ringBtn: ['查看指數算法與可信度', 'View score formula and credibility', false],
   trustCloseBtn: ['關閉', 'Close', false]
 };
