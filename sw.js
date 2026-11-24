@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aurora-radar-shell-v8';
+const CACHE_NAME = 'aurora-radar-shell-v9';
 const FETCH_TIMEOUT_MS = 3500;
 const SHELL_ASSETS = [
   './',
@@ -6,6 +6,9 @@ const SHELL_ASSETS = [
   './styles.css',
   './src/aurora-engine.js',
   './src/charts.js',
+  './src/storage.js',
+  './src/i18n.js',
+  './src/data-client.js',
   './src/app.js',
   './manifest.json',
   './icon.svg'

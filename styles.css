@@ -165,10 +165,6 @@ body::before {
   background: linear-gradient(90deg, rgba(4,9,18,0.78) 0%, rgba(4,9,18,0.30) 56%, rgba(4,9,18,0.68) 100%);
 }
 .sky-text { flex: 1; min-width: 0; }
-.sky-tag {
-  display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 0.8rem; font-weight: 800;
-  background: rgba(4,9,18,0.72); border: 1px solid var(--border-strong); margin-bottom: 7px; color: var(--text);
-}
 .sky-title { margin: 0 0 6px; font-size: 1.34rem; font-weight: 800; line-height: 1.24; letter-spacing: -0.02em; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
 .sky-lead { margin: 0; font-size: 0.9rem; line-height: 1.48; color: #dbe9fa; text-shadow: 0 1px 6px rgba(0,0,0,0.85); }
 
@@ -221,16 +217,9 @@ body::before {
   font-size: 0.86rem; color: #dbeeff;
 }
 .fc-strip strong { color: var(--green); }
-.fc-conf { font-size: 0.78rem; color: var(--muted); font-weight: 700; }
 
-.trust-bar {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px;
-  margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--border);
-  font-size: 0.78rem; color: var(--muted);
-}
-.trust-pills { display: flex; flex-wrap: wrap; gap: 6px; }
-.tpill { padding: 3px 9px; border-radius: 99px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); font-weight: 700; }
-.tpill-link { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; transition: border-color 0.15s ease, color 0.15s ease; }
+.tpill { padding: 3px 9px; border-radius: 99px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); font-weight: 700; font-size: 0.78rem; color: var(--muted); }
+.tpill-link { text-decoration: none; display: inline-flex; align-items: center; gap: 4px; transition: border-color 0.15s ease, color 0.15s ease; }
 .tpill-link:hover { border-color: rgba(102,189,255,0.45); color: #e2f2ff; }
 .src-link { color: inherit; text-decoration: none; border-bottom: 1px dashed rgba(142,166,196,0.4); transition: color 0.15s ease, border-color 0.15s ease; }
 .src-link:hover { color: var(--blue); border-bottom-color: var(--blue); }
@@ -312,27 +301,6 @@ body::before {
 .dir.sea { opacity: 0.76; border-style: dashed; }
 .c-green { color: var(--green); } .c-amber { color: var(--amber); } .c-red { color: var(--red); } .c-blue { color: var(--blue); }
 
-.tools-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-.tools-grid .btn { padding: 9px 10px; font-size: 0.82rem; justify-content: flex-start; }
-
-.photo-steps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 0.86rem; }
-.photo-steps li { display: flex; gap: 10px; align-items: flex-start; }
-.step-num { font-size: 0.74rem; font-weight: 800; color: var(--amber); font-variant-numeric: tabular-nums; padding-top: 2px; flex-shrink: 0; }
-
-.glossary summary {
-  cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between;
-  font-size: 0.96rem; font-weight: 800; color: var(--text); user-select: none;
-}
-.glossary summary::-webkit-details-marker { display: none; }
-.glossary summary::after { content: '▾'; color: var(--muted); font-size: 0.9rem; transition: transform 0.15s ease; }
-.glossary[open] summary::after { transform: rotate(180deg); }
-.glossary-body { margin-top: 10px; font-size: 0.8rem; color: var(--muted); line-height: 1.62; border-top: 1px solid var(--border); padding-top: 10px; }
-.gl-group { font-weight: 800; color: #dbeeff; margin: 10px 0 4px; font-size: 0.82rem; }
-.gl-group:first-child { margin-top: 0; }
-.gl-badge { display: inline-block; padding: 1px 6px; border-radius: 6px; font-size: 0.68rem; font-weight: 800; margin-right: 5px; vertical-align: middle; }
-.gl-obs { background: var(--green-bg); color: var(--green); border: 1px solid rgba(52,240,176,0.35); }
-.gl-mod { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(102,189,255,0.35); }
-
 /* ====== Bottom Navigation (Monochrome Inline SVGs) ====== */
 .bottom-nav {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
@@ -412,7 +380,6 @@ body.red-mode .fc-strip,
 body.red-mode .hr-detail,
 body.red-mode .storm-banner,
 body.red-mode .sky-lead,
-body.red-mode .gl-group,
 body.red-mode .hero-cta,
 body.red-mode .fc-conf-btn,
 body.red-mode .toast { color: #f03232; }
@@ -432,7 +399,7 @@ body.red-mode #windyFrame {
   filter: sepia(100%) saturate(720%) hue-rotate(-52deg) brightness(0.62) contrast(1.08);
 }
 
-/* ====== Score-Ring & Trust-Bar Trigger Affordances ====== */
+/* ====== Score-Ring Trigger Affordances ====== */
 .ring-btn {
   padding: 0; border: none; background: transparent; color: inherit; font: inherit;
   cursor: pointer; border-radius: 50%; display: block;
@@ -448,13 +415,6 @@ body.red-mode #windyFrame {
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 .ring-btn:hover .ring-info-dot { color: var(--text); border-color: var(--blue); }
-
-.tpill-btn {
-  color: var(--muted); font: inherit; font-weight: 700; cursor: pointer;
-  display: inline-flex; align-items: center; gap: 3px;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-}
-.tpill-btn:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-2); }
 
 .hr-legend-top { margin-top: 0; margin-bottom: 8px; }
 

@@ -6,11 +6,14 @@ import { fileURLToPath } from 'node:url';
 
 import * as engine from '../src/aurora-engine.js';
 import * as charts from '../src/charts.js';
+import * as storage from '../src/storage.js';
+import * as dataClient from '../src/data-client.js';
 import { evaluateHistoricalBenchmark, evaluateAstronomyBenchmark } from './benchmark.mjs';
 
 const api = { ...engine, ...charts };
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
+const allSrcRelFiles = () => fs.readdirSync(path.join(ROOT, 'src')).filter(f => f.endsWith('.js')).sort().map(f => `src/${f}`);
 
 test('1. Solar elevation astronomy matches equinox, midnight sun, and polar night', () => {
   const midnightSun = api.computeSolarElevation(new Date('2026-06-21T00:00:00Z'), 69.97, 23.27);
@@ -1224,20 +1227,22 @@ test('36. Full i18n zero-CJK-leak audit across engine outputs & HTML-to-applySta
   const geomEn = api.computeViewingGeometry({ lat: 69.97, lon: 23.27, kp: 3, mlt: 0, lang: 'en' });
   assert.ok(!cjkRe.test(geomEn.shortText) && !cjkRe.test(geomEn.direction));
 
-  // Verify every static Chinese text element with an id in index.html is handled in src/app.js
+  // Verify every static Chinese text element with an id in index.html is handled in src/app.js or src/i18n.js
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-  const appJs = fs.readFileSync(path.join(ROOT, 'src/app.js'), 'utf8');
+  const uiCode = ['src/app.js', 'src/i18n.js'].map(f => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n');
   const htmlIdsWithCjk = [...html.matchAll(/<([a-z0-9]+)\b[^>]*\bid="([^"]+)"[^>]*>([^<]*[\u3400-\u9fff][^<]*)<\/\1>/gi)];
   const exemptedDynamicIds = new Set(['locName', 'tsLiveTotal']);
   for (const [, , id] of htmlIdsWithCjk) {
     if (exemptedDynamicIds.has(id)) continue;
-    assert.ok(appJs.includes(`'${id}'`) || appJs.includes(`"${id}"`), `HTML element #${id} has CJK default text but is not referenced in src/app.js i18n!`);
+    const handled = uiCode.includes(`'${id}'`) || uiCode.includes(`"${id}"`) || new RegExp(`\\b${id}\\s*:`).test(uiCode);
+    assert.ok(handled, `HTML element #${id} has CJK default text but is not referenced in src/app.js or src/i18n.js!`);
   }
 });
 
 test('37. Strict CSP, SW manifest integrity, zero 3rd-party JS & XSS/sink hygiene audit', () => {
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-  const appJs = fs.readFileSync(path.join(ROOT, 'src/app.js'), 'utf8');
+  const srcFiles = allSrcRelFiles();
+  const allSrcCode = srcFiles.map(f => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n');
   const swJs = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
 
   // 1. Parse CSP directives strictly
@@ -1249,21 +1254,21 @@ test('37. Strict CSP, SW manifest integrity, zero 3rd-party JS & XSS/sink hygien
   assert.ok(!/script-src[^;]*unsafe-inline/.test(csp), 'script-src must never allow unsafe-inline');
   assert.ok(csp.includes("object-src 'none'") && csp.includes("base-uri 'self'") && csp.includes("form-action 'none'"));
 
-  // Every fetch() origin in src/app.js must be allowlisted in connect-src
+  // Every fetch() origin across all src/*.js must be allowlisted in connect-src
   const connectMatch = csp.match(/connect-src\s+([^;]+)/);
   assert.ok(connectMatch, 'connect-src missing');
   const allowedConnect = new Set(connectMatch[1].trim().split(/\s+/));
-  const fetchUrls = [...appJs.matchAll(/fetch(?:WithTimeout)?\(\s*[`'"](https:\/\/[^/'"`]+)/g)].map(m => m[1]);
-  assert.ok(fetchUrls.length >= 10, 'Expected >=10 fetch origins in app.js');
+  const fetchUrls = [...allSrcCode.matchAll(/fetch(?:WithTimeout)?\(\s*[`'"](https:\/\/[^/'"`]+)/g)].map(m => m[1]);
+  assert.ok(fetchUrls.length >= 10, 'Expected >=10 fetch origins across src/*.js');
   for (const origin of new Set(fetchUrls)) {
-    assert.ok(allowedConnect.has(origin), `Origin ${origin} fetched in src/app.js is missing from CSP connect-src!`);
+    assert.ok(allowedConnect.has(origin), `Origin ${origin} fetched in src/*.js is missing from CSP connect-src!`);
   }
 
   // 2. Zero external 3rd-party JS or CSS tags
   assert.equal([...html.matchAll(/<script[^>]+src="https?:/gi)].length, 0, 'Zero external 3rd-party JS allowed');
   assert.equal([...html.matchAll(/<link[^>]+rel="stylesheet"[^>]+href="https?:/gi)].length, 0, 'Zero external CSS allowed');
 
-  // 3. Valid JSON-LD, manifest.json, and all sw.js SHELL_ASSETS exist on disk
+  // 3. Valid JSON-LD, manifest.json, and all sw.js SHELL_ASSETS exist on disk + cover EVERY src/*.js module
   const jsonLdMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
   assert.ok(jsonLdMatch, 'JSON-LD missing');
   assert.doesNotThrow(() => JSON.parse(jsonLdMatch[1]));
@@ -1272,14 +1277,18 @@ test('37. Strict CSP, SW manifest integrity, zero 3rd-party JS & XSS/sink hygien
   const assetsMatch = swJs.match(/SHELL_ASSETS\s*=\s*\[([\s\S]*?)\]/);
   assert.ok(assetsMatch, 'SHELL_ASSETS missing in sw.js');
   const assets = [...assetsMatch[1].matchAll(/'([^']+)'/g)].map(m => m[1]);
-  assert.ok(assets.length >= 7);
+  const assetSet = new Set(assets);
+  assert.ok(assets.length >= 10);
   for (const rel of assets) {
     if (rel === './') continue;
     assert.ok(fs.existsSync(path.join(ROOT, rel)), `SW SHELL_ASSET does not exist on disk: ${rel}`);
   }
+  for (const srcRel of srcFiles) {
+    assert.ok(assetSet.has(`./${srcRel}`), `Module ./${srcRel} MUST be listed in sw.js SHELL_ASSETS for offline PWA support!`);
+  }
 
   // 4. Zero dangerous sinks (eval, new Function, document.write, inline on*= handlers)
-  for (const rel of ['index.html', 'src/aurora-engine.js', 'src/charts.js', 'src/app.js', 'sw.js']) {
+  for (const rel of ['index.html', ...srcFiles, 'sw.js']) {
     const content = fs.readFileSync(path.join(ROOT, rel), 'utf8');
     assert.ok(!/\beval\s*\(/.test(content), `eval() found in ${rel}`);
     assert.ok(!/\bnew\s+Function\s*\(/.test(content), `new Function() found in ${rel}`);
@@ -1460,6 +1469,84 @@ test('40. Dark-window countdown, distance km, Chinese search, cross-tab action s
   });
   assert.ok(nightsOrd[1].bestNightScore > nightsOrd[0].bestNightScore, `Expected Night 2 score (${nightsOrd[1].bestNightScore}) > Night 1 (${nightsOrd[0].bestNightScore})`);
 });
+
+test('41. Modular storage.js (SWR LRU, legacy cleanup, corrupt-JSON recovery, offline hydration) & data-client.js (pure snapshot + abort)', async () => {
+  // In-memory mock Storage
+  const mem = new Map();
+  const mockStore = {
+    getItem: k => (mem.has(k) ? mem.get(k) : null),
+    setItem: (k, v) => mem.set(k, String(v)),
+    removeItem: k => mem.delete(k)
+  };
+
+  // 1. Corrupt JSON self-heals & invalid coordinates are rejected
+  mockStore.setItem(storage.STORAGE_KEYS.POS, '{broken json');
+  assert.equal(storage.loadSavedPos(mockStore), null);
+  assert.equal(mem.has(storage.STORAGE_KEYS.POS), false, 'Corrupt POS JSON should be auto-removed');
+  assert.equal(storage.sanitizeSavedPos({ lat: 999, lon: 10 }), null);
+  const cleanPos = storage.sanitizeSavedPos({ lat: 64.1466, lon: -21.9426, name: '<b>Bad</b>', tz: 'Not/A_TZ', mode: 'weird' });
+  assert.equal(cleanPos.tz, 'auto');
+  assert.equal(cleanPos.mode, 'manual');
+  assert.ok(!cleanPos.name.includes('<'), 'sanitizeSavedPos must strip angle brackets');
+
+  // 2. SWR cache enforces 5-city LRU cap, prevents cross-city pollution, and cleans up legacy v4 key
+  const nowMs = Date.parse('2026-11-24T22:00:00Z');
+  mockStore.setItem(storage.STORAGE_KEYS.LEGACY_CACHE, JSON.stringify({ ts: nowMs - 1000, lat: 69.97, lon: 23.27, score: { total: 50 } }));
+  for (let i = 0; i < 6; i++) {
+    const p = { lat: 60 + i * 2, lon: 10 + i * 2, tz: 'UTC' };
+    storage.writeSwrCacheEntry(p, { ts: nowMs + i * 1000, lat: p.lat, lon: p.lon, score: { total: 40 + i } }, mockStore);
+  }
+  assert.equal(mem.has(storage.STORAGE_KEYS.LEGACY_CACHE), false, 'Writing v6 SWR must remove legacy v4 cache key');
+  const swrMap = storage.readSwrCacheMap(mockStore);
+  assert.equal(Object.keys(swrMap).length, storage.SWR_MAX_LOCATIONS, 'SWR cache must evict beyond SWR_MAX_LOCATIONS');
+  assert.equal(storage.findMatchingOfflineCache({ lat: 60, lon: 10 }, nowMs + 10000, mockStore), null, 'Oldest 6th city must be evicted');
+  assert.equal(storage.findMatchingOfflineCache({ lat: 70, lon: 20 }, nowMs + 10000, mockStore)?.score?.total, 45);
+
+  // 3. Pure computeLiveSnapshot + buildSwrPayload + hydrateOfflineState full round-trip
+  const pos = { name: '挪威・Alta', nameEn: 'Norway · Alta', lat: 69.9689, lon: 23.2716, tz: 'Europe/Oslo' };
+  const now = new Date('2026-11-24T22:00:00Z');
+  const hereHrs = Array.from({ length: 12 }, (_, i) => ({
+    dtMs: now.getTime() + i * 3600000,
+    time: `${String((23 + i) % 24).padStart(2, '0')}:00`,
+    block: 15, clear: 85, temp: -5, windMs: 3, windChill: -9, precip: 0, txt: '🌟 晴', isDay: false
+  }));
+  const snap = dataClient.computeLiveSnapshot({
+    pos, now,
+    noaa: {
+      magSeries: [{ time_tag: '2026-11-24T21:55:00', bz: -7, by: 2 }],
+      windSeries: [{ time_tag: '2026-11-24T21:55:00', speed: 520, density: 6 }],
+      kpForecast: [], bz: -7, speed: 520, kp: 4.0, ovation: 65, hpiGw: 55, noaaOk: true, noaaLagMin: 5
+    },
+    wx: {
+      hereHrs, multiDayPts: [{ dtMs: now.getTime(), clear: 85, isDay: false }],
+      dirResults: [{ key: 'here', label: '📍 目前位置', lat: pos.lat, lon: pos.lon, avg3h: 15, nowC: 15, temp: -5, distKm: 0 }],
+      weatherSourceLabel: 'Yr.no官方', usedMet: true, cloudConsensus: null
+    },
+    moon: api.getMoonState(now, pos.lat, pos.lon)
+  });
+  assert.ok(snap.renderState.sc.total >= 50 && snap.scoredHours.length === 12);
+
+  const payload = storage.buildSwrPayload({
+    pos, lang: 'en', posName: pos.nameEn, snapshot: snap.renderState,
+    verdict: { title: 'Go', lead: 'Clear' }, skySub: '-5°C', aurSub: 'Kp 4.0', darkSub: 'Dark', nowMs: now.getTime()
+  });
+  const rehydrated = storage.hydrateOfflineState(payload, pos, now.getTime() + 120000);
+  assert.ok(rehydrated && rehydrated.scoredHours.length === 12 && rehydrated.renderState.sc.total === snap.renderState.sc.total);
+
+  // 4. fetchWithTimeout respects parent AbortSignal immediately
+  const parentCtrl = new AbortController();
+  parentCtrl.abort();
+  await assert.rejects(
+    () => dataClient.fetchWithTimeout('https://example.test', {
+      signal: parentCtrl.signal,
+      fetchImpl: (_u, { signal }) => new Promise((_, rej) => {
+        if (signal.aborted) rej(new Error('Aborted'));
+      })
+    }),
+    /Aborted/
+  );
+});
+
 
 
 

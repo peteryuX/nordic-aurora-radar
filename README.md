@@ -45,14 +45,17 @@ nordic-aurora-radar/
 ├── index.html              # Semantic HTML5 shell (strict CSP, no-referrer, JSON-LD, zero inline JS)
 ├── styles.css              # Calm OLED design tokens, 3-column bento layout & scotopic Red-Light mode
 ├── src/
-│   ├── aurora-engine.js    # 100% pure scientific, astronomical, scoring & 11-feed upstream parser module
+│   ├── aurora-engine.js    # 100% pure scientific, astronomical, scoring & 14-feed upstream parser module
 │   ├── charts.js           # 100% pure SVG visualization builders (uniform ticks + L1 gap splitting)
-│   └── app.js              # Browser UI controller, i18n, live data orchestration, alerts & PWA wiring
+│   ├── data-client.js      # Live NOAA/MET/Open-Meteo transport, LRU cache, geocoding & snapshot assembler
+│   ├── storage.js          # Defensive localStorage preferences, 5-city SWR cache & offline hydration
+│   ├── i18n.js             # Observatory registry & declarative bilingual (ZH/EN) UI string tables
+│   └── app.js              # Thin browser UI controller, consolidated state, alerts & PWA wiring
 ├── manifest.json / sw.js   # Installable offline-resilient PWA shell + vector icon.svg
 ├── llms.txt / sitemap.xml  # AI-Search (GEO) & search engine indexing metadata
 ├── SECURITY.md             # CSP allowlist, zero-tracking privacy guarantees & vulnerability policy
 ├── tests/
-│   ├── aurora.test.mjs          # 40 automated physics, parser-chaos, monotonicity, 500+ SVG fuzz, i18n, security & live smoke tests
+│   ├── aurora.test.mjs          # 41 automated physics, parser-chaos, storage, pipeline, SVG fuzz, i18n & security tests
 │   ├── benchmark.mjs            # Quantitative calibration scorecard (72 cases MCC/AUC/Brier, 22 JPL DE441, live cross-check)
 │   ├── realworld-validation.mjs # Independent blind public-data audit (17,255h NASA OMNI2, GFZ Hp30, NOAA Prop, 9 Airport METARs)
 │   └── fixtures/                # 72 ground-truth historical storm/trap/outage cases + 22 NASA JPL Horizons DE441 checkpoints
@@ -93,7 +96,7 @@ cd nordic-aurora-radar
 python3 -m http.server 8000
 ```
 
-Run the 40 automated test suites, quantitative benchmarks & independent public-data audit (Node.js 20+, zero dependencies):
+Run the 41 automated test suites, quantitative benchmarks & independent public-data audit (Node.js 20+, zero dependencies):
 
 ```bash
 node --test tests/aurora.test.mjs

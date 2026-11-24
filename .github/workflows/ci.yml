@@ -26,8 +26,8 @@ jobs:
         with:
           node-version: '22'
       - name: Syntax check all ES modules, SW & test scripts
-        run: node --check src/aurora-engine.js src/charts.js src/app.js sw.js tests/aurora.test.mjs tests/benchmark.mjs tests/realworld-validation.mjs
-      - name: Run 39 automated physics, chaos, monotonicity, SVG fuzz & security tests
+        run: for f in src/*.js sw.js tests/*.mjs; do node --check "$f"; done
+      - name: Run 41 automated physics, chaos, storage, pipeline, SVG fuzz & security tests
         run: node --test tests/aurora.test.mjs
       - name: Run quantitative calibration (72 storms) & NASA JPL DE441 (22 checkpoints) benchmark
         run: node tests/benchmark.mjs
