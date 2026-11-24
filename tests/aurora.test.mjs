@@ -1286,6 +1286,9 @@ test('37. Strict CSP, SW manifest integrity, zero 3rd-party JS & XSS/sink hygien
     assert.ok(!/\bdocument\.write\s*\(/.test(content), `document.write() found in ${rel}`);
   }
   assert.equal([...html.matchAll(/\son[a-z]+\s*=/gi)].length, 0, 'Inline event handlers forbidden under strict CSP');
+  const css = fs.readFileSync(path.join(ROOT, 'styles.css'), 'utf8');
+  assert.ok(css.includes('env(safe-area-inset-top') && css.includes('env(safe-area-inset-bottom'),
+    'styles.css must guard both top (notch/Dynamic Island) and bottom safe-area insets for standalone PWA');
 });
 
 test('38. Kyoto Dst, NOAA Propagated SW & WSA-ENLIL parsers + chaos resilience + recovery-phase physics', () => {

@@ -34,7 +34,18 @@ body {
   background-attachment: fixed;
   color: var(--text);
   line-height: 1.5;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
   padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px));
+}
+/* Dynamic status-bar shield for iOS/Android standalone PWA (0px in normal browser, exact notch/Dynamic Island height in PWA) */
+body::before {
+  content: '';
+  position: fixed; top: 0; left: 0; right: 0; z-index: 60;
+  height: env(safe-area-inset-top, 0px);
+  background: linear-gradient(180deg, rgba(4, 9, 18, 0.96) 72%, rgba(4, 9, 18, 0));
+  pointer-events: none;
 }
 
 .wrap { max-width: 640px; margin: 0 auto; padding: 10px 14px 18px; }
@@ -321,7 +332,7 @@ body {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
   background: rgba(4, 9, 18, 0.96); backdrop-filter: blur(14px);
   border-top: 1px solid var(--border);
-  padding: 7px 6px calc(11px + env(safe-area-inset-bottom, 0px));
+  padding: 7px max(6px, env(safe-area-inset-right, 0px)) calc(11px + env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px));
 }
 .bottom-inner { max-width: 640px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
 .nav-btn {
@@ -377,7 +388,12 @@ body.red-mode .sky-lead,
 body.red-mode .gl-group,
 body.red-mode .toast { color: #e62b2b; }
 body.red-mode .toast { background: #1e0303; border-color: #cc241f; }
+body.red-mode::before { background: linear-gradient(180deg, rgba(4, 0, 0, 0.98) 72%, rgba(4, 0, 0, 0)); }
 body.red-mode .bottom-nav { background: rgba(8, 0, 0, 0.98); }
+@media (display-mode: standalone) {
+  body { padding-top: max(env(safe-area-inset-top, 0px), 20px); }
+  body::before { height: max(env(safe-area-inset-top, 0px), 20px); }
+}
 body.red-mode .sky-svg,
 body.red-mode .chart-svg,
 body.red-mode .radar-svg,
@@ -425,7 +441,7 @@ body.sheet-open { overflow: hidden; }
 .sheet-backdrop.open { opacity: 1; visibility: visible; pointer-events: auto; }
 
 .sheet-panel {
-  width: 100%; max-width: 640px; max-height: 85dvh;
+  width: 100%; max-width: 640px; max-height: min(85dvh, calc(100dvh - env(safe-area-inset-top, 0px) - 20px));
   background: var(--sheet-bg); border: 1px solid var(--border-strong); border-bottom: none;
   border-radius: 22px 22px 0 0; display: flex; flex-direction: column; overflow: hidden;
   transform: translateY(100%);
