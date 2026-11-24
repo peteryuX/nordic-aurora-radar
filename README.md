@@ -1,7 +1,8 @@
 # 🌌 Nordic Aurora Radar｜極光即時雷達
 
-[![Live App](https://img.shields.io/badge/Live%20App-GitHub%20Pages-34f0b0?style=flat-square)](https://peteryux.github.io/nordic-aurora-radar/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-66bdff?style=flat-square)](LICENSE)
+[![Live App (EN)](https://img.shields.io/badge/Live%20App-English-34f0b0?style=flat-square)](https://peteryux.github.io/nordic-aurora-radar/?lang=en)
+[![Live App (繁體中文)](https://img.shields.io/badge/線上版-繁體中文-66bdff?style=flat-square)](https://peteryux.github.io/nordic-aurora-radar/?lang=zh)
+[![License: MIT](https://img.shields.io/badge/License-MIT-a855f7?style=flat-square)](LICENSE)
 [![Zero Dependencies](https://img.shields.io/badge/Build-Zero%20Deps%20ES%20Modules-ffcf5c?style=flat-square)](src/aurora-engine.js)
 [![PWA Ready](https://img.shields.io/badge/PWA-Offline%20%2B%20Red%20Light-ff6b7b?style=flat-square)](manifest.json)
 
@@ -9,9 +10,11 @@
 >
 > 整合挪威官方 **Yr.no** 分層雲量、美國 **NOAA** 即時太陽風衛星與 G1–G5 地磁暴警報、天文暮光／月光反照物理模型與 **360° 晴空雷達**，零後端、支援 PWA 離線與紅光夜視模式的免費即時追光雷達。
 
-### 👉 **[Open Live Aurora Radar / 立即開啟線上版](https://peteryux.github.io/nordic-aurora-radar/)**
+### 👉 Live Links｜直接開啟
+- 🌍 **English Version**: **[https://peteryux.github.io/nordic-aurora-radar/?lang=en](https://peteryux.github.io/nordic-aurora-radar/?lang=en)**
+- 🇹🇼 **繁體中文版**: **[https://peteryux.github.io/nordic-aurora-radar/?lang=zh](https://peteryux.github.io/nordic-aurora-radar/?lang=zh)**
 
-Supports **Traditional Chinese (`繁體中文`)** and **English** with instant one-tap switching. Built for Arctic hotspots including **Alta, Tromsø, Lofoten, Senja, Narvik, Abisko, Kirkenes, Rovaniemi**, plus verified real-road corridors for **Reykjavik, Fairbanks, Yellowknife, Queenstown, and Hobart**.
+Built for Arctic hotspots including **Alta, Tromsø, Lofoten, Senja, Narvik, Abisko, Kirkenes, Rovaniemi**, plus verified real-road corridors for **Reykjavik, Fairbanks, Yellowknife, Queenstown, and Hobart** (auto-detects browser language by default, or use `?lang=en` / `?lang=zh` for direct sharing).
 
 ---
 
@@ -49,7 +52,7 @@ nordic-aurora-radar/
 ├── llms.txt / sitemap.xml  # AI-Search (GEO) & search engine indexing metadata
 ├── SECURITY.md             # CSP allowlist, zero-tracking privacy guarantees & vulnerability policy
 ├── tests/
-│   ├── aurora.test.mjs     # 27 automated unit, 50-city regression, security & live API smoke tests
+│   ├── aurora.test.mjs     # 29 automated unit, 50-city regression, security, i18n & live API smoke tests
 │   ├── benchmark.mjs       # Quantitative quality scorecard (Confusion Matrix, JPL DE441, live cross-check)
 │   └── fixtures/           # 44 real historical storm/trap cases + 16 NASA JPL Horizons DE441 checkpoints
 └── .github/workflows/ci.yml# Automated push/PR test & benchmark gates + daily live API health check
