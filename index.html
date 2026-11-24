@@ -6,6 +6,8 @@
   <title>極光即時雷達｜北歐＆全球即時預報</title>
   <meta name="description" content="Real-time Nordic & global aurora radar combining official Yr.no (MET Norway) layered clouds, NOAA solar wind telemetry, twilight/moonlight physics, and a 360° clear-sky radar. 直連挪威官方 Yr.no 分層雲量與美國 NOAA 即時太陽風衛星，結合太陽暮光、月球仰角與 360° 晴空雷達。" />
   <meta name="keywords" content="aurora forecast, northern lights, nordic aurora radar, Tromso aurora, Alta aurora, Lofoten aurora, Abisko aurora, NOAA SWPC, Yr.no cloud forecast, 極光預報, 極光雷達, 北歐極光" />
+  <meta name="referrer" content="no-referrer" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://fox.phys.uit.no https://www.irf.se https://www.sgo.fi https://kho.unis.no https://cdn.fmi.fi https://services.swpc.noaa.gov; connect-src 'self' https://services.swpc.noaa.gov https://api.met.no https://api.open-meteo.com https://geocoding-api.open-meteo.com https://api.bigdatacloud.net; frame-src https://embed.windy.com; object-src 'none'; base-uri 'self'; form-action 'none';" />
   <meta name="theme-color" content="#040912" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -15,9 +17,59 @@
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://peteryux.github.io/nordic-aurora-radar/" />
   <meta property="og:title" content="Nordic Aurora Radar｜極光即時雷達" />
-  <meta property="og:description" content="Real-time Yr.no layered cloud + NOAA solar wind aurora radar with twilight/moonlight physics and 360° cloud-gap routing." />
+  <meta property="og:description" content="Real-time Yr.no layered cloud + NOAA solar wind aurora radar with twilight/moonlight physics, NASA JPL-verified astronomy, and 360° cloud-gap routing." />
   <meta name="twitter:card" content="summary" />
   <link rel="stylesheet" href="styles.css" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        "name": "Nordic Aurora Radar (極光即時雷達)",
+        "alternateName": ["極光即時雷達", "Nordic Aurora Forecast"],
+        "url": "https://peteryux.github.io/nordic-aurora-radar/",
+        "applicationCategory": "WeatherApplication",
+        "operatingSystem": "Web, iOS, Android (PWA)",
+        "isAccessibleForFree": true,
+        "inLanguage": ["zh-Hant", "en"],
+        "description": "Free, open-source real-time Nordic and global aurora forecast radar combining MET Norway (Yr.no) 2.5km layered clouds, 11 NOAA SWPC space-weather feeds (L1 solar wind Bz, Newell coupling, Geospace 1h MHD Kp, dual GOES magnetometers, OVATION, HPI, SWPC alerts), NASA JPL DE441-verified twilight/moonlight physics, and a 360° clear-sky driving radar.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "codeRepository": "https://github.com/peteryuX/nordic-aurora-radar",
+        "license": "https://opensource.org/licenses/MIT"
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Why is Nordic Aurora Radar more accurate than Kp-only aurora apps?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Kp is a 3-hour global average that misses sudden Arctic substorms and local clouds. Nordic Aurora Radar fuses 1-minute NOAA L1 solar wind (Bz, speed, Newell coupling, 60-min magnetotail preconditioning), NOAA Geospace 1-hour predicted Kp, dual-sector GOES magnetometers, official MET Norway 2.5km low/mid/high layered clouds with dual-model divergence detection, and live Arctic observatory all-sky cameras."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Which aurora destinations are supported?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "It works globally for any GPS location or city search, with dedicated road-verified 360° clear-sky corridors for Alta, Tromsø, Lofoten, Senja, Abisko, Kiruna, Kirkenes, Rovaniemi, Reykjavik, Fairbanks, Yellowknife, Queenstown, and Hobart."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is Nordic Aurora Radar safe and private?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. It is a 100% open-source static web application with zero third-party JavaScript libraries, zero cookies or tracking pixels, strict Content-Security-Policy (CSP) and no-referrer headers, and all GPS coordinates stay strictly in the user's browser."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
   <div class="wrap">
@@ -77,7 +129,7 @@
 
     <!-- VIEW 1: OVERVIEW -->
     <main id="v-home" class="view on">
-      <a id="stormBanner" class="storm-banner" target="_blank" rel="noopener" href="https://www.spaceweather.gov/noaa-scales-explanation"></a>
+      <a id="stormBanner" class="storm-banner" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/noaa-scales-explanation"></a>
 
       <section class="sky-hero">
         <div class="sky-stage">
@@ -130,8 +182,8 @@
 
           <div class="trust-bar">
             <div class="trust-pills">
-              <a id="pNoaa" class="tpill tpill-link" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/planetary-k-index">NOAA ↗</a>
-              <a id="pMet" class="tpill tpill-link" target="_blank" rel="noopener" href="https://www.yr.no/en/forecast/daily-table/69.969,23.272">氣象 ↗</a>
+              <a id="pNoaa" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/planetary-k-index">NOAA ↗</a>
+              <a id="pMet" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="https://www.yr.no/en/forecast/daily-table/69.969,23.272">氣象 ↗</a>
             </div>
             <span id="syncTime">同步中</span>
           </div>
@@ -147,7 +199,7 @@
         </div>
         <div id="bzFootnote" class="hr-legend">
           <span id="etaHint">時間軸已換算為到達地球的當地時間</span>
-          <a id="bzRawVal" class="src-link" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/solar-wind" style="white-space:nowrap;"></a>
+          <a id="bzRawVal" class="src-link" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/solar-wind" style="white-space:nowrap;"></a>
         </div>
       </section>
 
@@ -189,7 +241,7 @@
     <!-- VIEW 3: LIVE CLOUD MAP, ALL-SKY CAMS & OVATION -->
     <section id="v-sat" class="view">
       <div class="card">
-        <h2><span id="h2Windy">即時動態雲圖</span><a id="windyExtLink" class="tpill tpill-link" target="_blank" rel="noopener" href="https://www.windy.com/" style="font-size:0.72rem; color:var(--muted); flex-shrink:0;">Windy ↗</a></h2>
+        <h2><span id="h2Windy">即時動態雲圖</span><a id="windyExtLink" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="https://www.windy.com/" style="font-size:0.72rem; color:var(--muted); flex-shrink:0;">Windy ↗</a></h2>
         <p id="subWindy" class="card-sub">已自動對準目前位置，按左下角 ▶ 可播放接下來幾小時雲層移動趨勢：</p>
         <div class="sat-img-wrap" style="height: 330px;">
           <iframe id="windyFrame" title="Windy Live Cloud Map" style="width:100%;height:100%;border:0;" loading="lazy"></iframe>
@@ -203,10 +255,12 @@
           <button id="camBtnUit" class="chip on" type="button" data-cam="uit">挪威 UiT</button>
           <button id="camBtnIrf" class="chip" type="button" data-cam="irf">瑞典 Kiruna</button>
           <button id="camBtnSgo" class="chip" type="button" data-cam="sgo">芬蘭 Sodankylä</button>
+          <button id="camBtnKho" class="chip" type="button" data-cam="kho">斯瓦巴 KHO</button>
+          <button id="camBtnFmi" class="chip" type="button" data-cam="fmi">FMI 北歐地磁</button>
         </div>
         <div class="sat-img-wrap">
           <img id="skyCamImg" class="sat-img" alt="Nordic Live All-Sky Camera" />
-          <div id="skyCamCap" class="sat-cap"><a class="src-link" target="_blank" rel="noopener" href="https://fox.phys.uit.no/ASC/">資料來源：挪威北極大學 UiT 全天空極光相機（Skibotn 天文台，約每分鐘實拍）↗</a></div>
+          <div id="skyCamCap" class="sat-cap"><a class="src-link" target="_blank" rel="noopener noreferrer" href="https://fox.phys.uit.no/ASC/">資料來源：挪威北極大學 UiT 全天空極光相機（Skibotn 天文台，約每分鐘實拍）↗</a></div>
         </div>
       </div>
 
@@ -215,7 +269,7 @@
         <p id="subOv" class="card-sub">查看綠色／黃色極光帶目前是否覆蓋所在區域（每 5 分鐘自動更新）：</p>
         <div class="sat-img-wrap">
           <img id="ovationImg" class="sat-img" alt="NOAA Live OVATION Aurora Oval" src="https://services.swpc.noaa.gov/images/animations/ovation/north/latest.jpg" />
-          <div id="ovCap" class="sat-cap"><a class="src-link" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/aurora-30-minute-forecast">資料來源：NOAA SWPC OVATION 即時模型（綠色＝有極光、黃紅＝強爆發）↗</a></div>
+          <div id="ovCap" class="sat-cap"><a class="src-link" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/aurora-30-minute-forecast">資料來源：NOAA SWPC OVATION 即時模型（綠色＝有極光、黃紅＝強爆發）↗</a></div>
         </div>
       </div>
     </section>
@@ -230,12 +284,12 @@
       <div class="card">
         <h2 id="h2Tools">官方資料來源</h2>
         <div class="tools-grid">
-          <a id="linkWindy" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.windy.com/">Windy 全螢幕 ↗</a>
-          <a id="linkYr" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.yr.no/en/forecast/daily-table/69.969,23.272">挪威 Yr.no ↗</a>
-          <a id="linkTgo" class="btn btn-blue" target="_blank" rel="noopener" href="https://flux.phys.uit.no/Last24/">挪威即時地磁站 ↗</a>
-          <a id="linkNoaa" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/planetary-k-index">NOAA Kp 指數 ↗</a>
-          <a id="linkSolarWind" class="btn btn-blue" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/solar-wind">NOAA 太陽風 ↗</a>
-          <a id="linkGfz" class="btn btn-blue" target="_blank" rel="noopener" href="https://kp.gfz.de/en/hp30-hp60">GFZ Hp30 指數 ↗</a>
+          <a id="linkWindy" class="btn btn-blue" target="_blank" rel="noopener noreferrer" href="https://www.windy.com/">Windy 全螢幕 ↗</a>
+          <a id="linkYr" class="btn btn-blue" target="_blank" rel="noopener noreferrer" href="https://www.yr.no/en/forecast/daily-table/69.969,23.272">挪威 Yr.no ↗</a>
+          <a id="linkTgo" class="btn btn-blue" target="_blank" rel="noopener noreferrer" href="https://flux.phys.uit.no/Last24/">挪威即時地磁站 ↗</a>
+          <a id="linkNoaa" class="btn btn-blue" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/planetary-k-index">NOAA Kp 指數 ↗</a>
+          <a id="linkSolarWind" class="btn btn-blue" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/solar-wind">NOAA 太陽風 ↗</a>
+          <a id="linkGfz" class="btn btn-blue" target="_blank" rel="noopener noreferrer" href="https://kp.gfz.de/en/hp30-hp60">GFZ Hp30 指數 ↗</a>
         </div>
       </div>
 

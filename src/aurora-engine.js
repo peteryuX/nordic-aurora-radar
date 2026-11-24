@@ -970,6 +970,75 @@ export function parseGoesSubstorm(rows) {
   return { latestHp: +latest.hp.toFixed(1), jumpNt, active: jumpNt >= 15, time_tag: latest.time_tag };
 }
 
+/** Merge GOES primary (East/Atlantic 75°W) and secondary (West/Pacific 137°W) to reduce longitude blind spots */
+export function mergeGoesSubstorm(primarySub, secondarySub) {
+  if (!primarySub && !secondarySub) return null;
+  if (!secondarySub) return primarySub;
+  if (!primarySub) return secondarySub;
+  return (secondarySub.jumpNt ?? 0) > (primarySub.jumpNt ?? 0)
+    ? { ...secondarySub, sector: 'west' }
+    : { ...primarySub, sector: 'east' };
+}
+
+/**
+ * Parse NOAA SWPC Geospace MHD 1-hour forward Kp prediction (1-minute resolution up to +60 min ahead).
+ */
+export function parseGeospacePredKp1h(rows, nowMs = Date.now()) {
+  if (!Array.isArray(rows) || !rows.length) return null;
+  let nowPredKp = null, nowDiff = Infinity;
+  let maxNext60Kp = null, peakTimeTag = null;
+  for (const r of rows) {
+    if (!r || typeof r !== 'object') continue;
+    const ts = parseUtcMs(r.model_prediction_time);
+    const k = typeof r.k === 'number' ? r.k : parseFloat(r.k);
+    if (!Number.isFinite(ts) || !Number.isFinite(k) || k < 0 || k > 9.5) continue;
+    const dNow = Math.abs(ts - nowMs);
+    if (dNow < nowDiff && dNow <= 15 * 60000) { nowDiff = dNow; nowPredKp = +k.toFixed(2); }
+    if (ts >= nowMs && ts <= nowMs + 70 * 60000) {
+      if (maxNext60Kp === null || k > maxNext60Kp) {
+        maxNext60Kp = +k.toFixed(2);
+        peakTimeTag = String(r.model_prediction_time);
+      }
+    }
+  }
+  if (nowPredKp === null && maxNext60Kp === null) return null;
+  return { nowPredKp, maxNext60Kp: maxNext60Kp ?? nowPredKp, peakTimeTag };
+}
+
+/**
+ * Parse recent official NOAA SWPC geomagnetic warnings/alerts (Sudden Impulse CME shocks & K4-K9 alerts).
+ */
+export function parseNoaaAlerts(rows, nowMs = Date.now(), maxAgeHours = 3) {
+  if (!Array.isArray(rows) || !rows.length) return { active: false, kind: null, kLevel: 0, gScale: 0, code: null, issueTime: null };
+  const cutoffMs = nowMs - maxAgeHours * 3600000;
+  let best = { active: false, kind: null, kLevel: 0, gScale: 0, code: null, issueTime: null };
+  for (const r of rows) {
+    if (!r || typeof r !== 'object') continue;
+    const ts = parseUtcMs(r.issue_datetime);
+    if (!Number.isFinite(ts) || ts < cutoffMs || ts > nowMs + 10 * 60000) continue;
+    const pid = String(r.product_id || '').toUpperCase();
+    const msg = String(r.message || '');
+    let kind = null, kLevel = 0, gScale = 0;
+    if (/SUDDEN IMPULSE/i.test(msg) || pid === 'EF3A' || pid.includes('SUD')) {
+      kind = 'cme-shock'; kLevel = 6; gScale = 2;
+    } else {
+      const m = pid.match(/^K0([4-9])([AW])$/);
+      if (m) {
+        kLevel = parseInt(m[1], 10);
+        gScale = Math.max(0, kLevel - 4);
+        kind = kLevel >= 5 ? 'k-storm' : 'k4-active';
+      }
+    }
+    if (!kind) continue;
+    const rank = kLevel + (kind === 'cme-shock' ? 0.5 : 0);
+    const bestRank = best.kLevel + (best.kind === 'cme-shock' ? 0.5 : 0);
+    if (rank > bestRank) {
+      best = { active: kLevel >= 5 || kind === 'cme-shock', kind, kLevel, gScale, code: pid, issueTime: String(r.issue_datetime) };
+    }
+  }
+  return best;
+}
+
 export function parseNoaaGeomagneticScales(json) {
   if (!json || typeof json !== 'object') return null;
   const readEntry = (k) => {
@@ -1028,7 +1097,7 @@ export function parseMetNorwayHourly12(metJson, lat, lon, timeZone, nowDate) {
     const txt = isTooBright
       ? (sunAlt >= 0 ? '☀️ 白天' : '🌅 晨昏光')
       : (pr >= 0.1 ? (tp <= 0 ? '❄️ 雪' : '🌧️ 雨雪') : (effCloud <= 25 ? '🌟 晴' : effCloud <= 65 ? '⛅ 縫' : '☁️ 陰'));
-    out.push({ time: `${z.hourStr}:${z.minStr}`, dtMs: midDt.getTime(), block: effCloud, clear: 100 - effCloud, txt, temp: tp, windMs, windChill, isDay: isTooBright, sunAlt });
+    out.push({ time: `${z.hourStr}:${z.minStr}`, dtMs: midDt.getTime(), block: effCloud, clear: 100 - effCloud, txt, temp: tp, precip: pr, windMs, windChill, isDay: isTooBright, sunAlt });
   }
   return out;
 }
@@ -1105,7 +1174,7 @@ export function parseOpenMeteoHourly12(hourly, lat, lon, timeZone, nowDate, utcO
     const txt = isTooBright
       ? (sunAlt >= 0 ? '☀️ 白天' : '🌅 晨昏光')
       : (pr >= 0.1 ? (tp <= 0 ? '❄️ 雪' : '🌧️ 雨雪') : (effCloud <= 25 ? '🌟 晴' : effCloud <= 65 ? '⛅ 縫' : '☁️ 陰'));
-    out.push({ time: timeStr, dtMs: midUtc.getTime(), block: effCloud, clear: 100 - effCloud, txt, temp: tp, windMs, windChill, isDay: isTooBright, sunAlt });
+    out.push({ time: timeStr, dtMs: midUtc.getTime(), block: effCloud, clear: 100 - effCloud, txt, temp: tp, precip: pr, windMs, windChill, isDay: isTooBright, sunAlt });
   }
   return out;
 }
@@ -1162,7 +1231,8 @@ export function evaluateCloudConsensus(metHrs, omHrs) {
 
 export function scoreHourlyForecast12(hrs, {
   lat = 69.97, lon = 23.27, kpForecast = [], fallbackKp = 0, ovation = null,
-  hpiGw = null, bz = 0, speed = 400, newell = null, substormJumpNt = 0,
+  hpiGw = null, bz = 0, nextBz = null, speed = 400, newell = null, nextNewell = null,
+  predKp1h = null, preconditionedNewell60 = null, substormJumpNt = 0,
   pdyn = null, shockJumpNpa = 0
 }) {
   if (!Array.isArray(hrs) || !hrs.length) return { hours: [], bestAurora: null };
@@ -1171,12 +1241,15 @@ export function scoreHourlyForecast12(hrs, {
     const dt = new Date(h.dtMs || (Date.now() + i * 3600000));
     const moonH = getMoonState(dt, lat, lon);
     const mltH = computeMLT(dt, lat, lon);
-    const kpFc = i === 0 && Number.isFinite(fallbackKp) ? fallbackKp : lookupForecastKp(kpForecast, dt, fallbackKp);
-    // Live telemetry decays smoothly into NOAA 72h Kp forecast beyond +2h
-    const liveW = i === 0 ? 1 : (i === 1 ? 0.55 : (i === 2 ? 0.25 : 0));
-    const bzH = liveW > 0 && Number.isFinite(bz) ? bz * liveW : 0;
+    const baseKpFc = i === 0 && Number.isFinite(fallbackKp) ? fallbackKp : lookupForecastKp(kpForecast, dt, fallbackKp);
+    // Hour +1 integrates NOAA Geospace 1h MHD predicted Kp and incoming L1 solar wind
+    const kpFc = (i === 1 && Number.isFinite(predKp1h)) ? Math.max(baseKpFc, predKp1h) : baseKpFc;
+    const liveW = i === 0 ? 1 : (i === 1 ? 0.85 : (i === 2 ? 0.25 : 0));
+    const rawBz = (i === 1 && Number.isFinite(nextBz)) ? nextBz : bz;
+    const rawNw = (i === 1 && Number.isFinite(nextNewell)) ? nextNewell : newell;
+    const bzH = liveW > 0 && Number.isFinite(rawBz) ? rawBz * liveW : 0;
     const spdH = liveW > 0 && Number.isFinite(speed) ? Math.round(speed * liveW + 400 * (1 - liveW)) : 400;
-    const nwH = liveW > 0 && Number.isFinite(newell) ? Math.round(newell * liveW + 1500 * (1 - liveW)) : null;
+    const nwH = liveW > 0 && Number.isFinite(rawNw) ? Math.round(rawNw * liveW + 1500 * (1 - liveW)) : null;
     const hpiH = liveW > 0 && Number.isFinite(hpiGw) ? Math.round(hpiGw * liveW + 15 * (1 - liveW)) : null;
     const pdynH = liveW > 0 && Number.isFinite(pdyn) ? +(pdyn * liveW + 2.0 * (1 - liveW)).toFixed(2) : null;
     const mltShiftH = 2.0 * Math.cos((mltH - 0.5) * Math.PI / 12);
@@ -1189,6 +1262,7 @@ export function scoreHourlyForecast12(hrs, {
     const scH = computeAuroraScore({
       lat, lon, cloudNow: h.block, sunAlt: h.sunAlt,
       bz: bzH, speed: spdH, kp: kpFc, ovation: ovH, hpiGw: hpiH, newell: nwH,
+      preconditionedNewell60: i <= 1 ? preconditionedNewell60 : null,
       substormJumpNt: liveW > 0 ? Math.round((substormJumpNt || 0) * liveW) : 0,
       pdyn: pdynH, shockJumpNpa: liveW > 0 ? +((shockJumpNpa || 0) * liveW).toFixed(2) : 0,
       mlt: mltH, effMoonPct: moonH.effMoonPct

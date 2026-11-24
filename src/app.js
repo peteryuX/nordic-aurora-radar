@@ -16,8 +16,9 @@ const {
   computeViewingGeometry, classifyViewingMode, computeMLT,
   computeDataLagMin, computeBallisticCoupling, computeAuroraScore,
   parseMagSeries, parseWindSeries, parseKpForecast, lookupForecastKp,
-  parseLatestKp, lookupOvationProb, parseHemiPower, parseGoesSubstorm,
-  parseNoaaGeomagneticScales, parseMetNorwayHourly12, parseMetNorwayMultiDay,
+  parseLatestKp, lookupOvationProb, parseHemiPower, parseGoesSubstorm, mergeGoesSubstorm,
+  parseGeospacePredKp1h, parseNoaaAlerts, parseNoaaGeomagneticScales,
+  parseMetNorwayHourly12, parseMetNorwayMultiDay,
   parseOpenMeteoHourly12, parseOpenMeteoMultiDay, evaluateCloudConsensus, scoreHourlyForecast12,
   findBestDarkWindow, summarize3NightOutlook, evaluateVerdict,
   summarizeEnergyTrend, summarizeCompass, shouldTriggerAuroraAlert,
@@ -72,6 +73,18 @@ const SKY_CAMS = {
     page: 'https://www.sgo.fi/Data/RealTime/allsky.php',
     capZh: '資料來源：芬蘭索丹屈萊天文台 SGO 全天空相機（約每分鐘實拍）',
     capEn: 'Source: Sodankylä Geophysical Observatory (SGO Finland) Live All-Sky Camera'
+  },
+  kho: {
+    url: 'https://kho.unis.no/Quicklooks/kho_sony.jpg',
+    page: 'https://kho.unis.no/',
+    capZh: '資料來源：挪威斯瓦巴群島 KHO 極地天文台 Sony 全彩極光相機（78°N 即時實拍）',
+    capEn: 'Source: Kjell Henriksen Observatory (KHO Svalbard 78°N) Live All-Sky Camera'
+  },
+  fmi: {
+    url: 'https://cdn.fmi.fi/weather-observations/products/magnetic-disturbance-observations/map-latest-en.png',
+    page: 'https://en.ilmatieteenlaitos.fi/auroras-and-space-weather',
+    capZh: '資料來源：芬蘭氣象局 FMI 北歐地面磁力儀即時擾動圖（橘／紅點＝當地正發生副磁暴）',
+    capEn: 'Source: Finnish Meteorological Institute (FMI) Live Nordic Ground Magnetometer Map'
   }
 };
 
@@ -124,7 +137,7 @@ function renderSkyCamCaption(key) {
   const cam = SKY_CAMS[key];
   if (!cap || !cam) return;
   const txt = isEn() ? cam.capEn : cam.capZh;
-  cap.innerHTML = `<a class="src-link" target="_blank" rel="noopener" href="${cam.page}">${txt} ↗</a>`;
+  cap.innerHTML = `<a class="src-link" target="_blank" rel="noopener noreferrer" href="${cam.page}">${txt} ↗</a>`;
 }
 
 function applyStaticI18n() {
@@ -185,6 +198,8 @@ function applyStaticI18n() {
   setT('camBtnUit', '挪威 UiT', 'Norway UiT');
   setT('camBtnIrf', '瑞典 Kiruna', 'Sweden Kiruna');
   setT('camBtnSgo', '芬蘭 Sodankylä', 'Finland SGO');
+  setT('camBtnKho', '斯瓦巴 KHO', 'Svalbard KHO');
+  setT('camBtnFmi', 'FMI 北歐地磁', 'FMI Nordic Mag');
   setT('subOv', '查看綠色／黃色極光帶目前是否覆蓋所在區域（每 5 分鐘自動更新）：', 'Check if the auroral oval covers your region (updates every 5 min):');
 
   const ovCapEl = $('ovCap');
@@ -192,7 +207,7 @@ function applyStaticI18n() {
     const ovTxt = en
       ? 'Source: NOAA SWPC OVATION Live Model (Green = aurora, Yellow/Red = intense)'
       : '資料來源：NOAA SWPC OVATION 即時模型（綠色＝有極光、黃紅＝強爆發）';
-    ovCapEl.innerHTML = `<a class="src-link" target="_blank" rel="noopener" href="https://www.spaceweather.gov/products/aurora-30-minute-forecast">${ovTxt} ↗</a>`;
+    ovCapEl.innerHTML = `<a class="src-link" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/aurora-30-minute-forecast">${ovTxt} ↗</a>`;
   }
   setT('h2Tools', '官方資料來源', 'Official Data Sources');
   setT('linkWindy', 'Windy 全螢幕 ↗', 'Windy Fullscreen ↗');
@@ -214,18 +229,18 @@ function applyStaticI18n() {
       ? `<div class="gl-group"><span class="gl-badge gl-obs">LIVE OBS</span> Real-Time Satellite & Ground Telemetry</div>` +
         `• <strong>Solar Wind Satellite (Bz / Speed / Pressure)</strong>: Direct measurements from NOAA's upstream satellite (~1.5M km sunward at L1), reaching Earth in ~8–95 min as an advance preview. Sustained negative <strong>Bz</strong> (southward) drives aurora.<br/>` +
         `• <strong>Global Kp (1-min est.)</strong>: Real-time planetary geomagnetic disturbance index (0–9). Oval cities can see aurora even at Kp 0–2.<br/>` +
-        `• <strong>GOES Magnetometer & All-Sky Cams</strong>: Live geostationary substorm onset detection and real Arctic observatory sky photos.<br/>` +
+        `• <strong>Dual GOES + FMI Ground Mag & Cams</strong>: East/West GOES substorm sensors, FMI Nordic ground magnetometer map, and live Arctic sky cams.<br/>` +
         `<div class="gl-group"><span class="gl-badge gl-mod">MODEL</span> Forecasts, Geometry & Eye vs Camera</div>` +
-        `• <strong>NOAA OVATION %</strong>: Model probability of aurora <em>directly overhead</em>. Horizon arcs remain visible 400–800 km equatorward when overhead % is low.<br/>` +
+        `• <strong>NOAA Geospace 1h Kp & OVATION %</strong>: Physics-based MHD 1-hour Kp prediction plus overhead aurora probability.<br/>` +
         `• <strong>Azimuth & Elevation</strong>: Computed toward the true geomagnetic pole (e.g. NNW in Nordics, NNE in Alaska, SSW in NZ) using spherical Earth geometry (120–300 km altitude).<br/>` +
         `• <strong>Naked Eye vs Camera</strong>: Weak/low-horizon aurora looks faint grey to human rod cells, whereas 3–10s smartphone Night Mode reveals bright green/red first.<br/>` +
         `• <strong>Viewing Score (0–99)</strong>: Composite reference combining layered Clear Sky %, Aurora Activity, and astronomical Darkness.`
       : `<div class="gl-group"><span class="gl-badge gl-obs">即時實測</span> 衛星與地面天文台實測資料</div>` +
         `• <strong>太陽風衛星實測（Bz／風速／動壓）</strong>：由位於日地間（L1 拉格朗日點，距地球約 150 萬公里）的 NOAA 衛星實測，約 8–95 分鐘後抵達地球，可作為提前預告。<strong>Bz 持續為負（南向）</strong>最容易觸發極光。<br/>` +
         `• <strong>全球 Kp（1 分鐘即時估計）</strong>：全球地磁擾動指標（0–9）。位於極光帶內的城市即使 Kp 0–2 仍有機會看見極光。<br/>` +
-        `• <strong>GOES 磁力儀與全天空相機</strong>：地球同步軌道副磁暴偵測，以及北歐極圈天文台約每分鐘實拍影像。<br/>` +
+        `• <strong>雙區 GOES 磁力儀與北歐地磁／實拍</strong>：同時監測東西半球同步軌道副磁暴，並提供 FMI 北歐地面磁力儀擾動圖與極圈天文台實拍。<br/>` +
         `<div class="gl-group"><span class="gl-badge gl-mod">模型與實測對照</span> 方位角、仰角與肉眼／相機差異</div>` +
-        `• <strong>NOAA OVATION 機率 %</strong>：模式推估<strong>頭頂正上方（天頂）</strong>出現極光的機率；中緯度在磁暴時仍可於低空地平線看見。<br/>` +
+        `• <strong>NOAA Geospace 1 小時預報與 OVATION %</strong>：結合物理磁層模式未來 1 小時 Kp 預報與天頂極光機率。<br/>` +
         `• <strong>方位角與仰角</strong>：依真實地磁極方向計算（例如北歐偏北北西、阿拉斯加偏北北東、紐西蘭偏南南西），並考量極光 120–300 km 高度。<br/>` +
         `• <strong>肉眼 vs 相機</strong>：微弱或低空極光對人眼桿狀細胞常呈淡灰霧，而手機夜間模式長曝 3–10 秒能優先拍出鮮明綠／紅光。<br/>` +
         `• <strong>觀測指數（0–99 分）</strong>：綜合分層晴空率、極光活動與夜空暗度（暮光與月光反照效應）計算的即時參考分數。`;
@@ -233,14 +248,14 @@ function applyStaticI18n() {
   const lb = $('legalBody');
   if (lb) {
     lb.innerHTML = en
-      ? `• Weather: <a href="https://api.met.no/" target="_blank" rel="noopener" style="color:var(--blue);">MET Norway (Yr.no)</a> (CC BY 4.0 / NLOD 2.0), <a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:var(--blue);">Open-Meteo</a> (CC BY 4.0, non-commercial)<br/>` +
-        `• Space Weather: <a href="https://www.spaceweather.gov/" target="_blank" rel="noopener" style="color:var(--blue);">NOAA SWPC</a> (Public Domain); Reference: <a href="https://kp.gfz.de/en/hp30-hp60" target="_blank" rel="noopener" style="color:var(--blue);">GFZ Potsdam Hp30</a><br/>` +
-        `• All-Sky Cams: <a href="https://flux.phys.uit.no/" target="_blank" rel="noopener" style="color:var(--blue);">UiT TGO</a>, <a href="https://www.irf.se/" target="_blank" rel="noopener" style="color:var(--blue);">IRF Kiruna</a>, <a href="https://www.sgo.fi/" target="_blank" rel="noopener" style="color:var(--blue);">SGO Sodankylä</a>; Cloud map: <a href="https://www.windy.com/" target="_blank" rel="noopener" style="color:var(--blue);">Windy.com</a><br/>` +
-        `• <strong>Disclaimer</strong>: Open-source non-commercial project (MIT License) for personal stargazing reference only, not an official weather or road warning.`
-      : `• 氣象預報：<a href="https://api.met.no/" target="_blank" rel="noopener" style="color:var(--blue);">MET Norway (Yr.no)</a>（CC BY 4.0 / NLOD 2.0）、<a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:var(--blue);">Open-Meteo</a>（CC BY 4.0，限非商業用途）<br/>` +
-        `• 太空天氣：<a href="https://www.spaceweather.gov/" target="_blank" rel="noopener" style="color:var(--blue);">NOAA SWPC</a>（美國政府公領域）；參考：<a href="https://kp.gfz.de/en/hp30-hp60" target="_blank" rel="noopener" style="color:var(--blue);">GFZ Potsdam Hp30</a><br/>` +
-        `• 全天空實拍：<a href="https://flux.phys.uit.no/" target="_blank" rel="noopener" style="color:var(--blue);">UiT TGO</a>、<a href="https://www.irf.se/" target="_blank" rel="noopener" style="color:var(--blue);">IRF Kiruna</a>、<a href="https://www.sgo.fi/" target="_blank" rel="noopener" style="color:var(--blue);">SGO Sodankylä</a>；雲圖：<a href="https://www.windy.com/" target="_blank" rel="noopener" style="color:var(--blue);">Windy.com</a><br/>` +
-        `• <strong>免責聲明</strong>：本工具為非商業開源專案（MIT License），僅供個人旅遊觀星參考，不構成正式氣象或道路安全警告。北極冬季行車請務必遵守當地交通管制。`;
+      ? `• Weather: <a href="https://api.met.no/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">MET Norway (Yr.no)</a> (CC BY 4.0 / NLOD 2.0), <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">Open-Meteo</a> (CC BY 4.0, non-commercial)<br/>` +
+        `• Space Weather: <a href="https://www.spaceweather.gov/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">NOAA SWPC</a> (Public Domain); Reference: <a href="https://kp.gfz.de/en/hp30-hp60" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">GFZ Potsdam Hp30</a><br/>` +
+        `• Cams & Ground Mag: <a href="https://flux.phys.uit.no/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">UiT TGO</a>, <a href="https://www.irf.se/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">IRF Kiruna</a>, <a href="https://www.sgo.fi/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">SGO</a>, <a href="https://kho.unis.no/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">KHO Svalbard</a>, <a href="https://en.ilmatieteenlaitos.fi/auroras-and-space-weather" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">FMI</a>; Cloud map: <a href="https://www.windy.com/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">Windy.com</a><br/>` +
+        `• <strong>Privacy & Security</strong>: 100% open-source static web app, zero cookies/tracking, strict CSP allowlist. Coordinates stay in your browser only.`
+      : `• 氣象預報：<a href="https://api.met.no/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">MET Norway (Yr.no)</a>（CC BY 4.0 / NLOD 2.0）、<a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">Open-Meteo</a>（CC BY 4.0，限非商業用途）<br/>` +
+        `• 太空天氣：<a href="https://www.spaceweather.gov/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">NOAA SWPC</a>（美國政府公領域）；參考：<a href="https://kp.gfz.de/en/hp30-hp60" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">GFZ Potsdam Hp30</a><br/>` +
+        `• 實拍與地磁：<a href="https://flux.phys.uit.no/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">UiT TGO</a>、<a href="https://www.irf.se/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">IRF Kiruna</a>、<a href="https://www.sgo.fi/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">SGO</a>、<a href="https://kho.unis.no/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">斯瓦巴 KHO</a>、<a href="https://en.ilmatieteenlaitos.fi/auroras-and-space-weather" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">芬蘭 FMI</a>；雲圖：<a href="https://www.windy.com/" target="_blank" rel="noopener noreferrer" style="color:var(--blue);">Windy.com</a><br/>` +
+        `• <strong>隱私與安全</strong>：100% 開源純靜態網頁（MIT License）、零 Cookie 與追蹤碼、嚴格 CSP 白名單，定位僅留於本機瀏覽器。僅供個人觀星參考，北極冬季行車請遵守當地交通管制。`;
   }
   renderSkyCamCaption(currentCamKey);
   const ovH = $('ovHeading');
@@ -295,7 +310,7 @@ async function toggleAlertMode() {
       Notification.requestPermission().catch(() => {});
     }
     try { if (navigator.wakeLock) wakeLockObj = await navigator.wakeLock.request('screen'); } catch (e) {}
-    toast(en ? 'Alerts ON (chimes at score ≥40, substorm, or incoming shock)' : '已開啟自動提醒（達標、雲縫強極光或太陽風衝擊會響鈴）');
+    toast(en ? 'Alerts ON — keep screen unlocked/plugged in for web polling' : '已開啟提醒（網頁版請保持螢幕未鎖定或插電常亮）');
   } else {
     btn.classList.remove('alert-on');
     try { if (wakeLockObj) { await wakeLockObj.release(); wakeLockObj = null; } } catch (e) {}
@@ -541,16 +556,30 @@ function selectForecastHour(idx) {
   }
 }
 
-function renderStormBanner(scales) {
+function renderStormBanner(scales, noaaAlert) {
   const el = $('stormBanner');
   if (!el) return;
-  if (!scales || !scales.active) {
+  const en = isEn();
+  const hasAlert = noaaAlert && noaaAlert.active;
+  const hasScale = scales && scales.active;
+  if (!hasAlert && !hasScale) {
     el.style.display = 'none';
     return;
   }
-  const en = isEn();
   const gNamesZh = { 1: '輕度', 2: '中度', 3: '強烈', 4: '嚴重', 5: '極端' };
   const gNamesEn = { 1: 'Minor', 2: 'Moderate', 3: 'Strong', 4: 'Severe', 5: 'Extreme' };
+  if (hasAlert && (noaaAlert.kind === 'cme-shock' || noaaAlert.gScale >= (scales?.currentScale || 0))) {
+    const lvl = Math.max(1, noaaAlert.gScale || 1);
+    el.className = 'storm-banner' + (lvl >= 3 || noaaAlert.kind === 'cme-shock' ? ' severe' : '');
+    el.style.display = 'flex';
+    const isShock = noaaAlert.kind === 'cme-shock';
+    const pill = isShock ? 'CME SHOCK' : `NOAA G${lvl}`;
+    const txt = isShock
+      ? (en ? 'SWPC Geomagnetic Sudden Impulse — CME shock arrived' : 'NOAA 官方警報：CME 衝擊波抵達地球（短時間內易爆發）')
+      : (en ? `SWPC K=${noaaAlert.kLevel} Storm Alert Active` : `NOAA 官方即時警報：達 K=${noaaAlert.kLevel}（G${lvl}）地磁風暴`);
+    el.innerHTML = `<span><span class="storm-pill">${pill}</span>${txt}</span><span style="opacity:0.75;">↗</span>`;
+    return;
+  }
   const isNow = scales.currentScale >= 1;
   const lvl = isNow ? scales.currentScale : scales.maxForecastScale;
   el.className = 'storm-banner' + (lvl >= 3 ? ' severe' : '');
@@ -584,12 +613,12 @@ function renderFromState(st) {
   if (!st) return;
   const en = isEn();
   const {
-    magSeries, chartSeries, speed, bz, kp, ovation, hpiGw, goesSub, noaaScales, bal,
+    magSeries, chartSeries, speed, bz, kp, ovation, hpiGw, goesSub, noaaScales, noaaAlert, bal,
     noaaOk, noaaLagMin, hereHrs, dirResults, weatherSourceLabel, usedMet, cloudConsensus,
     sunAltNow, mltNow, moon, sc, scNext, bestDark, nights3
   } = st;
 
-  renderStormBanner(noaaScales);
+  renderStormBanner(noaaScales, noaaAlert);
 
   // Energy card
   const enSum = summarizeEnergyTrend(chartSeries, speed, bal);
@@ -707,12 +736,17 @@ function renderFromState(st) {
   $('compassBox').innerHTML = dirResults.map(d => {
     const isBest = sum && sum.bestKey === d.key;
     const col = d.isOcean ? 'c-blue' : (d.avg3h <= 35 ? 'c-green' : d.avg3h <= 65 ? 'c-amber' : 'c-red');
+    const roadTag = (!d.isOcean && (d.maxPrecip3h || 0) >= 0.2)
+      ? (d.temp <= 1.5
+          ? (en ? ' · ❄️ Snow/Ice risk' : ' · ❄️ 降雪／路面恐結冰')
+          : (en ? ' · 🌧️ Rain' : ' · 🌧️ 降雨'))
+      : '';
     const nav = (d.key === 'here' || d.isOcean)
       ? (d.isOcean ? `<span style="font-size:0.75rem;color:var(--blue);font-weight:700;">${en ? 'Open Sea' : '海域僅供參考'}</span>` : '')
-      : `<a class="btn btn-blue" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&origin=${currentPos.lat},${currentPos.lon}&destination=${d.lat},${d.lon}&travelmode=driving">${en ? 'Drive' : '導航'}</a>`;
+      : `<a class="btn btn-blue" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/dir/?api=1&origin=${currentPos.lat},${currentPos.lon}&destination=${d.lat},${d.lon}&travelmode=driving">${en ? 'Drive' : '導航'}</a>`;
     return `<div class="dir ${isBest ? 'best' : ''} ${d.isOcean ? 'sea' : ''}">
       <div><div style="font-weight:800;font-size:0.9rem;">${tDirLabel(d.label)}${isBest ? ' ★' : ''}</div>
-      <div style="font-size:0.74rem;color:var(--muted);">${en ? '3h avg cloud' : '3h 平均雲量'} <strong class="${col}">${d.avg3h}%</strong>｜${en ? 'Now' : '目前'} ${d.nowC}%｜${fmtT(d.temp)}</div></div>
+      <div style="font-size:0.74rem;color:var(--muted);">${en ? '3h avg cloud' : '3h 平均雲量'} <strong class="${col}">${d.avg3h}%</strong>｜${en ? 'Now' : '目前'} ${d.nowC}%｜${fmtT(d.temp)}${roadTag}</div></div>
       ${nav}
     </div>`;
   }).join('');
@@ -724,8 +758,8 @@ function renderFromState(st) {
     : 'https://open-meteo.com/en/docs';
   const tNow = $('clk')?.textContent || '--:--';
   $('syncTime').textContent = (noaaOk && hereHrs.length)
-    ? (en ? `Synced ${tNow} · 5m auto` : `已同步 ${tNow} · 每5分更新`)
-    : (en ? 'Partial sync · 5m auto' : '部分同步 · 每5分更新');
+    ? (en ? `Synced ${tNow} · 5m auto` : `已同步 ${tNow} · 每 5 分鐘更新`)
+    : (en ? 'Partial sync · 5m auto' : '部分同步 · 每 5 分鐘更新');
 }
 
 // ====== Live Data Fetching (Fault-Isolated & Concurrency-Guarded) ======
@@ -748,28 +782,32 @@ async function refreshAll(manual) {
   const pNoaa = $('pNoaa'), pMet = $('pMet');
   pNoaa.textContent = 'NOAA...'; pMet.textContent = en ? 'Weather...' : '氣象...';
 
-  let bz = null, speed = null, kp = null, ovation = null, hpiGw = null, goesSub = null, noaaScales = null;
+  let bz = null, speed = null, kp = null, ovation = null, hpiGw = null, goesSub = null, noaaScales = null, geo1h = null, noaaAlert = null;
   let noaaOk = false, metOk = false;
   let magSeries = [], windSeries = [], kpForecast = [], noaaLagMin = null;
   const now = new Date();
   let moon = updateClockAndPhoto();
 
-  // 1. Live NOAA SWPC (8 fault-isolated endpoints)
+  // 1. Live NOAA SWPC (11 fault-isolated endpoints in parallel)
   try {
     const safeJson = r => (r && r.ok ? r.json().catch(() => null) : Promise.resolve(null));
     const safeText = r => (r && r.ok ? r.text().catch(() => null) : Promise.resolve(null));
-    const [mR, wR, k1R, oR, hpiR, gR, kfcR, scR] = await Promise.all([
+    const [mR, wR, k1R, oR, hpiR, g1R, g2R, kfcR, scR, geoR, alR] = await Promise.all([
       fetch('https://services.swpc.noaa.gov/json/rtsw/rtsw_mag_1m.json').catch(() => null),
       fetch('https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json').catch(() => null),
       fetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json').catch(() => null),
       fetch('https://services.swpc.noaa.gov/json/ovation_aurora_latest.json').catch(() => null),
       fetch('https://services.swpc.noaa.gov/text/aurora-nowcast-hemi-power.txt').catch(() => null),
       fetch('https://services.swpc.noaa.gov/json/goes/primary/magnetometers-6-hour.json').catch(() => null),
+      fetch('https://services.swpc.noaa.gov/json/goes/secondary/magnetometers-6-hour.json').catch(() => null),
       fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json').catch(() => null),
-      fetch('https://services.swpc.noaa.gov/products/noaa-scales.json').catch(() => null)
+      fetch('https://services.swpc.noaa.gov/products/noaa-scales.json').catch(() => null),
+      fetch('https://services.swpc.noaa.gov/json/geospace/geospace_pred_est_kp_1_hour.json').catch(() => null),
+      fetch('https://services.swpc.noaa.gov/products/alerts.json').catch(() => null)
     ]);
-    const [mJ, wJ, k1J, ovJson, hpiTxt, gJ, kfcJ, scJ] = await Promise.all([
-      safeJson(mR), safeJson(wR), safeJson(k1R), safeJson(oR), safeText(hpiR), safeJson(gR), safeJson(kfcR), safeJson(scR)
+    const [mJ, wJ, k1J, ovJson, hpiTxt, g1J, g2J, kfcJ, scJ, geoJ, alJ] = await Promise.all([
+      safeJson(mR), safeJson(wR), safeJson(k1R), safeJson(oR), safeText(hpiR),
+      safeJson(g1R), safeJson(g2R), safeJson(kfcR), safeJson(scR), safeJson(geoR), safeJson(alR)
     ]);
     if (mySeq !== refreshSeq) return;
 
@@ -777,6 +815,8 @@ async function refreshAll(manual) {
     if (wJ) windSeries = parseWindSeries(wJ, 180);
     if (kfcJ) kpForecast = parseKpForecast(kfcJ);
     if (scJ) noaaScales = parseNoaaGeomagneticScales(scJ);
+    if (geoJ) geo1h = parseGeospacePredKp1h(geoJ, now.getTime());
+    if (alJ) noaaAlert = parseNoaaAlerts(alJ, now.getTime());
     const lastMag = magSeries.length ? magSeries[magSeries.length - 1] : null;
     const wind = windSeries.length ? windSeries[windSeries.length - 1] : null;
     let kpObj = k1J ? parseLatestKp(k1J) : null;
@@ -787,7 +827,7 @@ async function refreshAll(manual) {
       if (k3J) kpObj = parseLatestKp(k3J);
     }
     const hpiObj = hpiTxt ? parseHemiPower(hpiTxt, currentPos.lat) : null;
-    goesSub = gJ ? parseGoesSubstorm(gJ) : null;
+    goesSub = mergeGoesSubstorm(g1J ? parseGoesSubstorm(g1J) : null, g2J ? parseGoesSubstorm(g2J) : null);
 
     if (lastMag) { bz = lastMag.bz; noaaLagMin = computeDataLagMin(lastMag.time_tag, now.getTime()); }
     if (wind) speed = wind.speed;
@@ -838,7 +878,8 @@ async function refreshAll(manual) {
             if (i === 0) hereHrs = hrs;
             const first3 = hrs.slice(0, 3);
             const avg3h = first3.length ? Math.round(first3.reduce((s, h) => s + h.block, 0) / first3.length) : 100;
-            dirResults.push({ ...pt, nowC: hrs[0]?.block ?? 100, avg3h, min12: hrs.length ? Math.min(...hrs.map(h => h.block)) : 100, temp: hrs[0]?.temp ?? 0 });
+            const maxPrecip3h = first3.length ? Math.max(...first3.map(h => Number(h.precip || 0))) : 0;
+            dirResults.push({ ...pt, nowC: hrs[0]?.block ?? 100, avg3h, min12: hrs.length ? Math.min(...hrs.map(h => h.block)) : 100, temp: hrs[0]?.temp ?? 0, maxPrecip3h });
           });
           if (omJson?.hourly && hereHrs.length) {
             const omHereHrs = parseOpenMeteoHourly12(omJson.hourly, currentPos.lat, currentPos.lon, currentPos.tz, now, omJson.utc_offset_seconds);
@@ -865,7 +906,8 @@ async function refreshAll(manual) {
           if (i === 0) hereHrs = hrs;
           const first3 = hrs.slice(0, 3);
           const avg3h = first3.length ? Math.round(first3.reduce((s, h) => s + h.block, 0) / first3.length) : 100;
-          dirResults.push({ ...pt, nowC: hrs[0]?.block ?? 100, avg3h, min12: hrs.length ? Math.min(...hrs.map(h => h.block)) : 100, temp: hrs[0]?.temp ?? 0 });
+          const maxPrecip3h = first3.length ? Math.max(...first3.map(h => Number(h.precip || 0))) : 0;
+          dirResults.push({ ...pt, nowC: hrs[0]?.block ?? 100, avg3h, min12: hrs.length ? Math.min(...hrs.map(h => h.block)) : 100, temp: hrs[0]?.temp ?? 0, maxPrecip3h });
         });
       }
     }
@@ -879,11 +921,14 @@ async function refreshAll(manual) {
       const c0 = hereHrs[0].block;
       const sunAltNow = computeSolarElevation(now, currentPos.lat, currentPos.lon);
       const mltNow = computeMLT(now, currentPos.lat, currentPos.lon);
+      const predKp1h = geo1h?.maxNext60Kp ?? null;
 
       const scored12 = scoreHourlyForecast12(hereHrs, {
         lat: currentPos.lat, lon: currentPos.lon,
         kpForecast, fallbackKp: kp ?? 0, ovation, hpiGw,
-        bz: bal.nowBz ?? bz, speed, newell: bal.nowNewell,
+        bz: bal.nowBz ?? bz, nextBz: bal.nextBz, speed,
+        newell: bal.nowNewell, nextNewell: bal.nextNewell,
+        predKp1h, preconditionedNewell60: bal.avgNewell60,
         substormJumpNt: goesSub ? goesSub.jumpNt : 0,
         pdyn: bal.pdyn, shockJumpNpa: bal.shockJumpNpa
       });
@@ -906,7 +951,8 @@ async function refreshAll(manual) {
       const nextHourIdx = Math.min(hereHrs.length - 1, Math.max(0, Math.round(bal.etaMin / 60)));
       const cNext = hereHrs[nextHourIdx] ? hereHrs[nextHourIdx].block : c0;
       const moonNext = getMoonState(nextDt, currentPos.lat, currentPos.lon);
-      const kpNext = lookupForecastKp(kpForecast, nextDt, kp ?? 0);
+      const baseKpNext = lookupForecastKp(kpForecast, nextDt, kp ?? 0);
+      const kpNext = Number.isFinite(predKp1h) ? Math.max(baseKpNext, predKp1h) : baseKpNext;
       const scNext = computeAuroraScore({
         lat: currentPos.lat, lon: currentPos.lon,
         cloudNow: cNext, sunAlt: computeSolarElevation(nextDt, currentPos.lat, currentPos.lon),
@@ -924,7 +970,7 @@ async function refreshAll(manual) {
       });
 
       lastRenderState = {
-        magSeries, chartSeries: magSeries.slice(-120), speed, bz, kp, ovation, hpiGw, goesSub, noaaScales, bal,
+        magSeries, chartSeries: magSeries.slice(-120), speed, bz, kp, ovation, hpiGw, goesSub, noaaScales, noaaAlert, bal,
         noaaOk, noaaLagMin, hereHrs, dirResults, weatherSourceLabel, usedMet, cloudConsensus,
         sunAltNow, mltNow, moon, sc, scNext, bestDark, nights3
       };

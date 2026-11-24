@@ -351,15 +351,18 @@ test('14. Live API end-to-end smoke test (enabled with LIVE_TEST=1)', { skip: pr
       }
     }
   };
-  const [mag, wind, kp1m, ov, hpi, goes, kpfc, scales, met, om] = await Promise.all([
+  const [mag, wind, kp1m, ov, hpi, goes1, goes2, kpfc, scales, geo1h, alerts, met, om] = await Promise.all([
     fetchRetry('https://services.swpc.noaa.gov/json/rtsw/rtsw_mag_1m.json'),
     fetchRetry('https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json'),
     fetchRetry('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json'),
     fetchRetry('https://services.swpc.noaa.gov/json/ovation_aurora_latest.json'),
     fetchRetry('https://services.swpc.noaa.gov/text/aurora-nowcast-hemi-power.txt', true),
     fetchRetry('https://services.swpc.noaa.gov/json/goes/primary/magnetometers-6-hour.json'),
+    fetchRetry('https://services.swpc.noaa.gov/json/goes/secondary/magnetometers-6-hour.json'),
     fetchRetry('https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json'),
     fetchRetry('https://services.swpc.noaa.gov/products/noaa-scales.json'),
+    fetchRetry('https://services.swpc.noaa.gov/json/geospace/geospace_pred_est_kp_1_hour.json'),
+    fetchRetry('https://services.swpc.noaa.gov/products/alerts.json'),
     fetchRetry('https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=69.9689&lon=23.2716'),
     fetchRetry('https://api.open-meteo.com/v1/forecast?latitude=64.1466&longitude=-21.9426&hourly=temperature_2m,wind_speed_10m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,precipitation&timezone=auto&timeformat=unixtime&forecast_days=4')
   ]);
@@ -369,14 +372,18 @@ test('14. Live API end-to-end smoke test (enabled with LIVE_TEST=1)', { skip: pr
   const kpObj = api.parseLatestKp(kp1m);
   const ovAlta = api.lookupOvationProb(ov, 69.9689, 23.2716);
   const hpiObj = api.parseHemiPower(hpi, 69.9689);
-  const goesSub = api.parseGoesSubstorm(goes);
+  const goesSub = api.mergeGoesSubstorm(api.parseGoesSubstorm(goes1), api.parseGoesSubstorm(goes2));
   const kpFcList = api.parseKpForecast(kpfc);
   const scParsed = api.parseNoaaGeomagneticScales(scales);
+  const geoParsed = api.parseGeospacePredKp1h(geo1h, Date.now());
+  const alertParsed = api.parseNoaaAlerts(alerts, Date.now());
   const met12 = api.parseMetNorwayHourly12(met, 69.9689, 23.2716, 'Europe/Oslo', new Date());
   const om12 = api.parseOpenMeteoHourly12(om.hourly, 64.1466, -21.9426, om.timezone, new Date());
 
   assert.ok(magS.length > 0 && windS.length > 0 && kpObj && Number.isFinite(ovAlta));
   assert.ok(hpiObj && goesSub && kpFcList.length > 10 && scParsed && scParsed.days.length === 3);
+  assert.ok(geoParsed && Number.isFinite(geoParsed.maxNext60Kp), 'Geospace 1h Kp failed live parse');
+  assert.equal(typeof alertParsed.active, 'boolean');
   assert.equal(met12.length, 12);
   assert.equal(om12.length, 12);
 });
@@ -664,4 +671,64 @@ test('26. Independent NASA JPL Horizons DE441 solar & lunar ephemeris accuracy a
   assert.ok(astro.moonAlt.max < 1.2, `Lunar elevation max error vs JPL DE441 too high: ${astro.moonAlt.max}°`);
   assert.ok(astro.moonIllum.max < 1.5, `Lunar illumination max error vs JPL DE441 too high: ${astro.moonIllum.max}%`);
 });
+
+test('27. Geospace 1h MHD Kp, NOAA SWPC Alerts, dual GOES merger, +1h L1 sync & strict security/GEO audit', () => {
+  // 1. NOAA Geospace 1h forward predicted Kp
+  const nowMs = Date.parse('2026-11-24T22:00:00Z');
+  const geo = api.parseGeospacePredKp1h([
+    { model_prediction_time: '2026-11-24T22:00:00Z', k: 1.67 },
+    { model_prediction_time: '2026-11-24T22:35:00Z', k: 5.33 },
+    { model_prediction_time: '2026-11-24T22:55:00Z', k: 4.00 }
+  ], nowMs);
+  assert.equal(geo.nowPredKp, 1.67);
+  assert.equal(geo.maxNext60Kp, 5.33);
+
+  // 2. NOAA SWPC official alerts (Sudden Impulse CME shock, K5 storm, and stale expiry)
+  const alertShock = api.parseNoaaAlerts([
+    { product_id: 'EF3A', issue_datetime: '2026-11-24 21:30:00.000', message: 'SUMMARY: Geomagnetic Sudden Impulse' },
+    { product_id: 'K05A', issue_datetime: '2026-11-24 21:45:00.000', message: 'ALERT: Geomagnetic K-index of 5' }
+  ], nowMs);
+  assert.equal(alertShock.active, true);
+  assert.equal(alertShock.kind, 'cme-shock');
+
+  const alertStale = api.parseNoaaAlerts([
+    { product_id: 'K07A', issue_datetime: '2026-11-24 12:00:00.000', message: 'ALERT: Geomagnetic K-index of 7' }
+  ], nowMs, 3);
+  assert.equal(alertStale.active, false);
+
+  // 3. Dual-sector GOES magnetometer merger picks stronger East/West dipolarization jump
+  const merged = api.mergeGoesSubstorm({ jumpNt: 6, active: false }, { jumpNt: 26, active: true });
+  assert.equal(merged.active, true);
+  assert.equal(merged.jumpNt, 26);
+  assert.equal(merged.sector, 'west');
+
+  // 4. Hour +1 in scoreHourlyForecast12 syncs with incoming L1 shock & Geospace 1h Kp
+  const hrs = [0, 1, 2].map(i => ({
+    time: `${String(22 + i).padStart(2, '0')}:00`,
+    dtMs: nowMs + i * 3600000,
+    block: 10, clear: 90, txt: '🌟 晴', temp: -3, precip: 0, windMs: 2, windChill: -6, isDay: false, sunAlt: -25
+  }));
+  const quietNowShockNext = api.scoreHourlyForecast12(hrs, {
+    lat: 69.97, lon: 23.27, kpForecast: [], fallbackKp: 1.0, ovation: 15,
+    bz: 1.0, nextBz: -14.0, speed: 620, newell: 400, nextNewell: 16500, predKp1h: 5.5
+  });
+  assert.ok(quietNowShockNext.hours[1].score > quietNowShockNext.hours[0].score + 25,
+    `Hour +1 should surge on incoming L1 shock (${quietNowShockNext.hours[0].score} -> ${quietNowShockNext.hours[1].score})`);
+
+  // 5. Security & AI-Search (GEO) invariants across HTML & repo root
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  assert.ok(html.includes('http-equiv="Content-Security-Policy"'), 'Missing CSP meta header');
+  assert.ok(html.includes("script-src 'self'"), 'CSP must lock script-src to self');
+  assert.ok(html.includes('name="referrer" content="no-referrer"'), 'Missing no-referrer policy');
+  assert.ok(html.includes('application/ld+json'), 'Missing JSON-LD structured data for AI Search/SEO');
+  for (const rel of ['index.html', 'src/app.js', 'src/charts.js']) {
+    const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+    const badBlank = [...src.matchAll(/target="_blank"(?![^>]*noopener[^>]*noreferrer)/g)];
+    assert.equal(badBlank.length, 0, `${rel} has target="_blank" without rel="noopener noreferrer"`);
+  }
+  for (const f of ['llms.txt', 'robots.txt', 'sitemap.xml', 'SECURITY.md']) {
+    assert.ok(fs.existsSync(path.join(ROOT, f)), `Missing required security/GEO file: ${f}`);
+  }
+});
+
 

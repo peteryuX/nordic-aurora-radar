@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://peteryux.github.io/nordic-aurora-radar/sitemap.xml

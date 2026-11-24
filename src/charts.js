@@ -313,7 +313,7 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
       </g>`;
     if (d.isOcean) return body;
     const href = `https://www.google.com/maps/dir/?api=1&origin=${originPos.lat},${originPos.lon}&destination=${d.lat},${d.lon}&travelmode=driving`;
-    return `<a href="${href}" target="_blank" rel="noopener">${body}</a>`;
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${body}</a>`;
   }).join('');
 
   const h = byKey.here;
