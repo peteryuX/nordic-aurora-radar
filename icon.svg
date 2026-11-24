@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#050c17"/>
+      <stop offset="100%" stop-color="#0f2744"/>
+    </linearGradient>
+    <linearGradient id="aur" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#34f0b0"/>
+      <stop offset="55%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="14" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="110" cy="108" r="4" fill="#fff" opacity="0.85"/>
+  <circle cx="210" cy="86" r="3" fill="#fff" opacity="0.7"/>
+  <circle cx="348" cy="112" r="4.5" fill="#fff" opacity="0.8"/>
+  <circle cx="412" cy="160" r="3" fill="#fff" opacity="0.65"/>
+  <circle cx="152" cy="172" r="2.5" fill="#fff" opacity="0.6"/>
+  <path d="M40,308 C130,175 215,295 300,192 C370,108 425,172 476,128 L476,204 C420,252 365,194 298,274 C212,374 130,264 40,378 Z" fill="url(#aur)" opacity="0.92" filter="url(#glow)"/>
+  <path d="M0,418 L92,344 L182,388 L274,318 L368,382 L448,334 L512,376 L512,512 L0,512 Z" fill="#071324"/>
+  <path d="M0,456 L132,404 L256,442 L386,396 L512,438 L512,512 L0,512 Z" fill="#040a14"/>
+</svg>

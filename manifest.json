@@ -1,0 +1,19 @@
+{
+  "name": "Nordic Aurora Radar｜極光即時雷達",
+  "short_name": "Aurora Radar",
+  "description": "Real-time Nordic & global aurora radar with official Yr.no layered clouds, NOAA solar wind telemetry, twilight/moonlight physics, and 360° clear-sky radar.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#050c17",
+  "theme_color": "#050c17",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

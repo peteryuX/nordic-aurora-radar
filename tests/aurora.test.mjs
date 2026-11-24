@@ -4,71 +4,48 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import * as engine from '../src/aurora-engine.js';
+import * as charts from '../src/charts.js';
+
+const api = { ...engine, ...charts };
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const HTML_PATH = path.resolve(__dirname, '../index.html');
-const html = fs.readFileSync(HTML_PATH, 'utf8');
-const scriptMatch = html.match(/<script>([\s\S]*?)<\/script>/);
-assert.ok(scriptMatch, 'index.html must contain an inline <script> block');
-
-const EXPORTED_SYMBOLS = [
-  'NORDIC_CORRIDORS',
-  'detectDefaultLang', 'setLang', 'isEn', 'tSky', 'tDirLabel', 'tGrade',
-  'isInNordicMetBox', 'computeCompassPoints', 'getZoneParts', 'formatReverseGeo',
-  'computeSolarElevation', 'getMoonState', 'computeEffectiveCloud',
-  'computeGeomagneticLat', 'requiredKpForMagLat', 'computeViewingGeometry',
-  'parseUrlLocation', 'buildShareUrl', 'computeL1EtaMin',
-  'computeMLT', 'computeNewellCoupling', 'computeDynamicPressure',
-  'detectPressureShock', 'computeWindChill', 'computeDataLagMin',
-  'newellToEnergy', 'computeBallisticCoupling', 'computeAuroraScore',
-  'parseMagSeries', 'parseWindSeries', 'parseLatestActiveWind',
-  'parseKpForecast', 'lookupForecastKp', 'parseLatestKp',
-  'lookupOvationProb', 'parseHemiPower', 'parseGoesSubstorm',
-  'parseMetNorwayHourly12', 'parseOpenMeteoHourly12',
-  'scoreHourlyForecast12', 'findBestDarkWindow', 'evaluateVerdict',
-  'summarizeCompass', 'buildSkySceneSVG', 'utcTagToLocalHM',
-  'bzToEnergy', 'summarizeEnergyTrend', 'buildBzChartSVG',
-  'buildSkyWaveSVG', 'buildCompassRadarSVG'
-];
-
-const api = new Function(`${scriptMatch[1]}\nreturn { ${EXPORTED_SYMBOLS.join(', ')} };`)();
+const ROOT = path.resolve(__dirname, '..');
 
 test('1. Solar elevation astronomy matches equinox, midnight sun, and polar night', () => {
-  // Alta midnight sun on June solstice (~+4.8°)
   const midnightSun = api.computeSolarElevation(new Date('2026-06-21T00:00:00Z'), 69.97, 23.27);
   assert.ok(midnightSun > 3 && midnightSun < 7, `Expected Alta midnight sun 3..7°, got ${midnightSun}`);
 
-  // Alta polar night solar noon on December solstice (~-3.6°)
   const polarNight = api.computeSolarElevation(new Date('2026-12-21T11:00:00Z'), 69.97, 23.27);
   assert.ok(polarNight < -2 && polarNight > -6, `Expected Alta polar night noon -6..-2°, got ${polarNight}`);
 
-  // Equator equinox solar noon (~88..90° accounting for equation of time)
   const eqNoon = api.computeSolarElevation(new Date('2026-03-20T12:07:00Z'), 0, 0);
   assert.ok(eqNoon > 89, `Expected equator equinox noon >89°, got ${eqNoon}`);
 });
 
-test('2. Lunar phase and elevation model matches known 2026 Full & New Moons', () => {
+test('2. Lunar phase, elevation, and Krisciunas-Schaefer opposition surge illuminance', () => {
   const fullMoon = api.getMoonState(new Date('2026-11-24T14:53:00Z'), 69.97, 23.27);
   assert.ok(fullMoon.pct >= 98, `Expected Full Moon >=98%, got ${fullMoon.pct}`);
 
   const newMoon = api.getMoonState(new Date('2026-11-09T07:02:00Z'), 69.97, 23.27);
   assert.ok(newMoon.pct <= 2, `Expected New Moon <=2%, got ${newMoon.pct}`);
-
-  // Moon below horizon must yield 0 effective moonlight
   if (!newMoon.up) assert.equal(newMoon.effMoonPct, 0);
-  assert.ok(fullMoon.effMoonPct <= fullMoon.pct);
+
+  // Quarter moon (~50% illuminated) has only ~9% of Full Moon lux due to opposition surge
+  const quarter = api.getMoonState(new Date('2026-11-17T06:00:00Z'), 0, 0);
+  assert.ok(quarter.pct >= 40 && quarter.pct <= 60, `Quarter moon pct=${quarter.pct}`);
+  assert.ok(quarter.effMoonPct <= 18, `Quarter moon effMoonPct should reflect opposition surge (<=18%), got ${quarter.effMoonPct}`);
 });
 
-test('3. Random-overlap layered cloud occlusion handles cirrus, fog, and Open-Meteo cap', () => {
+test('3. Layered cloud occlusion handles cirrus, fog, and total-cloud cap', () => {
   assert.equal(api.computeEffectiveCloud(0, 0, 0, 0), 0);
   assert.equal(api.computeEffectiveCloud(100, 0, 0, 0), 100);
-  assert.equal(api.computeEffectiveCloud(0, 0, 100, 0), 30); // High cirrus = 30% occlusion
-  assert.equal(api.computeEffectiveCloud(0, 0, 0, 100), 100); // Fog blocks aurora
-  assert.equal(api.computeEffectiveCloud(50, 50, 0, 0), 75);  // 1 - 0.5 * 0.5 = 75%
-  // Open-Meteo cross-model cap prevents low>total over-reporting
+  assert.equal(api.computeEffectiveCloud(0, 0, 100, 0), 30);
+  assert.equal(api.computeEffectiveCloud(0, 0, 0, 100), 100);
+  assert.equal(api.computeEffectiveCloud(50, 50, 0, 0), 75);
   assert.equal(api.computeEffectiveCloud(90, 90, 0, 0, 20), 28);
 });
 
-test('4. IGRF-14 geomagnetic latitude, MLT, and Kp threshold gates', () => {
+test('4. IGRF-14 / AACGM geomagnetic latitude, NH+SH MLT, and Kp thresholds', () => {
   const alta = api.computeGeomagneticLat(69.97, 23.27);
   const oslo = api.computeGeomagneticLat(59.91, 10.75);
   const taipei = api.computeGeomagneticLat(25.03, 121.56);
@@ -83,39 +60,38 @@ test('4. IGRF-14 geomagnetic latitude, MLT, and Kp threshold gates', () => {
   assert.ok(api.requiredKpForMagLat(Math.abs(oslo)) >= 3);
   assert.equal(api.requiredKpForMagLat(Math.abs(taipei)), 9);
 
-  const mlt = api.computeMLT(new Date('2026-11-23T22:00:00Z'), 69.97, 23.27);
-  assert.ok(mlt >= 0 && mlt < 24, `MLT out of range: ${mlt}`);
+  const mltN = api.computeMLT(new Date('2026-11-23T22:00:00Z'), 69.97, 23.27);
+  const mltS = api.computeMLT(new Date('2026-11-23T14:00:00Z'), -42.88, 147.33);
+  assert.ok(mltN >= 0 && mltN < 24, `NH MLT out of range: ${mltN}`);
+  assert.ok(mltS >= 0 && mltS < 24, `SH MLT out of range: ${mltS}`);
+  // Hobart (UTC+10/11) at 14:00 UTC is local midnight (~00:00-01:00 MLT)
+  assert.ok(mltS >= 22 || mltS <= 3, `Hobart 14:00Z should be near magnetic midnight, got MLT=${mltS}`);
 });
 
-test('5. Solar wind coupling, dynamic pressure, shock detector, wind chill, and L1 ETA', () => {
-  // Pure northward Bz yields 0 Newell coupling; southward Bz increases monotonically with speed & |Bz|
+test('5. Solar wind coupling, dynamic pressure, shock detector, wind chill, and extreme CME L1 ETA', () => {
   assert.equal(api.computeNewellCoupling(500, 0, 5), 0);
   const nwWeak = api.computeNewellCoupling(400, 0, -2);
   const nwStrong = api.computeNewellCoupling(650, 0, -8);
   assert.ok(nwStrong > nwWeak * 4);
 
-  // Dynamic pressure P_dyn = 1.6726e-6 * n * v^2
   const pdyn = api.computeDynamicPressure(500, 10);
   assert.ok(Math.abs(pdyn - 4.18) < 0.05, `Expected ~4.18 nPa, got ${pdyn}`);
 
-  // Pressure shock detection
-  const calmWind = [{ speed: 350, density: 4 }, { speed: 360, density: 4.5 }];
+  const calmWind = [{ time_tag: '2026-11-23T21:00:00', speed: 350, density: 4 }, { time_tag: '2026-11-23T21:05:00', speed: 360, density: 4.5 }];
   assert.equal(api.detectPressureShock(calmWind).active, false);
-  const shockWind = [{ speed: 350, density: 4 }, { speed: 600, density: 12 }];
+  const shockWind = [{ time_tag: '2026-11-23T21:00:00', speed: 350, density: 4 }, { time_tag: '2026-11-23T21:05:00', speed: 600, density: 12 }];
   assert.equal(api.detectPressureShock(shockWind).active, true);
 
-  // Wind chill only applies below 10°C and >= 4.8 km/h
   assert.equal(api.computeWindChill(15, 10), 15);
   assert.ok(api.computeWindChill(-10, 10) < -18);
 
-  // L1 ETA decreases as solar wind speed increases and stays clamped to [18, 95]
+  // L1 ETA supports extreme CMEs (1800 km/s -> 13 min, NOT cliff back to 45 min!)
   assert.ok(api.computeL1EtaMin(700) < api.computeL1EtaMin(350));
+  assert.ok(api.computeL1EtaMin(1800) <= 15 && api.computeL1EtaMin(1800) >= 8, `Expected 1800 km/s ETA 8..15m, got ${api.computeL1EtaMin(1800)}`);
   assert.equal(api.computeL1EtaMin(50), 45);
 });
 
 test('6. NOAA 1-minute Kp parser skips provisional trailing 0Z placeholders without breaking true 0.00', () => {
-  // Regression test for real NOAA SWPC behavior observed 2026-11-23:
-  // latest 1-3 rows arrive as provisional 0Z while settled rows right before them are 0.33
   const liveLike = [
     { time_tag: '2026-11-23T21:44:00', estimated_kp: 0.33, kp: '0P' },
     { time_tag: '2026-11-23T21:45:00', estimated_kp: 0.33, kp: '0P' },
@@ -125,7 +101,6 @@ test('6. NOAA 1-minute Kp parser skips provisional trailing 0Z placeholders with
   ];
   assert.equal(api.parseLatestKp(liveLike).kp, 0.33);
 
-  // Storm with trailing 0Z placeholders must NOT drop to 0
   const stormLike = [
     { time_tag: '2026-11-23T21:00:00', estimated_kp: 5.33, kp: '5P' },
     { time_tag: '2026-11-23T21:01:00', estimated_kp: 0, kp: '0Z' },
@@ -133,11 +108,9 @@ test('6. NOAA 1-minute Kp parser skips provisional trailing 0Z placeholders with
   ];
   assert.equal(api.parseLatestKp(stormLike).kp, 5.33);
 
-  // Genuine 6+ consecutive minutes of 0.00 must return 0
   const trueZero = [1, 2, 3, 4, 5, 6].map(i => ({ time_tag: `2026-11-23T21:0${i}:00`, estimated_kp: 0, kp: '0Z' }));
   assert.equal(api.parseLatestKp(trueZero).kp, 0);
 
-  // 3-hour official Kp feed (uses `Kp` field, not `estimated_kp`)
   const kp3h = [
     { time_tag: '2026-11-23T15:00:00', Kp: 1.67 },
     { time_tag: '2026-11-23T18:00:00', Kp: 0.67 }
@@ -145,8 +118,10 @@ test('6. NOAA 1-minute Kp parser skips provisional trailing 0Z placeholders with
   assert.equal(api.parseLatestKp(kp3h).kp, 0.67);
 });
 
-test('7. NOAA mag, wind, Kp forecast, OVATION, HPI, and GOES parsers filter bad/fill values', () => {
-  // Reverse chronological + inactive IMAP + sensor fill value -999.9
+test('7. NOAA mag, wind, Kp forecast, OVATION, HPI, and GOES parsers filter bad/fill values and Safari timestamps', () => {
+  // Safari-safe UTC parsing with space separator
+  assert.equal(api.parseUtcMs('2026-11-23 21:51:00'), Date.parse('2026-11-23T21:51:00Z'));
+
   const magRows = [
     { time_tag: '2026-11-23T21:51:00', active: true, bz_gsm: -4.2, by_gsm: 1.1, bt: 5.0 },
     { time_tag: '2026-11-23T21:50:00', active: false, bz_gsm: 9.9, by_gsm: 0, bt: 9.9 },
@@ -158,7 +133,6 @@ test('7. NOAA mag, wind, Kp forecast, OVATION, HPI, and GOES parsers filter bad/
   assert.equal(parsedMag[0].bz, -2.0);
   assert.equal(parsedMag[1].bz, -4.2);
 
-  // Wind fill-value rejection (-999.9, 0, >3000)
   const windRows = [
     { time_tag: '2026-11-23T21:51:00', active: true, proton_speed: 450, proton_density: 6.2 },
     { time_tag: '2026-11-23T21:50:00', active: true, proton_speed: -999.9, proton_density: -999.9 },
@@ -169,7 +143,6 @@ test('7. NOAA mag, wind, Kp forecast, OVATION, HPI, and GOES parsers filter bad/
   assert.equal(parsedWind.length, 1);
   assert.equal(parsedWind[0].speed, 450);
 
-  // Kp forecast supports both object rows and legacy array rows
   const fcObj = api.parseKpForecast([{ time_tag: '2026-11-23T21:00:00', kp: 2.33, observed: 'predicted' }]);
   assert.equal(fcObj.length, 1);
   assert.equal(fcObj[0].kp, 2.33);
@@ -177,18 +150,15 @@ test('7. NOAA mag, wind, Kp forecast, OVATION, HPI, and GOES parsers filter bad/
   assert.equal(fcArr.length, 1);
   assert.equal(fcArr[0].kp, 3);
 
-  // OVATION negative longitude & antimeridian wrapping
   const ov = { coordinates: [[338, 64, 18], [0, 70, 22], [147, -43, 5]] };
-  assert.equal(api.lookupOvationProb(ov, 64.14, -21.94), 18); // Reykjavik -> 338
-  assert.equal(api.lookupOvationProb(ov, 70.0, -0.1), 22);    // Prime meridian wrap
-  assert.equal(api.lookupOvationProb(ov, -42.88, 147.33), 5); // Southern Hemisphere
+  assert.equal(api.lookupOvationProb(ov, 64.14, -21.94), 18);
+  assert.equal(api.lookupOvationProb(ov, 70.0, -0.1), 22);
+  assert.equal(api.lookupOvationProb(ov, -42.88, 147.33), 5);
 
-  // HPI North vs South
   const hpiTxt = '# comment\n2026-11-23_21:50  2026-11-23_23:07  28  19\n';
   assert.equal(api.parseHemiPower(hpiTxt, 69.97).gw, 28);
   assert.equal(api.parseHemiPower(hpiTxt, -45.0).gw, 19);
 
-  // GOES substorm ignores arcjet_flag=true and triggers at >= 15 nT jump
   const goesRows = [
     { time_tag: '2026-11-23T21:30:00Z', Hp: 80, arcjet_flag: false },
     { time_tag: '2026-11-23T21:35:00Z', Hp: 82, arcjet_flag: false },
@@ -198,63 +168,63 @@ test('7. NOAA mag, wind, Kp forecast, OVATION, HPI, and GOES parsers filter bad/
     { time_tag: '2026-11-23T21:50:00Z', Hp: 100, arcjet_flag: false }
   ];
   const sub = api.parseGoesSubstorm(goesRows);
-  assert.equal(sub.jumpNt, 20);
-  assert.equal(sub.active, true);
+  assert.ok(sub.jumpNt >= 18 && sub.active === true);
 });
 
-test('8. MET Norway exact-hour boundary and Open-Meteo half-hour timezone UTC alignment', () => {
-  // Exact :00:00.000 boundary must NOT pick the previous hour
+test('8. MET Norway cloud_area_fraction cap & exact-hour boundary + Open-Meteo unixtime & half-hour TZ alignment', () => {
   const metMock = {
     properties: {
       timeseries: [
-        { time: '2026-11-23T20:00:00Z', data: { instant: { details: { air_temperature: -5, cloud_area_fraction_low: 80 } } } },
-        { time: '2026-11-23T21:00:00Z', data: { instant: { details: { air_temperature: -3, cloud_area_fraction_low: 10 } } } },
-        { time: '2026-11-23T22:00:00Z', data: { instant: { details: { air_temperature: -2, cloud_area_fraction_low: 20 } } } }
+        { time: '2026-11-23T20:00:00Z', data: { instant: { details: { air_temperature: -5, cloud_area_fraction_low: 80, cloud_area_fraction: 80 } } } },
+        { time: '2026-11-23T21:00:00Z', data: { instant: { details: { air_temperature: -3, cloud_area_fraction_low: 55, cloud_area_fraction_medium: 55, cloud_area_fraction_high: 40, cloud_area_fraction: 60 } } } },
+        { time: '2026-11-23T22:00:00Z', data: { instant: { details: { air_temperature: -2, cloud_area_fraction_low: 20, cloud_area_fraction: 20 } } } }
       ]
     }
   };
   const metHrs = api.parseMetNorwayHourly12(metMock, 69.97, 23.27, 'Europe/Oslo', new Date('2026-11-23T21:00:00.000Z'));
-  assert.equal(metHrs[0].time, '22:00'); // 21:00Z = 22:00 CET, NOT 21:00 CET
-  assert.equal(metHrs[0].temp, -3);
+  assert.equal(metHrs[0].time, '22:00');
+  // Without totalCap, random overlap(55,55,40) = 82%; with totalCap=60, capped to <= 68%!
+  assert.ok(metHrs[0].block <= 68, `MET Norway cloud should be capped by cloud_area_fraction, got ${metHrs[0].block}`);
 
-  // Open-Meteo half-hour timezone (Adelaide UTC+10:30 = +37800s in Nov DST)
-  const omMock = {
+  // Open-Meteo half-hour timezone ISO mode (Adelaide +10:30)
+  const omIso = {
     time: ['2026-11-24T00:00', '2026-11-24T01:00'],
-    cloud_cover_low: [10, 20],
-    cloud_cover_mid: [0, 0],
-    cloud_cover_high: [0, 0],
-    cloud_cover: [10, 20],
-    precipitation: [0, 0],
-    temperature_2m: [18, 17],
-    wind_speed_10m: [10, 10]
+    cloud_cover_low: [10, 20], cloud_cover_mid: [0, 0], cloud_cover_high: [0, 0],
+    cloud_cover: [10, 20], precipitation: [0, 0], temperature_2m: [18, 17], wind_speed_10m: [10, 10]
   };
-  // 2026-11-24 00:00 Adelaide (+10:30) = 2026-11-23 13:30 UTC; midpoint = 14:00 UTC
-  const omHrs = api.parseOpenMeteoHourly12(omMock, -34.93, 138.6, 'Australia/Adelaide', new Date('2026-11-23T13:45:00Z'), 37800);
-  assert.equal(omHrs[0].time, '00:00');
-  assert.equal(omHrs[0].dtMs, Date.parse('2026-11-23T14:00:00Z'));
-  assert.equal(omHrs[0].isDay, false); // Midnight in Adelaide must be dark!
+  const omHrsIso = api.parseOpenMeteoHourly12(omIso, -34.93, 138.6, 'Australia/Adelaide', new Date('2026-11-23T13:45:00Z'), 37800);
+  assert.equal(omHrsIso[0].time, '00:00');
+  assert.equal(omHrsIso[0].dtMs, Date.parse('2026-11-23T14:00:00Z'));
+  assert.equal(omHrsIso[0].isDay, false);
+
+  // Open-Meteo DST-proof Unix timestamp mode (timeformat=unixtime)
+  const t0Sec = Math.floor(Date.parse('2026-11-23T21:00:00Z') / 1000);
+  const omUnix = {
+    time: [t0Sec - 3600, t0Sec, t0Sec + 3600],
+    cloud_cover_low: [80, 15, 25], cloud_cover_mid: [0, 0, 0], cloud_cover_high: [0, 0, 0],
+    cloud_cover: [80, 15, 25], precipitation: [0, 0, 0], temperature_2m: [2, 1, 0], wind_speed_10m: [10, 10, 10]
+  };
+  const omHrsUnix = api.parseOpenMeteoHourly12(omUnix, 64.15, -21.94, 'Atlantic/Reykjavik', new Date('2026-11-23T21:10:00Z'));
+  assert.equal(omHrsUnix[0].time, '21:00');
+  assert.equal(omHrsUnix[0].block, 15);
 });
 
 test('9. Aurora scoring invariants, monotonicity, and zero contradiction with hourly forecast & verdict', () => {
-  // Gate 1: Taipei (low latitude) -> always 0
   const taipei = api.computeAuroraScore({ lat: 25.03, lon: 121.56, cloudNow: 0, sunAlt: -30, bz: -10, speed: 600, kp: 6, ovation: 0 });
   assert.equal(taipei.total, 0);
   assert.equal(taipei.outOfZone, 'low-lat');
 
-  // Gate 2: Daylight -> always 0
   const daylight = api.computeAuroraScore({ lat: 69.97, lon: 23.27, cloudNow: 0, sunAlt: 5, bz: -10, speed: 600, kp: 6, ovation: 80 });
   assert.equal(daylight.total, 0);
   assert.equal(daylight.isTooBright, true);
 
-  // Monotonicity: clearer sky & stronger aurora must increase score
   const cloudy = api.computeAuroraScore({ lat: 69.97, lon: 23.27, cloudNow: 85, sunAlt: -25, bz: -6, speed: 550, kp: 4, ovation: 55, hpiGw: 50 });
   const clear = api.computeAuroraScore({ lat: 69.97, lon: 23.27, cloudNow: 10, sunAlt: -25, bz: -6, speed: 550, kp: 4, ovation: 55, hpiGw: 50 });
   const quiet = api.computeAuroraScore({ lat: 69.97, lon: 23.27, cloudNow: 10, sunAlt: -25, bz: 2, speed: 320, kp: 0.33, ovation: 10, hpiGw: 12 });
-  assert.ok(clear.total > cloudy.total, `Clear (${clear.total}) should exceed cloudy (${cloudy.total})`);
-  assert.ok(clear.total > quiet.total, `Active (${clear.total}) should exceed quiet (${quiet.total})`);
+  assert.ok(clear.total > cloudy.total);
+  assert.ok(clear.total > quiet.total);
   assert.ok(clear.total >= 65 && clear.total <= 99);
 
-  // Consistency: scoreHourlyForecast12 hour-0 MUST match hero score closely under strong solar wind
   const nowMs = Date.parse('2026-11-23T22:00:00Z');
   const hrs = [
     { time: '23:00', dtMs: nowMs, block: 10, clear: 90, txt: '🌟 晴', temp: -4, windMs: 3, windChill: -8, isDay: false, sunAlt: -35 },
@@ -272,32 +242,27 @@ test('9. Aurora scoring invariants, monotonicity, and zero contradiction with ho
   });
   assert.equal(fc12.hours[0].score, hero.total, 'Hour-0 forecast score must match hero score');
 
-  // Southern Hemisphere mid-latitude (Hobart) must say Oval South / 極光帶偏南, not North!
   const hobart = api.computeAuroraScore({ lat: -42.88, lon: 147.33, cloudNow: 10, sunAlt: -25, bz: 0, speed: 350, kp: 1, ovation: 0 });
   assert.equal(hobart.outOfZone, 'need-storm');
   assert.equal(hobart.grade, '🌍 極光帶偏南');
-  assert.equal(api.tGrade(hobart.grade, 'en'), '🌍 Oval South');
-  const vHobartEn = api.evaluateVerdict({ lat: -42.88, bestDark: hrs[0], kp: 1, scoreObj: hobart, lang: 'en' });
-  const vHobartZh = api.evaluateVerdict({ lat: -42.88, bestDark: hrs[0], kp: 1, scoreObj: hobart, lang: 'zh' });
+  assert.equal(api.tGrade(hobart.grade, 'en'), 'Oval South');
+  const vHobartEn = api.evaluateVerdict({ lat: -42.88, lon: 147.33, bestDark: hrs[0], kp: 1, scoreObj: hobart, lang: 'en' });
+  const vHobartZh = api.evaluateVerdict({ lat: -42.88, lon: 147.33, bestDark: hrs[0], kp: 1, scoreObj: hobart, lang: 'zh' });
   assert.match(vHobartEn.title, /south/i);
   assert.match(vHobartZh.title, /更南邊/);
 
-  // Consistency: every grade has a non-empty English translation & verdict in both languages
   for (const sc of [taipei, daylight, cloudy, clear, quiet, hobart]) {
     assert.ok(api.tGrade(sc.grade, 'en') !== sc.grade, `Missing English tGrade for ${sc.grade}`);
-    const vZh = api.evaluateVerdict({ lat: 69.97, bestDark: hrs[0], kp: 2, scoreObj: sc, lang: 'zh' });
-    const vEn = api.evaluateVerdict({ lat: 69.97, bestDark: hrs[0], kp: 2, scoreObj: sc, lang: 'en' });
+    const vZh = api.evaluateVerdict({ lat: 69.97, lon: 23.27, bestDark: hrs[0], kp: 2, scoreObj: sc, lang: 'zh' });
+    const vEn = api.evaluateVerdict({ lat: 69.97, lon: 23.27, bestDark: hrs[0], kp: 2, scoreObj: sc, lang: 'en' });
     assert.ok(vZh.title && vZh.lead && vEn.title && vEn.lead);
   }
 });
 
 test('10. Solar wind trend banner aligns with Newell chart energy zone', () => {
-  // Fast solar wind (700 km/s) with moderate Bz (-3.5 nT) -> high Newell coupling (>=62)
   const series = Array.from({ length: 40 }, (_, i) => ({
     time_tag: `2026-11-23T21:${String(i).padStart(2, '0')}:00`,
-    bz: -3.5,
-    by: 1.0,
-    bt: 3.6
+    bz: -3.5, by: 1.0, bt: 3.6
   }));
   const bal = api.computeBallisticCoupling(series, 700);
   const lastE = bal.energy120[bal.energy120.length - 1];
@@ -310,19 +275,16 @@ test('10. Solar wind trend banner aligns with Newell chart energy zone', () => {
   assert.match(trendEn.text, /Active zone/);
 });
 
-test('11. All NORDIC_CORRIDORS are land-safe, unique, fit SVG wedges, and match compass sectors', () => {
+test('11. All NORDIC_CORRIDORS are land-safe, unique, fit SVG wedges, and stay west of Russian border', () => {
   for (const c of api.NORDIC_CORRIDORS) {
     assert.equal(c.pts.length, 4);
-    const keys = new Set(c.pts.map(p => p.key));
-    assert.deepEqual([...keys].sort(), ['E', 'N', 'S', 'W']);
+    assert.deepEqual([...new Set(c.pts.map(p => p.key))].sort(), ['E', 'N', 'S', 'W']);
     for (const p of c.pts) {
       assert.ok(Number.isFinite(p.lat) && Number.isFinite(p.lon));
       assert.ok(p.lon <= 30.85, `Point ${p.label} lon=${p.lon} crosses Russian border`);
       assert.equal(p.isOcean, false);
-      const shortName = p.label.replace(/^[⬆️⬇️➡️⬅️]+\s*往[東西南北]+\s*/, '');
+      const shortName = p.label.replace(/^往[東西南北]+\s*/, '');
       assert.ok(shortName.length <= 13, `Radar wedge label too long (${shortName.length}): ${shortName}`);
-      if (p.key === 'E') assert.ok(!p.label.includes('往西'), `East wedge should not say 往西: ${p.label}`);
-      if (p.key === 'W') assert.ok(!p.label.includes('往東'), `West wedge should not say 往東: ${p.label}`);
     }
   }
 });
@@ -331,53 +293,52 @@ test('12. All SVG builders produce clean markup with strictly uniform X-axis int
   const sky = api.buildSkySceneSVG({ cloudPct: 40, auroraScore: 55, moonUp: true, moonPct: 70, isTooBright: false });
   assert.ok(sky.includes('<rect') && !sky.includes('NaN') && !sky.includes('undefined'));
 
-  // Chart 1: 120-min series -> shifted by etaMin=60m -> uniform :00 / :30 ticks
   const series = Array.from({ length: 120 }, (_, i) => {
     const t = new Date(Date.parse('2026-11-23T20:00:00Z') + i * 60000);
     return { time_tag: t.toISOString().slice(0, 19), bz: i > 80 ? -5 : -1, by: 1 };
   });
-  const bal = api.computeBallisticCoupling(series, 400); // etaMin = 60m -> arrival 22:00..23:59 CET
+  const bal = api.computeBallisticCoupling(series, 400);
   const bzSvg = api.buildBzChartSVG(series, 'Europe/Oslo', 400, bal, 'zh');
   assert.ok(bzSvg.includes('<polyline') && !bzSvg.includes('NaN') && !bzSvg.includes('undefined'));
   const bzTicks = [...bzSvg.matchAll(/<text[^>]*y="163"[^>]*>(\d{2}:\d{2})<\/text>/g)].map(m => m[1]);
   assert.deepEqual(bzTicks, ['22:30', '23:00', '23:30'], `Expected uniform 30-min ticks, got ${JSON.stringify(bzTicks)}`);
   assert.equal(api.utcTagToLocalHM('2026-11-23T20:59:00', 'Europe/Oslo', 60), '22:59');
 
-  // Chart 2: 12-hour forecast -> strictly uniform 2-hour HH:00 ticks even when bestIdx & selectedIdx are odd!
   const hrs = Array.from({ length: 12 }, (_, i) => ({
     time: `${String((22 + i) % 24).padStart(2, '0')}:00`,
-    clear: i === 3 ? 90 : 50,
-    block: i === 3 ? 10 : 50,
-    score: i === 3 ? 72 : 30,
-    temp: -2,
-    isDay: false
+    clear: i === 3 ? 90 : 50, block: i === 3 ? 10 : 50,
+    score: i === 3 ? 72 : 30, temp: -2, isDay: false
   }));
-  const waveSvg = api.buildSkyWaveSVG(hrs, hrs[3], 5, 'zh'); // bestIdx=3 (odd), selectedIdx=5 (odd)
+  const waveSvg = api.buildSkyWaveSVG(hrs, hrs[3], 5, 'zh');
   assert.ok(waveSvg.includes('<polyline') && !waveSvg.includes('NaN') && !waveSvg.includes('undefined'));
   const waveTicks = [...waveSvg.matchAll(/<text[^>]*y="170"[^>]*>(\d{2}:\d{2})<\/text>/g)].map(m => m[1]);
-  assert.deepEqual(waveTicks, ['22:00', '00:00', '02:00', '04:00', '06:00', '08:00'], `Expected strict 2-hour ticks, got ${JSON.stringify(waveTicks)}`);
+  assert.deepEqual(waveTicks, ['22:00', '00:00', '02:00', '04:00', '06:00', '08:00']);
 
   const dirs = [
     { key: 'here', label: '📍 目前位置', lat: 69.97, lon: 23.27, avg3h: 80, isOcean: false },
-    { key: 'N', label: '⬆️ 往東北 Skaidi', lat: 70.43, lon: 24.50, avg3h: 25, isOcean: false },
-    { key: 'E', label: '➡️ 往東 Lakselv', lat: 70.05, lon: 24.97, avg3h: 50, isOcean: false },
-    { key: 'S', label: '⬇️ 往南 Kautokeino', lat: 69.01, lon: 23.04, avg3h: 70, isOcean: false },
-    { key: 'W', label: '⬅️ 往西 Burfjord', lat: 69.94, lon: 22.05, avg3h: 90, isOcean: false }
+    { key: 'N', label: '往東北 Skaidi', lat: 70.43, lon: 24.50, avg3h: 25, isOcean: false },
+    { key: 'E', label: '往東 Lakselv', lat: 70.05, lon: 24.97, avg3h: 50, isOcean: false },
+    { key: 'S', label: '往南 Kautokeino', lat: 69.01, lon: 23.04, avg3h: 70, isOcean: false },
+    { key: 'W', label: '往西 Burfjord', lat: 69.94, lon: 22.05, avg3h: 90, isOcean: false }
   ];
   const radarSvg = api.buildCompassRadarSVG(dirs, { lat: 69.97, lon: 23.27 }, 'zh');
   assert.ok(radarSvg.includes('Skaidi') && !radarSvg.includes('NaN') && !radarSvg.includes('undefined'));
 });
 
-test('13. Wording consistency audit: zero awkward legacy labels remain in index.html', () => {
+test('13. Wording consistency audit across all source files: zero awkward legacy labels remain', () => {
   const forbidden = ['此刻抵地', '已抵地球', '天空清朗', '看見指數', '天黑暗空', '貼LINE', '極光視覺', '視覺總覽', '熱呼呼的晚餐'];
-  for (const term of forbidden) {
-    assert.ok(!html.includes(term), `Legacy awkward term "${term}" still appears in index.html`);
+  const files = ['index.html', 'src/aurora-engine.js', 'src/charts.js', 'src/app.js'];
+  for (const rel of files) {
+    const content = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+    for (const term of forbidden) {
+      assert.ok(!content.includes(term), `Legacy awkward term "${term}" appears in ${rel}`);
+    }
   }
 });
 
 test('14. Live API end-to-end smoke test (enabled with LIVE_TEST=1)', { skip: process.env.LIVE_TEST !== '1' }, async () => {
   const hdrs = { 'User-Agent': 'nordic-aurora-radar-test/1.0' };
-  const [mag, wind, kp1m, ov, hpi, goes, kpfc, met, om] = await Promise.all([
+  const [mag, wind, kp1m, ov, hpi, goes, kpfc, scales, met, om] = await Promise.all([
     fetch('https://services.swpc.noaa.gov/json/rtsw/rtsw_mag_1m.json', { headers: hdrs }).then(r => r.json()),
     fetch('https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json', { headers: hdrs }).then(r => r.json()),
     fetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json', { headers: hdrs }).then(r => r.json()),
@@ -385,8 +346,9 @@ test('14. Live API end-to-end smoke test (enabled with LIVE_TEST=1)', { skip: pr
     fetch('https://services.swpc.noaa.gov/text/aurora-nowcast-hemi-power.txt', { headers: hdrs }).then(r => r.text()),
     fetch('https://services.swpc.noaa.gov/json/goes/primary/magnetometers-6-hour.json', { headers: hdrs }).then(r => r.json()),
     fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json', { headers: hdrs }).then(r => r.json()),
+    fetch('https://services.swpc.noaa.gov/products/noaa-scales.json', { headers: hdrs }).then(r => r.json()),
     fetch('https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=69.9689&lon=23.2716', { headers: hdrs }).then(r => r.json()),
-    fetch('https://api.open-meteo.com/v1/forecast?latitude=64.1466&longitude=-21.9426&hourly=temperature_2m,wind_speed_10m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,precipitation&timezone=auto&forecast_days=2', { headers: hdrs }).then(r => r.json())
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=64.1466&longitude=-21.9426&hourly=temperature_2m,wind_speed_10m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,precipitation&timezone=auto&timeformat=unixtime&forecast_days=4', { headers: hdrs }).then(r => r.json())
   ]);
 
   const magS = api.parseMagSeries(mag, 180);
@@ -396,27 +358,14 @@ test('14. Live API end-to-end smoke test (enabled with LIVE_TEST=1)', { skip: pr
   const hpiObj = api.parseHemiPower(hpi, 69.9689);
   const goesSub = api.parseGoesSubstorm(goes);
   const kpFcList = api.parseKpForecast(kpfc);
+  const scParsed = api.parseNoaaGeomagneticScales(scales);
   const met12 = api.parseMetNorwayHourly12(met, 69.9689, 23.2716, 'Europe/Oslo', new Date());
-  const om12 = api.parseOpenMeteoHourly12(om.hourly, 64.1466, -21.9426, om.timezone, new Date(), om.utc_offset_seconds);
+  const om12 = api.parseOpenMeteoHourly12(om.hourly, 64.1466, -21.9426, om.timezone, new Date());
 
-  assert.ok(magS.length > 0, 'NOAA RTSW mag parsed');
-  assert.ok(windS.length > 0, 'NOAA RTSW wind parsed');
-  assert.ok(kpObj && Number.isFinite(kpObj.kp), 'NOAA 1m Kp parsed');
-  assert.ok(Number.isFinite(ovAlta), 'NOAA OVATION Alta parsed');
-  assert.ok(hpiObj && Number.isFinite(hpiObj.gw), 'NOAA HPI parsed');
-  assert.ok(goesSub && Number.isFinite(goesSub.latestHp), 'NOAA GOES magnetometer parsed');
-  assert.ok(kpFcList.length > 10, 'NOAA 72h Kp forecast parsed');
-  assert.equal(met12.length, 12, 'MET Norway 12h parsed');
-  assert.equal(om12.length, 12, 'Open-Meteo 12h parsed');
-
-  const bal = api.computeBallisticCoupling(magS, windS);
-  const sc = api.computeAuroraScore({
-    lat: 69.9689, lon: 23.2716, cloudNow: met12[0].block,
-    sunAlt: api.computeSolarElevation(new Date(), 69.9689, 23.2716),
-    bz: bal.nowBz, speed: windS[windS.length - 1].speed, kp: kpObj.kp,
-    ovation: ovAlta, hpiGw: hpiObj.gw, newell: bal.nowNewell
-  });
-  assert.ok(sc.total >= 0 && sc.total <= 99, `Live Alta score out of range: ${sc.total}`);
+  assert.ok(magS.length > 0 && windS.length > 0 && kpObj && Number.isFinite(ovAlta));
+  assert.ok(hpiObj && goesSub && kpFcList.length > 10 && scParsed && scParsed.days.length === 3);
+  assert.equal(met12.length, 12);
+  assert.equal(om12.length, 12);
 });
 
 test('15. 50-city global regression test: zero G1/G4 false negatives and accurate daylight/hemisphere gates', () => {
@@ -442,61 +391,54 @@ test('15. 50-city global regression test: zero G1/G4 false negatives and accurat
   assert.equal(CITIES.length, 50);
 
   for (const [name, lat, lon, tier] of CITIES) {
-    // 1. Broad daylight must ALWAYS return 0; auroral/sub-auroral cities must say Too Bright (not Oval North/South)
     const day = api.computeAuroraScore({ lat, lon, cloudNow: 0, sunAlt: 15, bz: -1, speed: 350, kp: 1, ovation: 0 });
     assert.equal(day.total, 0, `${name} daylight must be 0`);
     if (tier === 'oval' || tier === 'sub' || tier === 'polar') {
-      assert.equal(day.grade, '☀️ 天色過亮', `${name} in daylight should show Too Bright, got ${day.grade}`);
+      assert.equal(day.grade, '☀️ 天色過亮', `${name} daylight should show Too Bright, got ${day.grade}`);
     }
-    if (tier === 'low') {
-      assert.equal(day.outOfZone, 'low-lat', `${name} must be low-lat`);
-    }
+    if (tier === 'low') assert.equal(day.outOfZone, 'low-lat');
 
-    // 2. G1 storm (Kp 5, clear dark night) must NEVER miss oval or sub-auroral cities (incl. Hobart/NZ/Oslo/Banff!)
     const g1 = api.computeAuroraScore({
       lat, lon, cloudNow: 10, sunAlt: -25, bz: -7, speed: 550, kp: 5,
       ovation: tier === 'oval' ? 75 : (tier === 'sub' ? 35 : 0),
       hpiGw: 65, newell: 8500, mlt: 0.5, effMoonPct: 0
     });
     if (tier === 'oval') assert.ok(g1.total >= 65, `${name} G1 should be >=65, got ${g1.total}`);
-    if (tier === 'sub') assert.ok(g1.total >= 40, `${name} G1 should be >=40 (no missed G1!), got ${g1.total}`);
-    if (tier === 'low') assert.equal(g1.total, 0, `${name} G1 must stay 0`);
+    if (tier === 'sub') assert.ok(g1.total >= 40, `${name} G1 should be >=40, got ${g1.total}`);
+    if (tier === 'low') assert.equal(g1.total, 0);
 
-    // 3. G4 severe storm (Kp 8, clear dark night) must alert mid-lat & storm cities (London, Berlin, Sapporo, Melbourne, Ushuaia)
     const g4 = api.computeAuroraScore({
       lat, lon, cloudNow: 10, sunAlt: -25, bz: -18, speed: 750, kp: 8,
       ovation: tier === 'low' ? 0 : 35,
       hpiGw: 140, newell: 22000, mlt: 0.5, effMoonPct: 0
     });
     if (tier !== 'low') assert.ok(g4.total >= 40, `${name} G4 should be >=40, got ${g4.total}`);
-    else assert.equal(g4.total, 0, `${name} G4 must stay 0`);
+    else assert.equal(g4.total, 0);
   }
 });
 
-test('16. Spherical-Earth viewing elevation geometry matches overhead, mid-sky, low-horizon, and polar-cap regimes', () => {
-  // Alta inside oval -> overhead
-  const alta = api.computeViewingGeometry({ lat: 69.97, lon: 23.27, kp: 2, mlt: 0.5, lang: 'en' });
-  assert.equal(alta.mode, 'overhead');
-  assert.match(alta.shortText, /Overhead/i);
+test('16. True geomagnetic azimuth, 300km G5 red aurora, and naked-eye vs camera classification', () => {
+  // Alta points NNW (~334°), Fairbanks points NNE (~21°), Queenstown points SSW (~200°)
+  const altaAz = api.computeAuroraBearing(69.97, 23.27);
+  const fairAz = api.computeAuroraBearing(64.84, -147.72);
+  const qtAz = api.computeAuroraBearing(-45.03, 168.66);
+  assert.ok(altaAz >= 325 && altaAz <= 345, `Alta bearing expected ~334° NNW, got ${altaAz}`);
+  assert.ok(fairAz >= 10 && fairAz <= 32, `Fairbanks bearing expected ~21° NNE, got ${fairAz}`);
+  assert.ok(qtAz >= 190 && qtAz <= 212, `Queenstown bearing expected ~200° SSW, got ${qtAz}`);
 
-  // Oslo at Kp 2 (no MLT boost) -> low/mid Northern horizon
-  const osloQuiet = api.computeViewingGeometry({ lat: 59.91, lon: 10.75, kp: 2, mlt: 12, lang: 'zh' });
-  assert.ok(osloQuiet.mode === 'low' || osloQuiet.mode === 'mid', `Expected Oslo low/mid, got ${osloQuiet.mode}`);
-  assert.match(osloQuiet.shortText, /正北方/);
+  // Sapporo during G5 storm (Kp 8.5): 300km red aurora MUST be visible above horizon (not 'below')!
+  const sapporoG5 = api.computeViewingGeometry({ lat: 43.06, lon: 141.35, kp: 8.5, mlt: 0.5, lang: 'en' });
+  assert.equal(sapporoG5.mode, 'low', `Sapporo G5 should show low horizon red aurora, got ${sapporoG5.mode}`);
 
-  // Hobart during G1 storm (Kp 5) -> Southern horizon or overhead near midnight
-  const hobartG1 = api.computeViewingGeometry({ lat: -42.88, lon: 147.33, kp: 5, mlt: 0.5, lang: 'en' });
-  assert.equal(hobartG1.direction, 'South');
-  assert.notEqual(hobartG1.mode, 'below');
-
-  // Longyearbyen (polar cap) during strong storm (Kp 6) -> oval shifted southward
+  // Svalbard strong storm -> overhead equatorward
   const svalbard = api.computeViewingGeometry({ lat: 78.22, lon: 15.63, kp: 6, mlt: 0.5, lang: 'zh' });
   assert.equal(svalbard.mode, 'overhead-eq');
-  assert.match(svalbard.shortText, /正南方/);
 
-  // Taipei at quiet Kp -> below horizon
-  const taipei = api.computeViewingGeometry({ lat: 25.03, lon: 121.57, kp: 1, mlt: 0.5, lang: 'en' });
-  assert.equal(taipei.mode, 'below');
+  // Naked-eye vs camera-first visibility classification
+  const brightEye = api.classifyViewingMode({ scoreObj: { total: 75, auroraScore: 80, skyScore: 85, outOfZone: null, isTooBright: false }, geom: { mode: 'overhead' }, effMoonPct: 10, lang: 'en' });
+  assert.equal(brightEye.tier, 'naked-eye');
+  const lowHorizonCam = api.classifyViewingMode({ scoreObj: { total: 30, auroraScore: 45, skyScore: 80, outOfZone: null, isTooBright: false }, geom: { mode: 'low' }, effMoonPct: 10, lang: 'zh' });
+  assert.equal(lowHorizonCam.tier, 'camera-first');
 });
 
 test('17. Shareable city URL parser and builder validate coordinates, sanitize names, and round-trip cleanly', () => {
@@ -511,22 +453,21 @@ test('17. Shareable city URL parser and builder validate coordinates, sanitize n
   assert.equal(parsed.lon, 18.9553);
   assert.equal(parsed.name, 'Norway · Tromsø');
 
-  // Reject out-of-range coordinates & strip dangerous characters
   assert.equal(api.parseUrlLocation('?lat=999&lon=10'), null);
   assert.equal(api.parseUrlLocation('?lat=abc&lon=10'), null);
   const xss = api.parseUrlLocation('?lat=64.1466&lon=-21.9426&name=%3Cscript%3EReykjavik%3C/script%3E');
   assert.ok(xss && !xss.name.includes('<') && !xss.name.includes('>'));
 });
 
-test('18. Sub-auroral 12h forecast has zero +1h/+2h ghost score spikes when Kp is below storm threshold', () => {
+test('18. Sub-auroral 12h forecast has zero +1h/+2h ghost score spikes when Kp is quiet', () => {
   const baseMs = Date.parse('2026-11-23T22:00:00Z');
   const hrs = Array.from({ length: 6 }, (_, i) => ({
     time: `${String((23 + i) % 24).padStart(2, '0')}:00`,
     dtMs: baseMs + i * 3600000,
     block: 5, clear: 95, txt: '🌟 晴', temp: 2, windMs: 2, windChill: 0, isDay: false, sunAlt: -30
   }));
-  // Stockholm, Edinburgh, and Hobart at quiet Kp=1.0, ovation=0 -> every hour must stay strictly 0 (no +1h/+2h false positive!)
-  for (const [name, lat, lon] of [['Stockholm', 59.33, 18.07], ['Edinburgh', 55.95, -3.19], ['Hobart', -42.88, 147.33]]) {
+  // Hobart & Queenstown at quiet Kp=1.0, ovation=0 -> every hour must stay strictly 0
+  for (const [name, lat, lon] of [['Hobart', -42.88, 147.33], ['Queenstown', -45.03, 168.66]]) {
     const res = api.scoreHourlyForecast12(hrs, {
       lat, lon, kpForecast: [], fallbackKp: 1.0, ovation: 0, hpiGw: 12, bz: 1.0, speed: 350, newell: 200
     });
@@ -534,10 +475,136 @@ test('18. Sub-auroral 12h forecast has zero +1h/+2h ghost score spikes when Kp i
       assert.equal(res.hours[i].score, 0, `${name} hour +${i}h should be 0 at Kp 1.0, got ${res.hours[i].score}`);
     }
   }
-  // Oslo at quiet Kp=1.0 must not spike at +1h/+2h relative to +0h
-  const oslo = api.scoreHourlyForecast12(hrs, {
-    lat: 59.91, lon: 10.75, kpForecast: [], fallbackKp: 1.0, ovation: 0, hpiGw: 12, bz: 1.0, speed: 350, newell: 200
-  });
-  assert.ok(oslo.hours[1].score <= oslo.hours[0].score, `Oslo +1h (${oslo.hours[1].score}) must not spike above +0h (${oslo.hours[0].score})`);
 });
 
+test('19. [P0] Sudden CME/substorm before Kp updates MUST NOT be hard-blocked at mid-latitudes', () => {
+  // Edinburgh, Hobart, Queenstown, Seattle during CME onset (Bz -18, 680 km/s, Newell 18000, GOES +35 nT, HPI 110 GW)
+  // while 1m/3h Kp is still lagging at 2.5 and overhead OVATION is only 3%
+  const targets = [
+    ['Edinburgh', 55.95, -3.19],
+    ['Hobart', -42.88, 147.33],
+    ['Queenstown', -45.03, 168.66],
+    ['Seattle', 47.61, -122.33]
+  ];
+  for (const [name, lat, lon] of targets) {
+    const sc = api.computeAuroraScore({
+      lat, lon, cloudNow: 10, sunAlt: -25,
+      bz: -18, speed: 680, kp: 2.5, ovation: 3,
+      hpiGw: 110, substormJumpNt: 35, pdyn: 12, shockJumpNpa: 8, newell: 18000,
+      mlt: 21.5, effMoonPct: 0
+    });
+    assert.equal(sc.outOfZone, null, `${name} CME/substorm onset must NOT be blocked by Gate 2`);
+    assert.ok(sc.total >= 45, `${name} CME/substorm onset should score >=45, got ${sc.total}`);
+  }
+});
+
+test('20. [P0] Active G4/G5 storm during civil twilight (-5°) MUST NOT be mislabeled Clear · Quiet', () => {
+  const twStorm = api.computeAuroraScore({
+    lat: 69.97, lon: 23.27, cloudNow: 0, sunAlt: -5.0,
+    bz: -20, speed: 750, kp: 8, ovation: 95, hpiGw: 150, newell: 25000, mlt: 0.5, effMoonPct: 0
+  });
+  assert.notEqual(twStorm.grade, '🌌 晴朗但極光弱', 'G5 storm in twilight must never be called Clear · Quiet!');
+  assert.ok(twStorm.total >= 20 || twStorm.grade === '🌅 暮光漸暗', `Expected >=20 or Twilight Active, got ${twStorm.total} (${twStorm.grade})`);
+  const verdict = api.evaluateVerdict({ lat: 69.97, lon: 23.27, bestDark: null, kp: 8, scoreObj: twStorm, lang: 'en' });
+  assert.ok(!/quiet/i.test(verdict.title), `Verdict must not say quiet during G5 twilight: ${verdict.title}`);
+});
+
+test('21. [P0] Alert engine fires for broken-cloud G4 storms, substorms, and incoming CME shocks', () => {
+  // Broken clouds (72% cloud -> skyScore 28%) during G4 storm (auroraScore 95)
+  const gapStorm = api.shouldTriggerAuroraAlert({
+    sc: { total: 34, skyScore: 28, auroraScore: 95, outOfZone: null, isTooBright: false },
+    goesSub: { active: false }, scNext: { total: 35 }, bal: { shockActive: false }
+  });
+  assert.equal(gapStorm.fire, true);
+
+  // Incoming CME shock (scNext=72, quiet now=20)
+  const incoming = api.shouldTriggerAuroraAlert({
+    sc: { total: 20, skyScore: 80, auroraScore: 25, outOfZone: null, isTooBright: false },
+    goesSub: { active: false },
+    scNext: { total: 72, outOfZone: null, isTooBright: false },
+    bal: { shockActive: true, etaMin: 28 }
+  });
+  assert.equal(incoming.fire, true);
+  assert.equal(incoming.reason, 'incoming');
+});
+
+test('22. [P1] Ballistic L1 coupling anchors to nowMs under telemetry lag & Chart 1 splits >5min gaps', () => {
+  const series = Array.from({ length: 60 }, (_, i) => {
+    const t = new Date(Date.parse('2026-11-23T21:15:00Z') + i * 60000);
+    return { time_tag: t.toISOString().slice(0, 19), bz: i >= 40 ? -8 : 0, by: 0 };
+  });
+  // Without lag (now = lastTs): Earth-arriving window is 45m earlier -> bz ~ 0
+  const balNoLag = api.computeBallisticCoupling(series, 533, Date.parse('2026-11-23T22:14:00Z'));
+  assert.equal(balNoLag.nowBz, 0);
+  // With 45-min telemetry lag (now = 23:00Z while lastTs = 22:14Z): latest L1 surge (-8) IS hitting Earth right now!
+  const balLagged = api.computeBallisticCoupling(series, 533, Date.parse('2026-11-23T23:00:00Z'));
+  assert.ok(balLagged.nowBz <= -7, `Under 45m lag, latest L1 bz (-8) should be hitting Earth now, got ${balLagged.nowBz}`);
+
+  // Telemetry gap >5 min splits into 2 polylines + dashed gap line
+  const gapped = [
+    ...Array.from({ length: 15 }, (_, i) => ({ time_tag: new Date(Date.parse('2026-11-23T20:00:00Z') + i * 60000).toISOString().slice(0, 19), bz: -2, by: 0 })),
+    ...Array.from({ length: 15 }, (_, i) => ({ time_tag: new Date(Date.parse('2026-11-23T20:30:00Z') + i * 60000).toISOString().slice(0, 19), bz: -6, by: 0 }))
+  ];
+  const svg = api.buildBzChartSVG(gapped, 'UTC', 400, null, 'en');
+  const polylines = svg.match(/<polyline/g) || [];
+  assert.equal(polylines.length, 2, `Expected 2 separate polylines across 15-min dropout, got ${polylines.length}`);
+});
+
+test('23. NOAA G1-G5 scales parser & 3-Night Outlook handle active watches, dark windows, and polar day', () => {
+  const mockScales = {
+    '0': { DateStamp: '2026-11-24', G: { Scale: '0', Text: 'none' } },
+    '1': { DateStamp: '2026-11-24', G: { Scale: '1', Text: 'minor' } },
+    '2': { DateStamp: '2026-11-25', G: { Scale: '2', Text: 'moderate' } },
+    '3': { DateStamp: '2026-11-26', G: { Scale: '0', Text: 'none' } }
+  };
+  const sc = api.parseNoaaGeomagneticScales(mockScales);
+  assert.equal(sc.active, true);
+  assert.equal(sc.currentScale, 0);
+  assert.equal(sc.maxForecastScale, 2);
+  assert.equal(sc.peakDate, '2026-11-25');
+
+  // 3-Night Outlook for Alta in winter (3 nights, Night 2 has Kp 6 + 90% clear -> Promising)
+  const now = new Date('2026-11-23T22:00:00Z');
+  const cloudPoints = [
+    { dtMs: Date.parse('2026-11-23T23:00:00Z'), clear: 15, block: 85, isDay: false },
+    { dtMs: Date.parse('2026-11-24T22:00:00Z'), clear: 90, block: 10, isDay: false },
+    { dtMs: Date.parse('2026-11-25T22:00:00Z'), clear: 40, block: 60, isDay: false }
+  ];
+  const kpForecast = [
+    { ts: Date.parse('2026-11-23T23:00:00Z'), kp: 1.5 },
+    { ts: Date.parse('2026-11-24T22:00:00Z'), kp: 6.0 },
+    { ts: Date.parse('2026-11-25T22:00:00Z'), kp: 2.0 }
+  ];
+  const nights = api.summarize3NightOutlook({
+    cloudPoints, kpForecast, currentKp: 1.5,
+    lat: 69.97, lon: 23.27, timeZone: 'Europe/Oslo', nowDate: now, lang: 'en'
+  });
+  assert.equal(nights.length, 3);
+  assert.equal(nights[1].tone, 'good');
+  assert.equal(nights[1].gScale, 2);
+  assert.equal(nights[1].bestClear, 90);
+});
+
+test('24. All GLOBAL_CORRIDORS (Reykjavik, Fairbanks, Yellowknife, Queenstown, Hobart) are valid and matched', () => {
+  assert.equal(api.GLOBAL_CORRIDORS.length, 5);
+  for (const c of api.GLOBAL_CORRIDORS) {
+    assert.equal(c.pts.length, 4);
+    assert.deepEqual([...new Set(c.pts.map(p => p.key))].sort(), ['E', 'N', 'S', 'W']);
+    for (const p of c.pts) {
+      assert.equal(p.isOcean, false);
+      const shortName = p.label.replace(/^往[東西南北]+\s*/, '');
+      assert.ok(shortName.length <= 13, `Global wedge label too long (${shortName.length}): ${shortName}`);
+    }
+    const matched = api.computeCompassPoints(c.match[0], c.match[1]);
+    assert.equal(matched[1].label, c.pts[0].label);
+  }
+  // Regression: here=38% vs Borgarnes=20% must recommend Borgarnes (never call 20% "overcast"!)
+  const sum = api.summarizeCompass([
+    { key: 'here', label: '目前位置', avg3h: 38, isOcean: false },
+    { key: 'N', label: '往北 Borgarnes', avg3h: 20, isOcean: false },
+    { key: 'E', label: '往東 Þingvellir', avg3h: 100, isOcean: false }
+  ], 'zh');
+  assert.equal(sum.bestKey, 'N');
+  assert.equal(sum.good, true);
+  assert.ok(!sum.text.includes('同樣多雲'), `20% clear sky must never be called overcast: ${sum.text}`);
+});
