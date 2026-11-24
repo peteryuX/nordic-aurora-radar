@@ -471,11 +471,12 @@ test('17. Shareable city URL parser and builder validate coordinates, sanitize n
   assert.ok(parsed);
   assert.equal(parsed.lat, 69.6492);
   assert.equal(parsed.lon, 18.9553);
-  assert.equal(parsed.name, 'Norway · Tromsø');
+  assert.equal(parsed.name, '挪威・Tromsø');
+  assert.equal(parsed.nameEn, 'Norway · Tromsø');
 
   assert.equal(api.parseUrlLocation('?lat=999&lon=10'), null);
   assert.equal(api.parseUrlLocation('?lat=abc&lon=10'), null);
-  const xss = api.parseUrlLocation('?lat=64.1466&lon=-21.9426&name=%3Cscript%3EReykjavik%3C/script%3E');
+  const xss = api.parseUrlLocation('?lat=60.1699&lon=24.9384&name=%3Cscript%3EHelsinki%3C/script%3E');
   assert.ok(xss && !xss.name.includes('<') && !xss.name.includes('>'));
 });
 
@@ -788,8 +789,31 @@ test('28. explainAuroraScore single-source-of-truth across 44 events, confidence
   }));
   const svg1 = api.buildBzChartSVG(ser, 'UTC', 420, api.computeBallisticCoupling(ser, 420), 'zh');
   const svg2 = api.buildSkyWaveSVG(hrs, hrs[2], 2, 'zh');
-  assert.ok(svg1.includes('x1="52"') && svg2.includes('x1="52"'), 'Chart 1 & Chart 2 must share identical padL=52 axis');
+  assert.ok(svg1.includes('x1="56"') && svg2.includes('x1="56"'), 'Chart 1 & Chart 2 must share identical padL=56 axis');
   assert.ok(svg1.includes('↑ 越高越強') && svg2.includes('↑ 越高越好'), 'Both charts must state higher=better clearly');
+});
+
+test('29. Bilingual city localization repairs cached/URL Chinese names when switching to English', () => {
+  // Legacy localStorage or GPS cached Chinese name for Alta must resolve to canonical English & Chinese
+  const staleAlta = { name: '挪威・阿爾塔', nameEn: '挪威・阿爾塔', lat: 69.9689, lon: 23.2716 };
+  assert.equal(api.resolveCityDisplayName(staleAlta, 'en'), 'Norway · Alta');
+  assert.equal(api.resolveCityDisplayName(staleAlta, 'zh'), '挪威・Alta');
+
+  // Shared URL with Chinese name for a known city populates clean bilingual pair
+  const parsedAlta = api.parseUrlLocation('?lat=69.9689&lon=23.2716&name=%E6%8C%AA%E5%A8%81%E3%83%BB%E9%98%BF%E7%88%BE%E5%A1%94');
+  assert.equal(parsedAlta.name, '挪威・Alta');
+  assert.equal(parsedAlta.nameEn, 'Norway · Alta');
+
+  // Shared URL with Chinese name for an arbitrary custom city leaves nameEn empty so app refreshes it in EN
+  const parsedCustom = api.parseUrlLocation('?lat=25.0330&lon=121.5654&name=%E5%8F%B0%E7%81%A3%E3%83%BB%E5%8F%B0%E5%8C%97');
+  assert.equal(parsedCustom.name, '台灣・台北');
+  assert.equal(parsedCustom.nameEn, '');
+
+  // formatReverseGeo respects target language separators
+  const geoEn = { countryName: 'Norway', city: 'Alta', locality: 'Bossekop' };
+  assert.equal(api.formatReverseGeo(geoEn, 'en'), 'Norway · Alta (Bossekop)');
+  const geoZh = { countryName: '挪威', city: '阿爾塔', locality: '市中心' };
+  assert.equal(api.formatReverseGeo(geoZh, 'zh'), '挪威・阿爾塔（市中心）');
 });
 
 

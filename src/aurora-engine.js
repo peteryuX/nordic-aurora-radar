@@ -229,14 +229,59 @@ export function utcTagToLocalHM(utcTag, timeZone, offsetMin = 0) {
   }
 }
 
-export function formatReverseGeo(geoJson) {
+export const KNOWN_CITIES = [
+  { zh: '挪威・Alta', en: 'Norway · Alta', lat: 69.9689, lon: 23.2716, tz: 'Europe/Oslo' },
+  { zh: '挪威・Tromsø', en: 'Norway · Tromsø', lat: 69.6492, lon: 18.9553, tz: 'Europe/Oslo' },
+  { zh: '挪威・Lofoten', en: 'Norway · Lofoten', lat: 68.2342, lon: 14.5683, tz: 'Europe/Oslo' },
+  { zh: '挪威・Senja', en: 'Norway · Senja', lat: 69.3470, lon: 17.4820, tz: 'Europe/Oslo' },
+  { zh: '挪威・Narvik', en: 'Norway · Narvik', lat: 68.4385, lon: 17.4273, tz: 'Europe/Oslo' },
+  { zh: '瑞典・Abisko', en: 'Sweden · Abisko', lat: 68.3495, lon: 18.8312, tz: 'Europe/Stockholm' },
+  { zh: '挪威・Kirkenes', en: 'Norway · Kirkenes', lat: 69.7271, lon: 30.0458, tz: 'Europe/Oslo' },
+  { zh: '芬蘭・Rovaniemi', en: 'Finland · Rovaniemi', lat: 66.5039, lon: 25.7294, tz: 'Europe/Helsinki' },
+  { zh: '冰島・Reykjavik', en: 'Iceland · Reykjavik', lat: 64.1466, lon: -21.9426, tz: 'Atlantic/Reykjavik' },
+  { zh: '美國・Fairbanks', en: 'USA · Fairbanks', lat: 64.8378, lon: -147.7164, tz: 'America/Anchorage' },
+  { zh: '加拿大・Yellowknife', en: 'Canada · Yellowknife', lat: 62.4540, lon: -114.3718, tz: 'America/Yellowknife' },
+  { zh: '紐西蘭・Queenstown', en: 'New Zealand · Queenstown', lat: -45.0312, lon: 168.6626, tz: 'Pacific/Auckland' },
+  { zh: '澳洲・Hobart', en: 'Australia · Hobart', lat: -42.8821, lon: 147.3272, tz: 'Australia/Hobart' }
+];
+
+export function matchKnownCity(lat, lon, maxDeg = 0.08) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  for (const c of KNOWN_CITIES) {
+    if (Math.abs(lat - c.lat) <= maxDeg && Math.abs(lon - c.lon) <= maxDeg) return c;
+  }
+  return null;
+}
+
+export function hasCjkChars(str) {
+  return /[\u3400-\u9fff\uf900-\ufaff]/.test(String(str || ''));
+}
+
+export function resolveCityDisplayName(pos, lang = currentLang) {
+  if (!pos || typeof pos !== 'object') return '';
+  const en = isEn(lang);
+  const matched = matchKnownCity(pos.lat, pos.lon);
+  if (matched) return en ? matched.en : matched.zh;
+  if (en) {
+    if (pos.nameEn && !hasCjkChars(pos.nameEn)) return pos.nameEn;
+    if (pos.name && !hasCjkChars(pos.name)) return pos.name;
+    return pos.nameEn || pos.name || '';
+  }
+  return pos.name || pos.nameEn || '';
+}
+
+export function formatReverseGeo(geoJson, lang = currentLang) {
   if (!geoJson || typeof geoJson !== 'object') return null;
+  const en = isEn(lang);
   const country = (geoJson.countryName || '').trim();
   const city = (geoJson.city || geoJson.locality || geoJson.principalSubdivision || '').trim();
   const locality = (geoJson.locality || '').trim();
   if (!country && !city) return null;
-  const prefix = (country && country !== city) ? country + '・' : '';
-  if (city && locality && locality !== city) return `${prefix}${city}（${locality}）`;
+  const sep = en ? ' · ' : '・';
+  const prefix = (country && country !== city) ? country + sep : '';
+  if (city && locality && locality !== city) {
+    return en ? `${prefix}${city} (${locality})` : `${prefix}${city}（${locality}）`;
+  }
   if (city) return `${prefix}${city}`;
   return country;
 }
@@ -251,12 +296,14 @@ export function parseUrlLocation(searchStr) {
     if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
     const rawName = (sp.get('name') || '').replace(/[\r\n\t<>]/g, '').trim().slice(0, 60);
     const fallbackName = `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lon).toFixed(2)}°${lon >= 0 ? 'E' : 'W'}`;
-    const name = rawName || fallbackName;
-    let tz = (sp.get('tz') || 'auto').trim();
+    const matched = matchKnownCity(lat, lon);
+    let tz = (sp.get('tz') || (matched ? matched.tz : 'auto')).trim();
     if (tz !== 'auto') {
       try { new Intl.DateTimeFormat('en-CA', { timeZone: tz }); } catch (e) { tz = 'auto'; }
     }
-    return { name, nameEn: name, lat: +lat.toFixed(4), lon: +lon.toFixed(4), tz, mode: 'manual', accuracy: null };
+    const name = matched ? matched.zh : (rawName || fallbackName);
+    const nameEn = matched ? matched.en : (hasCjkChars(rawName) ? '' : (rawName || fallbackName));
+    return { name, nameEn, lat: +lat.toFixed(4), lon: +lon.toFixed(4), tz, mode: 'manual', accuracy: null };
   } catch (e) { return null; }
 }
 
@@ -266,7 +313,7 @@ export function buildShareUrl(baseHref, pos, lang) {
     if (pos && Number.isFinite(pos.lat) && Number.isFinite(pos.lon)) {
       u.searchParams.set('lat', pos.lat.toFixed(4));
       u.searchParams.set('lon', pos.lon.toFixed(4));
-      const displayName = isEn(lang) ? (pos.nameEn || pos.name) : pos.name;
+      const displayName = resolveCityDisplayName(pos, lang);
       if (displayName) u.searchParams.set('name', displayName);
     }
     if (lang === 'en' || lang === 'zh') u.searchParams.set('lang', lang);

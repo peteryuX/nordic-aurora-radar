@@ -73,7 +73,7 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
   if (!series || series.length < 2) {
     return `<text x="210" y="90" text-anchor="middle" fill="#8ea6c4" font-size="13" font-weight="700">${en ? 'No live satellite energy data' : '暫無衛星即時太陽風曲線'}</text>`;
   }
-  const W = 420, H = 170, padL = 52, padR = 16, padT = 26, padB = 26;
+  const W = 420, H = 170, padL = 56, padR = 14, padT = 28, padB = 26;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const yOf = e => padT + ((100 - e) / 100) * plotH;
 
@@ -142,19 +142,19 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
     const firstTick = Math.ceil(minMs / stepMs) * stepMs;
     for (let t = firstTick; t <= maxMs; t += stepMs) {
       const tx = xOfMs(t);
-      if (tx < padL + 10 || tx > W - padR - 10) continue;
+      if (tx < padL + 12 || tx > W - padR - 12) continue;
       const z = getZoneParts(new Date(t), timeZone);
       xTicksSvg += `
         <line x1="${tx.toFixed(1)}" y1="${padT}" x2="${tx.toFixed(1)}" y2="${baseY}" stroke="rgba(255,255,255,0.08)" stroke-dasharray="2 4"/>
-        <text x="${tx.toFixed(1)}" y="${H - 7}" text-anchor="middle" fill="#9fb5d0" font-size="10.5" font-weight="700">${z.hourStr}:${z.minStr}</text>`;
+        <text x="${tx.toFixed(1)}" y="${H - 7}" text-anchor="middle" fill="#a9c0da" font-size="12.5" font-weight="700">${z.hourStr}:${z.minStr}</text>`;
     }
   }
   if (!xTicksSvg) {
     const tStart = utcTagToLocalHM(series[0].time_tag, timeZone, etaMin);
     const tEnd = utcTagToLocalHM(series[series.length - 1].time_tag, timeZone, etaMin);
     xTicksSvg = `
-      <text x="${padL}" y="${H - 7}" fill="#9fb5d0" font-size="10.5" font-weight="700">${tStart}</text>
-      <text x="${W - padR}" y="${H - 7}" text-anchor="end" fill="#66e8ff" font-size="10.5" font-weight="800">${tEnd}</text>`;
+      <text x="${padL}" y="${H - 7}" fill="#a9c0da" font-size="12.5" font-weight="700">${tStart}</text>
+      <text x="${W - padR}" y="${H - 7}" text-anchor="end" fill="#66e8ff" font-size="12.5" font-weight="800">${tEnd}</text>`;
   }
 
   let arriveSvg = '';
@@ -162,12 +162,12 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
   if (balOpt && Number.isInteger(balOpt.arrivingIdx) && balOpt.arrivingIdx > 4 && balOpt.arrivingIdx < series.length - 4) {
     const ax = xOf(balOpt.arrivingIdx);
     const tNowEarth = utcTagToLocalHM(series[balOpt.arrivingIdx].time_tag, timeZone, etaMin);
-    const lxClamped = Math.max(padL + 115, Math.min(W - 148, ax));
+    const lxClamped = Math.max(padL + 132, Math.min(W - 154, ax));
     futureBandSvg = `<rect x="${ax.toFixed(1)}" y="${padT}" width="${(W - padR - ax).toFixed(1)}" height="${plotH}" fill="rgba(34,211,238,0.06)"/>`;
     arriveSvg = `
       <line x1="${ax.toFixed(1)}" y1="${padT}" x2="${ax.toFixed(1)}" y2="${baseY}" stroke="#22d3ee" stroke-dasharray="3 3" stroke-width="1.5" opacity="0.88"/>
       <circle cx="${ax.toFixed(1)}" cy="${yOf(energies[balOpt.arrivingIdx]).toFixed(1)}" r="3.8" fill="#22d3ee" stroke="#040912" stroke-width="1.5"/>
-      <text x="${lxClamped.toFixed(1)}" y="16" text-anchor="middle" fill="#66e8ff" font-size="10" font-weight="800">${en ? `Now ${tNowEarth}` : `現在 ${tNowEarth}`}</text>`;
+      <text x="${lxClamped.toFixed(1)}" y="17" text-anchor="middle" fill="#66e8ff" font-size="11.5" font-weight="800">${en ? `Now ${tNowEarth}` : `現在 ${tNowEarth}`}</text>`;
   }
 
   return `
@@ -178,7 +178,7 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
         <stop offset="100%" stop-color="#66bdff" stop-opacity="0.03"/>
       </linearGradient>
     </defs>
-    <text x="${padL}" y="16" fill="#8ea6c4" font-size="10" font-weight="700">${en ? '↑ Higher = stronger' : '↑ 越高越強'}</text>
+    <text x="${padL}" y="17" fill="#9fb5d0" font-size="11.5" font-weight="700">${en ? '↑ Stronger' : '↑ 越高越強'}</text>
     <rect x="${padL}" y="${padT}" width="${plotW}" height="${(yBurst - padT).toFixed(1)}" fill="rgba(52,240,176,0.09)"/>
     <rect x="${padL}" y="${yBurst.toFixed(1)}" width="${plotW}" height="${(yWarm - yBurst).toFixed(1)}" fill="rgba(255,207,92,0.05)"/>
     <rect x="${padL}" y="${yWarm.toFixed(1)}" width="${plotW}" height="${(padT + plotH - yWarm).toFixed(1)}" fill="rgba(102,189,255,0.04)"/>
@@ -188,16 +188,16 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
     <line x1="${padL}" y1="${yBurst.toFixed(1)}" x2="${W - padR}" y2="${yBurst.toFixed(1)}" stroke="#34f0b0" stroke-dasharray="4 4" stroke-width="1.1" opacity="0.68"/>
     <line x1="${padL}" y1="${yWarm.toFixed(1)}" x2="${W - padR}" y2="${yWarm.toFixed(1)}" stroke="rgba(255,255,255,0.16)" stroke-dasharray="3 4" stroke-width="1"/>
     <line x1="${padL}" y1="${baseY}" x2="${W - padR}" y2="${baseY}" stroke="rgba(255,255,255,0.18)"/>
-    <text x="${padL - 8}" y="${(padT + (yBurst - padT) / 2 + 4).toFixed(1)}" text-anchor="end" fill="#34f0b0" font-size="10.5" font-weight="800">${en ? 'Active' : '活躍'}</text>
-    <text x="${padL - 8}" y="${(yBurst + (yWarm - yBurst) / 2 + 4).toFixed(1)}" text-anchor="end" fill="#ffcf5c" font-size="10.5" font-weight="700">${en ? 'Rising' : '增強'}</text>
-    <text x="${padL - 8}" y="${(yWarm + (padT + plotH - yWarm) / 2 + 4).toFixed(1)}" text-anchor="end" fill="#8ea6c4" font-size="10.5" font-weight="700">${en ? 'Quiet' : '平靜'}</text>
+    <text x="${padL - 8}" y="${(padT + (yBurst - padT) / 2 + 4).toFixed(1)}" text-anchor="end" fill="#34f0b0" font-size="13" font-weight="800">${en ? 'Active' : '活躍'}</text>
+    <text x="${padL - 8}" y="${(yBurst + (yWarm - yBurst) / 2 + 4).toFixed(1)}" text-anchor="end" fill="#ffcf5c" font-size="13" font-weight="700">${en ? 'Rising' : '增強'}</text>
+    <text x="${padL - 8}" y="${(yWarm + (padT + plotH - yWarm) / 2 + 4).toFixed(1)}" text-anchor="end" fill="#9fb5d0" font-size="13" font-weight="700">${en ? 'Quiet' : '平靜'}</text>
     ${areaSvg}
     ${gapSvg}
     ${lineSvg}
     ${arriveSvg}
     <circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="4.8" fill="${col}" stroke="#040912" stroke-width="2"/>
-    <rect x="${W - 102}" y="2" width="86" height="19" rx="9.5" fill="rgba(4,9,18,0.88)" stroke="${col}" stroke-width="1"/>
-    <text x="${W - 59}" y="15" text-anchor="middle" fill="${col}" font-size="10.5" font-weight="800">${en ? `Next · ${stateWord}` : `預告 · ${stateWord}`}</text>
+    <rect x="${W - 110}" y="2" width="96" height="21" rx="10.5" fill="rgba(4,9,18,0.88)" stroke="${col}" stroke-width="1"/>
+    <text x="${W - 62}" y="16.5" text-anchor="middle" fill="${col}" font-size="12" font-weight="800">${en ? `Next · ${stateWord}` : `預告 · ${stateWord}`}</text>
   `;
 }
 
@@ -207,7 +207,7 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
   if (!hrs || hrs.length < 2) {
     return `<text x="210" y="95" text-anchor="middle" fill="#8ea6c4" font-size="13">${en ? 'Loading 12h forecast...' : '讀取 12 小時晴空曲線中...'}</text>`;
   }
-  const W = 420, H = 194, padL = 52, padR = 16, padT = 26, padB = 44;
+  const W = 420, H = 194, padL = 56, padR = 14, padT = 28, padB = 44;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const xOf = i => padL + (i / (hrs.length - 1)) * plotW;
   const yOf = pct => padT + ((100 - pct) / 100) * plotH;
@@ -243,10 +243,11 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     const c = h.isDay ? '#66bdff' : (h.clear >= 65 ? '#34f0b0' : h.clear >= 35 ? '#ffcf5c' : '#ff6b7b');
     const tInt = Math.round(h.temp) || 0;
     const hhmm = h.time.length >= 5 ? h.time.slice(0, 5) : `${h.time.slice(0, 2)}:00`;
-    const lbl = showTick ? `<text x="${x.toFixed(1)}" y="${H - 24}" text-anchor="middle" fill="${isSel ? '#ffffff' : (isBest ? '#34f0b0' : '#9fb5d0')}" font-size="10.5" font-weight="${isBest || isSel ? '800' : '700'}">${hhmm}</text>` : '';
-    const tempLbl = showTick ? `<text x="${x.toFixed(1)}" y="${H - 8}" text-anchor="middle" fill="#7c96b6" font-size="10">${tInt > 0 ? '+' : ''}${tInt}°</text>` : '';
+    const lbl = showTick ? `<text x="${x.toFixed(1)}" y="${H - 24}" text-anchor="middle" fill="${isSel ? '#ffffff' : (isBest ? '#34f0b0' : '#a9c0da')}" font-size="12.5" font-weight="${isBest || isSel ? '800' : '700'}">${hhmm}</text>` : '';
+    const tempLbl = showTick ? `<text x="${x.toFixed(1)}" y="${H - 7}" text-anchor="middle" fill="#92abc7" font-size="11.5" font-weight="600">${tInt > 0 ? '+' : ''}${tInt}°</text>` : '';
     const starTxt = en ? '★ Best' : '★ 最佳';
-    const star = isBest ? `<text x="${Math.min(W - 36, Math.max(padL + 30, x)).toFixed(1)}" y="16" text-anchor="middle" fill="#34f0b0" font-size="10.5" font-weight="800">${starTxt}</text>` : '';
+    const starX = Math.min(W - 36, Math.max(padL + 168, x));
+    const star = isBest ? `<text x="${starX.toFixed(1)}" y="17" text-anchor="middle" fill="#34f0b0" font-size="12" font-weight="800">${starTxt}</text>` : '';
     const selLine = isSel ? `<line x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(255,255,255,0.34)" stroke-dasharray="2 3" stroke-width="1.2"/>` : '';
     const selRing = isSel ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7.5" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.9"/>` : '';
     const hitRect = `<rect class="hr-hit" data-hour-idx="${i}" x="${(x - stepW / 2).toFixed(1)}" y="${padT}" width="${stepW.toFixed(1)}" height="${plotH + 34}" fill="transparent" style="cursor:pointer;"/>`;
@@ -260,16 +261,16 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
         <stop offset="100%" stop-color="#34f0b0" stop-opacity="0.02"/>
       </linearGradient>
     </defs>
-    <text x="${padL}" y="16" fill="#8ea6c4" font-size="10" font-weight="700">${en ? '↑ Higher = better (0–100)' : '↑ 越高越好（滿分 100）'}</text>
+    <text x="${padL}" y="17" fill="#9fb5d0" font-size="11.5" font-weight="700">${en ? '↑ Higher = better (0–100)' : '↑ 越高越好（滿分 100）'}</text>
     ${dayBands}
     ${vGrid}
     <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(255,255,255,0.14)"/>
     <line x1="${padL}" y1="${padT}" x2="${W - padR}" y2="${padT}" stroke="rgba(255,255,255,0.10)" stroke-dasharray="3 4"/>
     <line x1="${padL}" y1="${padT + plotH / 2}" x2="${W - padR}" y2="${padT + plotH / 2}" stroke="rgba(255,255,255,0.12)" stroke-dasharray="3 4"/>
     <line x1="${padL}" y1="${padT + plotH}" x2="${W - padR}" y2="${padT + plotH}" stroke="rgba(255,255,255,0.18)"/>
-    <text x="${padL - 8}" y="${padT + 4}" text-anchor="end" fill="#34f0b0" font-size="10.5" font-weight="700">100</text>
-    <text x="${padL - 8}" y="${padT + plotH / 2 + 4}" text-anchor="end" fill="#ffcf5c" font-size="10.5" font-weight="700">50</text>
-    <text x="${padL - 8}" y="${padT + plotH + 4}" text-anchor="end" fill="#8ea6c4" font-size="10.5" font-weight="700">0</text>
+    <text x="${padL - 8}" y="${padT + 4}" text-anchor="end" fill="#34f0b0" font-size="13" font-weight="700">100</text>
+    <text x="${padL - 8}" y="${padT + plotH / 2 + 4}" text-anchor="end" fill="#ffcf5c" font-size="13" font-weight="700">50</text>
+    <text x="${padL - 8}" y="${padT + plotH + 4}" text-anchor="end" fill="#9fb5d0" font-size="13" font-weight="700">0</text>
     ${scoreBars}
     <polygon points="${areaPts}" fill="url(#waveG)"/>
     <polyline fill="none" stroke="#34f0b0" stroke-width="2.4" stroke-linejoin="round" points="${linePts}"/>

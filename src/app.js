@@ -12,6 +12,7 @@ import * as Charts from './charts.js';
 const {
   detectDefaultLang, getLang, setLang, isEn, tSky, tDirLabel, tGrade,
   isInNordicMetBox, computeCompassPoints, getZoneParts, formatReverseGeo,
+  matchKnownCity, hasCjkChars, resolveCityDisplayName,
   parseUrlLocation, buildShareUrl, computeSolarElevation, getMoonState,
   computeViewingGeometry, classifyViewingMode, computeMLT,
   computeDataLagMin, computeBallisticCoupling, computeAuroraScore, explainAuroraScore,
@@ -91,7 +92,35 @@ const SKY_CAMS = {
 const $ = (id) => document.getElementById(id);
 
 function getPosDisplayName() {
-  return isEn() ? (currentPos.nameEn || currentPos.name) : currentPos.name;
+  return resolveCityDisplayName(currentPos, getLang());
+}
+
+/** Repair or refresh single-language cached/GPS city names when language changes */
+async function refreshLocalizedPlaceName() {
+  if (!Number.isFinite(currentPos.lat) || !Number.isFinite(currentPos.lon)) return;
+  const matched = matchKnownCity(currentPos.lat, currentPos.lon);
+  if (matched) {
+    currentPos.name = matched.zh;
+    currentPos.nameEn = matched.en;
+    return;
+  }
+  const en = isEn();
+  const needsEn = en && (!currentPos.nameEn || hasCjkChars(currentPos.nameEn));
+  const needsZh = !en && currentPos.mode === 'gps' && (!currentPos.name || !hasCjkChars(currentPos.name));
+  if (!needsEn && !needsZh) return;
+  const reqLat = currentPos.lat;
+  const reqLon = currentPos.lon;
+  try {
+    const locLang = en ? 'en' : 'zh-Hant';
+    const rgRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${reqLat}&longitude=${reqLon}&localityLanguage=${locLang}`);
+    if (!rgRes.ok) return;
+    const resolved = formatReverseGeo(await rgRes.json(), en ? 'en' : 'zh');
+    if (!resolved || currentPos.lat !== reqLat || currentPos.lon !== reqLon) return;
+    if (en) currentPos.nameEn = resolved;
+    else currentPos.name = resolved;
+    renderLocationHeader();
+    syncBrowserUrl();
+  } catch (e) {}
 }
 
 function toast(msg) {
@@ -315,6 +344,7 @@ function toggleLang() {
   updateClockAndPhoto();
   if (lastRenderState) renderFromState(lastRenderState);
   syncBrowserUrl();
+  refreshLocalizedPlaceName();
   toast(isEn() ? 'Switched to English' : '已切換為繁體中文');
 }
 
@@ -394,9 +424,17 @@ function loadSavedPrefs() {
   } else {
     try {
       const sp = JSON.parse(localStorage.getItem('aurora_pos_v2') || 'null');
-      if (sp && Number.isFinite(sp.lat) && Number.isFinite(sp.lon)) currentPos = { ...currentPos, ...sp };
+      if (sp && Number.isFinite(sp.lat) && Number.isFinite(sp.lon)) {
+        const matched = matchKnownCity(sp.lat, sp.lon);
+        currentPos = {
+          ...currentPos,
+          ...sp,
+          ...(matched ? { name: matched.zh, nameEn: matched.en } : {})
+        };
+      }
     } catch (e) {}
   }
+  refreshLocalizedPlaceName();
   if (/Line\/|FBAN|FBAV|Instagram|MicroMessenger/i.test(navigator.userAgent || '')) {
     const tip = $('lineTip');
     if (tip) tip.style.display = 'block';
@@ -656,7 +694,7 @@ function renderFromState(st) {
   const {
     magSeries, chartSeries, speed, bz, kp, ovation, hpiGw, goesSub, noaaScales, noaaAlert, bal,
     noaaOk, noaaLagMin, hereHrs, dirResults, weatherSourceLabel, usedMet, cloudConsensus,
-    sunAltNow, mltNow, moon, sc, scNext, bestDark, nights3
+    sunAltNow, mltNow, moon, sc, scNext, bestDark, nights3, multiDayPts, kpForecast, fetchedAt
   } = st;
 
   renderStormBanner(noaaScales, noaaAlert);
@@ -768,7 +806,13 @@ function renderFromState(st) {
   hb.innerHTML = bestText;
 
   selectForecastHour(lastSelectedHourIdx >= 0 && lastSelectedHourIdx < lastScoredHours.length ? lastSelectedHourIdx : 0);
-  render3NightOutlook(nights3);
+  const localizedNights3 = multiDayPts
+    ? summarize3NightOutlook({
+        cloudPoints: multiDayPts, kpForecast: kpForecast || [], currentKp: kp,
+        lat: currentPos.lat, lon: currentPos.lon, timeZone: currentPos.tz, nowDate: fetchedAt || new Date()
+      })
+    : nights3;
+  render3NightOutlook(localizedNights3);
 
   const sum = summarizeCompass(dirResults);
   const cs = $('compassSummary');
@@ -1015,7 +1059,7 @@ async function refreshAll(manual) {
       lastRenderState = {
         magSeries, chartSeries: magSeries.slice(-120), speed, bz, kp, ovation, hpiGw, goesSub, noaaScales, noaaAlert, bal,
         noaaOk, noaaLagMin, hereHrs, dirResults, weatherSourceLabel, usedMet, cloudConsensus,
-        sunAltNow, mltNow, moon, sc, scNext, bestDark, nights3
+        sunAltNow, mltNow, moon, sc, scNext, bestDark, nights3, multiDayPts, kpForecast, fetchedAt: now
       };
       renderFromState(lastRenderState);
       updateClockAndPhoto();
@@ -1083,10 +1127,21 @@ function useGPS() {
       currentPos = { name: en ? 'Locating...' : '辨識城市中...', nameEn: 'Locating...', lat, lon, tz: currentPos.tz, mode: 'gps', accuracy };
       renderLocationHeader();
       try {
-        const locLang = isEn() ? 'en' : 'zh-Hant';
-        const rgRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=${locLang}`);
-        const resolved = rgRes.ok ? (formatReverseGeo(await rgRes.json()) || `GPS (${lat.toFixed(2)}, ${lon.toFixed(2)})`) : `GPS (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
-        currentPos.name = resolved; currentPos.nameEn = resolved;
+        const matched = matchKnownCity(lat, lon);
+        if (matched) {
+          currentPos.name = matched.zh;
+          currentPos.nameEn = matched.en;
+        } else {
+          const fallback = `GPS (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
+          const [zhRes, enRes] = await Promise.all([
+            fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=zh-Hant`).catch(() => null),
+            fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`).catch(() => null)
+          ]);
+          const zhName = (zhRes && zhRes.ok) ? formatReverseGeo(await zhRes.json(), 'zh') : null;
+          const enName = (enRes && enRes.ok) ? formatReverseGeo(await enRes.json(), 'en') : null;
+          currentPos.name = zhName || enName || fallback;
+          currentPos.nameEn = enName || (hasCjkChars(zhName) ? fallback : zhName) || fallback;
+        }
       } catch (e) { currentPos.name = `GPS (${lat.toFixed(2)}, ${lon.toFixed(2)})`; currentPos.nameEn = currentPos.name; }
       renderLocationHeader(); syncBrowserUrl(); togglePicker(true);
       b.disabled = false; b.textContent = 'GPS';
