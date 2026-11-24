@@ -23,7 +23,7 @@ const {
   detectDefaultLang, getLang, setLang, isEn, escapeHtml, tSky, tDirLabel, tGrade,
   isInNordicMetBox, getZoneParts, matchKnownCity, hasCjkChars, resolveCityDisplayName,
   parseUrlLocation, buildShareUrl, computeSolarElevation, computeDistanceKm,
-  computeDarkWindow, getMoonState, computeViewingGeometry, classifyViewingMode,
+  computeDarkWindow, getMoonState, computeViewingGeometry,
   computeMLT, explainAuroraScore, summarize3NightOutlook, evaluateVerdict,
   isCorridorHazard, synthesizeTonightAction, summarizeEnergyTrend, summarizeCompass,
   shouldTriggerAuroraAlert, utcTagToLocalHM
@@ -388,56 +388,11 @@ function renderLocationHeader() {
 
 function updateClockAndPhoto() {
   const now = new Date();
-  const en = isEn();
   try {
     const z = getZoneParts(now, state.pos.tz);
     setText('clk', `${z.hourStr}:${z.minStr}`);
   } catch {}
-
-  const moon = getMoonState(now, state.pos.lat, state.pos.lon);
-  const liveKp = Math.max(state.renderState?.kp ?? 2, state.renderState?.sc?.effKp ?? 0);
-  const aurScore = state.renderState?.sc?.auroraScore ?? 0;
-  const geom = computeViewingGeometry({
-    lat: state.pos.lat, lon: state.pos.lon, kp: liveKp,
-    mlt: computeMLT(now, state.pos.lat, state.pos.lon)
-  });
-  const modeInfo = classifyViewingMode({ scoreObj: state.renderState?.sc, geom, effMoonPct: moon.effMoonPct });
-  const aimTxt = geom.mode === 'below'
-    ? (en ? `${geom.direction} low horizon` : `${geom.direction} 低空地平線`)
-    : geom.shortText;
-  const tempNow = state.renderState?.hereHrs?.[0]?.temp;
-  const isFreezing = Number.isFinite(tempNow) && tempNow <= 0;
-  const fastBright = aurScore >= 60;
-
-  const list = $('tsPhotoList');
-  if (list) {
-    const expLine = fastBright
-      ? (en
-          ? `<li><strong>Exposure (Active Aurora)</strong>: Flash OFF, use <strong>1–3s</strong> shutter (fast curtains blur into mush at 5–10s); raise ISO if needed.</li>`
-          : `<li><strong>曝光（活躍極光）</strong>：關閃光燈，快門壓在 <strong>1–3 秒</strong>（舞動極光曝 5–10 秒會糊成一片綠霧），寧可拉高 ISO。</li>`)
-      : (moon.effMoonPct >= 55
-          ? (en
-              ? `<li><strong>Exposure (Bright Moon)</strong>: Flash OFF, Night Mode <strong>2–3s</strong>; keep moon behind you or highlights wash out.</li>`
-              : `<li><strong>曝光（月光偏亮）</strong>：關閃光燈、開夜間模式並將秒數壓在 <strong>2–3 秒</strong>，背對月亮避免天空過曝白掉。</li>`)
-          : (en
-              ? `<li><strong>Exposure (Faint Arc)</strong>: Flash OFF, Night Mode <strong>5–10s</strong> (brace on tripod/rail); switch to 1–3s once curtains dance.</li>`
-              : `<li><strong>曝光（微弱極光）</strong>：關閃光燈、開夜間模式設 <strong>5–10 秒</strong>（上腳架或靠欄杆）；一旦開始舞動立即縮回 1–3 秒。</li>`));
-    const aimLine = en
-      ? `<li><strong>Framing</strong>: Point toward <strong>${escapeHtml(aimTxt)}</strong>.${modeInfo.text ? ` ${escapeHtml(modeInfo.text)}.` : ''}</li>`
-      : `<li><strong>取景方向</strong>：朝 <strong>${escapeHtml(aimTxt)}</strong> 取景。${modeInfo.text ? `${escapeHtml(modeInfo.text)}。` : ''}</li>`;
-    const etiquetteTxt = en
-      ? `Turn on Red-Light mode (top-right) and dim screen so you preserve night vision and avoid ruining nearby shots.`
-      : `開啟右上角紅光模式並調暗螢幕，保護暗適應且不干擾旁人長曝。`;
-    const fieldLine = isFreezing
-      ? (en
-          ? `<li><strong>Sub-Zero (${Math.round(tempNow)}°C) &amp; Etiquette</strong>: Keep spare batteries warm; zip-bag gear before entering indoors to stop condensation. ${etiquetteTxt}</li>`
-          : `<li><strong>低溫（${Math.round(tempNow)}°C）與暗空禮儀</strong>：備用電池放貼身內袋、進室內前裝夾鏈袋防結霜；${etiquetteTxt}</li>`)
-      : (en
-          ? `<li><strong>Dark-Sky Etiquette</strong>: ${etiquetteTxt}</li>`
-          : `<li><strong>暗空禮儀</strong>：${etiquetteTxt}</li>`);
-    list.innerHTML = expLine + aimLine + fieldLine;
-  }
-  return moon;
+  return getMoonState(now, state.pos.lat, state.pos.lon);
 }
 
 // ====== Gauges, Charts & State Rendering ======
@@ -1169,11 +1124,8 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = '') {
     badge.textContent = exp.bottleneck.label;
     badge.className = `ts-badge ${bCls}`;
   }
-  setText('tsDiagTxt', `${exp.bottleneck.headline} ${exp.bottleneck.detail}`);
-  setText('tsConfRow', `${exp.confidence.badgeText} · ${exp.confidence.details.join(' / ')}`);
-  if (rawTelemetry) setText('tsRawRow', rawTelemetry);
-  setText('tsLimitTitle', exp.disclaimer.title);
-  setHtml('tsLimitList', exp.disclaimer.items.map(it => `<li>${escapeHtml(it.text)}</li>`).join(''));
+  setText('tsDiagTxt', exp.bottleneck.headline);
+  setText('tsConfRow', `${exp.confidence.badgeText}${rawTelemetry ? ` · ${rawTelemetry}` : ''}`);
 }
 
 function openTrustSheet(triggerEl) {

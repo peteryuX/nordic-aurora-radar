@@ -88,7 +88,7 @@
         <button id="alertBtn" class="icon-btn" type="button" title="螢幕常亮監測提醒" aria-label="螢幕常亮監測提醒">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         </button>
-        <button id="trustBtn" class="icon-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet" title="算法、數據與拍攝貼士" aria-label="算法、數據與拍攝貼士">
+        <button id="trustBtn" class="icon-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet" title="指數說明與資料來源" aria-label="指數說明與資料來源">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
         </button>
         <button id="langBtn" class="icon-btn" type="button" title="Switch Language" aria-label="Switch Language">EN</button>
@@ -330,22 +330,22 @@
     </div>
   </nav>
 
-  <!-- Consolidated Trust, Telemetry & Field-Tips Bottom-Sheet -->
+  <!-- Concise Score Breakdown & Official Data Sources Bottom-Sheet -->
   <div id="trustSheet" class="sheet-backdrop" role="dialog" aria-modal="true" aria-labelledby="trustSheetTitle" aria-hidden="true">
     <div class="sheet-panel">
       <div class="sheet-hdr">
         <div class="sheet-handle" aria-hidden="true"></div>
         <div class="sheet-hdr-row">
-          <h2 id="trustSheetTitle" class="sheet-title">指數算法、即時遙測與拍攝貼士</h2>
+          <h2 id="trustSheetTitle" class="sheet-title">指數說明與資料來源</h2>
           <button id="trustCloseBtn" class="sheet-close" type="button" aria-label="關閉">✕</button>
         </div>
       </div>
 
       <div class="sheet-body">
-        <!-- 1. LIVE SCORE & CONFIDENCE BREAKDOWN -->
+        <!-- 1. LIVE SCORE BREAKDOWN (CONCISE) -->
         <section class="ts-sec ts-live" aria-label="Live Score Breakdown">
           <div class="ts-sec-hd">
-            <span id="tsLiveTitle">為何現在是 <strong id="tsLiveTotal">--</strong> 分？（分數越高越好）</span>
+            <span id="tsLiveTitle">為何現在是 <strong id="tsLiveTotal">--</strong> 分？（越高越好）</span>
             <span id="tsLiveBadge" class="ts-badge">計算中</span>
           </div>
           <div class="ts-eq" id="tsEq">
@@ -357,36 +357,24 @@
             <span class="ts-op">→</span>
             <div class="ts-eq-cell ts-eq-out"><span class="ts-eq-lbl" id="tsLblOut">總分</span><strong id="tsValOut">--</strong></div>
           </div>
-          <p id="tsDiagTxt" class="ts-diag">正在解析即時瓶頸與加權係數...</p>
-          <div id="tsConfRow" class="ts-conf-row">讀取雙模型雲量差與 NOAA 衛星延遲中...</div>
-          <div id="tsRawRow" class="ts-raw-row"></div>
+          <p id="tsDiagTxt" class="ts-diag">正在分析主要影響因子...</p>
+          <div id="tsConfRow" class="ts-conf-row">確認氣象與衛星同步狀態中...</div>
         </section>
 
-        <!-- 2. CONCISE 3-LINE FIELD SHOOTING CHEAT SHEET -->
+        <!-- 2. SCORE TIERS -->
         <section class="ts-sec">
-          <h3 id="tsPhotoTitle" class="ts-h3">極光實拍防踩雷 3 重點</h3>
-          <ul class="ts-pillars" id="tsPhotoList"></ul>
-        </section>
-
-        <!-- 3. SCORE TIERS & EXACT CODE-FAITHFUL 3-PILLAR FORMULA -->
-        <section class="ts-sec">
-          <h3 id="tsTierTitle" class="ts-h3">分數越高越適合看（0–99 分級與三因子公式）</h3>
-          <div class="ts-tiers" id="tsTiers">
+          <h3 id="tsTierTitle" class="ts-h3">觀測指數分級（0–99，越高越好）</h3>
+          <div class="ts-tiers" id="tsTiers" style="margin-bottom:0;">
             <div class="ts-tier"><span class="ts-dot t-high"></span><b>65–99</b><span id="tsT1">極佳條件</span></div>
             <div class="ts-tier"><span class="ts-dot t-good"></span><b>40–64</b><span id="tsT2">適合觀測</span></div>
             <div class="ts-tier"><span class="ts-dot t-mid"></span><b>18–39</b><span id="tsT3">有機會看見</span></div>
             <div class="ts-tier"><span class="ts-dot t-low"></span><b>0–17</b><span id="tsT4">雲厚／過亮／弱</span></div>
           </div>
-          <ul class="ts-pillars" id="tsPillars">
-            <li><strong>晴空度</strong>：低雲／中雲／霧與降水計重度遮蔽、高捲雲以 30% 計（上限為總雲量 +8%），採平滑非線性指數 0.85→0.72（強極光雲縫自動放寬）。</li>
-            <li><strong>極光活動</strong>：整合 NOAA 14 源（L1 因果 3 點濾波與官方彈道傳播、Geospace 1h Kp、OVATION 雙線性、HPI、雙 GOES、京都 Dst 環電流、WSA-ENLIL 與 SWPC 警報）。</li>
-            <li><strong>夜空暗度</strong>：太陽需低於 -4°（-12° 全暗），並依 Krisciunas–Schaefer 月光衝日效應與極光亮度動態調整扣分。</li>
-          </ul>
         </section>
 
-        <!-- 4. SCIENTIFIC VERIFICATION, OFFICIAL SOURCES & HONEST LIMITS -->
+        <!-- 3. OFFICIAL SOURCES, VERIFICATION & PRIVACY -->
         <section class="ts-sec">
-          <h3 id="tsSciTitle" class="ts-h3">科學驗證與官方資料來源</h3>
+          <h3 id="tsSciTitle" class="ts-h3">官方資料來源與驗證</h3>
           <div class="ts-stat-grid" id="tsStatGrid">
             <div class="ts-stat"><strong>NASA JPL 0.006°</strong><span>22 點 DE441 日月校準</span></div>
             <div class="ts-stat"><strong>17,255h NASA 盲測</strong><span>地磁預測 AUC 0.92–0.94（不含雲層）</span></div>
@@ -399,23 +387,11 @@
             <a id="linkSolarWind" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/solar-wind">NOAA 太陽風 ↗</a>
             <a id="linkGfz" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="https://kp.gfz.de/en/hp30-hp60">GFZ Hp30 ↗</a>
           </div>
-          <div id="tsHonestNote" class="ts-note">
-            <strong id="tsLimitTitle">物理與預報極限（誠實說明）</strong>
-            <ul id="tsLimitList"></ul>
+          <div class="ts-src-links" style="margin-top:8px;">
+            <a id="tsSealLink" class="ts-seal ts-seal-link" target="_blank" rel="noopener noreferrer" href="https://github.com/peteryuX/nordic-aurora-radar">GitHub 開源原始碼（MIT・零追蹤）↗</a>
           </div>
-        </section>
-
-        <!-- 5. PRIVACY, ATTRIBUTION & SECURITY TRUST SEAL -->
-        <section class="ts-sec ts-privacy">
-          <h3 id="tsPrivTitle" class="ts-h3">隱私與安全信任章</h3>
-          <div class="ts-seal-list" id="tsSealList">
-            <span class="ts-seal" id="tsSeal1">嚴格 CSP 白名單・零第三方 JS</span>
-            <span class="ts-seal" id="tsSeal2">零 Cookie・零追蹤碼</span>
-            <span class="ts-seal" id="tsSeal3">GPS 僅留存本機瀏覽器</span>
-            <a id="tsSealLink" class="ts-seal ts-seal-link" target="_blank" rel="noopener noreferrer" href="https://github.com/peteryuX/nordic-aurora-radar">GitHub MIT 開源原始碼 ↗</a>
-          </div>
-          <p id="tsPwaTip" class="ts-pwa-tip">離線小提示：Safari 點「分享 → 加入主畫面」或 Chrome 點「安裝應用程式」，即可在極區無訊號時秒開快取。</p>
-          <p id="tsLegalFoot" class="ts-legal-foot">氣象：MET Norway (CC BY 4.0) / Open-Meteo；太空天氣：NOAA SWPC (Public Domain)。僅供觀星參考，冬季行車請以當地交通管制為準。</p>
+          <p id="tsPwaTip" class="ts-pwa-tip">離線使用：Safari 點「分享 → 加入主畫面」或 Chrome 點「安裝」，極區無訊號時仍可開啟快取。</p>
+          <p id="tsLegalFoot" class="ts-legal-foot">氣象：MET Norway / Open-Meteo；太空天氣：NOAA SWPC。僅供觀星參考，冬季行車請以當地路況管制為準。</p>
         </section>
       </div>
     </div>

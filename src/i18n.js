@@ -109,32 +109,27 @@ export const STATIC_TEXT_MAP = {
   navHome: ['即時總覽', 'Overview'],
   navDir: ['找晴空', 'Clear Sky'],
   navSat: ['實拍雲圖', 'Live Map'],
-  trustSheetTitle: ['指數算法、即時遙測與拍攝貼士', 'Formula, Telemetry & Photo Tips'],
+  trustSheetTitle: ['指數說明與資料來源', 'Score & Data Sources'],
   tsLblSky: ['晴空度', 'Clear Sky'],
   tsLblAur: ['極光活動', 'Aurora'],
   tsLblDark: ['夜空暗度', 'Darkness'],
   tsLblOut: ['總分', 'Score'],
-  tsPhotoTitle: ['極光實拍防踩雷 3 重點', '3 Essential Aurora Photo Tips'],
-  tsTierTitle: ['分數越高越適合看（0–99 分級與三因子公式）', 'Higher = Better (0–99 Tiers & 3-Pillar Formula)'],
+  tsTierTitle: ['觀測指數分級（0–99，越高越好）', 'Score Tiers (0–99, Higher = Better)'],
   tsT1: ['極佳條件', 'Optimal'],
   tsT2: ['適合觀測', 'Good'],
   tsT3: ['有機會看見', 'Possible'],
   tsT4: ['雲厚／過亮／弱', 'Blocked / Weak'],
-  tsSciTitle: ['科學驗證與官方資料來源', 'Scientific Verification & Official Sources'],
+  tsSciTitle: ['官方資料來源與驗證', 'Official Data & Verification'],
   linkSolarWind: ['NOAA 太陽風 ↗', 'NOAA Solar Wind ↗'],
   linkGfz: ['GFZ Hp30 ↗', 'GFZ Hp30 ↗'],
-  tsPrivTitle: ['隱私與安全信任章', 'Privacy & Security Seal'],
-  tsSeal1: ['嚴格 CSP 白名單・零第三方 JS', 'Strict CSP · Zero 3rd-Party JS'],
-  tsSeal2: ['零 Cookie・零追蹤碼', 'Zero Cookies · Zero Trackers'],
-  tsSeal3: ['GPS 僅留存本機瀏覽器', 'GPS Stays Local in Browser'],
-  tsSealLink: ['GitHub MIT 開源原始碼 ↗', 'MIT Open Source on GitHub ↗'],
+  tsSealLink: ['GitHub 開源原始碼（MIT・零追蹤）↗', 'Open Source on GitHub (MIT · Zero Trackers) ↗'],
   tsPwaTip: [
-    '離線小提示：Safari 點「分享 → 加入主畫面」或 Chrome 點「安裝應用程式」，即可在極區無訊號時秒開快取。',
-    'Offline tip: Add to Home Screen (Safari Share / Chrome Install) for instant cached access in no-signal zones.'
+    '離線使用：Safari 點「分享 → 加入主畫面」或 Chrome 點「安裝」，極區無訊號時仍可開啟快取。',
+    'Offline tip: Add to Home Screen (Safari Share / Chrome Install) for cached access with no signal.'
   ],
   tsLegalFoot: [
-    '氣象：MET Norway (CC BY 4.0) / Open-Meteo；太空天氣：NOAA SWPC (Public Domain)。僅供觀星參考，冬季行車請以當地交通管制為準。',
-    'Weather: MET Norway (CC BY 4.0) / Open-Meteo; Space weather: NOAA SWPC (Public Domain). For stargazing reference only — obey local winter road closures.'
+    '氣象：MET Norway / Open-Meteo；太空天氣：NOAA SWPC。僅供觀星參考，冬季行車請以當地路況管制為準。',
+    'Weather: MET Norway / Open-Meteo; Space weather: NOAA SWPC. Reference only — obey local winter road closures.'
   ]
 };
 
@@ -155,19 +150,18 @@ export const LOADING_PLACEHOLDER_MAP = {
   homeBest: ['載入中...', 'Loading...'],
   compassSummary: ['掃描周邊晴空分佈中...', 'Scanning surrounding clear skies...'],
   tsLiveBadge: ['計算中', 'Loading'],
-  tsDiagTxt: ['正在解析即時瓶頸與加權係數...', 'Analyzing live bottleneck & weighting factors...'],
-  tsConfRow: ['讀取雙模型雲量差與 NOAA 衛星延遲中...', 'Checking dual-model cloud spread & NOAA latency...'],
-  tsLimitTitle: ['物理與預報極限（誠實說明）', 'Physical & Forecast Limits']
+  tsDiagTxt: ['正在分析主要影響因子...', 'Analyzing key factor...'],
+  tsConfRow: ['確認氣象與衛星同步狀態中...', 'Checking forecast & satellite sync...']
 };
 
 const ARIA_LABELS = {
   redBtn: ['紅光夜視模式', 'Red-light night vision', true],
   alertBtn: ['螢幕常亮監測提醒', 'Screen-on aurora monitor', true],
-  trustBtn: ['算法、數據與拍攝貼士', 'Formula, telemetry & photo tips', true],
+  trustBtn: ['指數說明與資料來源', 'Score & data sources', true],
   refBtn: ['立即更新', 'Sync now', true],
   gpsBtn: ['GPS 定位', 'Use GPS location', true],
   shareBtn: ['分享預報連結', 'Share forecast link', true],
-  ringBtn: ['查看指數算法與可信度', 'View score formula and credibility', false],
+  ringBtn: ['查看指數說明與資料來源', 'View score details and sources', false],
   trustCloseBtn: ['關閉', 'Close', false]
 };
 
@@ -222,17 +216,6 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
       ? 'Source: NOAA SWPC OVATION Live Model (Green = aurora, Yellow/Red = intense)'
       : '資料來源：NOAA SWPC OVATION 即時模型（綠色＝有極光、黃紅＝強爆發）';
     ovCapEl.innerHTML = `<a class="src-link" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/aurora-30-minute-forecast">${ovTxt} ↗</a>`;
-  }
-
-  const tsP = $('tsPillars');
-  if (tsP) {
-    tsP.innerHTML = en
-      ? `<li><strong>Clear Sky</strong>: Low/mid clouds, fog & precipitation weigh heavily, high cirrus 30% (capped at total +8%), smooth nonlinear exponent 0.85→0.72 during bright storms.</li>` +
-        `<li><strong>Aurora</strong>: Fuses 14 live NOAA feeds (causal 3-pt L1 wind + bow-shock propagation, Geospace 1h Kp, bilinear OVATION, HPI GW, dual GOES, Kyoto Dst, WSA-ENLIL CME & SWPC alerts).</li>` +
-        `<li><strong>Darkness</strong>: Sun must drop below -4° (-12° full dark), with Krisciunas–Schaefer lunar opposition surge tapering automatically during bright storms.</li>`
-      : `<li><strong>晴空度</strong>：低雲／中雲／霧與降水計重度遮蔽、高捲雲以 30% 計（上限為總雲量 +8%），採平滑非線性指數 0.85→0.72（強極光雲縫自動放寬）。</li>` +
-        `<li><strong>極光活動</strong>：整合 NOAA 14 源（L1 因果 3 點濾波與官方彈道傳播、Geospace 1h Kp、OVATION 雙線性、HPI、雙 GOES、京都 Dst 環電流、WSA-ENLIL 與 SWPC 警報）。</li>` +
-        `<li><strong>夜空暗度</strong>：太陽需低於 -4°（-12° 全暗），並依 Krisciunas–Schaefer 月光衝日效應與極光亮度動態調整扣分。</li>`;
   }
 
   const tsG = $('tsStatGrid');

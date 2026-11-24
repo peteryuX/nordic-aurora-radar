@@ -525,9 +525,6 @@ body.sheet-open { overflow: hidden; }
 .ts-dot.t-mid  { background: var(--amber); }
 .ts-dot.t-low  { background: var(--red); }
 
-.ts-pillars { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
-.ts-pillars strong { color: var(--text); }
-
 .ts-stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 9px; }
 .ts-stat {
   background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
@@ -535,14 +532,7 @@ body.sheet-open { overflow: hidden; }
 }
 .ts-stat strong { font-size: 0.85rem; font-weight: 800; color: var(--green); font-variant-numeric: tabular-nums; }
 .ts-stat span { font-size: 0.76rem; color: var(--muted); line-height: 1.35; }
-.ts-note {
-  margin: 0; padding: 9px 11px; border-left: 3px solid var(--amber);
-  border-radius: 0 9px 9px 0; background: var(--amber-bg);
-  font-size: 0.79rem; line-height: 1.5; color: var(--text);
-}
-.ts-note ul { margin: 5px 0 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }
 
-.ts-seal-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .ts-seal {
   font-size: 0.78rem; font-weight: 700; color: var(--muted);
   background: var(--bg); border: 1px solid var(--border); border-radius: 99px;
