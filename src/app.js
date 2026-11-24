@@ -252,6 +252,45 @@ function applyStaticI18n() {
   setT('tsSeal2', '零 Cookie・零追蹤碼', 'Zero Cookies · Zero Trackers');
   setT('tsSeal3', 'GPS 僅留存本機瀏覽器', 'GPS Stays Local in Browser');
   setT('tsSealLink', 'GitHub MIT 開源原始碼 ↗', 'MIT Open Source on GitHub ↗');
+  const tcb = $('trustCloseBtn');
+  if (tcb) tcb.setAttribute('aria-label', en ? 'Close' : '關閉');
+
+  // Translate all initial/loading placeholders whenever live data has not rendered yet
+  if (!lastRenderState) {
+    setT('vKicker', '即時評估中', 'Evaluating');
+    setT('vTitle', '連線同步最新天空實況...', 'Syncing live sky & space weather...');
+    setT('vLead', '結合官方高解析分層雲量、NOAA 衛星與精準天文暗度。', 'Combining official layered clouds, NOAA solar wind & twilight astronomy.');
+    setT('ringGrade', '計算中', 'Loading');
+    setT('fSkySub', '讀取中...', 'Loading...');
+    setT('fAurSub', '讀取中...', 'Loading...');
+    setT('fDarkSub', '讀取中...', 'Loading...');
+    setT('fcNextTxt', '未來 1 小時預估：計算中...', 'Next 1h est.: Calculating...');
+    const pm = $('pMet');
+    if (pm && (pm.textContent === '氣象 ↗' || pm.textContent === 'Weather ↗' || pm.textContent === '氣象...' || pm.textContent === 'Weather...')) {
+      pm.textContent = pm.textContent.includes('...') ? (en ? 'Weather...' : '氣象...') : (en ? 'Weather ↗' : '氣象 ↗');
+    }
+    setT('syncTime', '同步中', 'Syncing...');
+    setT('energyBanner', '讀取衛星即時太陽風中...', 'Loading live NOAA solar wind...');
+    setT('etaHint', '時間軸已換算為到達地球的當地時間', 'Time axis shows estimated Earth arrival');
+    setT('homeBest', '載入中...', 'Loading...');
+    const hd = $('hourDetail');
+    if (hd) {
+      hd.innerHTML = en
+        ? '<span>Tap any hour on the chart for clear sky %, feels-like temp, moon & Kp</span>'
+        : '<span>點擊圖上任一時段查看詳細預報（晴空率、體感溫度、月光與 Kp）</span>';
+    }
+    setT('compassSummary', '掃描周邊雲量中...', 'Scanning surrounding cloud cover...');
+    const tlt = $('tsLiveTitle');
+    if (tlt) {
+      tlt.innerHTML = en
+        ? 'Why is it <strong id="tsLiveTotal">--</strong>/100 now? (Higher = Better)'
+        : '為何現在是 <strong id="tsLiveTotal">--</strong> 分？（分數越高越好）';
+    }
+    setT('tsLiveBadge', '計算中', 'Loading');
+    setT('tsDiagTxt', '正在解析即時瓶頸與加權係數...', 'Analyzing live bottleneck & weighting factors...');
+    setT('tsConfRow', '讀取雙模型雲量差與 NOAA 衛星延遲中...', 'Checking dual-model cloud spread & NOAA latency...');
+    setT('tsLimitTitle', '物理與預報極限（誠實說明）', 'Physical & Forecast Limits');
+  }
   setT('h2Outlook', '未來 3 晚極光與晴空展望', '3-Night Outlook');
   setT('outlookSub', 'NOAA 72h Kp 預報 · 官方夜間分層雲量（僅計太陽低於 -4°）', 'NOAA 72h Kp forecast · Official dark-sky clouds (sun < -4°)');
   setT('h2Radar', '周邊 360° 晴空雷達', '360° Clear-Sky Radar');
@@ -838,7 +877,9 @@ function renderFromState(st) {
     </div>`;
   }).join('');
 
-  const srcLbl = (weatherSourceLabel === 'Yr.no官方' && en) ? 'Yr.no Official' : weatherSourceLabel;
+  const srcLbl = (weatherSourceLabel === 'Yr.no官方' && en)
+    ? 'Yr.no Official'
+    : ((weatherSourceLabel === '氣象' && en) ? 'Weather' : weatherSourceLabel);
   pMet.textContent = `${srcLbl} (${hereHrs[0].time}) ↗`;
   pMet.href = usedMet
     ? `https://www.yr.no/en/forecast/daily-table/${currentPos.lat.toFixed(3)},${currentPos.lon.toFixed(3)}`
@@ -1067,7 +1108,9 @@ async function refreshAll(manual) {
 
       try {
         localStorage.setItem('aurora_cache_v4', JSON.stringify({
-          ts: Date.now(), posName: getPosDisplayName(), score: sc,
+          ts: Date.now(), lang: getLang(), posName: getPosDisplayName(),
+          lat: currentPos.lat, lon: currentPos.lon, kp, mlt: mltNow,
+          effMoonPct: moon.effMoonPct, bestDark, score: sc,
           v: evaluateVerdict({ lat: currentPos.lat, lon: currentPos.lon, bestDark, kp, mlt: mltNow, effMoonPct: moon.effMoonPct, scoreObj: sc }),
           skySub: $('fSkySub').textContent,
           aurSub: $('fAurSub').textContent,
@@ -1081,14 +1124,28 @@ async function refreshAll(manual) {
         if (cached && cached.score && (Date.now() - cached.ts) < 6 * 3600000) {
           const minsAgo = Math.max(1, Math.round((Date.now() - cached.ts) / 60000));
           const ob = $('offlineBanner');
+          const cachedPosLabel = getPosDisplayName() || cached.posName || '';
           ob.style.display = 'block';
           ob.textContent = isEn()
-            ? `Offline: showing cached forecast from ${minsAgo} min ago (${cached.posName}).`
-            : `網路訊號中斷：目前顯示 ${minsAgo} 分鐘前（${cached.posName}）的快取預報，有訊號時點右上角更新。`;
-          renderGauge(cached.score, { isTooBright: cached.score.isTooBright, skySub: cached.skySub, aurSub: cached.aurSub, darkSub: cached.darkSub });
-          $('vKicker').textContent = cached.v.kicker;
-          $('vTitle').textContent = cached.v.title;
-          $('vLead').textContent = cached.v.lead;
+            ? `Offline: showing cached forecast from ${minsAgo} min ago (${cachedPosLabel}).`
+            : `網路訊號中斷：目前顯示 ${minsAgo} 分鐘前（${cachedPosLabel}）的快取預報，有訊號時點右上角更新。`;
+          const sameLang = cached.lang === getLang();
+          const vCached = (sameLang && cached.v)
+            ? cached.v
+            : evaluateVerdict({
+                lat: cached.lat ?? currentPos.lat, lon: cached.lon ?? currentPos.lon,
+                bestDark: cached.bestDark || null, kp: cached.kp ?? null,
+                mlt: cached.mlt ?? null, effMoonPct: cached.effMoonPct ?? 0, scoreObj: cached.score
+              });
+          renderGauge(cached.score, {
+            isTooBright: cached.score.isTooBright,
+            skySub: sameLang ? cached.skySub : (isEn() ? 'Cached sky' : '快取晴空'),
+            aurSub: sameLang ? cached.aurSub : (isEn() ? 'Cached aurora' : '快取極光'),
+            darkSub: sameLang ? cached.darkSub : (isEn() ? 'Cached sky' : '快取暗度')
+          });
+          $('vKicker').textContent = vCached.kicker;
+          $('vTitle').textContent = vCached.title;
+          $('vLead').textContent = vCached.lead;
         }
       } catch (e) {}
     }
