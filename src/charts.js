@@ -162,7 +162,7 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
   if (balOpt && Number.isInteger(balOpt.arrivingIdx) && balOpt.arrivingIdx > 4 && balOpt.arrivingIdx < series.length - 4) {
     const ax = xOf(balOpt.arrivingIdx);
     const tNowEarth = utcTagToLocalHM(series[balOpt.arrivingIdx].time_tag, timeZone, etaMin);
-    const lxClamped = Math.max(padL + 44, Math.min(W - 140, ax));
+    const lxClamped = Math.max(padL + 44, Math.min(W - 148, ax));
     futureBandSvg = `<rect x="${ax.toFixed(1)}" y="${padT}" width="${(W - padR - ax).toFixed(1)}" height="${plotH}" fill="rgba(34,211,238,0.06)"/>`;
     arriveSvg = `
       <line x1="${ax.toFixed(1)}" y1="${padT}" x2="${ax.toFixed(1)}" y2="${baseY}" stroke="#22d3ee" stroke-dasharray="3 3" stroke-width="1.5" opacity="0.88"/>
@@ -194,8 +194,8 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
     ${lineSvg}
     ${arriveSvg}
     <circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="4.8" fill="${col}" stroke="#040912" stroke-width="2"/>
-    <rect x="${W - 92}" y="2" width="78" height="19" rx="9.5" fill="rgba(4,9,18,0.88)" stroke="${col}" stroke-width="1"/>
-    <text x="${W - 53}" y="15" text-anchor="middle" fill="${col}" font-size="10.5" font-weight="800">L1 · ${stateWord}</text>
+    <rect x="${W - 100}" y="2" width="86" height="19" rx="9.5" fill="rgba(4,9,18,0.88)" stroke="${col}" stroke-width="1"/>
+    <text x="${W - 57}" y="15" text-anchor="middle" fill="${col}" font-size="10.5" font-weight="800">${en ? `Next · ${stateWord}` : `預告 · ${stateWord}`}</text>
   `;
 }
 

@@ -212,7 +212,7 @@ function applyStaticI18n() {
   if (gb) {
     gb.innerHTML = en
       ? `<div class="gl-group"><span class="gl-badge gl-obs">LIVE OBS</span> Real-Time Satellite & Ground Telemetry</div>` +
-        `• <strong>L1 Solar Wind (Bz / Speed / Pressure)</strong>: Direct measurements ~1.5M km sunward; reaches Earth in ~8–95 min. Sustained negative <strong>Bz</strong> (southward) drives aurora.<br/>` +
+        `• <strong>Solar Wind Satellite (Bz / Speed / Pressure)</strong>: Direct measurements from NOAA's upstream satellite (~1.5M km sunward at L1), reaching Earth in ~8–95 min as an advance preview. Sustained negative <strong>Bz</strong> (southward) drives aurora.<br/>` +
         `• <strong>Global Kp (1-min est.)</strong>: Real-time planetary geomagnetic disturbance index (0–9). Oval cities can see aurora even at Kp 0–2.<br/>` +
         `• <strong>GOES Magnetometer & All-Sky Cams</strong>: Live geostationary substorm onset detection and real Arctic observatory sky photos.<br/>` +
         `<div class="gl-group"><span class="gl-badge gl-mod">MODEL</span> Forecasts, Geometry & Eye vs Camera</div>` +
@@ -221,7 +221,7 @@ function applyStaticI18n() {
         `• <strong>Naked Eye vs Camera</strong>: Weak/low-horizon aurora looks faint grey to human rod cells, whereas 3–10s smartphone Night Mode reveals bright green/red first.<br/>` +
         `• <strong>Viewing Score (0–99)</strong>: Composite reference combining layered Clear Sky %, Aurora Activity, and astronomical Darkness.`
       : `<div class="gl-group"><span class="gl-badge gl-obs">即時實測</span> 衛星與地面天文台實測資料</div>` +
-        `• <strong>L1 衛星太陽風（Bz／風速／動壓）</strong>：距地球約 150 萬公里處實測，約 8–95 分鐘後抵達地球。<strong>Bz 持續為負（南向）</strong>最容易觸發極光。<br/>` +
+        `• <strong>太陽風衛星實測（Bz／風速／動壓）</strong>：由位於日地間（L1 拉格朗日點，距地球約 150 萬公里）的 NOAA 衛星實測，約 8–95 分鐘後抵達地球，可作為提前預告。<strong>Bz 持續為負（南向）</strong>最容易觸發極光。<br/>` +
         `• <strong>全球 Kp（1 分鐘即時估計）</strong>：全球地磁擾動指標（0–9）。位於極光帶內的城市即使 Kp 0–2 仍有機會看見極光。<br/>` +
         `• <strong>GOES 磁力儀與全天空相機</strong>：地球同步軌道副磁暴偵測，以及北歐極圈天文台約每分鐘實拍影像。<br/>` +
         `<div class="gl-group"><span class="gl-badge gl-mod">模型與實測對照</span> 方位角、仰角與肉眼／相機差異</div>` +

@@ -1301,7 +1301,7 @@ export function summarizeEnergyTrend(series, speed, langOrBal, maybeLang) {
   if (!series || !series.length) {
     return {
       good: false,
-      text: en ? 'Temporarily unable to read L1 satellite data — retrying soon.' : '暫時無法讀取 L1 衛星太陽風資料，稍後自動重試。',
+      text: en ? 'Temporarily unable to read solar wind satellite data — retrying soon.' : '暫時無法讀取太陽風衛星資料，稍後自動重試。',
       raw: '', etaMin: 45
     };
   }
