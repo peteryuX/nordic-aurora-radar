@@ -1793,4 +1793,80 @@ test('44. Overcast CME shock verdict never contradicts score with fake rising co
   assert.ok(svgLeft.includes('白天過亮'), 'Contiguous daylight band must be clearly labeled');
 });
 
+test('45. Gate 0B parity & edge-case regressions (hour[0] Hero match, BR mist, CME warn, 6h Night+2, view strip, Abisko)', async () => {
+  const { computeLiveSnapshot } = await import('../src/data-client.js');
+
+  // 1. hour[0] score must strictly equal Hero Ring sc.total even with upstream L1 shock + Kyoto Dst -160 nT + twilight boundary
+  const now = new Date('2026-03-20T17:05:00Z'); // Near twilight in Alta (69.97°N)
+  const hrs12 = Array.from({ length: 12 }, (_, i) => ({
+    time: `${String((18 + i) % 24).padStart(2, '0')}:00`,
+    dtMs: now.getTime() + i * 3600000 + 1500000,
+    block: 10, clear: 90, txt: '🌟 晴', temp: -4, precip: 0, windMs: 3, windChill: -7,
+    isDay: false, sunAlt: -12 // Intentionally differs from now sunAlt to test nowOverride parity
+  }));
+  const magSeries = [
+    { time_tag: '2026-03-20 16:00:00.000', bz: -2, by: 1 },
+    { time_tag: '2026-03-20 17:04:00.000', bz: -14, by: 2 }
+  ];
+  const windSeries = [
+    { time_tag: '2026-03-20 16:00:00.000', speed: 380, density: 4 },
+    { time_tag: '2026-03-20 17:04:00.000', speed: 700, density: 28 } // Upstream L1 shock NOT yet at Earth
+  ];
+  const pos = { name: '挪威・Alta', nameEn: 'Norway · Alta', lat: 69.9689, lon: 23.2716, tz: 'Europe/Oslo' };
+  const moon = api.getMoonState(now, pos.lat, pos.lon);
+  const snap = computeLiveSnapshot({
+    pos, now, moon,
+    noaa: { magSeries, windSeries, kpForecast: [], bz: -14, speed: 700, kp: 4.0, ovation: 55, hpiGw: 45, kyotoDst: { dst: -160 }, noaaOk: true },
+    wx: { hereHrs: hrs12, multiDayPts: [], dirResults: [] }
+  });
+  assert.equal(snap.scoredHours[0].score, snap.renderState.sc.total, 'hours[0].score must exactly match Hero Ring sc.total');
+
+  // 2. parseMetarSkyCover excludes shallow mist (BR) from 85% overcast clamp
+  const brClear = api.parseMetarSkyCover(['CLR'], [null], 'BR', 'ENTC 242100Z 00000KT 3000 BR SKC M18/M20 Q1024');
+  assert.ok(brClear && brClear.effCloud === 0 && !brClear.hasPrecipFog, `Clear sky with runway mist BR must stay clear, got ${brClear?.effCloud}%`);
+
+  // 3. parseNoaaAlerts distinguishes CME Sudden Impulse WARNING from arrived SUMMARY
+  const tNow = Date.parse('2026-03-20T18:00:00Z');
+  const cmeWarn = api.parseNoaaAlerts([
+    { product_id: 'WARSUD', issue_datetime: '2026-03-20 17:40:00.000', message: 'WARNING: Geomagnetic Sudden Impulse expected' }
+  ], tNow);
+  assert.equal(cmeWarn.kind, 'cme-shock');
+  assert.equal(cmeWarn.isWarning, true, 'WARSUD warning must set isWarning=true');
+  const cmeArr = api.parseNoaaAlerts([
+    { product_id: 'EF3A', issue_datetime: '2026-03-20 17:40:00.000', message: 'SUMMARY: Geomagnetic Sudden Impulse 24 nT' }
+  ], tNow);
+  assert.equal(cmeArr.kind, 'cme-shock');
+  assert.equal(cmeArr.isWarning, false, 'EF3A arrival summary must set isWarning=false');
+
+  // 4. parseMetNorwayMultiDay preserves 6h step duration & next_6_hours precipitation; 3-Night sums real hours & avoids false mid-lat Kp gate when Kp missing
+  const met6h = {
+    properties: {
+      timeseries: [
+        { time: '2026-11-26T18:00:00Z', data: { instant: { details: { cloud_area_fraction: 10, cloud_area_fraction_low: 10, cloud_area_fraction_medium: 0, cloud_area_fraction_high: 0 } }, next_6_hours: { details: { precipitation_amount: 0 } } } },
+        { time: '2026-11-27T00:00:00Z', data: { instant: { details: { cloud_area_fraction: 10, cloud_area_fraction_low: 10, cloud_area_fraction_medium: 0, cloud_area_fraction_high: 0 } }, next_6_hours: { details: { precipitation_amount: 0 } } } },
+        { time: '2026-11-27T06:00:00Z', data: { instant: { details: { cloud_area_fraction: 10, cloud_area_fraction_low: 10, cloud_area_fraction_medium: 0, cloud_area_fraction_high: 0 } }, next_6_hours: { details: { precipitation_amount: 9.0 } } } }
+      ]
+    }
+  };
+  const mdPts = api.parseMetNorwayMultiDay(met6h, 69.97, 23.27, 'Europe/Oslo', new Date('2026-11-24T20:00:00Z'));
+  assert.equal(mdPts[0].stepHrs, 6, '6-hour MET Norway step must record stepHrs=6');
+  assert.ok(mdPts[2].block >= 65, `Heavy next_6_hours precipitation (9mm/6h=1.5mm/h) must occlude sky, got ${mdPts[2].block}`);
+  const osloNights = api.summarize3NightOutlook({
+    cloudPoints: mdPts, kpForecast: [], currentKp: 2.0,
+    lat: 59.91, lon: 10.75, timeZone: 'Europe/Oslo', nowDate: new Date('2026-11-24T20:00:00Z'), lang: 'en'
+  });
+  assert.equal(osloNights[2].kpAvailable, false);
+  assert.equal(osloNights[2].badge, 'Pending', `Mid-lat +2 Nights with missing Kp must show Pending, not false Kp gate: ${osloNights[2].badge}`);
+  assert.ok(osloNights[2].clearDarkHrs >= 12, `6h MET Norway clear steps must sum to >=12 hrs, got ${osloNights[2].clearDarkHrs}`);
+
+  // 5. buildShareUrl strips transient ?view=dir shortcut param; Abisko corridor puts Torneträsk E and Kiruna S
+  const cleanedUrl = api.buildShareUrl('https://peteryux.github.io/nordic-aurora-radar/?view=dir&lang=zh', pos, 'en');
+  assert.ok(!cleanedUrl.includes('view='), `buildShareUrl must strip transient view param: ${cleanedUrl}`);
+  const abiskoPts = api.computeCompassPoints(68.3495, 18.8312);
+  const abE = abiskoPts.find(p => p.key === 'E');
+  const abS = abiskoPts.find(p => p.key === 'S');
+  assert.ok(abE?.label.includes('Torneträsk') && abS?.label.includes('Kiruna'), 'Abisko E must be Torneträsk and S must be Kiruna');
+});
+
+
 

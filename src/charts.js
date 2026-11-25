@@ -189,7 +189,7 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
   if (balOpt && Number.isInteger(balOpt.arrivingIdx) && balOpt.arrivingIdx > 4 && balOpt.arrivingIdx < series.length - 4) {
     const ax = xOf(balOpt.arrivingIdx);
     const tNowEarth = escSvg(utcTagToLocalHM(series[balOpt.arrivingIdx]?.time_tag, timeZone, etaMin));
-    const lxClamped = Math.max(padL + 132, Math.min(W - 154, ax));
+    const lxClamped = Math.max(padL + 68, Math.min(W - 144, ax));
     const futureW = Math.max(0, W - padR - ax);
     futureBandSvg = `<rect x="${ax.toFixed(1)}" y="${padT}" width="${futureW.toFixed(1)}" height="${plotH}" fill="rgba(34,211,238,0.06)"/>`;
     arriveSvg = `
@@ -421,7 +421,7 @@ export function buildCompassRadarSVG(dirResults, _originPos, lang) {
     <circle cx="160" cy="160" r="98" fill="none" stroke="rgba(255,255,255,0.10)" stroke-dasharray="4 4"/>
     ${wedges}
     <circle cx="160" cy="160" r="48" fill="#060e1c" stroke="${hCol}" stroke-width="2.6"/>
-    <text x="160" y="154" text-anchor="middle" fill="#9fb5d0" font-size="11.5" font-weight="700">${en ? 'Here' : '目前位置'}</text>
+    <text x="160" y="153" text-anchor="middle" fill="#9fb5d0" font-size="11" font-weight="700">${en ? 'Here (3h)' : '目前 3h 均'}</text>
     <text x="160" y="176" text-anchor="middle" fill="${hCol}" font-size="17" font-weight="900">${hTxt}</text>
   `;
 }

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aurora-radar-shell-v16';
+const CACHE_NAME = 'aurora-radar-shell-v17';
 const FETCH_TIMEOUT_MS = 3500;
 const SHELL_ASSETS = [
   './',
@@ -11,7 +11,10 @@ const SHELL_ASSETS = [
   './src/data-client.js',
   './src/app.js',
   './manifest.json',
-  './icon.svg'
+  './icon.svg',
+  './apple-touch-icon.png',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', event => {
@@ -57,7 +60,7 @@ self.addEventListener('fetch', event => {
       .then(res => {
         if (res && res.ok) {
           const clone = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(cacheKey, clone)).catch(() => {});
+          event.waitUntil(caches.open(CACHE_NAME).then(c => c.put(cacheKey, clone)).catch(() => {}));
           return res;
         }
         // Fallback to cached shell on 5xx upstream errors

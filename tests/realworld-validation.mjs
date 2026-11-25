@@ -45,6 +45,27 @@ function calcRocAuc(pairs) {
   return (nPos && nNeg) ? (sumRankPos - nPos * (nPos + 1) / 2) / (nPos * nNeg) : NaN;
 }
 
+function calcPrAuc(pairs) {
+  const sorted = [...pairs].sort((a, b) => b.s - a.s);
+  const totalPos = sorted.reduce((acc, p) => acc + (p.y ? 1 : 0), 0);
+  if (!totalPos) return NaN;
+  let tp = 0, fp = 0, prevRec = 0, ap = 0;
+  for (let i = 0; i < sorted.length; ) {
+    let j = i;
+    while (j < sorted.length && sorted[j].s === sorted[i].s) {
+      if (sorted[j].y) tp++;
+      else fp++;
+      j++;
+    }
+    const rec = tp / totalPos;
+    const prec = tp / (tp + fp);
+    ap += (rec - prevRec) * prec;
+    prevRec = rec;
+    i = j;
+  }
+  return ap;
+}
+
 function calcSpearman(xs, ys) {
   const rank = (arr) => {
     const idx = arr.map((v, i) => ({ v, i })).sort((a, b) => a.v - b.v);
@@ -112,7 +133,7 @@ for (const yr of omniYears) {
 
 const l1Scores = [], fusedScores = [], aes = [], kps = [];
 const l1VsAe300 = [], l1VsAe500 = [], l1VsKp4 = [], fusedVsAe300 = [], fusedVsAe500 = [];
-const osloStormVsQuiet = [], hobartStormVsQuiet = [];
+const osloAllDst100 = [], hobartAllDst100 = [];
 const omniByIsoHour = new Map();
 const tierBins = [
   { name: '0–17  (Quiet)', lo: 0, hi: 17, n: 0, ae300: 0, ae500: 0, sumAe: 0, sumKp: 0 },
@@ -134,29 +155,27 @@ for (const row of omniRows) {
     bz, speed: v, kp: 0, ovation: null, hpiGw: null, newell: nw,
     preconditionedNewell60: prevNw, pdyn: p, mlt: 0, effMoonPct: 0
   });
-  // Fused (L1 + Kp + Kyoto Dst)
+  // Fused (L1 + Kp + Kyoto Dst — concurrent same-hour geomagnetic inputs)
   const scFused = api.computeAuroraScore({
     lat: 69.97, lon: 23.27, cloudNow: 0, sunAlt: -20,
     bz, speed: v, kp, ovation: null, hpiGw: null, newell: nw,
     preconditionedNewell60: prevNw, pdyn: p, dst, mlt: 0, effMoonPct: 0
   });
 
-  // Mid-latitude real storm (Dst <= -100 nT) vs quiet (Dst > -20 & Kp <= 2) discrimination
-  if (dst <= -100 || (dst > -20 && kp <= 2.0)) {
-    const isIntenseStorm = dst <= -100;
-    const scOslo = api.computeAuroraScore({
-      lat: 59.91, lon: 10.75, cloudNow: 0, sunAlt: -20,
-      bz, speed: v, kp, ovation: null, hpiGw: null, newell: nw,
-      preconditionedNewell60: prevNw, pdyn: p, dst, mlt: 0, effMoonPct: 0
-    });
-    const scHobart = api.computeAuroraScore({
-      lat: -42.88, lon: 147.33, cloudNow: 0, sunAlt: -20,
-      bz, speed: v, kp, ovation: null, hpiGw: null, newell: nw,
-      preconditionedNewell60: prevNw, pdyn: p, dst, mlt: 0, effMoonPct: 0
-    });
-    osloStormVsQuiet.push({ s: scOslo.total, y: isIntenseStorm });
-    hobartStormVsQuiet.push({ s: scHobart.total, y: isIntenseStorm });
-  }
+  // Zero-leakage mid-latitude intense storm (Dst <= -100 nT) across ALL continuous hours (NO Dst passed as input!)
+  const isIntenseStorm = dst <= -100;
+  const scOsloNoDst = api.computeAuroraScore({
+    lat: 59.91, lon: 10.75, cloudNow: 0, sunAlt: -20,
+    bz, speed: v, kp, ovation: null, hpiGw: null, newell: nw,
+    preconditionedNewell60: prevNw, pdyn: p, dst: null, mlt: 0, effMoonPct: 0
+  });
+  const scHobartNoDst = api.computeAuroraScore({
+    lat: -42.88, lon: 147.33, cloudNow: 0, sunAlt: -20,
+    bz, speed: v, kp, ovation: null, hpiGw: null, newell: nw,
+    preconditionedNewell60: prevNw, pdyn: p, dst: null, mlt: 0, effMoonPct: 0
+  });
+  osloAllDst100.push({ s: scOsloNoDst.total, y: isIntenseStorm });
+  hobartAllDst100.push({ s: scHobartNoDst.total, y: isIntenseStorm });
 
   omniByIsoHour.set(String(t).slice(0, 13), { nw, scL1: scL1.total, v, bz, by });
   prevNw = nw;
@@ -173,22 +192,23 @@ for (const row of omniRows) {
   if (b) { b.n++; if (ae >= 300) b.ae300++; if (ae >= 500) b.ae500++; b.sumAe += ae; b.sumKp += kp; }
 }
 
-const aucL1Ae300 = calcRocAuc(l1VsAe300);
-const aucL1Ae500 = calcRocAuc(l1VsAe500);
-const aucL1Kp4 = calcRocAuc(l1VsKp4);
-const aucFusedAe300 = calcRocAuc(fusedVsAe300);
-const aucFusedAe500 = calcRocAuc(fusedVsAe500);
+const baseRate = (arr) => (100 * arr.filter(x => x.y).length / Math.max(1, arr.length)).toFixed(1);
+const aucL1Ae300 = calcRocAuc(l1VsAe300), prL1Ae300 = calcPrAuc(l1VsAe300);
+const aucL1Ae500 = calcRocAuc(l1VsAe500), prL1Ae500 = calcPrAuc(l1VsAe500);
+const aucL1Kp4 = calcRocAuc(l1VsKp4), prL1Kp4 = calcPrAuc(l1VsKp4);
+const aucFusedAe300 = calcRocAuc(fusedVsAe300), prFusedAe300 = calcPrAuc(fusedVsAe300);
+const aucFusedAe500 = calcRocAuc(fusedVsAe500), prFusedAe500 = calcPrAuc(fusedVsAe500);
 const rhoL1Ae = calcSpearman(l1Scores, aes);
 const rhoFusedAe = calcSpearman(fusedScores, aes);
-const aucOsloStorm = calcRocAuc(osloStormVsQuiet);
-const aucHobartStorm = calcRocAuc(hobartStormVsQuiet);
+const aucOsloStorm = calcRocAuc(osloAllDst100), prOsloStorm = calcPrAuc(osloAllDst100);
+const aucHobartStorm = calcRocAuc(hobartAllDst100), prHobartStorm = calcPrAuc(hobartAllDst100);
 
-console.log(`  Valid Continuous Hours      : N=${l1Scores.length.toLocaleString()} (2024–2025 NASA OMNI2)`);
-console.log(`  Pure L1-only vs AE >= 300nT : ROC-AUC=${aucL1Ae300.toFixed(4)} | Spearman ρ=${rhoL1Ae.toFixed(4)}`);
-console.log(`  Pure L1-only vs AE >= 500nT : ROC-AUC=${aucL1Ae500.toFixed(4)} | vs Kp>=4.0 AUC=${aucL1Kp4.toFixed(4)}`);
-console.log(`  Fused(L1+Kp+Dst) vs AE>=300 : ROC-AUC=${aucFusedAe300.toFixed(4)} | Spearman ρ=${rhoFusedAe.toFixed(4)}`);
-console.log(`  Fused(L1+Kp+Dst) vs AE>=500 : ROC-AUC=${aucFusedAe500.toFixed(4)}`);
-console.log(`  Mid-Lat Intense Storm (Dst<=-100 vs Quiet) : Oslo AUC=${aucOsloStorm.toFixed(4)} | Hobart AUC=${aucHobartStorm.toFixed(4)}`);
+console.log(`  Valid Continuous Hours        : N=${l1Scores.length.toLocaleString()} (2024–2025 NASA OMNI2, clear-sky assumed)`);
+console.log(`  Pure L1-only vs AE >= 300nT   : ROC=${aucL1Ae300.toFixed(4)} | PR-AUC=${prL1Ae300.toFixed(4)} (base ${baseRate(l1VsAe300)}%) | ρ=${rhoL1Ae.toFixed(4)}`);
+console.log(`  Pure L1-only vs AE >= 500nT   : ROC=${aucL1Ae500.toFixed(4)} | PR-AUC=${prL1Ae500.toFixed(4)} (base ${baseRate(l1VsAe500)}%) | Kp>=4 ROC=${aucL1Kp4.toFixed(4)} PR=${prL1Kp4.toFixed(4)}`);
+console.log(`  Fused(L1+Kp+Dst) vs AE>=300   : ROC=${aucFusedAe300.toFixed(4)} | PR-AUC=${prFusedAe300.toFixed(4)} | ρ=${rhoFusedAe.toFixed(4)} (same-hour concurrent Kp/Dst)`);
+console.log(`  Fused(L1+Kp+Dst) vs AE>=500   : ROC=${aucFusedAe500.toFixed(4)} | PR-AUC=${prFusedAe500.toFixed(4)}`);
+console.log(`  Mid-Lat Dst<=-100 (All Hrs, No-Dst Input, base ${baseRate(osloAllDst100)}%): Oslo ROC=${aucOsloStorm.toFixed(4)} PR=${prOsloStorm.toFixed(4)} | Hobart ROC=${aucHobartStorm.toFixed(4)} PR=${prHobartStorm.toFixed(4)}`);
 console.log('\n  Empirical Ground-Truth Reliability by UI Score Tier (Alta dark clear sky):');
 console.log('  Score Tier    |     N | Mean AE | AE>=300 nT | AE>=500 nT | Mean Kp');
 console.log('  --------------+-------+---------+------------+------------+--------');
@@ -209,7 +229,7 @@ if (aucL1Ae500 < 0.85 || aucFusedAe300 < 0.88 || aucFusedAe500 < 0.90) {
 // ---------------------------------------------------------------------------
 // [2] GFZ Potsdam Hp30 (30-min High-Res Geomagnetic Index — 2024 Storm + Quiet)
 // ---------------------------------------------------------------------------
-console.log('\n[2] GFZ Potsdam Hp30 (30-min Planetary Index vs Pure L1 Coupling)');
+console.log('\n[2] GFZ Potsdam Hp30 (3-Month Storm-Enriched Live Check: May/Oct 2024 + Feb 2025)');
 try {
   // Sample 3 full diverse months: May 2024 (G5 Gannon), Oct 2024 (G4), Feb 2025 (winter quiet/moderate)
   const windows = [
@@ -231,12 +251,12 @@ try {
       hpPairs5.push({ s: omni.scL1, y: hp >= 5.0 });
     }
   }
-  const aucHp4 = calcRocAuc(hpPairs4);
-  const aucHp5 = calcRocAuc(hpPairs5);
+  const aucHp4 = calcRocAuc(hpPairs4), prHp4 = calcPrAuc(hpPairs4);
+  const aucHp5 = calcRocAuc(hpPairs5), prHp5 = calcPrAuc(hpPairs5);
   const rhoHp = calcSpearman(hpXs, hpYs);
-  console.log(`  Matched 30-min Windows      : N=${hpXs.length.toLocaleString()} (May 2024 + Oct 2024 + Feb 2025)`);
-  console.log(`  Pure L1-only vs Hp30 >= 4.0 : ROC-AUC=${aucHp4.toFixed(4)} | Spearman ρ=${rhoHp.toFixed(4)}`);
-  console.log(`  Pure L1-only vs Hp30 >= 5.0 : ROC-AUC=${aucHp5.toFixed(4)}`);
+  console.log(`  Matched 30-min Windows        : N=${hpXs.length.toLocaleString()} (May 2024 + Oct 2024 + Feb 2025)`);
+  console.log(`  Pure L1-only vs Hp30 >= 4.0   : ROC=${aucHp4.toFixed(4)} | PR-AUC=${prHp4.toFixed(4)} (base ${baseRate(hpPairs4)}%) | ρ=${rhoHp.toFixed(4)}`);
+  console.log(`  Pure L1-only vs Hp30 >= 5.0   : ROC=${aucHp5.toFixed(4)} | PR-AUC=${prHp5.toFixed(4)} (base ${baseRate(hpPairs5)}%)`);
   if (aucHp5 < 0.80) { console.error('FAIL: Pure L1 vs GFZ Hp30>=5.0 ROC-AUC below 0.80!'); failed = true; }
 } catch (e) {
   console.log(`  GFZ Potsdam Hp30 unavailable: ${e.message}`);
@@ -314,9 +334,28 @@ try {
     const appHrs = metHrs.length ? metHrs : omHrs;
     if (!appHrs.length) continue;
     const appPct = appHrs[0].block;
-    const rawPct = metRes[i]
-      ? Math.round(metRes[i]?.properties?.timeseries?.[0]?.data?.instant?.details?.cloud_area_fraction ?? appPct)
-      : Math.round(omList[i]?.hourly?.cloud_cover?.[0] ?? appPct);
+    const targetMs = appHrs[0].dtMs - 1800000;
+    let rawPct = appPct;
+    if (metRes[i]?.properties?.timeseries?.length) {
+      let bestItem = metRes[i].properties.timeseries[0], bestDiff = Infinity;
+      for (const it of metRes[i].properties.timeseries) {
+        const ts = Date.parse(it?.time);
+        if (!Number.isFinite(ts)) continue;
+        const d = Math.abs(ts - targetMs);
+        if (d < bestDiff) { bestDiff = d; bestItem = it; }
+      }
+      rawPct = Math.round(bestItem?.data?.instant?.details?.cloud_area_fraction ?? appPct);
+    } else if (Array.isArray(omList[i]?.hourly?.time) && Array.isArray(omList[i]?.hourly?.cloud_cover)) {
+      const times = omList[i].hourly.time;
+      let bestIdx = 0, bestDiff = Infinity;
+      for (let j = 0; j < times.length; j++) {
+        const ts = Number(times[j]) * 1000;
+        if (!Number.isFinite(ts)) continue;
+        const d = Math.abs(ts - targetMs);
+        if (d < bestDiff) { bestDiff = d; bestIdx = j; }
+      }
+      rawPct = Math.round(omList[i].hourly.cloud_cover[bestIdx] ?? appPct);
+    }
     const eApp = Math.abs(appPct - obsPct);
     const eRaw = Math.abs(rawPct - obsPct);
     sumAppErr += eApp; sumRawErr += eRaw; nAir++;
@@ -324,7 +363,7 @@ try {
     console.log(`  ${a.icao} | ${a.city.padEnd(11)} | ${obsLabel.padEnd(11)} | ${String(obsPct).padStart(3)}% | ${String(appPct).padStart(11)}% | ${String(rawPct).padStart(9)}% | ${String(eApp).padStart(5)}% | ${String(eRaw).padStart(5)}%`);
   }
   if (nAir > 0) {
-    console.log(`  Summary (N=${nAir} airports)    : App Layered MAE=${(sumAppErr / nAir).toFixed(1)}% vs Raw Total MAE=${(sumRawErr / nAir).toFixed(1)}%`);
+    console.log(`  Summary (N=${nAir} airports, same-hour aligned): App Layered MAE=${(sumAppErr / nAir).toFixed(1)}% vs Raw Total MAE=${(sumRawErr / nAir).toFixed(1)}%`);
   }
 } catch (e) {
   console.log(`  METAR live validation error: ${e.message}`);

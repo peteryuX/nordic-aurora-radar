@@ -4,21 +4,21 @@
 [![Live App (繁體中文)](https://img.shields.io/badge/線上版-繁體中文-66bdff?style=flat-square)](https://peteryux.github.io/nordic-aurora-radar/?lang=zh)
 [![License: MIT](https://img.shields.io/badge/License-MIT-a855f7?style=flat-square)](LICENSE)
 
-Real-time Nordic & global aurora radar fusing **MET Norway (Yr.no)** 2.5 km layered clouds, **14 live NOAA SWPC** solar wind & geomagnetic feeds, twilight/moonlight darkness physics, and a **360° winter-road clear-sky radar** — zero build step, zero trackers, 100% client-side.
+Real-time Nordic & global aurora radar fusing **MET Norway (Yr.no)** 2.5 km layered clouds, **14 live NOAA SWPC** space-weather feeds, twilight/moonlight darkness physics, live airport METAR laser ceilometers, and a **360° winter-road clear-sky radar** — zero build step, zero trackers, 100% client-side.
 
-整合挪威官方 **Yr.no** 2.5 km 分層雲量、**14 項美國 NOAA 即時太空天氣衛星資料**、天文暮光／月光物理與 **360° 冬季實路晴空雷達**；零後端、零追蹤、支援紅光夜視與 PWA 離線使用。
+整合挪威官方 **Yr.no** 2.5 km 分層雲量、**14 項美國 NOAA 即時太空天氣衛星資料**、機場 METAR 雷射雲高短時融合、天文暮光／月光物理與 **360° 冬季實路晴空雷達**；零後端、零追蹤、支援紅光夜視與 PWA 離線使用。
 
 - **English**: https://peteryux.github.io/nordic-aurora-radar/?lang=en
 - **繁體中文**: https://peteryux.github.io/nordic-aurora-radar/?lang=zh
 
 ## Key Features｜主要功能
 
-- **0–99 Viewing Score & Pure IGRF-14 Apex-110 Physics**：Fuses layered low/mid/high cloud optics, global dual-model NWP (`MET Norway 2.5km` in Nordics, `best_match + ICON` in Iceland, `best_match + ECMWF` globally), **live Airport METAR laser ceilometer Optimal Interpolation** (`+0h–+3h`), pure **IGRF-14 (n=1..13) Modified Apex-110** geomagnetic coordinates (`0.24°` global MAE vs AACGMv2), and twilight/moonlight darkness physics.
-- **Live Solar Wind & Earth-Arrival Timeline**：1-minute NOAA L1 solar wind (IMF Bz, By, speed, density) with causal spike filtering, Newell coupling, Earth-arrival local time axis, GOES substorm onset, Kyoto Dst, WSA-ENLIL CME forecast, and NOAA G1–G5 storm banners.
+- **0–99 Viewing Score & Pure IGRF-14 Apex-110 Physics**：Fuses layered low/mid/high cloud optics, MET Norway `2.5 km` primary clouds in Nordics (with Open-Meteo divergence consensus) and dual-model NWP globally (`best_match + ICON` in Iceland, `best_match + ECMWF` elsewhere), **live Airport METAR Optimal Interpolation** (`+0h–+3h`, `≤ 55 km`), pure **IGRF-14 (n=1..13) Modified Apex-110** geomagnetic latitude, and JPL DE441-verified twilight/moonlight physics.
+- **Live Solar Wind & Earth-Arrival Timeline**：14 NOAA SWPC feeds including 1-minute L1 magnetometer/plasma with causal spike filtering, ballistic Earth-arrival local time axis, Newell coupling, Geospace 1h predicted Kp, GOES East/West magnetometers, Kyoto Dst, WSA-ENLIL CME forecast, and SWPC G1–G5 storm alerts.
 - **12-Hour & 3-Night Outlook**：Interactive hourly clear-sky & score chart plus a 3-night dark-sky outlook using sustained 2-hour clear windows.
 - **360° Winter-Road Clear-Sky Radar**：Verified winter-open paved corridors with road distances & driving hazard warnings (gale/blowing snow, extreme cold, road authority links) for **18 global hubs** — Alta, Tromsø, Lofoten, Senja, Narvik, Abisko, Kiruna, Kirkenes, Rovaniemi, Inari, Reykjavik, Akureyri, Fairbanks, Yellowknife, Whitehorse, Queenstown, Lake Tekapo, and Hobart (plus any global GPS/city search).
 - **Live All-Sky Cams & Cloud Map**：Region-aware live observatory cameras (**Nordic**: UiT Skibotn, IRF Kiruna, SGO Sodankylä, KHO Svalbard, FMI ground magnetometers; **North America**: UAF Poker Flat, CSA/UCalgary AuroraMAX), embedded Windy clouds, and NOAA OVATION oval.
-- **Field-Ready PWA & Red-Light Mode**：True scotopic red-light mode, screen-on alert monitor, coordinate-keyed offline cache, strict CSP (`script-src 'self'`), and zero cookies/analytics (see [SECURITY.md](SECURITY.md)).
+- **Field-Ready PWA & Red-Light Mode**：Zero-leak scotopic red-light mode, screen-on alert monitor (with auto Wake Lock re-acquire), coordinate-keyed offline cache, strict CSP (`script-src 'self'`), and zero cookies/analytics (see [SECURITY.md](SECURITY.md)).
 
 ## Architecture｜專案結構
 
@@ -28,17 +28,23 @@ Zero build tools, zero npm runtime dependencies (native ES modules):
 - `src/aurora-engine.js` — Pure physics (IGRF-14 Apex-110, JPL DE441 solar/lunar, Newell coupling, layered clouds, METAR Optimal Interpolation) & 15+ upstream parsers
 - `src/charts.js` — Pure SVG visualizations (live sky, solar wind, 12h wave, 360° radar)
 - `src/data-client.js` / `src/storage.js` / `src/i18n.js` / `src/app.js` — Live transport (NOAA, MET Norway, Dual-Model Open-Meteo, METAR ceilometers), offline SWR cache, bilingual UI & controller
-- `tests/` — 43 automated tests (`aurora.test.mjs`), 72-case physics regression & 22 JPL DE441 checkpoints (`benchmark.mjs`), and blind multi-archive validation (`realworld-validation.mjs`)
+- `tests/` — `45` automated tests (`44` unit + `1` optional live in `aurora.test.mjs`), `72` curated scenario regression guardrails & `22` JPL DE441 checkpoints (`benchmark.mjs`), and live public-data audit (`realworld-validation.mjs`)
 
-## Independent Zero-Fitting Validation｜零擬合盲測驗證
+## Independent Zero-Fitting Validation & Known Caveats｜零擬合盲測驗證與限制
 
-All physics upgrades are verified strictly out-of-sample (zero weight fitting). See the full methodology, 5-archive breakdown, and **6 rigorously rejected hypotheses** in **[VALIDATION.md](VALIDATION.md)**：
+All scoring weights remained frozen (zero weight fitting). Full methodology, naive baselines, **PR-AUC under class imbalance, known regional regressions, and 6 rejected hypotheses** are published transparently in **[VALIDATION.md](VALIDATION.md)**：
 
-- **Geomagnetic Coordinates (IGRF-14 Apex-110 vs AACGMv2, N=14,122)**：Global MAE reduced 12× from `2.88°` → **`0.24°`** (North America `0.28°`, Europe `0.20°`, Nordics `0.17°`, Southern Hemisphere `0.25°`).
-- **12-Year Global Human Sightings (Aurorasaurus 2014–2025 + NASA OMNI2, N=20,318, 2,008 dates)**：ROC-AUC **`0.807`** (vs `0.689` Kp-only, UTC-date cluster 95% CI lift `+0.025..+0.046` from IGRF-14 alone; MCC `0.359` → `0.437`).
-- **10-Year Nordic All-Sky Camera Optical Photometry (FMI/MIRACLE 557.7 nm, 31M frames, 44,870 dark hours)**：Clear-sky (`N=16,272`) ROC-AUC **`0.87–0.89`** (`≥2–5 kR`), all-weather Prime-tier (`65–99`) optical hit rate **`95.8%`** (`≥2 kR`).
-- **Full Solar Cycle Space Weather (GFZ Hp30 2020–2025, 103,656 30-min bins & NASA OMNI2 2015–2025, 95,614h)**：Pure-L1 solar-wind ROC-AUC **`0.87–0.95`** (`Hp30 ≥ 5`) and **`0.91–0.93`** (`AE ≥ 500 nT`).
-- **2-Season Global Airport Laser Ceilometers (20 hubs × 2 winters, 60,693 unbiased dark hours)**：Causal METAR Optimal Interpolation improves `+1h` clear-sky ROC-AUC from **`0.81` → `0.90`**, lowers cloud MAE by **`5–6 pts`** (`24% → 18%`), and cuts false-clear alarms by **`>50%`** (`7.5% → 3.3%`). Dual-model consensus in Iceland cuts false-clear alarms from **`20–21%` → `6–7%`** (`AUC 0.79–0.80` → `0.83–0.85`).
+- **Astronomy (JPL Horizons DE441, 22 checkpoints)**：Solar elevation max error **`0.006°`** (`MAE 0.004°`); lunar elevation max **`0.74°`** (`MAE 0.298°`); lunar illumination max **`1.16%`** (`MAE 0.399%`).
+- **Geomagnetic Coordinates (`computeGeomagneticLat` vs AACGMv2, N=14,122 Aurorasaurus coords, 94.7% NA/EU)**：MAE reduced `2.88° → 0.236°` (`NA 0.250°`, `EU 0.212°`, `Nordics 0.151°`, `SH 0.222°`; `|lat| ≥ 58°` MAE `0.144°`). *Caveat*: low-latitude `|lat| < 30°` max error reaches `10.98°`.
+- **Space Weather (Pure-L1 Solar Wind, Zero Kp/Dst Inputs, Clear-Sky Assumed)**：
+  - 2024–2025 continuous NASA OMNI2 (`N=17,255h`, reproducible locally): `AE ≥ 500 nT` (`11.7%` base) ROC `0.902` / **PR-AUC `0.655`**; `AE ≥ 300 nT` (`26.4%` base) ROC `0.864` / **PR-AUC `0.755`**.
+  - 6-year GFZ `Hp30 ≥ 5` (`2020–2025`): ROC `0.869–0.949`, **PR-AUC `0.216–0.618`** (`2020` solar min base rate is only `0.34%`).
+- **Sightings & Optical All-Sky Cameras**：
+  - 12-year Aurorasaurus (`N=20,318`, **cloudless `cloudNow = 5%` assumed**): IGRF-14 lifts global ROC-AUC `0.774 → 0.807` (`+0.034`, cluster 95% CI `[+0.025, +0.046]`). Real-cloud MERRA-2 subset (`N=240`) drops to AUC `0.622` — weather dominates real viewing.
+  - 10-year Nordic `557.7 nm` All-Sky Cameras (`N=44,870` dark hours): Clear-sky (`N=16,272`) ROC `0.871` (`≥2 kR`) / `0.889` (`≥5 kR`, `+0.010` vs Kp); **all-weather ROC is `0.651` vs Kp `0.861`** due to cloud gating and `87–102 km` archive METAR distance.
+- **Cloud Nowcasting & Dual-Model NWP (`19` unique airport hubs, 2 winters)**：
+  - Dual-model consensus improves Iceland (`AUC 0.79–0.80 → 0.83–0.85`, False-Clear `20–21% → 6–7%`) and Canada (`AUC 0.82–0.85 → 0.84–0.87`), while UK (`-0.004..-0.035`), SH (`-0.005`), and CONUS MAE (`+1.7 pts`) slightly regressed.
+  - Causal METAR OI (`+1h`) at the airport runway (`d = 0 km`) improves over NWP (`AUC 0.81 → 0.90`, False-Clear `6–7.5% → 2.8–3.2%`), though naive runway persistence (`METAR[t-1h]`, `AUC 0.922`) beats OI at `d = 0 km` and spatial lift shrinks to `+0.005..+0.008` at `36–45 km`.
 
 ## Local Run & Tests｜本機執行與測試
 

@@ -154,18 +154,23 @@ export function findMatchingOfflineCache(pos, nowMs = Date.now(), storeOpt) {
 
 /** Build a lightweight serializable SWR snapshot for full 3-tab offline recovery */
 export function buildSwrPayload({ pos, lang, posName, snapshot, verdict, skySub, aurSub, darkSub, nowMs = Date.now() }) {
-  const { bal, moon, sc, scNext, bestDark, hereHrs, dirResults, nights3, kp, bz, speed, ovation, hpiGw, predKp1h, kyotoDst, mltNow, sunAltNow, weatherSourceLabel, usedMet, cloudConsensus } = snapshot;
+  const { bal, moon, sc, scNext, bestDark, hereHrs, dirResults, nights3, multiDayPts, kpForecast, kp, bz, speed, ovation, hpiGw, predKp1h, kyotoDst, mltNow, sunAltNow, weatherSourceLabel, usedMet, cloudConsensus } = snapshot;
+  const compactMultiDay = Array.isArray(multiDayPts)
+    ? multiDayPts.slice(0, 84).map(p => ({ dtMs: p.dtMs, clear: p.clear, block: p.block, isDay: p.isDay, ...(p.stepHrs > 1 ? { stepHrs: p.stepHrs } : {}) }))
+    : null;
   return {
     ts: nowMs, lang, posName,
     lat: pos.lat, lon: pos.lon, tz: pos.tz,
     kp, bz, speed, ovation, hpiGw, predKp1h, kyotoDst, mlt: mltNow, sunAltNow,
     effMoonPct: moon.effMoonPct, moon, bestDark, score: sc, scNext,
     weatherSourceLabel, usedMet, cloudConsensus,
-    hereHrs, dirResults, nights3,
+    hereHrs, dirResults, nights3, multiDayPts: compactMultiDay,
+    kpForecast: Array.isArray(kpForecast) ? kpForecast.slice(0, 32) : [],
     bal: {
       etaMin: bal.etaMin, nowBz: bal.nowBz, nextBz: bal.nextBz,
       nowNewell: bal.nowNewell, nextNewell: bal.nextNewell,
       cleanLatestBz: bal.cleanLatestBz, avgNewell60: bal.avgNewell60,
+      nextAvgNewell60: bal.nextAvgNewell60,
       preconditioned: bal.preconditioned, nowPdyn: bal.nowPdyn,
       nowShockJumpNpa: bal.nowShockJumpNpa, pdyn: bal.pdyn,
       shockActive: bal.shockActive, shockJumpNpa: bal.shockJumpNpa,
@@ -180,10 +185,22 @@ export function hydrateOfflineState(cached, pos, nowMs = Date.now()) {
   if (!cached || !Array.isArray(cached.hereHrs) || !cached.hereHrs.length) return null;
   const minsAgo = Math.max(1, Math.round((nowMs - cached.ts) / 60000));
   const cachedPos = { ...pos, tz: cached.tz || pos.tz };
+  const cachedMoon = cached.moon || getMoonState(new Date(cached.ts), cachedPos.lat, cachedPos.lon);
   const cachedScored = scoreHourlyForecast12(cached.hereHrs, {
     lat: cachedPos.lat, lon: cachedPos.lon,
-    kpForecast: [], fallbackKp: cached.kp ?? 0, ovation: cached.ovation ?? null, hpiGw: cached.hpiGw ?? null,
-    bz: cached.bal?.nowBz ?? cached.bz ?? null, nextBz: cached.bal?.nextBz ?? null, speed: cached.speed ?? null
+    kpForecast: Array.isArray(cached.kpForecast) ? cached.kpForecast : [],
+    fallbackKp: cached.kp ?? 0, ovation: cached.ovation ?? null, hpiGw: cached.hpiGw ?? null,
+    bz: cached.bal?.nowBz ?? cached.bz ?? null, nextBz: cached.bal?.nextBz ?? null, speed: cached.speed ?? null,
+    newell: cached.bal?.nowNewell ?? null, nextNewell: cached.bal?.nextNewell ?? null,
+    predKp1h: cached.predKp1h ?? null,
+    preconditionedNewell60: cached.bal?.avgNewell60 ?? null,
+    nextPreconditionedNewell60: cached.bal?.nextAvgNewell60 ?? cached.bal?.avgNewell60 ?? null,
+    pdyn: cached.bal?.nowPdyn ?? null, nextPdyn: cached.bal?.pdyn ?? null,
+    shockJumpNpa: cached.bal?.nowShockJumpNpa ?? 0, nextShockJumpNpa: cached.bal?.shockJumpNpa ?? 0,
+    dst: cached.kyotoDst?.dst ?? null,
+    nowOverride: Number.isFinite(cached.sunAltNow)
+      ? { sunAlt: cached.sunAltNow, moon: cachedMoon, mlt: cached.mlt ?? null }
+      : null
   });
   const selectedHourIdx = cached.bestDark
     ? Math.max(0, cachedScored.hours.findIndex(h => h.time === cached.bestDark.time))
@@ -200,10 +217,11 @@ export function hydrateOfflineState(cached, pos, nowMs = Date.now()) {
       noaaOk: false, noaaLagMin: minsAgo, hereHrs: cached.hereHrs, dirResults: cached.dirResults || [],
       weatherSourceLabel: cached.weatherSourceLabel || 'Cached', usedMet: Boolean(cached.usedMet),
       cloudConsensus: cached.cloudConsensus || null, sunAltNow: cached.sunAltNow ?? -15, mltNow: cached.mlt ?? null,
-      moon: cached.moon || getMoonState(new Date(cached.ts), cachedPos.lat, cachedPos.lon),
+      moon: cachedMoon,
       sc: cached.score, scNext: cached.scNext || cached.score,
       bestDark: cached.bestDark || cachedScored.bestAurora || null,
-      nights3: cached.nights3 || [], multiDayPts: null, kpForecast: [], fetchedAt: new Date(cached.ts)
+      nights3: cached.nights3 || [], multiDayPts: cached.multiDayPts || null,
+      kpForecast: Array.isArray(cached.kpForecast) ? cached.kpForecast : [], fetchedAt: new Date(cached.ts)
     }
   };
 }

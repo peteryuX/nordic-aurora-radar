@@ -235,6 +235,28 @@ function renderMonitorBar() {
   bar.innerHTML = '';
 }
 
+async function acquireWakeLock() {
+  if (!state.alertEnabled) return;
+  if (!navigator.wakeLock) {
+    state.wakeLockFailed = true;
+    renderMonitorBar();
+    return;
+  }
+  if (state.wakeLockObj && !state.wakeLockObj.released) return;
+  try {
+    const wl = await navigator.wakeLock.request('screen');
+    state.wakeLockObj = wl;
+    state.wakeLockFailed = false;
+    wl.addEventListener?.('release', () => {
+      if (state.wakeLockObj === wl) state.wakeLockObj = null;
+    });
+  } catch {
+    state.wakeLockObj = null;
+    state.wakeLockFailed = true;
+  }
+  renderMonitorBar();
+}
+
 async function toggleAlertMode() {
   state.alertEnabled = !state.alertEnabled;
   const en = isEn();
@@ -245,20 +267,15 @@ async function toggleAlertMode() {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission().catch(() => {});
     }
-    try {
-      if (navigator.wakeLock) state.wakeLockObj = await navigator.wakeLock.request('screen');
-      else state.wakeLockFailed = true;
-    } catch {
-      state.wakeLockFailed = true;
-    }
-    renderMonitorBar();
+    await acquireWakeLock();
     toast(en
       ? 'Monitor ON — keep screen unlocked & plugged in'
       : '已開啟常亮監測，請保持螢幕未鎖定並接上電源', 'warn');
   } else {
     state.wakeLockFailed = false;
     state.activeAlert = null;
-    try { if (state.wakeLockObj) { await state.wakeLockObj.release(); state.wakeLockObj = null; } } catch {}
+    try { if (state.wakeLockObj && !state.wakeLockObj.released) { await state.wakeLockObj.release(); } } catch {}
+    state.wakeLockObj = null;
     renderMonitorBar();
     haptic(8);
     toast(en ? 'Screen-on monitor turned off' : '已關閉常亮監測', 'info');
@@ -333,6 +350,16 @@ function pushSheetHistory() {
   } catch {}
 }
 
+function popSheetHistoryIfIdle() {
+  const anyOpen = $('picker')?.classList.contains('open') || $('trustSheet')?.classList.contains('open');
+  if (!anyOpen && state.sheetHistoryPushed) {
+    state.sheetHistoryPushed = false;
+    try {
+      if (typeof history !== 'undefined' && history.state?.auroraSheet) history.back();
+    } catch {}
+  }
+}
+
 function syncBodySheetClass() {
   const anyOpen = $('picker')?.classList.contains('open') || $('trustSheet')?.classList.contains('open');
   document.body.classList.toggle('sheet-open', Boolean(anyOpen));
@@ -342,9 +369,10 @@ function togglePicker(forceClose, triggerEl) {
   const p = $('picker');
   const btn = $('pickBtn');
   if (!p || !btn) return;
-  const open = forceClose ? false : !p.classList.contains('open');
+  const wasOpen = p.classList.contains('open');
+  const open = forceClose ? false : !wasOpen;
   if (open) {
-    closeTrustSheet();
+    closeTrustSheet('switch');
     state.pickerTriggerEl = triggerEl || document.activeElement;
     p.classList.add('open');
     p.setAttribute('aria-hidden', 'false');
@@ -352,12 +380,15 @@ function togglePicker(forceClose, triggerEl) {
     btn.setAttribute('aria-expanded', 'true');
     pushSheetHistory();
     haptic(6);
-  } else {
+  } else if (wasOpen) {
     p.classList.remove('open');
     p.setAttribute('aria-hidden', 'true');
     btn.classList.remove('open');
     btn.setAttribute('aria-expanded', 'false');
-    if (state.pickerTriggerEl && forceClose !== 'pop') state.pickerTriggerEl.focus?.();
+    if (forceClose !== 'pop' && forceClose !== 'switch') {
+      popSheetHistoryIfIdle();
+      state.pickerTriggerEl?.focus?.();
+    }
   }
   syncBodySheetClass();
 }
@@ -448,6 +479,7 @@ function syncSatTab() {
   setText('ovHeading', state.pos.lat >= 0
     ? (en ? 'NOAA Northern Hemisphere Aurora Oval' : 'NOAA 北半球即時極光橢圓圖')
     : (en ? 'NOAA Southern Hemisphere Aurora Oval' : 'NOAA 南半球即時極光橢圓圖'));
+  setHtml('ovCap', `<a class="src-link" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/aurora-30-minute-forecast">${en ? 'Source: NOAA SWPC OVATION Live Model (Green = aurora, Yellow/Red = strong) ↗' : '資料來源：NOAA SWPC OVATION 即時模型（綠色＝有極光、黃紅＝強爆發）↗'}</a>`);
   const ovImg = $('ovationImg');
   if (ovImg) ovImg.src = `https://services.swpc.noaa.gov/images/animations/ovation/${hemi}/latest.jpg?t=${Date.now()}`;
 
@@ -506,7 +538,8 @@ function renderLocationHeader() {
   const dot = $('gpsDot');
   if (dot) dot.className = `gps-dot ${dotCls}`;
   $('gpsBtn')?.classList.toggle('gps-live', state.pos.mode === 'gps');
-  setText('clkLbl', en ? 'Local' : '當地');
+  const tzResolved = Boolean(state.pos.tz && state.pos.tz !== 'auto' && state.pos.tz !== 'UTC');
+  setText('clkLbl', tzResolved ? (en ? 'Local' : '當地') : 'UTC');
 
   syncPresetChipHighlight();
   const windyUrl = `https://www.windy.com/${state.pos.lat.toFixed(3)}/${state.pos.lon.toFixed(3)}?clouds,${state.pos.lat.toFixed(3)},${state.pos.lon.toFixed(3)},8`;
@@ -537,7 +570,11 @@ function scoreCssColor(hex) {
   if (hex === '#66bdff') return 'var(--blue)';
   return 'var(--red)';
 }
-const fmtTempC = (t) => { const n = Math.round(t) || 0; return `${n > 0 ? '+' : ''}${n}°C`; };
+const fmtTempC = (t) => {
+  if (t === null || t === undefined || !Number.isFinite(Number(t))) return '--';
+  const n = Math.round(Number(t)) || 0;
+  return `${n > 0 ? '+' : ''}${n}°C`;
+};
 
 function renderGauge(sc, details) {
   state.lastScore = sc;
@@ -574,15 +611,18 @@ function selectForecastHour(idx) {
   const en = isEn();
   const h = state.scoredHours[idx];
   setHtml('skyWaveChart', buildSkyWaveSVG(state.scoredHours, state.bestAurora, idx));
-  const tInt = Math.round(h.temp) || 0;
-  const wcInt = Math.round(h.windChill ?? h.temp) || 0;
-  const wcTxt = (tInt - wcInt >= 3) ? (en ? ` (Feels ${fmtTempC(wcInt)})` : `（體感 ${fmtTempC(wcInt)}）`) : '';
+  const hasTemp = Number.isFinite(Number(h.temp));
+  const tInt = hasTemp ? (Math.round(Number(h.temp)) || 0) : null;
+  const wcInt = hasTemp ? (Math.round(Number(h.windChill ?? h.temp)) || 0) : null;
+  const wcTxt = (hasTemp && tInt - wcInt >= 3) ? (en ? ` (Feels ${fmtTempC(wcInt)})` : `（體感 ${fmtTempC(wcInt)}）`) : '';
   const moonTxt = h.isDay
     ? (en ? 'Too bright' : '天色過亮')
     : (h.moonUp ? (en ? `Moon ${h.moonPct}%` : `月相 ${h.moonPct}%`) : (en ? 'Moon down' : '月亮落下'));
   const kpStr = Number.isFinite(h.kpFc) ? h.kpFc.toFixed(2) : escapeHtml(h.kpFc);
   const tStr = escapeHtml(h.time);
-  const skyLabel = escapeHtml(en ? tSky(h.txt, 'en') : String(h.txt || '').replace(/^[^\p{L}\p{N}]+\s*/u, ''));
+  const rawSkyZh = String(h.txt || '').replace(/^[^\p{L}\p{N}]+\s*/u, '');
+  const skyZh = rawSkyZh === '縫' ? '雲縫' : (rawSkyZh === '晴' ? '晴朗' : (rawSkyZh === '陰' ? '厚雲' : rawSkyZh));
+  const skyLabel = escapeHtml(en ? tSky(h.txt, 'en') : skyZh);
   const scCol = h.isDay ? 'var(--blue)' : tierColor(h.score);
   setHtml('hourDetail', en
     ? `<span><strong>${tStr}</strong> · Score <strong style="color:${scCol}">${h.score}</strong> · Clear ${h.clear}% (${skyLabel})</span><span>${fmtTempC(tInt)}${wcTxt} · ${moonTxt} · Kp ${kpStr}</span>`
@@ -606,10 +646,12 @@ function renderStormBanner(scales, noaaAlert) {
     const isShock = noaaAlert.kind === 'cme-shock';
     const isWarn = Boolean(noaaAlert.isWarning);
     const pill = isShock
-      ? 'CME SHOCK'
+      ? (isWarn ? (en ? 'CME WARN' : 'CME 預警') : 'CME SHOCK')
       : (isWarn ? (en ? `G${lvl} WARN` : `G${lvl} 預警`) : `NOAA G${lvl}`);
     const txt = isShock
-      ? (en ? 'Geomagnetic Sudden Impulse — CME shock arrived' : 'CME 衝擊波抵達地球，短時間內易爆發')
+      ? (isWarn
+          ? (en ? 'Geomagnetic Sudden Impulse Expected — CME approaching' : '預計有 CME 衝擊波接近地球，留意短時爆發')
+          : (en ? 'Geomagnetic Sudden Impulse — CME shock arrived' : 'CME 衝擊波抵達地球，短時間內易爆發'))
       : (isWarn
           ? (en ? `K=${noaaAlert.kLevel} ${gNamesEn[lvl] || ''} Storm Expected` : `預計達 K=${noaaAlert.kLevel}（${gNamesZh[lvl] || ''}地磁風暴）`)
           : (en ? `K=${noaaAlert.kLevel} ${gNamesEn[lvl] || ''} Storm Alert Active` : `即時達 K=${noaaAlert.kLevel}（${gNamesZh[lvl] || ''}地磁風暴）`));
@@ -687,10 +729,18 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales,
   }
 
   const lastM = magSeries.length ? magSeries[magSeries.length - 1] : null;
-  const etaClock = lastM ? utcTagToLocalHM(lastM.time_tag, tz, bal.etaMin) : '';
+  const etaMin = Number.isFinite(bal?.etaMin) ? bal.etaMin : 45;
+  const lastArrMs = lastM ? Engine.parseUtcMs(lastM.time_tag) + etaMin * 60000 : NaN;
+  const isFutureEta = Number.isFinite(lastArrMs) && lastArrMs >= Date.now() - 2 * 60000;
+  const etaClock = isFutureEta ? utcTagToLocalHM(lastM.time_tag, tz, etaMin) : '';
+  const hasDashedLine = Boolean(bal && Number.isInteger(bal.arrivingIdx) && bal.arrivingIdx > 4 && bal.arrivingIdx < (chartSeries?.length || 0) - 4);
   setText('etaHint', en
-    ? (etaClock ? `Right of dashed line = arriving by ${etaClock}` : 'Time axis shows estimated Earth arrival')
-    : (etaClock ? `虛線右側＝已測得太陽風，預估於 ${etaClock} 前陸續到達` : '時間軸已換算為到達地球的當地時間'));
+    ? (hasDashedLine && etaClock
+        ? `Right of dashed line = arriving by ${etaClock}`
+        : (etaClock ? `Earth-arrival local time (incoming wind arriving by ${etaClock})` : 'Time axis shows estimated Earth arrival'))
+    : (hasDashedLine && etaClock
+        ? `虛線右側＝已測得太陽風，預估於 ${etaClock} 前陸續到達`
+        : (etaClock ? `時間軸為到達地球當地時間（已測得太陽風約 ${etaClock} 前抵達）` : '時間軸已換算為到達地球的當地時間')));
   setHtml('bzChart', buildBzChartSVG(chartSeries, tz, speed, bal));
 
   const pNoaa = $('pNoaa');
@@ -1107,7 +1157,10 @@ async function refreshAll(manual) {
       handleOfflineFallback(pos);
     }
   } catch {
-    if (isCurrent()) setText('pMet', isEn() ? 'Weather Offline' : '氣象離線');
+    if (isCurrent()) {
+      setText('pMet', isEn() ? 'Weather Offline' : '氣象離線');
+      if (!noaaOk) setText('pNoaa', isEn() ? 'NOAA Offline ↗' : 'NOAA 離線 ↗');
+    }
   } finally {
     if (isCurrent()) {
       state.isRefreshing = false;
@@ -1278,9 +1331,14 @@ async function shareStatus() {
   const sc = state.lastScore;
   const scStr = sc ? (en ? `${sc.total}/100 (${tGrade(sc.grade)})` : `${sc.total} 分（${sc.grade}）`) : (en ? 'Updating' : '更新中');
   const title = en ? `[${getPosDisplayName()}] Aurora Viewing Score: ${scStr}` : `【${getPosDisplayName()}】極光觀測指數：${scStr}`;
+  const skyVal = $('fSkyVal')?.textContent || '';
+  const skySub = $('fSkySub')?.textContent || '';
+  const skyLine = skyVal && skyVal !== '--'
+    ? (en ? `${skyVal} clear${skySub ? ` · ${skySub}` : ''}` : `晴空 ${skyVal}${skySub ? ` · ${skySub}` : ''}`)
+    : skySub;
   const body = en
-    ? `${title}\n${$('vTitle')?.textContent || ''}\n• Sky: ${$('fSkySub')?.textContent || ''}\n• Aurora: ${$('fAurSub')?.textContent || ''}\nLive Cloud & NOAA Aurora Radar:`
-    : `${title}\n${$('vTitle')?.textContent || ''}\n• 天空：${$('fSkySub')?.textContent || ''}\n• 極光：${$('fAurSub')?.textContent || ''}\n點開看即時雲層＋NOAA 極光雷達：`;
+    ? `${title}\n${$('vTitle')?.textContent || ''}\n• Sky: ${skyLine}\n• Aurora: ${$('fAurSub')?.textContent || ''}\nLive Cloud & NOAA Aurora Radar:`
+    : `${title}\n${$('vTitle')?.textContent || ''}\n• 天空：${skyLine}\n• 極光：${$('fAurSub')?.textContent || ''}\n點開看即時雲層＋NOAA 極光雷達：`;
   const txt = `${body}\n${shareUrl}`;
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
     try { await navigator.share({ title, text: body, url: shareUrl }); return; }
@@ -1296,11 +1354,15 @@ async function shareStatus() {
 }
 
 // ====== Trust, Telemetry & Sources Bottom-Sheet ======
-function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = '', metarNote = '') {
+function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, metarNote = null) {
   const exp = expOpt || state.explainState;
   const sc = scOpt || state.renderState?.sc;
   if (!exp || !sc) return;
   state.explainState = exp;
+  if (rawTelemetry !== null) state.lastRawTelemetry = rawTelemetry;
+  if (metarNote !== null) state.lastMetarNote = metarNote;
+  const effTelemetry = rawTelemetry !== null ? rawTelemetry : (state.lastRawTelemetry || '');
+  const effMetarNote = metarNote !== null ? metarNote : (state.lastMetarNote || '');
   const en = isEn();
   const colOut = scoreCssColor(sc.color);
 
@@ -1308,9 +1370,18 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = '', me
     ? `Why is it <strong id="tsLiveTotal" style="color:${colOut}">${sc.total}</strong> now?`
     : `為何現在是 <strong id="tsLiveTotal" style="color:${colOut}">${sc.total}</strong> 分？（越高越好）`);
   const setCell = (id, val, col) => { const el = $(id); if (el) { el.textContent = val; el.style.color = col; } };
-  setCell('tsValSky', `${sc.skyScore}%`, barColor(sc.skyScore));
+  const skyEffPct = Number.isFinite(exp.breakdown?.skyFactor)
+    ? Math.round(exp.breakdown.skyFactor * 100)
+    : sc.skyScore;
+  const darkEffPct = sc.isTooBright
+    ? 0
+    : (Number.isFinite(exp.breakdown?.darkFactor) ? Math.round(exp.breakdown.darkFactor * 100) : sc.darkScore);
+  setText('tsLblSky', skyEffPct !== sc.skyScore
+    ? (en ? 'Sky Factor' : '晴空係數')
+    : (en ? 'Clear Sky' : '晴空度'));
+  setCell('tsValSky', `${skyEffPct}%`, barColor(sc.skyScore));
   setCell('tsValAur', sc.auroraScore, barColor(sc.auroraScore));
-  setCell('tsValDark', `${sc.darkScore}%`, sc.isTooBright ? 'var(--blue)' : barColor(sc.darkScore));
+  setCell('tsValDark', `${darkEffPct}%`, sc.isTooBright ? 'var(--blue)' : barColor(sc.darkScore));
   setCell('tsValOut', sc.total, colOut);
 
   const badge = $('tsLiveBadge');
@@ -1324,22 +1395,25 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = '', me
   setText('tsDiagTxt', exp.bottleneck.headline);
   const mn = $('tsMetarNote');
   if (mn) {
-    if (metarNote) {
+    if (effMetarNote) {
       mn.style.display = 'block';
-      mn.textContent = `◎ ${metarNote}`;
+      mn.textContent = `◎ ${effMetarNote}`;
     } else {
       mn.style.display = 'none';
       mn.textContent = '';
     }
   }
-  setText('tsConfRow', `${exp.confidence.badgeText}${rawTelemetry ? ` · ${rawTelemetry}` : ''}`);
+  setText('tsConfRow', `${exp.confidence.badgeText}${effTelemetry ? ` · ${effTelemetry}` : ''}`);
 }
 
 function openTrustSheet(triggerEl) {
-  togglePicker(true);
+  togglePicker('switch');
   state.trustTriggerEl = triggerEl || document.activeElement;
-  if (state.renderState) renderFromState(state.renderState);
-  updateClockAndPhoto();
+  if (state.explainState && state.renderState?.sc) {
+    renderTrustSheetLive();
+  } else if (state.renderState) {
+    renderFromState(state.renderState);
+  }
   const sheet = $('trustSheet');
   if (!sheet) return;
   sheet.classList.add('open');
@@ -1356,7 +1430,10 @@ function closeTrustSheet(mode) {
   sheet.classList.remove('open');
   sheet.setAttribute('aria-hidden', 'true');
   syncBodySheetClass();
-  if (mode !== 'pop') state.trustTriggerEl?.focus?.();
+  if (mode !== 'pop' && mode !== 'switch') {
+    popSheetHistoryIfIdle();
+    state.trustTriggerEl?.focus?.();
+  }
 }
 
 // Expose test helpers for automated visual verification scripts
@@ -1384,20 +1461,36 @@ function bindSheetSwipe(sheetId, onClose) {
   const hdr = document.querySelector(`#${sheetId} .sheet-hdr`);
   const panel = document.querySelector(`#${sheetId} .sheet-panel`);
   if (!hdr || !panel) return;
-  let startY = 0, dy = 0;
-  hdr.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; dy = 0; panel.style.transition = 'none'; }, { passive: true });
-  hdr.addEventListener('touchmove', (e) => { dy = Math.max(0, e.touches[0].clientY - startY); panel.style.transform = `translateY(${dy}px)`; }, { passive: true });
-  hdr.addEventListener('touchend', () => {
+  let startY = 0, dy = 0, active = false;
+  const reset = (shouldClose) => {
+    if (!active) return;
+    active = false;
     panel.style.transition = '';
     panel.style.transform = '';
-    if (dy > 65) onClose();
-  });
+    const moved = dy;
+    dy = 0;
+    if (shouldClose && moved > 65) onClose();
+  };
+  hdr.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) { reset(false); return; }
+    startY = e.touches[0].clientY;
+    dy = 0;
+    active = true;
+    panel.style.transition = 'none';
+  }, { passive: true });
+  hdr.addEventListener('touchmove', (e) => {
+    if (!active || e.touches.length !== 1) { reset(false); return; }
+    dy = Math.max(0, e.touches[0].clientY - startY);
+    panel.style.transform = `translateY(${dy}px)`;
+  }, { passive: true });
+  hdr.addEventListener('touchend', () => reset(true));
+  hdr.addEventListener('touchcancel', () => reset(false));
 }
 
 function bindWaveScrubbing() {
   const svg = $('skyWaveChart');
   if (!svg) return;
-  let scrubbing = false;
+  let tracking = false, scrubbing = false, startX = 0, startY = 0, activePointerId = null;
   const pickFromClientX = (clientX) => {
     if (!state.scoredHours.length) return;
     const rect = svg.getBoundingClientRect();
@@ -1411,43 +1504,84 @@ function bindWaveScrubbing() {
       haptic(5);
     }
   };
+  const reset = () => {
+    if (scrubbing && activePointerId !== null) {
+      try { svg.releasePointerCapture(activePointerId); } catch {}
+    }
+    tracking = false;
+    scrubbing = false;
+    activePointerId = null;
+  };
   svg.addEventListener('pointerdown', (e) => {
     if (e.button && e.button !== 0) return;
-    scrubbing = true;
-    try { svg.setPointerCapture(e.pointerId); } catch {}
-    pickFromClientX(e.clientX);
+    if (e.isPrimary === false) return;
+    tracking = true;
+    scrubbing = false;
+    startX = e.clientX;
+    startY = e.clientY;
+    activePointerId = e.pointerId;
   });
   svg.addEventListener('pointermove', (e) => {
-    if (scrubbing) pickFromClientX(e.clientX);
+    if (!tracking || e.pointerId !== activePointerId) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (!scrubbing) {
+      // Yield immediately to vertical page scrolling on mobile touchscreens
+      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) {
+        reset();
+        return;
+      }
+      if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+        scrubbing = true;
+        try { svg.setPointerCapture(e.pointerId); } catch {}
+        pickFromClientX(e.clientX);
+      }
+      return;
+    }
+    pickFromClientX(e.clientX);
   });
-  const endScrub = (e) => {
-    if (!scrubbing) return;
-    scrubbing = false;
-    try { svg.releasePointerCapture(e.pointerId); } catch {}
-  };
-  svg.addEventListener('pointerup', endScrub);
-  svg.addEventListener('pointercancel', endScrub);
-  svg.addEventListener('click', (e) => {
-    const hit = e.target.closest?.('[data-hour-idx]');
-    if (hit) selectForecastHour(parseInt(hit.dataset.hourIdx, 10));
+  svg.addEventListener('pointerup', (e) => {
+    if (!tracking || e.pointerId !== activePointerId) return;
+    const isCleanTap = !scrubbing && Math.hypot(e.clientX - startX, e.clientY - startY) <= 10;
+    reset();
+    if (isCleanTap) pickFromClientX(e.clientX);
   });
+  svg.addEventListener('pointercancel', reset);
 }
 
 function bindPullToRefresh() {
   const ptr = $('ptrIndicator');
   const txt = $('ptrText');
   if (!ptr) return;
-  let startY = 0, pullY = 0, tracking = false;
+  let startX = 0, startY = 0, pullY = 0, tracking = false;
+  const finish = (allowRefresh) => {
+    if (!tracking) return;
+    tracking = false;
+    const shouldRefresh = allowRefresh && pullY >= 46;
+    ptr.classList.remove('pulling', 'ready');
+    ptr.style.height = '0px';
+    ptr.style.opacity = '0';
+    pullY = 0;
+    if (shouldRefresh) {
+      haptic(10);
+      refreshAll(true);
+    }
+  };
   document.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) { finish(false); return; }
     if (window.scrollY > 2 || document.body.classList.contains('sheet-open') || state.isRefreshing) return;
     if (e.target.closest?.('.chart-box, .sheet-panel, iframe')) return;
+    startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
     pullY = 0;
     tracking = true;
   }, { passive: true });
   document.addEventListener('touchmove', (e) => {
     if (!tracking) return;
+    if (e.touches.length !== 1) { finish(false); return; }
+    const dx = Math.abs(e.touches[0].clientX - startX);
     const dy = e.touches[0].clientY - startY;
+    if (dx > dy && dy < 20) { finish(false); return; }
     if (dy <= 6 || window.scrollY > 2) {
       if (pullY > 0) { ptr.style.height = '0px'; ptr.style.opacity = '0'; pullY = 0; }
       return;
@@ -1462,19 +1596,8 @@ function bindPullToRefresh() {
       ? (isEn() ? 'Release to refresh' : '放開立即更新')
       : (isEn() ? 'Pull to refresh' : '下拉更新');
   }, { passive: true });
-  document.addEventListener('touchend', () => {
-    if (!tracking) return;
-    tracking = false;
-    const shouldRefresh = pullY >= 46;
-    ptr.classList.remove('pulling', 'ready');
-    ptr.style.height = '0px';
-    ptr.style.opacity = '0';
-    pullY = 0;
-    if (shouldRefresh) {
-      haptic(10);
-      refreshAll(true);
-    }
-  });
+  document.addEventListener('touchend', () => finish(true));
+  document.addEventListener('touchcancel', () => finish(false));
 }
 
 // ====== Event Binding & Bootstrap ======
@@ -1540,6 +1663,7 @@ function bindEvents() {
     state.sheetHistoryPushed = false;
     if ($('trustSheet')?.classList.contains('open')) closeTrustSheet('pop');
     if ($('picker')?.classList.contains('open')) togglePicker('pop');
+    syncBrowserUrl();
   });
 
   bindSheetSwipe('trustSheet', () => closeTrustSheet());
@@ -1591,9 +1715,7 @@ setInterval(() => { if (!document.hidden || state.alertEnabled) refreshAll(false
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) {
     updateClockAndPhoto();
-    if (state.alertEnabled && navigator.wakeLock && !state.wakeLockObj) {
-      navigator.wakeLock.request('screen').then(wl => { state.wakeLockObj = wl; state.wakeLockFailed = false; renderMonitorBar(); }).catch(() => {});
-    }
+    if (state.alertEnabled) acquireWakeLock();
     if (Date.now() - state.lastSyncMs > 3 * 60 * 1000) refreshAll(false);
   }
 });

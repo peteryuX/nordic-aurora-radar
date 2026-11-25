@@ -4,31 +4,35 @@
 
 - Live App: https://peteryux.github.io/nordic-aurora-radar/
 - Source Code (MIT License): https://github.com/peteryuX/nordic-aurora-radar
+- Validation & Limitations Report: https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md
 - Languages: Traditional Chinese (`zh-Hant`) and English (`en`)
 
 ## What Makes It Different From Kp-Only Aurora Apps
 
-1. **11 Live NOAA SWPC Space-Weather Feeds**:
-   - L1 solar wind magnetometer (`Bz`, `By`, `Bt`) & plasma speed/density with ballistic Earth-arrival ETA (8–95 min), 3-point median spike filtering, Newell solar-wind-magnetosphere coupling, and 60-minute magnetotail substorm preconditioning.
-   - NOAA Geospace MHD 1-hour forward predicted Kp, 1-minute estimated Kp, 72-hour Kp forecast, NOAA G1–G5 storm scales, official SWPC geomagnetic warnings/CME Sudden Impulse alerts, OVATION overhead aurora grid, Hemispheric Power Index (GW), and dual-sector GOES East/West magnetometers.
-2. **Official Nordic 2.5km Layered Clouds + Dual-Model Divergence Detection**:
-   - Uses official MET Norway (Yr.no) 2.5km MEPS low/mid/high cloud & fog layers inside the Nordics, and DST-proof Open-Meteo globally.
-   - Automatically cross-checks MET Norway vs Open-Meteo 3-hour cloud forecasts and lowers forecast confidence whenever models strongly diverge (e.g., Abisko rain-shadow microclimate).
-3. **NASA JPL DE441-Verified Astronomy & Viewing Geometry**:
-   - Solar elevation (max error 0.006° vs NASA JPL Horizons DE441), lunar elevation (max error 0.74°), lunar illumination with Krisciunas-Schaefer opposition surge (max error 1.16%), true geomagnetic pole compass azimuth, 120–300 km elevation angles, and naked-eye vs smartphone Night Mode visibility tier.
-4. **360° Clear-Sky Driving Radar & Live Arctic Observatories**:
-   - 13 road-verified clear-sky chase corridors (Alta, Tromsø, Lofoten, Senja, Abisko, Kiruna, Kirkenes, Rovaniemi, Reykjavik, Fairbanks, Yellowknife, Queenstown, Hobart) with snow/black-ice precipitation warnings and 1-tap Google Maps routing.
-   - Built-in live Arctic all-sky cameras (UiT Norway, IRF Kiruna Sweden, SGO Finland, KHO Svalbard 78°N) plus FMI live Nordic ground magnetometer disturbance map.
+1. **14 Live NOAA SWPC Space-Weather Feeds**:
+   - L1 solar wind magnetometer (`Bz`, `By`, `Bt`) & plasma speed/density with NOAA-synced ballistic Earth-arrival ETA (10–120 min), 3-point median spike filtering, Newell solar-wind-magnetosphere coupling, and 60-minute magnetotail substorm preconditioning.
+   - NOAA Geospace MHD 1-hour forward predicted Kp, 1-minute estimated Kp, 72-hour Kp forecast, NOAA G1–G5 storm scales, official SWPC geomagnetic warnings/CME Sudden Impulse alerts, OVATION overhead aurora grid, Hemispheric Power Index (GW), dual-sector GOES East/West magnetometers, Kyoto WDC live Dst ring-current index, Propagated Solar Wind, and WSA-ENLIL 96-hour CME/HSS forecast.
+2. **Layered Clouds, Global Dual-Model NWP & Live Airport METAR Ceilometers**:
+   - Uses official MET Norway (Yr.no) 2.5km MEPS low/mid/high cloud & fog layers as primary forecast inside the Nordics (cross-checked against Open-Meteo for 3-hour divergence consensus), and Dual-Model Open-Meteo globally (`best_match + icon_seamless` in Iceland, `best_match + ecmwf_ifs025` globally).
+   - Live 61-airport METAR laser ceilometer Optimal Interpolation (`+0h..+3h`, `≤ 55 km`, `age ≤ 90 min`) via official CORS endpoints (MET Norway / IEM).
+3. **IGRF-14 Apex-110 Coordinates & NASA JPL DE441-Verified Astronomy**:
+   - Pure IGRF-14 (`n=1..13`, 2025.0) Modified Apex-110 geomagnetic latitude (`0.24°` MAE vs AACGMv2 across 14,122 Aurorasaurus coords; `|lat| ≥ 58°` MAE `0.144°`).
+   - Solar elevation (max error `0.006°` vs NASA JPL Horizons DE441), lunar elevation (max error `0.74°`), lunar illumination with Krisciunas-Schaefer opposition surge (max error `1.16%`), true geomagnetic pole compass azimuth, 120–300 km elevation angles, and naked-eye vs smartphone Night Mode visibility tier.
+4. **360° Clear-Sky Driving Radar & Live Arctic/North America Observatories**:
+   - 18 road-verified clear-sky chase corridors (Alta, Tromsø, Lofoten, Senja, Narvik, Abisko, Kiruna, Kirkenes, Rovaniemi, Inari, Reykjavik, Akureyri, Fairbanks, Yellowknife, Whitehorse, Queenstown, Lake Tekapo, Hobart) with snow/black-ice/gale warnings, regional road authority links, and 1-tap Google Maps routing.
+   - Region-aware live observatory all-sky cameras: **Nordic** (UiT Skibotn, IRF Kiruna, SGO Sodankylä, KHO Svalbard 78°N, FMI ground magnetometers) and **North America** (UAF Poker Flat, CSA/UCalgary AuroraMAX).
 5. **Night-Vision & Privacy First**:
-   - True scotopic red-light night-vision mode (`body.red-mode`), offline PWA cache, zero cookies/analytics, zero third-party JS dependencies, strict Content-Security-Policy (CSP), and `no-referrer` protection.
+   - Zero-leak scotopic red-light night-vision mode (`body.red-mode`), screen-on alert monitor with Wake Lock auto re-acquire, coordinate-keyed offline PWA cache, zero cookies/analytics, zero third-party JS dependencies, strict Content-Security-Policy (CSP), and `no-referrer` protection.
 
 ## Recommended Use Cases
 
-- Tourists and aurora photographers chasing Northern Lights in Tromsø, Alta, Lofoten, Senja, Abisko, Kiruna, Rovaniemi, Reykjavik, Fairbanks, or Yellowknife, or Southern Lights in Queenstown and Hobart.
-- Checking real-time cloud gaps, L1 solar wind Bz trends, viewing compass direction, and naked-eye vs camera visibility without installing a paid app or creating an account.
+- Tourists and aurora photographers chasing Northern Lights in Tromsø, Alta, Lofoten, Senja, Narvik, Abisko, Kiruna, Kirkenes, Rovaniemi, Inari, Reykjavik, Akureyri, Fairbanks, Yellowknife, or Whitehorse, or Southern Lights in Queenstown, Lake Tekapo, and Hobart.
+- Checking real-time cloud gaps, live airport ceiling observations, L1 solar wind Bz trends, viewing compass direction, and naked-eye vs camera visibility without installing a paid app or creating an account.
 
 ## Verification & Quality Benchmarks
 
-- Automated regression suite (`node --test tests/aurora.test.mjs`): 27 unit & live API tests.
-- Historical storm & adversarial false-alarm benchmark (`node tests/benchmark.mjs`): 44 ground-truth cases (2024 G5 Gannon, 2024/2023/2025 G4 storms, Nordic substorms, CME onsets, northward-Bz traps, mid-latitude traps) with 0% false negative rate.
+- Automated test suite (`node --test tests/aurora.test.mjs`): 45 tests (44 deterministic unit tests + 1 optional live API test).
+- Curated scenario regression & ephemeris sanity check (`node tests/benchmark.mjs`): 72 curated/synthetic scenario guardrails (not real-world accuracy) + 22 NASA JPL DE441 astronomy checkpoints.
+- Live public-data validation (`node tests/realworld-validation.mjs`): continuous 2024–2025 NASA OMNI2 (`N=17,255h`, ROC-AUC + PR-AUC, zero Dst leakage), 3-month GFZ Hp30 check, live NOAA telemetry, and 9-airport same-hour METAR audit.
+- Full validation report & known limitations: https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md
 - Security policy: https://github.com/peteryuX/nordic-aurora-radar/blob/main/SECURITY.md

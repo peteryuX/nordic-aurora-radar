@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=2.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>極光即時雷達｜北歐＆全球即時預報</title>
   <meta name="description" content="Real-time Nordic & global aurora radar combining official Yr.no (MET Norway) layered clouds, NOAA solar wind telemetry, twilight/moonlight physics, and a 360° clear-sky radar. 直連挪威官方 Yr.no 分層雲量與美國 NOAA 即時太陽風衛星，結合太陽暮光、月球仰角與 360° 晴空雷達。" />
   <meta name="keywords" content="aurora forecast, northern lights, nordic aurora radar, Tromso aurora, Alta aurora, Lofoten aurora, Abisko aurora, NOAA SWPC, Yr.no cloud forecast, 極光預報, 極光雷達, 北歐極光" />
@@ -11,14 +11,15 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://fox.phys.uit.no https://www.irf.se https://www.sgo.fi https://kho.unis.no https://cdn.fmi.fi https://optics.gi.alaska.edu https://auroramax.phys.ucalgary.ca https://services.swpc.noaa.gov; connect-src 'self' https://services.swpc.noaa.gov https://api.met.no https://api.open-meteo.com https://geocoding-api.open-meteo.com https://api.bigdatacloud.net https://mesonet.agron.iastate.edu; frame-src https://embed.windy.com; object-src 'none'; base-uri 'self'; form-action 'none';" />
   <meta name="theme-color" content="#040912" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <link rel="canonical" href="https://peteryux.github.io/nordic-aurora-radar/" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://peteryux.github.io/nordic-aurora-radar/" />
   <meta property="og:title" content="Aurora Radar — Live Clear-Sky & Solar Wind Forecast" />
-  <meta property="og:description" content="Free, no-ad aurora radar fusing 2.5km Yr.no layered clouds, 14 live NOAA solar wind feeds, twilight/moonlight darkness countdown, and a 360° clear-sky driving radar." />
+  <meta property="og:description" content="Free, no-ad aurora radar combining 2.5km Yr.no layered clouds, 14 live NOAA SWPC space-weather feeds, twilight/moonlight darkness countdown, and a 360° clear-sky driving radar." />
   <meta property="og:image" content="https://peteryux.github.io/nordic-aurora-radar/og-cover.png?v=2" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -402,10 +403,10 @@
         <section class="ts-sec">
           <h3 id="tsSciTitle" class="ts-h3">官方資料來源與驗證</h3>
           <div class="ts-stat-grid" id="tsStatGrid">
-            <div class="ts-stat"><strong>JPL 0.006°・IGRF 0.24°</strong><span>日月天文與全球地磁校準</span></div>
-            <div class="ts-stat"><strong>NASA / GFZ 盲測</strong><span>純太陽風地磁 AUC 0.87–0.95</span></div>
-            <div class="ts-stat"><strong>6 萬時機場雷射驗證</strong><span>METAR +1h 晴空 AUC 0.90</span></div>
-            <div class="ts-stat"><strong>雙模型雲層比對</strong><span>北歐 Yr.no 2.5km・全球雙源</span></div>
+            <div class="ts-stat"><strong>太陽 0.006°・地磁 0.24°</strong><span>JPL 日月曆（月 ≤0.74°）・IGRF-14</span></div>
+            <div class="ts-stat"><strong>14 項 NOAA 太空天氣</strong><span>1m 太陽風・Kp・GOES・OVATION・Dst</span></div>
+            <div class="ts-stat"><strong>機場雷射短時校正</strong><span>55 km 內即時 METAR 融合（+0–3h）</span></div>
+            <div class="ts-stat"><strong>分層雲量與共識比對</strong><span>北歐 Yr.no 2.5km・全球雙模型</span></div>
           </div>
           <div class="ts-src-links">
             <a id="pNoaa" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/planetary-k-index">NOAA ↗</a>

@@ -213,8 +213,8 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
   const rl = $('radarLeg');
   if (rl) {
     rl.innerHTML = en
-      ? `<span><span class="leg-dot" style="background:var(--green);"></span>✓ Clear ≥65%</span><span><span class="leg-dot" style="background:var(--amber);"></span>~ Partly 35–64%</span><span><span class="leg-dot" style="background:var(--red);"></span>✕ Cloudy &lt;35% / ⚠ Wind</span>`
-      : `<span><span class="leg-dot" style="background:var(--green);"></span>✓ 晴朗 ≥65%</span><span><span class="leg-dot" style="background:var(--amber);"></span>~ 局部 35–64%</span><span><span class="leg-dot" style="background:var(--red);"></span>✕ 厚雲 / ⚠ 強風雪</span>`;
+      ? `<span>3h avg clear:</span><span><span class="leg-dot" style="background:var(--green);"></span>✓ ≥65%</span><span><span class="leg-dot" style="background:var(--amber);"></span>~ 35–64%</span><span><span class="leg-dot" style="background:var(--red);"></span>✕ &lt;35% / ⚠ Wind</span>`
+      : `<span>未來 3h 均晴空：</span><span><span class="leg-dot" style="background:var(--green);"></span>✓ ≥65%</span><span><span class="leg-dot" style="background:var(--amber);"></span>~ 35–64%</span><span><span class="leg-dot" style="background:var(--red);"></span>✕ 厚雲 / ⚠ 強風雪</span>`;
   }
 
   const ovCapEl = $('ovCap');
@@ -228,14 +228,14 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
   const tsG = $('tsStatGrid');
   if (tsG) {
     tsG.innerHTML = en
-      ? `<div class="ts-stat"><strong>JPL 0.006° · IGRF 0.24°</strong><span>Sun/Moon &amp; Apex-110 grid</span></div>` +
-        `<div class="ts-stat"><strong>NASA &amp; GFZ Blind</strong><span>Pure-L1 mag AUC 0.87–0.95</span></div>` +
-        `<div class="ts-stat"><strong>60k-hr Laser Audit</strong><span>METAR +1h clear AUC 0.90</span></div>` +
-        `<div class="ts-stat"><strong>Global Dual-NWP</strong><span>2.5km Yr.no · ICON · ECMWF</span></div>`
-      : `<div class="ts-stat"><strong>JPL 0.006°・IGRF 0.24°</strong><span>日月天文與全球地磁校準</span></div>` +
-        `<div class="ts-stat"><strong>NASA / GFZ 盲測</strong><span>純太陽風地磁 AUC 0.87–0.95</span></div>` +
-        `<div class="ts-stat"><strong>6 萬時機場雷射驗證</strong><span>METAR +1h 晴空 AUC 0.90</span></div>` +
-        `<div class="ts-stat"><strong>雙模型雲層比對</strong><span>北歐 Yr.no 2.5km・全球雙源</span></div>`;
+      ? `<div class="ts-stat"><strong>Sun 0.006° · Mag 0.24°</strong><span>JPL DE441 (Moon ≤0.74°) · IGRF-14</span></div>` +
+        `<div class="ts-stat"><strong>14 NOAA Space Feeds</strong><span>1m L1 Wind · Kp · GOES · OVATION · Dst</span></div>` +
+        `<div class="ts-stat"><strong>METAR Cloud Nowcast</strong><span>Live airport ceilometers ≤55 km (+0–3h)</span></div>` +
+        `<div class="ts-stat"><strong>Layered Cloud Check</strong><span>Yr.no 2.5km Nordics · Dual-NWP Global</span></div>`
+      : `<div class="ts-stat"><strong>太陽 0.006°・地磁 0.24°</strong><span>JPL 日月曆（月 ≤0.74°）・IGRF-14</span></div>` +
+        `<div class="ts-stat"><strong>14 項 NOAA 太空天氣</strong><span>1m 太陽風・Kp・GOES・OVATION・Dst</span></div>` +
+        `<div class="ts-stat"><strong>機場雷射短時校正</strong><span>55 km 內即時 METAR 融合（+0–3h）</span></div>` +
+        `<div class="ts-stat"><strong>分層雲量與共識比對</strong><span>北歐 Yr.no 2.5km・全球雙模型</span></div>`;
   }
 
   if (!hasLiveState) {

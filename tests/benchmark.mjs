@@ -290,10 +290,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const astro = evaluateAstronomyBenchmark();
 
   console.log('\n====================================================================');
-  console.log('  NORDIC AURORA RADAR — QUANTITATIVE FORECAST QUALITY REPORT');
+  console.log('  NORDIC AURORA RADAR — REGRESSION & EPHEMERIS SANITY REPORT');
   console.log('====================================================================\n');
 
-  console.log(`[1] Historical Storm & False-Alarm Replay (${hist.count} Ground-Truth Cases)`);
+  console.log(`[1] Curated/Synthetic Scenario Regression Guardrails (${hist.count} Cases — NOT Real-World Accuracy)`);
   const v = hist.visibility;
   const cal = hist.calibration;
   console.log(`  Visibility Confusion Matrix : TP=${v.tp}  FN=${v.fn}  TN=${v.tn}  FP=${v.fp}`);

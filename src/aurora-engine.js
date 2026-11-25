@@ -119,8 +119,8 @@ export const NORDIC_CORRIDORS = [
     { key: 'W', label: '往西 Evenes', lat: 68.4910, lon: 16.6780, roadKm: 58, isOcean: false }
   ]},
   { match: [68.35, 18.83], pts: [
-    { key: 'E', label: '往東南 Kiruna', lat: 67.8558, lon: 20.2253, roadKm: 95, roadNote: 'E10 主幹道', roadNoteEn: 'E10 highway', isOcean: false },
-    { key: 'S', label: '往東 Torneträsk', lat: 68.2150, lon: 19.7200, roadKm: 45, isOcean: false },
+    { key: 'E', label: '往東 Torneträsk', lat: 68.2150, lon: 19.7200, roadKm: 45, isOcean: false },
+    { key: 'S', label: '往東南 Kiruna', lat: 67.8558, lon: 20.2253, roadKm: 95, roadNote: 'E10 主幹道', roadNoteEn: 'E10 highway', isOcean: false },
     { key: 'W', label: '往西 Narvik', lat: 68.4385, lon: 17.4273, roadKm: 75, roadNote: 'E10 邊境山口易封', roadNoteEn: 'E10 border pass', isOcean: false }
   ]},
   { match: [69.73, 30.05], pts: [
@@ -219,8 +219,9 @@ export function isInNordicMetBox(lat, lon) {
 export function computeCompassPoints(lat, lon, distKm = 60) {
   const here = { key: 'here', label: '📍 目前位置', lat: +lat.toFixed(4), lon: +lon.toFixed(4), isOcean: false };
   for (const c of CHASE_CORRIDORS) {
-    if (Math.hypot(lat - c.match[0], (lon - c.match[1]) * Math.cos(lat * Math.PI / 180)) < 0.25) {
-      return [here, ...c.pts.map(p => ({ ...p }))];
+    const hubDist = Math.hypot(lat - c.match[0], (lon - c.match[1]) * Math.cos(lat * Math.PI / 180));
+    if (hubDist < 0.25) {
+      return [here, ...c.pts.map(p => (hubDist < 0.08 ? { ...p } : { ...p, roadKm: undefined }))];
     }
   }
   const dLat = distKm / 111.32;
@@ -434,6 +435,7 @@ export function parseUrlLocation(searchStr) {
 export function buildShareUrl(baseHref, pos, lang) {
   try {
     const u = new URL(baseHref);
+    u.searchParams.delete('view');
     if (pos && Number.isFinite(pos.lat) && Number.isFinite(pos.lon)) {
       u.searchParams.set('lat', pos.lat.toFixed(4));
       u.searchParams.set('lon', pos.lon.toFixed(4));
@@ -680,8 +682,8 @@ export function computeEffectiveCloud(low, mid, high = 0, fog = 0, totalCap = nu
  * geomagnetic latitude correction table (Richmond 1995; Laundal & Richmond 2017).
  * Stores signed Int8 delta (0.2° step) relative to the analytic IGRF-14 centered dipole
  * on a 5° lat × 10° lon global grid (37×36 = 1,332 nodes, traced from h=110 km to apex r_A).
- * Verified zero-fitting MAE = 0.24° vs AACGMv2 globally (North America 0.28°, Europe 0.20°,
- * Nordics 0.17°, Southern Hemisphere 0.25°), reducing mid-latitude NA/EU coordinate bias 12×.
+ * Verified zero-fitting MAE = 0.236° vs AACGMv2 across 14,122 Aurorasaurus coords (NA 0.250°,
+ * EU 0.212°, Nordics 0.151°, SH 0.222°; |lat|>=58° MAE 0.144°, low-lat |lat|<30° max 10.98°).
  */
 const IGRF14_APEX_DELTA_B64 =
   'Hx8fHx8fHx8fHyAgICAgIB8fHx8fHx8fHx8fHx8fHx8fHx8fFBUVFhcYGRobHB0eHyAgISEiIiMjJCQlJSUlJCMhHxwZFxYVBggKDQ8SFBYYGhscHR4fHyAgICEiIiIiIiEhISAcEQkEAwME+v8CBgkNEBMWGBobGxwcHBwcHB0cHRwbGRYSDAP35+Ho7fL29Pn9AgYKDhEUFxkaGhkYFhYWFhYWFhUTEAwG/vTq4d7h5erv8fb6/wMHDBAUFhgYFxUSEA4NDQ4ODw4MCQT+9+7n4uDh5ent8PT5/QEFCg4SFRcWFBEMCAUEBAUGBwcFAv748uzn5OLk5ent8PT4+/8DCAwQFBYVEQsF//v5+vv9/v///fr18ezp5ubm6Ort8fT3+v4CBQoPEhQSDQb99vHu7vDz9vj5+Pbz8O3r6enp6uzu8vT3+vwAAwgNERMQCgD27Obj4+bq7vL09PPy8O/u7Ozs7O3v8/X3+fz+AQYKDxEOBvrt49vY2Nvh5+zv8fLx8fHw8O/u7u/w9Pb3+fv9AAMIDRAMAvTl2dHNztLZ4eft7/Hy8vP08/Lx8PDy9ff4+fv8/gEGDA8K/u7d0cjExMrS2+Tr7/Hz9Pb39vXz8vL09/n5+vr8/QAFCg0I++jWyL+7vMPM1+Lq7/L09/j6+vj29PT1+fr6+vv7/P4DCQwG9+PPwLe0t77J1eHr8PT2+fv+/vv49vb3+/z8+/v7+/0BBwoE897JurGvs7vH1eLs8vb5/P4BAf76+Pf5/f79+/r6+vv+DxD779nDtKyssbrH1eTu9fn7/gEEBAD7+fn6/v79+/n2AwEECQwD9tS/sKmqsLrH1+Xw9/v+AQQHBgH8+fn8/fsHAv/+/f4DCAoB7sy8raiqsbzJ2ejz+f4BAwYJCAL9+vr7BAQC//79/f4CCAj+69O2rKirs77L2ujy+f4BBAYIBwL9+fcGAQIB//39/f8DBwf86dG9tqestL7I5PH7AgcKDA4QDgkD//7//wEA/v39/gADBgX759C9srC0vcjU4/L8BAgLDQ8QDggC/fz9/v/+/fz8/gAEBgT559K/tbK3wMvY5vT/BgoNDxESDwkC/fv8/Pz9/Pv8/gEEBQL459TDube8xM/b6vcBCAwPERMTEAoD/vv7+vr6+vv8/gEEBQH36NbIv73BydTg7fkDCg4SFBUUEQsE/vv6+fn5+fr8/gEDBAD26drNxcPHz9nk8PwFDBAUFhYVEgwF//v5+Pf3+Pn7/gEDA//2697TzMvO1d7p9P4HDhIVFxgWEw0GAPz5+Pf2+Pn7/gEDAv727OHZ09LV2+Pt9wEJDxQXGRkXEw4HAv36+Pf3+Pn8/gECAf327uXe2tnb4enx+gMKEBUYGhoYFA8JA//7+vj4+fr8/gABAPz27+ji39/i5+31/QQLERYZGxoZFRALBQH9/Pv6+vv9/wAA//v28Orm5OXn7PL4/wYNEhYZGxsZFhEMBwP/AP79/f3+/wD//fr18Ozp6Ons8PX7AQcNEhcZGxoZFhMPCgYDAwIA/wAAAAD++/j08O3s7O7x9Pn+BAkOExYZGhoZFhQQDQkGCAYEAwMCAgD++/by7+/v8PL1+f0CBgsPEhUYGBkYFxQSDwwKDQsKCQcHBgQC/fbw8fP19/r9AAMGCg0PEhQWFxcXFhUTEhAOERAQDw8PDw8QERAMCggHBwcICgsMDg8REhMUFRUVFBQUExMSEhISEhISEhISEhISEhISEhISEhISEhISEhISEhISEhISEhIS';
@@ -733,8 +735,8 @@ export function computeGeomagneticLat(lat, lon) {
  */
 export function computeMLT(dateObj, lat, lon) {
   const toR = d => d * Math.PI / 180;
-  const phiP = toR(lat >= 0 ? 80.78 : 74.5);
-  const lamP = toR(lat >= 0 ? -72.78 : -54.0);
+  const phiP = toR(lat >= 0 ? 80.85 : 74.5);
+  const lamP = toR(lat >= 0 ? -72.76 : -54.0);
   const dipoleLon = (la, lo) => {
     const phi = toR(la), dl = toR(lo) - lamP;
     const y = Math.cos(phi) * Math.sin(dl);
@@ -770,8 +772,8 @@ function compassLabel16(deg, en) {
 export function computeAuroraBearing(lat, lon) {
   const toR = d => d * Math.PI / 180;
   const phi1 = toR(lat), lam1 = toR(lon);
-  const phi2 = toR(lat >= 0 ? 80.78 : -74.5);
-  const lam2 = toR(lat >= 0 ? -72.78 : 126.0);
+  const phi2 = toR(lat >= 0 ? 80.85 : -74.5);
+  const lam2 = toR(lat >= 0 ? -72.76 : 126.0);
   const dLam = lam2 - lam1;
   const y = Math.sin(dLam) * Math.cos(phi2);
   const x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(dLam);
@@ -1083,16 +1085,20 @@ export function computeBallisticCoupling(magSeries, windSeriesOrSpeed, nowMs = n
   const nowW = avgWin(arrArr.length ? arrArr : (incArr.length ? incArr : enriched.slice(-10)));
 
   // Exponentially weighted 60-min magnetotail preconditioning (tau = 30 min)
-  let avgNewell60 = nowW.newell;
-  if (preArr.length && Number.isFinite(targetTs)) {
+  const calcExpNewell60 = (refTs, fallbackVal) => {
+    if (!Number.isFinite(refTs)) return fallbackVal;
+    const win = enriched.filter(r => Number.isFinite(r.ts) && r.ts >= refTs - 60 * 60000 && r.ts <= refTs);
+    if (!win.length) return fallbackVal;
     let wSum = 0, nwSum = 0;
-    for (const r of preArr) {
-      const w = Math.exp(-Math.max(0, targetTs - r.ts) / (30 * 60000));
+    for (const r of win) {
+      const w = Math.exp(-Math.max(0, refTs - r.ts) / (30 * 60000));
       wSum += w;
       nwSum += r.nw * w;
     }
-    if (wSum > 0) avgNewell60 = Math.round(nwSum / wSum);
-  }
+    return wSum > 0 ? Math.round(nwSum / wSum) : fallbackVal;
+  };
+  const avgNewell60 = calcExpNewell60(targetTs, nowW.newell);
+  const nextAvgNewell60 = calcExpNewell60(lastTs, inc.newell);
   const preconditioned = Number.isFinite(avgNewell60) && avgNewell60 >= 6000;
 
   // Separate Earth-arriving dynamic pressure so L1 upstream shocks are not prematurely credited to NOW
@@ -1124,7 +1130,7 @@ export function computeBallisticCoupling(magSeries, windSeriesOrSpeed, nowMs = n
   return {
     etaMin, nowBz: nowW.bz, nowNewell: nowW.newell, nextBz: inc.bz, nextNewell: inc.newell,
     cleanLatestBz: enriched.length ? +enriched[enriched.length - 1].bz.toFixed(2) : null,
-    avgNewell60, preconditioned,
+    avgNewell60, nextAvgNewell60, preconditioned,
     nowPdyn, nowShockJumpNpa,
     pdyn: shock.pdyn, shockActive: shock.active, shockJumpNpa: shock.jumpNpa,
     energy120, arrivingIdx
@@ -1985,6 +1991,7 @@ export function parseNoaaAlerts(rows, nowMs = Date.now(), maxAgeHours = 3) {
     let kind = null, kLevel = 0, gScale = 0, isWarning = false;
     if (/SUDDEN IMPULSE/i.test(msg) || pid === 'EF3A' || pid.includes('SUD')) {
       kind = 'cme-shock'; kLevel = 6; gScale = 2;
+      isWarning = /\bWARNING\b/i.test(msg) || pid.startsWith('WAR') || pid.endsWith('W');
       if (ts < nowMs - 90 * 60000) continue; // Cap CME impulse banner to 90 min
     } else {
       const m = pid.match(/^K0([4-9])([AW])$/);
@@ -2221,14 +2228,21 @@ export function parseMetNorwayMultiDay(metJson, lat, lon, timeZone, nowDate) {
   const nowMs = safeNow.getTime();
   const maxMs = nowMs + 84 * 3600000;
   const out = [];
-  for (const item of series) {
+  for (let i = 0; i < series.length; i++) {
+    const item = series[i];
     const ts = Date.parse(item?.time);
     if (!Number.isFinite(ts) || ts < nowMs - 3600000 || ts > maxMs) continue;
+    const nextTs = i + 1 < series.length ? Date.parse(series[i + 1]?.time) : NaN;
+    const stepHrs = Number.isFinite(nextTs) && nextTs > ts
+      ? Math.max(1, Math.min(6, Math.round((nextTs - ts) / 3600000)))
+      : 1;
     const det = item?.data?.instant?.details || {};
     const fogVal = toFinite(det.fog_area_fraction) ?? 0;
     const totRaw = toFinite(det.cloud_area_fraction);
     const totCap = totRaw !== null ? Math.max(totRaw, fogVal) : null;
-    const pr = toFinite(item?.data?.next_1_hours?.details?.precipitation_amount) ?? 0;
+    const pr1 = toFinite(item?.data?.next_1_hours?.details?.precipitation_amount);
+    const pr6 = toFinite(item?.data?.next_6_hours?.details?.precipitation_amount);
+    const pr = pr1 !== null ? pr1 : (pr6 !== null ? +(pr6 / 6).toFixed(2) : 0);
     const lowF = toFinite(det.cloud_area_fraction_low);
     const midF = toFinite(det.cloud_area_fraction_medium);
     const highF = toFinite(det.cloud_area_fraction_high);
@@ -2236,10 +2250,10 @@ export function parseMetNorwayMultiDay(metJson, lat, lon, timeZone, nowDate) {
     const effCloud = hasLayers
       ? computeEffectiveCloud(lowF ?? 0, midF ?? 0, highF ?? 0, fogVal, totCap, pr)
       : computeEffectiveCloud(totRaw ?? 100, 0, 0, fogVal, totCap, pr);
-    const midDt = new Date(ts + 1800000);
+    const midDt = new Date(ts + stepHrs * 1800000);
     const sunAlt = computeSolarElevation(midDt, lat, lon);
     const z = getZoneParts(new Date(ts), timeZone);
-    out.push({ dtMs: midDt.getTime(), time: `${z.hourStr}:${z.minStr}`, clear: 100 - effCloud, block: effCloud, sunAlt, isDay: sunAlt >= -4 });
+    out.push({ dtMs: midDt.getTime(), time: `${z.hourStr}:${z.minStr}`, clear: 100 - effCloud, block: effCloud, sunAlt, isDay: sunAlt >= -4, stepHrs });
   }
   return out;
 }
@@ -2554,7 +2568,7 @@ export function parseMetarSkyCover(skycArr = [], skylArr = [], wxStr = '', rawMe
     }
   }
   const wxCombined = `${wxStr || ''} ${obsRaw}`;
-  const hasPrecipFog = /(?:^|\s)[+-]?(?:FZ|SH|BL)?(?:FG|SN|RA|DZ|SG|PL|BR)+\b/.test(wxCombined);
+  const hasPrecipFog = /(?:^|\s)[+-]?(?:FZ|SH|BL)?(?:FG|SN|RA|DZ|SG|PL)+\b/.test(wxCombined);
   const hasHeavyFog = /(?:^|\s)(?:FZ)?FG\b/.test(wxCombined);
   if (!sawValid && !hasPrecipFog) return null;
   const effBase = sawValid ? (1 - (1 - lo) * (1 - mid * 0.72) * (1 - hi * 0.30)) : 1.0;
@@ -2726,30 +2740,42 @@ export function blendHourlyForecasts(primaryHrs, secondaryHrs) {
 export function scoreHourlyForecast12(hrs, {
   lat = 69.97, lon = 23.27, kpForecast = [], fallbackKp = 0, ovation = null,
   hpiGw = null, bz = 0, nextBz = null, speed = 400, newell = null, nextNewell = null,
-  predKp1h = null, preconditionedNewell60 = null, substormJumpNt = 0,
-  pdyn = null, shockJumpNpa = 0
+  predKp1h = null, preconditionedNewell60 = null, nextPreconditionedNewell60 = null,
+  substormJumpNt = 0, pdyn = null, nextPdyn = null, shockJumpNpa = 0, nextShockJumpNpa = null,
+  dst = null, nowOverride = null
 } = {}) {
   if (!Array.isArray(hrs) || !hrs.length) return { hours: [], bestAurora: null };
   const absMag = Math.abs(computeGeomagneticLat(lat, lon));
   const hours = hrs.map((h, i) => {
     const dt = new Date(h.dtMs || (Date.now() + i * 3600000));
-    const moonH = getMoonState(dt, lat, lon);
-    const mltH = computeMLT(dt, lat, lon);
+    const useNow = i === 0 && nowOverride && typeof nowOverride === 'object';
+    const moonH = (useNow && nowOverride.moon) ? nowOverride.moon : getMoonState(dt, lat, lon);
+    const mltH = (useNow && Number.isFinite(nowOverride.mlt)) ? nowOverride.mlt : computeMLT(dt, lat, lon);
+    const sunAltH = (useNow && Number.isFinite(nowOverride.sunAlt)) ? nowOverride.sunAlt : h.sunAlt;
+    const isDayH = useNow ? (sunAltH >= -4) : h.isDay;
     const baseKpFc = i === 0 && Number.isFinite(fallbackKp) ? fallbackKp : lookupForecastKp(kpForecast, dt, fallbackKp);
+    const effNextShock = Number.isFinite(nextShockJumpNpa) ? nextShockJumpNpa : shockJumpNpa;
+    const effNextPdyn = Number.isFinite(nextPdyn) ? nextPdyn : pdyn;
     // Hour +1 integrates NOAA Geospace 1h MHD predicted Kp symmetrically (max only on active shock / southward surge)
     let kpFc = baseKpFc;
     if (i === 1 && Number.isFinite(predKp1h)) {
-      const surge = (Number.isFinite(nextBz) && nextBz <= -5) || (Number.isFinite(shockJumpNpa) && shockJumpNpa >= 3);
+      const surge = (Number.isFinite(nextBz) && nextBz <= -5) || (Number.isFinite(effNextShock) && effNextShock >= 3);
       kpFc = surge ? Math.max(baseKpFc, predKp1h) : +(0.70 * predKp1h + 0.30 * baseKpFc).toFixed(2);
     }
     const liveW = i === 0 ? 1 : (i === 1 ? 0.85 : (i === 2 ? 0.25 : 0));
     const rawBz = (i >= 1 && Number.isFinite(nextBz)) ? nextBz : bz;
     const rawNw = (i >= 1 && Number.isFinite(nextNewell)) ? nextNewell : newell;
+    const rawPdyn = i === 0 ? pdyn : effNextPdyn;
+    const rawShock = i === 0 ? shockJumpNpa : effNextShock;
     const bzH = liveW > 0 && Number.isFinite(rawBz) ? rawBz * liveW : 0;
     const spdH = liveW > 0 && Number.isFinite(speed) ? Math.round(speed * liveW + 400 * (1 - liveW)) : 400;
     const nwH = liveW > 0 && Number.isFinite(rawNw) ? Math.round(rawNw * liveW + 1500 * (1 - liveW)) : null;
     const hpiH = liveW > 0 && Number.isFinite(hpiGw) ? Math.round(hpiGw * liveW + 15 * (1 - liveW)) : null;
-    const pdynH = liveW > 0 && Number.isFinite(pdyn) ? +(pdyn * liveW + 2.0 * (1 - liveW)).toFixed(2) : null;
+    const pdynH = liveW > 0 && Number.isFinite(rawPdyn) ? +(rawPdyn * liveW + 2.0 * (1 - liveW)).toFixed(2) : null;
+    const dstH = liveW > 0 && Number.isFinite(dst) ? Math.round(dst * liveW) : null;
+    const precondH = i === 0
+      ? preconditionedNewell60
+      : (i === 1 ? (Number.isFinite(nextPreconditionedNewell60) ? nextPreconditionedNewell60 : preconditionedNewell60) : null);
     const mltShiftH = 2.0 * Math.cos((mltH - 0.5) * Math.PI / 12);
     const neededKpH = requiredKpForMagLat(absMag + mltShiftH);
     const estOvFc = neededKpH > 1.5
@@ -2758,15 +2784,16 @@ export function scoreHourlyForecast12(hrs, {
     const ovH = liveW > 0 && ovation !== null ? Math.round(ovation * liveW + estOvFc * (1 - liveW)) : null;
 
     const scH = computeAuroraScore({
-      lat, lon, cloudNow: h.block, sunAlt: h.sunAlt,
+      lat, lon, cloudNow: h.block, sunAlt: sunAltH,
       bz: bzH, speed: spdH, kp: kpFc, ovation: ovH, hpiGw: hpiH, newell: nwH,
-      preconditionedNewell60: i <= 1 ? preconditionedNewell60 : null,
+      preconditionedNewell60: precondH,
       substormJumpNt: liveW > 0 ? Math.round((substormJumpNt || 0) * liveW) : 0,
-      pdyn: pdynH, shockJumpNpa: liveW > 0 ? +((shockJumpNpa || 0) * liveW).toFixed(2) : 0,
+      pdyn: pdynH, shockJumpNpa: liveW > 0 ? +((rawShock || 0) * liveW).toFixed(2) : 0,
+      dst: dstH,
       mlt: mltH, effMoonPct: moonH.effMoonPct
     });
     return {
-      ...h, score: scH.total, kpFc: +Number(kpFc).toFixed(2),
+      ...h, isDay: isDayH, sunAlt: sunAltH, score: scH.total, kpFc: +Number(kpFc).toFixed(2),
       moonUp: moonH.up, moonPct: moonH.pct, moonAlt: moonH.altDeg,
       mlt: +mltH.toFixed(1), outOfZone: scH.outOfZone
     };
@@ -2804,7 +2831,7 @@ export function summarize3NightOutlook({
   const nowMs = safeNow.getTime();
   const zNow = getZoneParts(safeNow, timeZone);
   const nowHour = parseInt(zNow.hourStr, 10) || 0;
-  const startNightIso = nowHour < 8
+  const startNightIso = nowHour < 12
     ? getZoneParts(new Date(nowMs - 12 * 3600000), timeZone).dateStr
     : zNow.dateStr;
   const addDays = (iso, d) => {
@@ -2836,7 +2863,7 @@ export function summarize3NightOutlook({
       }
       bestClear = max2h;
     }
-    const clearDarkHrs = darkPts.filter(p => p.clear >= 55).length;
+    const clearDarkHrs = darkPts.filter(p => p.clear >= 55).reduce((s, p) => s + (Number.isFinite(p.stepHrs) ? p.stepHrs : 1), 0);
 
     // Filter Kp forecast bins to darkness (sun < -4° at bin midpoint) so daytime storms don't inflate night outlook
     const kpOnNight = (Array.isArray(kpForecast) ? kpForecast : []).filter(k => {
@@ -2872,8 +2899,10 @@ export function summarize3NightOutlook({
       badge = en ? 'Too Bright' : '天色偏亮'; badgeColor = '#66bdff';
     } else if (maxKp === null && bestClear === null) {
       badge = en ? 'Pending' : '待更新'; badgeColor = '#8ea6c4';
-    } else if (neededKpMidnight >= 2.5 && (effMaxKp + 1.8) < neededKpMidnight) {
+    } else if (maxKp !== null && neededKpMidnight >= 2.5 && (effMaxKp + 1.8) < neededKpMidnight) {
       badge = en ? `Kp≥${neededKpMidnight}` : `需 Kp≥${neededKpMidnight}`; badgeColor = '#8ea6c4';
+    } else if (maxKp === null && neededKpMidnight >= 2.5) {
+      badge = en ? 'Pending' : '待更新'; badgeColor = '#8ea6c4';
     } else if (bestClear === null) {
       badge = gScale >= 1 ? `G${gScale}` : (en ? 'Pending' : '待更新'); badgeColor = gScale >= 1 ? '#ffcf5c' : '#8ea6c4';
     } else {

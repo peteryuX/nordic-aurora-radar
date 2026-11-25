@@ -111,7 +111,7 @@ export async function fetchEnlilBackground() {
   }
 }
 
-/** Track 1: 13 parallel fault-isolated NOAA SWPC space-weather endpoints */
+/** Track 1: 13 parallel fault-isolated NOAA SWPC space-weather endpoints (+ 1 background cached WSA-ENLIL = 14 total) */
 export async function fetchNoaaBundle({ pos, now, signal, cachedEnlil = null, isCurrent = () => true, onProgress = null }) {
   const res = {
     bz: null, speed: null, kp: null, ovation: null, hpiGw: null,
@@ -261,7 +261,12 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
       pts.forEach((pt, i) => { if (i > 0 && Number(elJson.elevation[i]) <= 0) pt.isOcean = true; });
     }
     const omList = omData ? (Array.isArray(omData) ? omData : [omData]) : [];
-    if (omList[0]?.timezone) out.resolvedTz = omList[0].timezone;
+    if (omList[0]?.timezone) {
+      out.resolvedTz = omList[0].timezone;
+    } else if (out.resolvedTz === 'auto' && inNordic) {
+      // Fallback IANA timezone inside Nordic MET box when Open-Meteo fails (Finland EET/EEST vs Norway/Sweden CET/CEST)
+      out.resolvedTz = (pos.lon >= 20.6 && pos.lat < 69.15 && pos.lat >= 59.5) ? 'Europe/Helsinki' : 'Europe/Oslo';
+    }
 
     const parseOmPoint = (omObj, lat, lon, ptTz) => {
       if (!omObj?.hourly) return { hrs: [], multiDay: [], hrs1: [], hrs2: [] };
@@ -300,6 +305,7 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
       };
     };
 
+    const dirHrsList = [];
     const metHereHrs = metList?.[0] ? parseMetNorwayHourly12(metList[0], pos.lat, pos.lon, out.resolvedTz, now) : [];
     if (metHereHrs.length) {
       out.usedMet = true; out.metOk = true; out.weatherSourceLabel = 'Yr.no 官方';
@@ -313,6 +319,7 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
           const ptTz = omList[i].timezone || out.resolvedTz;
           hrs = parseOmPoint(omList[i], pt.lat, pt.lon, ptTz).hrs;
         }
+        dirHrsList.push(hrs);
         out.dirResults.push(summarizePoint(pt, hrs));
       });
       if (omList[0]?.hourly) {
@@ -334,6 +341,7 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
         pts.forEach((pt, i) => {
           const ptTz = omList[i]?.timezone || out.resolvedTz;
           const hrs = i === 0 ? p0.hrs : parseOmPoint(omList[i], pt.lat, pt.lon, ptTz).hrs;
+          dirHrsList.push(hrs);
           out.dirResults.push(summarizePoint(pt, hrs));
         });
       }
@@ -348,6 +356,15 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
         out.metarFusion = fusion;
         if (out.dirResults[0]) {
           out.dirResults[0] = summarizePoint(pts[0], out.hereHrs);
+        }
+        // Apply same spatial Daley OI field symmetrically to any surrounding corridor within 55 km of the METAR station
+        for (let i = 1; i < pts.length; i++) {
+          if (!dirHrsList[i]?.length || pts[i]?.isOcean) continue;
+          const dMetar = computeDistanceKm(pts[i].lat, pts[i].lon, nearMetar.lat, nearMetar.lon);
+          if (Number.isFinite(dMetar) && dMetar <= 55) {
+            const cFus = assimilateMetarNowcast(dirHrsList[i], metarRaw, dMetar);
+            if (cFus.applied) out.dirResults[i] = summarizePoint(pts[i], cFus.hours);
+          }
         }
       }
     }
@@ -376,6 +393,7 @@ export function computeLiveSnapshot({ pos, now, noaa, wx, moon }) {
   const sunAltNow = computeSolarElevation(now, pos.lat, pos.lon);
   const mltNow = computeMLT(now, pos.lat, pos.lon);
   const predKp1h = geo1h?.maxNext60Kp ?? null;
+  const dstVal = kyotoDst?.dst ?? null;
 
   const scored12 = scoreHourlyForecast12(hereHrs, {
     lat: pos.lat, lon: pos.lon,
@@ -383,8 +401,12 @@ export function computeLiveSnapshot({ pos, now, noaa, wx, moon }) {
     bz: bal.nowBz ?? bz, nextBz: bal.nextBz, speed,
     newell: bal.nowNewell, nextNewell: bal.nextNewell,
     predKp1h, preconditionedNewell60: bal.avgNewell60,
+    nextPreconditionedNewell60: bal.nextAvgNewell60 ?? bal.avgNewell60,
     substormJumpNt: goesSub ? goesSub.jumpNt : 0,
-    pdyn: bal.nowPdyn ?? bal.pdyn, shockJumpNpa: bal.nowShockJumpNpa || bal.shockJumpNpa
+    pdyn: bal.nowPdyn, nextPdyn: bal.pdyn,
+    shockJumpNpa: bal.nowShockJumpNpa, nextShockJumpNpa: bal.shockJumpNpa,
+    dst: dstVal,
+    nowOverride: { sunAlt: sunAltNow, moon, mlt: mltNow }
   });
   const bestDark = scored12.bestAurora || findBestDarkWindow(hereHrs);
   const selectedHourIdx = bestDark ? Math.max(0, scored12.hours.findIndex(h => h.time === bestDark.time)) : 0;
@@ -397,13 +419,21 @@ export function computeLiveSnapshot({ pos, now, noaa, wx, moon }) {
     hpiGw, substormJumpNt: goesSub ? goesSub.jumpNt : 0,
     pdyn: bal.nowPdyn, shockJumpNpa: bal.nowShockJumpNpa,
     newell: bal.nowNewell, preconditionedNewell60: bal.avgNewell60,
-    dst: kyotoDst?.dst ?? null,
+    dst: dstVal,
     mlt: mltNow, effMoonPct: moon.effMoonPct
   });
 
-  // +ETA Forward score uses incoming L1 wind, symmetric Geospace 1h MHD blend, and blended OVATION
+  // +ETA Forward score uses incoming L1 wind, symmetric Geospace 1h MHD blend, and nearest cloud hour
   const nextDt = new Date(nowMs + bal.etaMin * 60000);
-  const nextHourIdx = Math.min(hereHrs.length - 1, Math.max(0, Math.round(bal.etaMin / 60)));
+  const nextTargetMs = nextDt.getTime();
+  let nextHourIdx = 0;
+  let bestDtDiff = Infinity;
+  for (let i = 0; i < hereHrs.length; i++) {
+    const dtMs = hereHrs[i]?.dtMs;
+    if (!Number.isFinite(dtMs)) continue;
+    const d = Math.abs(dtMs - nextTargetMs);
+    if (d < bestDtDiff) { bestDtDiff = d; nextHourIdx = i; }
+  }
   const cNext = hereHrs[nextHourIdx] ? hereHrs[nextHourIdx].block : c0;
   const moonNext = getMoonState(nextDt, pos.lat, pos.lon);
   const mltNext = computeMLT(nextDt, pos.lat, pos.lon);
@@ -425,8 +455,8 @@ export function computeLiveSnapshot({ pos, now, noaa, wx, moon }) {
     bz: bal.nextBz ?? bz, speed, kp: kpNext, ovation: ovNext,
     hpiGw, substormJumpNt: goesSub ? Math.round(goesSub.jumpNt * 0.5) : 0,
     pdyn: bal.pdyn, shockJumpNpa: bal.shockJumpNpa,
-    newell: bal.nextNewell, preconditionedNewell60: bal.avgNewell60,
-    dst: kyotoDst?.dst ?? null,
+    newell: bal.nextNewell, preconditionedNewell60: bal.nextAvgNewell60 ?? bal.avgNewell60,
+    dst: dstVal,
     mlt: mltNext, effMoonPct: moonNext.effMoonPct
   });
 
@@ -468,13 +498,16 @@ export async function reverseGeocodeBilingual(lat, lon) {
 
 export async function reverseGeocodeSingle(lat, lon, lang) {
   try {
-    const res = await fetchWithTimeout(
-      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`,
-      { timeoutMs: 4000 }
-    );
-    const enJson = await safeJson(res);
-    if (!enJson) return null;
-    return lang === 'en' ? formatReverseGeo(enJson, 'en') : formatReverseGeo(enJson, 'zh', enJson);
+    if (lang === 'en') {
+      const res = await fetchWithTimeout(
+        `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`,
+        { timeoutMs: 4000 }
+      );
+      const enJson = await safeJson(res);
+      return enJson ? formatReverseGeo(enJson, 'en') : null;
+    }
+    const { zhName } = await reverseGeocodeBilingual(lat, lon);
+    return zhName;
   } catch {
     return null;
   }

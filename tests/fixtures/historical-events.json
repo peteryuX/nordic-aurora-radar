@@ -1,5 +1,5 @@
 {
-  "description": "Real historical geomagnetic storm, Nordic substorm, CME onset, and false-alarm ground-truth replay dataset for quantitative forecast benchmarking.",
+  "description": "Curated/synthetic historical storm, Nordic substorm, CME onset, and adversarial false-alarm scenario regression guardrails (NOT real-world statistical accuracy).",
   "decisionRule": {
     "visibleThreshold": "score.total >= 18 OR score.grade === '⚡ 雲縫極光' OR score.grade === '🌅 暮光漸暗'",
     "alertFunction": "shouldTriggerAuroraAlert({ sc, goesSub, scNext: sc, bal })"
