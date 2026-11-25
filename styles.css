@@ -1095,7 +1095,9 @@ body.sheet-open { overflow: hidden; overscroll-behavior-y: none; }
 }
 .ts-eq-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ts-eq-lbl { font-size: 0.73rem; color: var(--muted); font-weight: 600; white-space: nowrap; }
-.ts-eq-cell strong { font-size: 1.08rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.12; }
+.ts-eq-cell strong { font-size: 1.08rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.12; white-space: nowrap; }
+.ts-unit { font-size: 0.62rem; font-weight: 500; color: var(--muted); margin-left: 1px; }
+.sb-unit { font-size: 0.72rem; font-weight: 500; color: var(--muted); margin-left: 1px; }
 .ts-op { font-size: 0.82rem; font-weight: 700; color: var(--muted); }
 .ts-diag { margin: 9px 0 0; font-size: 0.83rem; color: var(--text); line-height: 1.5; }
 .ts-metar-note {

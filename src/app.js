@@ -1195,7 +1195,7 @@ function selectBzPoint(idx) {
   const metaTxt = [phaseTxt, bzTxt, spdTxt].filter(Boolean).join(' · ');
 
   setHtml('bzDetail',
-    `<div class="sb-top"><strong>${escapeHtml(tStr)}</strong> <strong style="color:${eCol}">${escapeHtml(eWord)} · ${eVal}</strong></div><div class="sb-bot">${escapeHtml(metaTxt)}</div>`);
+    `<div class="sb-top"><strong>${escapeHtml(tStr)}</strong> <strong style="color:${eCol}">${escapeHtml(eWord)} · ${eVal}<span class="sb-unit">/100</span></strong></div><div class="sb-bot">${escapeHtml(metaTxt)}</div>`);
   const prevBtn = $('bzPrevBtn'), nextBtn = $('bzNextBtn');
   if (prevBtn) prevBtn.disabled = clampedIdx <= 0;
   if (nextBtn) nextBtn.disabled = clampedIdx >= series.length - 1;
@@ -2022,9 +2022,9 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
   const colOut = scoreCssColor(sc.color);
 
   setHtml('tsLiveTitle', en
-    ? `Why is the score <strong id="tsLiveTotal" style="color:${colOut}">${sc.total}</strong> now?`
-    : `為何現在指數是 <strong id="tsLiveTotal" style="color:${colOut}">${sc.total}</strong>？（越高越好）`);
-  const setCell = (id, val, col) => { const el = $(id); if (el) { el.textContent = val; el.style.color = col; } };
+    ? `Why is the score <strong id="tsLiveTotal" style="color:${colOut}">${sc.total}/99</strong> now?`
+    : `為何現在指數是 <strong id="tsLiveTotal" style="color:${colOut}">${sc.total}/99</strong>？`);
+  const setCell = (id, html, col) => { const el = $(id); if (el) { el.innerHTML = html; el.style.color = col; } };
   const skyEffPct = Number.isFinite(exp.breakdown?.skyFactor)
     ? Math.round(exp.breakdown.skyFactor * 100)
     : sc.skyScore;
@@ -2034,10 +2034,10 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
   setText('tsLblSky', skyEffPct !== sc.skyScore
     ? (en ? 'Sky factor' : '晴空係數')
     : term(TERMS.clearSky, en));
-  setCell('tsValSky', `${skyEffPct}%`, barColor(sc.skyScore));
-  setCell('tsValAur', sc.auroraScore, barColor(sc.auroraScore));
-  setCell('tsValDark', `${darkEffPct}%`, sc.isTooBright ? 'var(--blue)' : barColor(sc.darkScore));
-  setCell('tsValOut', sc.total, colOut);
+  setCell('tsValSky', `${skyEffPct}<span class="ts-unit">%</span>`, barColor(sc.skyScore));
+  setCell('tsValAur', `${sc.auroraScore}<span class="ts-unit">/100</span>`, barColor(sc.auroraScore));
+  setCell('tsValDark', `${darkEffPct}<span class="ts-unit">%</span>`, sc.isTooBright ? 'var(--blue)' : barColor(sc.darkScore));
+  setCell('tsValOut', `${sc.total}<span class="ts-unit">/99</span>`, colOut);
 
   const badge = $('tsLiveBadge');
   if (badge) {

@@ -1422,15 +1422,17 @@ export function explainAuroraScore(params = {}) {
   // 1. Deterministic bottleneck diagnosis
   let statusTier = 'limited', bKey = 'quiet-aurora', limitingPillar = 'aurora';
   let bLabel = '', bHeadline = '', bDetail = '';
-  const tierPrefixZh = sc.total >= 40 ? `目前指數 ${sc.total}（適合觀測），未達極佳的` : `目前指數 ${sc.total}，`;
-  const tierPrefixEn = sc.total >= 40 ? `Score is ${sc.total} (good) — ` : `Score is ${sc.total} — `;
+  const skyFactorPct = Math.round(bd.skyFactor * 100);
+  const darkFactorPct = Math.round(bd.darkFactor * 100);
+  const tierPrefixZh = sc.total >= 40 ? `目前指數 ${sc.total}/99（適合觀測），未達極佳的` : `目前指數 ${sc.total}/99，`;
+  const tierPrefixEn = sc.total >= 40 ? `Score is ${sc.total}/99 (good) — ` : `Score is ${sc.total}/99 — `;
 
   if (sc.outOfZone === 'low-lat') {
     statusTier = 'gated'; bKey = 'gate-low-lat'; limitingPillar = 'gate';
     bLabel = term(TERMS.status.outOfZone, en);
     bHeadline = en
-      ? `Score is 0: geomagnetic latitude is ${bd.magLat}°, below the 32° physical floor.`
-      : `指數歸零：此地地磁緯度僅 ${bd.magLat}°，低於 32° 物理門檻。`;
+      ? `Score is 0/99: geomagnetic latitude is ${bd.magLat}°, below the 32° physical floor.`
+      : `指數歸零（0/99）：此地地磁緯度僅 ${bd.magLat}°，低於 32° 物理門檻。`;
     bDetail = en
       ? 'Auroras normally occur above 60° geomagnetic; visibility below 32° is effectively zero.'
       : '極光帶平時位於地磁 60° 以上，低於 32° 幾乎不可能觀測到極光。';
@@ -1438,8 +1440,8 @@ export function explainAuroraScore(params = {}) {
     statusTier = 'gated'; bKey = 'gate-need-storm'; limitingPillar = 'gate';
     bLabel = term(TERMS.status.needsStorm, en);
     bHeadline = en
-      ? `Score is 0: auroral oval is poleward — effective Kp ${bd.effKp} is below the Kp ≥ ${bd.neededKp} reach threshold.`
-      : `指數歸零：極光帶仍在高緯度，目前有效 Kp ${bd.effKp} 未達此地門檻（需 Kp ≥ ${bd.neededKp}）。`;
+      ? `Score is 0/99: auroral oval is poleward — effective Kp ${bd.effKp} is below the Kp ≥ ${bd.neededKp} reach threshold.`
+      : `指數歸零（0/99）：極光帶仍在高緯度，目前有效 Kp ${bd.effKp} 未達此地門檻（需 Kp ≥ ${bd.neededKp}）。`;
     bDetail = en
       ? `At ${bd.magLat}° mag lat, even with the +1.8 Kp horizon margin the oval is too far away, and overhead OVATION is ${ovStr}% (< 5%).`
       : `地磁 ${bd.magLat}° 計入 +1.8 Kp 地平線視野寬容後仍距極光帶太遠，且頭頂 OVATION 機率為 ${ovStr}%（< 5%）。`;
@@ -1447,20 +1449,20 @@ export function explainAuroraScore(params = {}) {
     statusTier = 'gated'; bKey = 'gate-daylight'; limitingPillar = 'gate';
     bLabel = term(TERMS.status.tooBright, en);
     bHeadline = en
-      ? `Score is 0: Sun is at ${sunAltStr}° elevation and must drop below -4° for aurora contrast.`
-      : `指數歸零：目前太陽仰角 ${sunAltStr}°，需降至 -4° 以下才能觀測極光。`;
+      ? `Score is 0/99: Sun is at ${sunAltStr}° elevation and must drop below -4° for aurora contrast.`
+      : `指數歸零（0/99）：目前太陽仰角 ${sunAltStr}°，需降至 -4° 以下才能觀測極光。`;
     bDetail = en
-      ? `Underlying geomagnetic energy is ${bd.auroraScore} with ${bd.skyScore}% clear sky; scoring unlocks below -4°.`
-      : `目前背景極光能量為 ${bd.auroraScore}、有效晴空 ${bd.skyScore}%，待暮光低於 -4° 後指數才會啟用。`;
+      ? `Underlying aurora activity is ${bd.auroraScore}/100 with ${bd.skyScore}% clear sky; scoring unlocks below -4°.`
+      : `目前背景極光活動為 ${bd.auroraScore}/100、有效晴空 ${bd.skyScore}%，待暮光低於 -4° 後指數才會啟用。`;
   } else if (sc.total >= 65) {
     statusTier = 'optimal'; bKey = 'optimal'; limitingPillar = 'none';
     bLabel = en ? 'All conditions met' : '條件齊備';
     bHeadline = en
-      ? `Score is high (${sc.total}): clear sky (${bd.skyScore}%), active aurora (${bd.auroraScore}), and dark sky (${darkPct}%) align.`
-      : `目前指數高達 ${sc.total}：晴空（${bd.skyScore}%）、活躍極光（${bd.auroraScore}）與暗空（${darkPct}%）同時到位。`;
+      ? `Score is high (${sc.total}/99): clear sky (${bd.skyScore}%), active aurora (${bd.auroraScore}/100), and dark sky (${darkPct}%) align.`
+      : `目前指數高達 ${sc.total}/99：晴空（${bd.skyScore}%）、極光活動（${bd.auroraScore}/100）與暗空（${darkPct}%）同時到位。`;
     bDetail = en
-      ? `Formula: sky ${skyF} × aurora ${bd.auroraScore} × darkness ${darkF} = ${sc.total}${boostSuffixEn}.`
-      : `乘積計算：晴空係數 ${skyF} × 極光 ${bd.auroraScore} × 暗空係數 ${darkF} = ${sc.total}${boostSuffixZh}。`;
+      ? `Formula: sky ${skyFactorPct}% × aurora ${bd.auroraScore}/100 × darkness ${darkFactorPct}% = ${sc.total}/99${boostSuffixEn}.`
+      : `乘積計算：晴空係數 ${skyFactorPct}% × 極光活動 ${bd.auroraScore}/100 × 暗空係數 ${darkFactorPct}% = ${sc.total}/99${boostSuffixZh}。`;
   } else {
     statusTier = sc.total >= 40 ? 'good' : 'limited';
     if (bd.darkFactor <= bd.skyFactor && bd.darkFactor <= bd.aurFactor) {
@@ -1469,17 +1471,17 @@ export function explainAuroraScore(params = {}) {
         bKey = 'twilight';
         bLabel = en ? 'Twilight' : '暮光偏亮';
         bHeadline = en
-          ? `${tierPrefixEn}main bottleneck is twilight: Sun is at ${sunAltStr}° (full darkness at -12°), leaving darkness factor at ${darkF}.`
-          : `${tierPrefixZh}主要瓶頸是暮光：太陽仰角 ${sunAltStr}°（需降至 -12° 才達全暗），暗空係數目前為 ${darkF}。`;
+          ? `${tierPrefixEn}main bottleneck is twilight: Sun is at ${sunAltStr}° (full darkness at -12°), leaving darkness at ${darkFactorPct}%.`
+          : `${tierPrefixZh}主要瓶頸是暮光：太陽仰角 ${sunAltStr}°（需降至 -12° 才達全暗），夜空暗度目前為 ${darkFactorPct}%。`;
         bDetail = en
-          ? `Using ${bd.twilightExp < 0.72 ? `storm-softened twilight exponent ${bd.twilightExp}` : `twilight exponent ${bd.twilightExp}`}; sky ${bd.skyScore}% clear, aurora ${bd.auroraScore}.`
-          : `目前套用${bd.twilightExp < 0.72 ? `強極光平滑暮光指數 ${bd.twilightExp}（較耐暮光）` : `暮光指數 ${bd.twilightExp}`}；晴空 ${bd.skyScore}%、極光 ${bd.auroraScore}。`;
+          ? `Using ${bd.twilightExp < 0.72 ? `storm-softened twilight exponent ${bd.twilightExp}` : `twilight exponent ${bd.twilightExp}`}; sky ${bd.skyScore}% clear, aurora ${bd.auroraScore}/100.`
+          : `目前套用${bd.twilightExp < 0.72 ? `強極光平滑暮光指數 ${bd.twilightExp}（較耐暮光）` : `暮光指數 ${bd.twilightExp}`}；晴空 ${bd.skyScore}%、極光活動 ${bd.auroraScore}/100。`;
       } else {
         bKey = 'moonlight';
         bLabel = en ? 'Moonlight' : '月光干擾';
         bHeadline = en
-          ? `${tierPrefixEn}main bottleneck is moonlight: ${bd.effMoonPct}% effective lunar brightness${moonDetailEn} trims darkness factor to ${darkF}.`
-          : `${tierPrefixZh}主要瓶頸是月光背景亮度：有效月光 ${bd.effMoonPct}%${moonDetailZh}，使暗空係數降至 ${darkF}。`;
+          ? `${tierPrefixEn}main bottleneck is moonlight: ${bd.effMoonPct}% effective lunar brightness${moonDetailEn} trims darkness to ${darkFactorPct}%.`
+          : `${tierPrefixZh}主要瓶頸是月光背景亮度：有效月光 ${bd.effMoonPct}%${moonDetailZh}，使夜空暗度降至 ${darkFactorPct}%。`;
         bDetail = en
           ? `Computed via Krisciunas–Schaefer opposition surge with storm-tapered moon weight (${moonWtPct}%); bright storms reduce moon impact.`
           : `依 Krisciunas–Schaefer 衝日效應與極光亮度衰減權重（本次月光權重 ${moonWtPct}%）計算，強極光爆發時月光影響會自動減輕。`;
@@ -1490,20 +1492,20 @@ export function explainAuroraScore(params = {}) {
         bKey = 'cloud-gaps';
         bLabel = term(TERMS.status.cloudGaps, en);
         bHeadline = en
-          ? `Score (${sc.total}) is capped by ${bd.cloudNow}% effective cloud, yet strong aurora (${bd.auroraScore}) can pierce breaks.`
-          : `目前指數 ${sc.total} 主要受雲層壓抑（有效雲量 ${bd.cloudNow}%），但極光夠強（${bd.auroraScore}），雲隙有機會透出綠光。`;
+          ? `Score (${sc.total}/99) is capped by ${bd.cloudNow}% effective cloud, yet strong aurora (${bd.auroraScore}/100) can pierce breaks.`
+          : `目前指數 ${sc.total}/99 主要受雲層壓抑（有效雲量 ${bd.cloudNow}%），但極光活動夠強（${bd.auroraScore}/100），雲隙有機會透出綠光。`;
         bDetail = en
-          ? `Strong aurora smoothly softens the cloud exponent from 0.85 to ${bd.cloudExp} (sky factor ${skyF})${boostSuffixEn}.`
-          : `強極光爆發使雲量非線性指數平滑放寬至 ${bd.cloudExp}（晴空係數 ${skyF}）${boostSuffixZh}。`;
+          ? `Strong aurora smoothly softens the cloud exponent from 0.85 to ${bd.cloudExp} (sky factor ${skyFactorPct}%)${boostSuffixEn}.`
+          : `強極光爆發使雲量非線性指數平滑放寬至 ${bd.cloudExp}（晴空係數 ${skyFactorPct}%）${boostSuffixZh}。`;
       } else {
         bKey = 'clouds';
         bLabel = en ? 'Cloudy' : '雲層遮蔽';
         bHeadline = en
-          ? `${tierPrefixEn}main bottleneck is cloud cover: ${bd.cloudNow}% effective cloud (${bd.skyScore}% clear) cuts sky factor to ${skyF}.`
-          : `${tierPrefixZh}主要瓶頸是雲層：有效遮蔽 ${bd.cloudNow}%（晴空 ${bd.skyScore}%），使晴空係數降至 ${skyF}。`;
+          ? `${tierPrefixEn}main bottleneck is cloud cover: ${bd.cloudNow}% effective cloud (${bd.skyScore}% clear) cuts sky factor to ${skyFactorPct}%.`
+          : `${tierPrefixZh}主要瓶頸是雲層：有效遮蔽 ${bd.cloudNow}%（晴空 ${bd.skyScore}%），使晴空係數降至 ${skyFactorPct}%。`;
         bDetail = en
-          ? `Low/mid clouds, fog & precipitation weigh heavily, high cirrus 30% (capped at total +8%), exponent ${bd.cloudExp}; aurora energy is ${bd.auroraScore}.`
-          : `低／中層雲、霧與降水計重度遮蔽，高捲雲以 30% 計（並以總雲量 +8% 設上限），非線性指數 ${bd.cloudExp}；目前極光能量 ${bd.auroraScore}。`;
+          ? `Low/mid clouds, fog & precipitation weigh heavily, high cirrus 30% (capped at total +8%), exponent ${bd.cloudExp}; aurora activity is ${bd.auroraScore}/100.`
+          : `低／中層雲、霧與降水計重度遮蔽，高捲雲以 30% 計（並以總雲量 +8% 設上限），非線性指數 ${bd.cloudExp}；目前極光活動 ${bd.auroraScore}/100。`;
       }
     } else {
       limitingPillar = 'aurora';
@@ -1520,11 +1522,11 @@ export function explainAuroraScore(params = {}) {
         bKey = 'quiet-aurora';
         bLabel = en ? 'Low activity' : '極光活動偏弱';
         bHeadline = en
-          ? `${tierPrefixEn}main bottleneck is weak geomagnetic activity: aurora energy is ${bd.auroraScore} (Kp ${kpStr}, OVATION ${ovStr}%).`
-          : `${tierPrefixZh}主要瓶頸是地磁活動偏弱：極光能量目前為 ${bd.auroraScore}（Kp ${kpStr}、OVATION ${ovStr}%）。`;
+          ? `${tierPrefixEn}main bottleneck is weak geomagnetic activity: aurora activity is ${bd.auroraScore}/100 (Kp ${kpStr}, OVATION ${ovStr}%).`
+          : `${tierPrefixZh}主要瓶頸是地磁活動偏弱：極光活動目前為 ${bd.auroraScore}/100（Kp ${kpStr}、OVATION ${ovStr}%）。`;
         bDetail = en
-          ? `Sky & darkness are comparatively favorable (${bd.skyScore}% clear, darkness factor ${darkF})${boostSuffixEn}; waiting for southward Bz or a substorm.`
-          : `天空與暗度條件相對足夠（晴空 ${bd.skyScore}%、暗空係數 ${darkF}）${boostSuffixZh}，等待太陽風 Bz 轉南或副磁暴觸發。`;
+          ? `Sky & darkness are comparatively favorable (${bd.skyScore}% clear, darkness ${darkFactorPct}%)${boostSuffixEn}; waiting for southward Bz or a substorm.`
+          : `天空與暗度條件相對足夠（晴空 ${bd.skyScore}%、夜空暗度 ${darkFactorPct}%）${boostSuffixZh}，等待太陽風 Bz 轉南或副磁暴觸發。`;
       }
     }
   }

@@ -272,7 +272,7 @@ html { font-size: ${rootPx}px !important; }
           <div class="chart-box" style="margin-top:4px;"><svg id="bzChart" class="chart-svg" viewBox="0 0 420 156">${bzSvg}</svg></div>
           <div class="scrub-bar">
             <div id="bzDetail" class="hr-detail">
-              <div class="sb-top"><strong>16:48</strong><strong style="color:var(--amber);">46</strong><span style="color:var(--amber);">${en ? 'Building' : '能量累積'}</span></div>
+              <div class="sb-top"><strong>16:48</strong><strong style="color:var(--amber);">${en ? 'Building' : '能量累積'} · 46<span class="sb-unit">/100</span></strong></div>
               <div class="sb-bot">${en ? 'In ~28m · Bz -3.8 nT · 480 km/s' : '約 28 分後抵達 · Bz -3.8 nT · 480 km/s'}</div>
             </div>
             <div class="steppers">
