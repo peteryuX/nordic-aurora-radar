@@ -801,29 +801,69 @@ function renderWaveCard(focusBest = false) {
   const hz = vis.length;
   const bestTimeLbl = bestInVis ? formatHourLabel(bestInVis, en) : '';
   const bestIsNextNight = bestInVis ? isNextNightHour(bestInVis) : false;
-  const bestText = isOutOfZone
-    ? (outZoneKind === 'need-storm'
-        ? (en
-            ? `Activity is too weak for this latitude — needs a stronger storm over the next ${hz}h.`
-            : `目前活動偏弱，此緯度需要更強的地磁暴才會出現極光。`)
-        : (en
-            ? `Outside the auroral zone — tap the location above to explore aurora hotspots.`
-            : `此地不在極光帶，點上方地名可切換北歐或北美極光熱點。`))
-    : (bestInVis
-        ? (bestInVis.score >= 65
-            ? (en
-                ? `${bestIsNextNight ? 'Best chance around' : 'Best chance tonight around'} <strong>${bestTimeLbl}</strong>, with <strong>${bestInVis.clear}%</strong> clear sky.`
-                : `${bestIsNextNight ? '最佳時機在' : '今晚'} <strong>${bestTimeLbl}</strong> 前後機會最佳，晴空率達 <strong>${bestInVis.clear}%</strong>。`)
-            : (bestInVis.score >= 35
-                ? (en
-                    ? `${bestIsNextNight ? 'Most promising around' : 'Most promising tonight around'} <strong>${bestTimeLbl}</strong>, with <strong>${bestInVis.clear}%</strong> clear sky.`
-                    : `${bestIsNextNight ? '較佳時機在' : '今晚'} <strong>${bestTimeLbl}</strong> 前後最有機會，晴空率 <strong>${bestInVis.clear}%</strong>。`)
-                : (bestInVis.block <= 40
-                    ? (en ? `Clearest sky around <strong>${bestTimeLbl}</strong> (${bestInVis.clear}% clear) — watch for faint aurora.` : `<strong>${bestTimeLbl}</strong> 前後天空最晴（${bestInVis.clear}%），可留意微弱極光。`)
-                    : (bestInVis.clear >= 25 || bestInVis.score >= 18
-                        ? (en ? `Clouds thin around <strong>${bestTimeLbl}</strong>, with about ${bestInVis.clear}% clear sky.` : `<strong>${bestTimeLbl}</strong> 前後雲層較薄，晴空率約 ${bestInVis.clear}%。`)
-                        : (en ? `Mostly cloudy for the next ${hz}h (max ${bestInVis.clear}% clear) — try Find clear skies.` : `未來 ${hz} 小時偏多雲（最高 ${bestInVis.clear}%），建議查看「找晴空」。`)))))
-        : (en ? `Sky stays too bright for the next ${hz}h — check back after dark.` : `未來 ${hz} 小時天色偏亮，天黑後再查看。`));
+  const fmtNextHr = (h) => {
+    const m = /^(\d{2}):(\d{2})/.exec(String(h?.time || ''));
+    if (!m) return '';
+    return `${String((Number(m[1]) + 1) % 24).padStart(2, '0')}:${m[2]}`;
+  };
+  let bestText = '';
+  if (isOutOfZone) {
+    bestText = outZoneKind === 'need-storm'
+      ? (en ? `Activity is too weak for this latitude — needs a stronger storm over the next ${hz}h.` : `目前活動偏弱，此緯度需要更強的地磁暴才會出現極光。`)
+      : (en ? `Outside the auroral zone — tap the location above to explore aurora hotspots.` : `此地不在極光帶，點上方地名可切換北歐或北美極光熱點。`);
+  } else if (!bestInVis) {
+    bestText = en ? `Sky stays too bright for the next ${hz}h — check back after dark.` : `未來 ${hz} 小時天色偏亮，天黑後再查看。`;
+  } else {
+    const bIdx = vis.findIndex(h => (Number.isFinite(bestInVis.dtMs) && Number.isFinite(h.dtMs)) ? h.dtMs === bestInVis.dtMs : h.time === bestInVis.time);
+    const findContiguous = (pred) => {
+      if (bIdx < 0 || !pred(vis[bIdx])) return null;
+      let s = bIdx, e = bIdx;
+      while (s > 0 && pred(vis[s - 1])) s--;
+      while (e < vis.length - 1 && pred(vis[e + 1])) e++;
+      const startLbl = escapeHtml(vis[s].time || '');
+      const endLbl = fmtNextHr(vis[e]);
+      return { s, e, len: e - s + 1, range: (startLbl && endLbl) ? `${startLbl}–${endLbl}` : '' };
+    };
+    const dayPrefixZh = bestIsNextNight ? '明晚' : '今晚';
+    const dayPrefixEn = bestIsNextNight ? 'tomorrow night' : 'tonight';
+    if (bestInVis.score >= 40) {
+      const win = findContiguous(h => h && !h.isDay && h.score >= 40);
+      const peakWordZh = bestInVis.score >= 65 ? '機會最佳' : '機會最高';
+      const bestVerbZh = bestInVis.score >= 65 ? '條件極佳' : '最適合觀測';
+      if (win && win.len >= 6 && win.range) {
+        bestText = en
+          ? `Strong window ${win.range} ${dayPrefixEn}, peaking around <strong>${bestTimeLbl}</strong>.`
+          : `${dayPrefixZh} <strong>${win.range}</strong> 持續${bestVerbZh}，<strong>${bestTimeLbl}</strong> 前後${peakWordZh}。`;
+      } else if (win && win.len >= 2 && win.range) {
+        bestText = en
+          ? `Best window ${dayPrefixEn} <strong>${win.range}</strong>, peaking around <strong>${bestTimeLbl}</strong>.`
+          : `${dayPrefixZh} <strong>${win.range}</strong> ${bestVerbZh}，<strong>${bestTimeLbl}</strong> 前後${peakWordZh}。`;
+      } else {
+        bestText = en
+          ? `Brief good window around <strong>${bestTimeLbl}</strong> — make the most of this clear break.`
+          : `${dayPrefixZh}僅 <strong>${bestTimeLbl}</strong> 前後條件較佳，把握這段短暫空檔。`;
+      }
+    } else if (bestInVis.score >= 18) {
+      const win = findContiguous(h => h && !h.isDay && h.score >= 18);
+      if (win && win.len >= 2 && win.range) {
+        bestText = en
+          ? `Fair chance <strong>${win.range}</strong> ${dayPrefixEn}, peaking around <strong>${bestTimeLbl}</strong>.`
+          : `${dayPrefixZh} <strong>${win.range}</strong> 可留意微弱極光，<strong>${bestTimeLbl}</strong> 前後最有機會。`;
+      } else {
+        bestText = en
+          ? `Brief clearing around <strong>${bestTimeLbl}</strong> — watch for faint aurora.`
+          : `<strong>${bestTimeLbl}</strong> 前後雲層稍薄，可留意微弱極光。`;
+      }
+    } else if (bestInVis.clear >= 55) {
+      bestText = en
+        ? `Clearest around <strong>${bestTimeLbl}</strong>, though aurora activity stays quiet.`
+        : `<strong>${bestTimeLbl}</strong> 前後天空最晴，但極光活動偏弱。`;
+    } else {
+      bestText = en
+        ? `Mostly cloudy over the next ${hz}h — check Find clear skies nearby.`
+        : `未來 ${hz} 小時偏多雲，建議切換「找晴空」看看周邊。`;
+    }
+  }
   const hb = $('homeBest');
   if (hb) {
     hb.className = 'wave-peak';
