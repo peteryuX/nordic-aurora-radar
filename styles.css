@@ -105,6 +105,7 @@ body::after {
 .sky-backdrop {
   position: fixed; inset: 0; z-index: 0;
   pointer-events: none; overflow: hidden;
+  contain: strict;
   background: var(--bg);
 }
 .sky-backdrop .sky-svg {
@@ -397,24 +398,45 @@ body.is-syncing .sync-bar::after { animation: syncSlide 1.15s ease-in-out infini
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.42);
 }
 
+/* Pure GPU Compositor Atmospheric Breathing (zero SVG blur filters, mood-linked cadence, auto-paused off-screen/red-mode/Wake-Lock) */
 @keyframes auroraWave {
-  0%, 100% { transform: translateX(0px) scaleY(1); opacity: 0.80; }
-  50% { transform: translateX(14px) scaleY(1.06); opacity: 1; }
+  0%, 100% { transform: translate3d(-6px, 0, 0) scaleY(1); opacity: 0.78; }
+  50% { transform: translate3d(12px, -3px, 0) scaleY(1.06); opacity: 1; }
 }
 @keyframes auroraDrift {
-  0%, 100% { transform: translateX(0px) translateY(0px); opacity: 0.56; }
-  50% { transform: translateX(-16px) translateY(-4px); opacity: 0.86; }
+  0%, 100% { transform: translate3d(6px, 2px, 0) scale(1); opacity: 0.50; }
+  50% { transform: translate3d(-14px, -4px, 0) scale(1.04); opacity: 0.86; }
 }
 @keyframes cloudDrift {
-  0%, 100% { transform: translateX(0px); }
-  50% { transform: translateX(10px); }
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(10px, 0, 0); }
 }
-.aur-anim { animation: auroraWave 9s ease-in-out infinite; transform-origin: center; }
-.aur-anim-2 { animation: auroraDrift 14s ease-in-out infinite; transform-origin: center; }
-.cld-anim { animation: cloudDrift 22s ease-in-out infinite; transform-origin: center; }
+@keyframes starTwinkle {
+  0%, 100% { opacity: 0.78; }
+  50% { opacity: 0.28; }
+}
+@keyframes starTwinkle2 {
+  0%, 100% { opacity: 0.34; }
+  50% { opacity: 0.86; }
+}
+body { --aur-dur: 18s; --aur-dur2: 26s; }
+body[data-mood="prime"] { --aur-dur: 14s; --aur-dur2: 21s; }
+.aur-anim { animation: auroraWave var(--aur-dur) ease-in-out infinite; transform-origin: center; }
+.aur-anim-2 { animation: auroraDrift var(--aur-dur2) ease-in-out infinite; transform-origin: center; }
+.cld-anim { animation: cloudDrift 28s ease-in-out infinite; transform-origin: center; }
+.star-tw { animation: starTwinkle 7.5s ease-in-out infinite; }
+.star-tw-2 { animation: starTwinkle2 11.5s ease-in-out infinite; }
+.sc-bar { transition: fill-opacity 0.16s ease; }
 body.anim-paused .aur-anim,
 body.anim-paused .aur-anim-2,
-body.anim-paused .cld-anim { animation-play-state: paused; }
+body.anim-paused .cld-anim,
+body.anim-paused .star-tw,
+body.anim-paused .star-tw-2,
+body.red-mode .aur-anim,
+body.red-mode .aur-anim-2,
+body.red-mode .cld-anim,
+body.red-mode .star-tw,
+body.red-mode .star-tw-2 { animation-play-state: paused; }
 
 /* Zero-CLS Initial Shimmer Skeleton */
 @keyframes skelShimmer {
@@ -1171,7 +1193,7 @@ body.a11y-xlarge .ts-eq { grid-template-columns: repeat(2, 1fr); gap: 6px; }
 body.a11y-xlarge .ts-op { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .wrap, .hdr, .sheet-backdrop, .sheet-panel, .ring-btn, .toast, .view, .icon-btn, .btn, .qa-btn, .sw-toggle-btn, .chip, .nav-btn, .step-btn, .dir, .monitor-pulse, .aur-anim, .aur-anim-2, .cld-anim, .skel-txt, .skel-val, .skel-sub, .skel-bar {
+  .wrap, .hdr, .sheet-backdrop, .sheet-panel, .ring-btn, .toast, .view, .icon-btn, .btn, .qa-btn, .sw-toggle-btn, .chip, .nav-btn, .step-btn, .dir, .sc-bar, .monitor-pulse, .aur-anim, .aur-anim-2, .cld-anim, .star-tw, .star-tw-2, .skel-txt, .skel-val, .skel-sub, .skel-bar {
     transition: none !important; animation: none !important;
   }
 }

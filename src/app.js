@@ -111,10 +111,20 @@ function syncBannerBudget() {
   if (lineEl) lineEl.style.display = winner === 'line' ? 'flex' : 'none';
 }
 
-/** Pause background aurora GPU animation when hidden, bright, or low-score to save cold-weather battery */
+/** Pause background aurora GPU animation when hidden, bright, low-score, red-mode, off-tab, Wake-Lock monitor, or scrolled past Hero */
 function syncAnimBatteryGuard() {
   const sc = state.lastScore;
-  const shouldPause = Boolean(document.hidden || !sc || sc.isTooBright || sc.total < 18);
+  const pastHero = (typeof window !== 'undefined' ? (window.scrollY || 0) : 0) > 220;
+  const shouldPause = Boolean(
+    document.hidden ||
+    !sc ||
+    sc.isTooBright ||
+    sc.total < 18 ||
+    state.redModeEnabled ||
+    state.activeView !== 'home' ||
+    state.alertEnabled ||
+    pastHero
+  );
   document.body.classList.toggle('anim-paused', shouldPause);
 }
 
@@ -227,7 +237,8 @@ function applyRedModeUI() {
   btn?.classList.toggle('red-on', state.redModeEnabled);
   btn?.setAttribute('aria-pressed', String(state.redModeEnabled));
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', state.redModeEnabled ? '#040000' : '#040912');
+  if (meta) meta.setAttribute('content', state.redModeEnabled ? '#050000' : '#08101c');
+  syncAnimBatteryGuard();
 }
 
 function toggleRedMode() {
@@ -366,6 +377,7 @@ async function toggleAlertMode() {
     haptic(8);
     toast(en ? 'Screen-on monitor turned off' : '已關閉常亮監測', 'info');
   }
+  syncAnimBatteryGuard();
 }
 
 function maybeTriggerAlert(sc, goesSub, scNext, bal, pos = state.pos) {
@@ -613,6 +625,7 @@ function switchView(name, btn) {
   haptic(6);
   const targetY = state.tabScrollY[name] || 0;
   window.scrollTo({ top: targetY, behavior: 'auto' });
+  syncAnimBatteryGuard();
 }
 
 function renderLocationHeader() {
@@ -2379,8 +2392,17 @@ function bindEvents() {
     haptic(6);
   });
 
-  // Scroll-reactive frosted glass sticky header
-  const syncScrollHdr = () => document.body.classList.toggle('is-scrolled', window.scrollY > 4);
+  // Scroll-reactive frosted glass sticky header + off-screen Hero animation battery guard
+  let wasPastHero = false;
+  const syncScrollHdr = () => {
+    const y = window.scrollY || 0;
+    document.body.classList.toggle('is-scrolled', y > 4);
+    const pastHero = y > 220;
+    if (pastHero !== wasPastHero) {
+      wasPastHero = pastHero;
+      syncAnimBatteryGuard();
+    }
+  };
   window.addEventListener('scroll', syncScrollHdr, { passive: true });
   syncScrollHdr();
 

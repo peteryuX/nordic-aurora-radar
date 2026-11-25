@@ -40,27 +40,36 @@ export function buildSkySceneSVG({ cloudPct, auroraScore, moonUp, moonPct, isToo
   const moonOp = showMoon ? Math.max(0.24, (100 - cPct * 0.7) / 100) : 0;
   const moonR = 8 + (mPct / 100) * 6;
 
-  const stars = [
+  const starCoords = [
     [36,30,1.0],[88,22,0.8],[146,38,1.1],[214,24,0.7],[284,32,1.0],
     [352,20,0.9],[424,34,1.1],[496,26,0.8],[562,40,1.0],[608,28,0.8],
     [66,74,0.7],[182,66,0.9],[316,68,0.8],[460,72,0.9],[580,76,0.8],
     [118,104,0.7],[394,98,0.8],[526,106,0.7]
-  ].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#f5f8ff" opacity="${(starOp * 0.72).toFixed(2)}"/>`).join('');
+  ];
+  const allowTwinkle = !bright && cPct < 65;
+  const twIdx1 = new Set([2, 6, 13]);
+  const twIdx2 = new Set([4, 9]);
+  const stars = starCoords.map(([x, y, r], idx) => {
+    const cls = allowTwinkle ? (twIdx1.has(idx) ? ' class="star-tw"' : (twIdx2.has(idx) ? ' class="star-tw-2"' : '')) : '';
+    return `<circle${cls} cx="${x}" cy="${y}" r="${r}" fill="#f5f8ff" opacity="${(starOp * 0.72).toFixed(2)}"/>`;
+  }).join('');
 
+  // Zero-filter soft feathered clouds (radial gradient falloff -> 0% per-frame SVG blur cost)
   const clouds = cPct >= 20 ? `
-    <g class="cld-anim" opacity="${cloudOp.toFixed(2)}" filter="url(#cldBlur)">
-      <ellipse cx="140" cy="68" rx="170" ry="32" fill="${bright ? '#486684' : '#1b2b3f'}"/>
-      <ellipse cx="360" cy="58" rx="200" ry="38" fill="${bright ? '#3d5a78' : '#162436'}"/>
-      <ellipse cx="550" cy="76" rx="165" ry="30" fill="${bright ? '#456381' : '#1a293d'}"/>
+    <g class="cld-anim" opacity="${cloudOp.toFixed(2)}">
+      <ellipse cx="135" cy="70" rx="205" ry="44" fill="url(#cldSoftG)"/>
+      <ellipse cx="360" cy="60" rx="235" ry="50" fill="url(#cldSoftG)"/>
+      <ellipse cx="555" cy="78" rx="195" ry="42" fill="url(#cldSoftG)"/>
     </g>` : '';
 
   const moonSvg = showMoon ? `
     <g opacity="${moonOp.toFixed(2)}">
-      <circle cx="524" cy="42" r="${(moonR * 2.0).toFixed(1)}" fill="#ffefc2" opacity="0.12"/>
+      <circle cx="524" cy="42" r="${(moonR * 2.2).toFixed(1)}" fill="url(#moonGlowG)"/>
       <circle cx="524" cy="42" r="${moonR.toFixed(1)}" fill="#fff6db" opacity="0.86"/>
     </g>` : '';
 
-  const aur2Op = aurOp > 0.14 ? (aurOp * 0.68).toFixed(2) : '0';
+  const aur2Op = aurOp > 0.14 ? (aurOp * 0.72).toFixed(2) : '0';
+  const cldCoreCol = bright ? '#486684' : '#18283c';
 
   return `
     <defs>
@@ -70,30 +79,47 @@ export function buildSkySceneSVG({ cloudPct, auroraScore, moonUp, moonPct, isToo
         <stop offset="100%" stop-color="${bgBot}"/>
       </linearGradient>
       <linearGradient id="aurG" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#7c6fd4" stop-opacity="0.22"/>
-        <stop offset="42%" stop-color="#58dba4" stop-opacity="0.52"/>
+        <stop offset="0%" stop-color="#7c6fd4" stop-opacity="0"/>
+        <stop offset="22%" stop-color="#7c6fd4" stop-opacity="0.22"/>
+        <stop offset="52%" stop-color="#58dba4" stop-opacity="0.46"/>
+        <stop offset="84%" stop-color="#58dba4" stop-opacity="0.10"/>
         <stop offset="100%" stop-color="#08101c" stop-opacity="0"/>
       </linearGradient>
-      <linearGradient id="aurG2" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#48c4d8" stop-opacity="0.18"/>
-        <stop offset="48%" stop-color="#58dba4" stop-opacity="0.38"/>
+      <radialGradient id="aurCoreG" cx="46%" cy="44%" r="54%">
+        <stop offset="0%" stop-color="#58dba4" stop-opacity="0.34"/>
+        <stop offset="48%" stop-color="#48c4d8" stop-opacity="0.16"/>
+        <stop offset="76%" stop-color="#7c6fd4" stop-opacity="0.08"/>
         <stop offset="100%" stop-color="#08101c" stop-opacity="0"/>
-      </linearGradient>
+      </radialGradient>
+      <radialGradient id="aurG2" cx="62%" cy="48%" r="52%">
+        <stop offset="0%" stop-color="#58dba4" stop-opacity="0.32"/>
+        <stop offset="45%" stop-color="#48c4d8" stop-opacity="0.18"/>
+        <stop offset="100%" stop-color="#08101c" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="cldSoftG" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="${cldCoreCol}" stop-opacity="0.86"/>
+        <stop offset="54%" stop-color="${cldCoreCol}" stop-opacity="0.42"/>
+        <stop offset="100%" stop-color="${cldCoreCol}" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="moonGlowG" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#ffefc2" stop-opacity="0.24"/>
+        <stop offset="60%" stop-color="#ffefc2" stop-opacity="0.08"/>
+        <stop offset="100%" stop-color="#ffefc2" stop-opacity="0"/>
+      </radialGradient>
       <linearGradient id="horizonFade" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="${bgBot}" stop-opacity="0"/>
         <stop offset="72%" stop-color="${bgBot}" stop-opacity="0.92"/>
         <stop offset="100%" stop-color="${bgBot}" stop-opacity="1"/>
       </linearGradient>
-      <filter id="aurBlur"><feGaussianBlur stdDeviation="10"/></filter>
-      <filter id="cldBlur"><feGaussianBlur stdDeviation="12"/></filter>
     </defs>
     <rect width="640" height="225" fill="url(#skyG)"/>
     ${stars}
-    <g class="aur-anim" opacity="${aurOp.toFixed(2)}" filter="url(#aurBlur)">
-      <path d="M-24,26 C88,8 178,62 316,32 C442,6 534,48 664,24 L664,146 C532,168 432,126 310,152 C176,178 82,132 -24,150 Z" fill="url(#aurG)"/>
-    </g>
-    ${aurOp > 0.14 ? `<g class="aur-anim-2" opacity="${aur2Op}" filter="url(#aurBlur)">
-      <path d="M12,58 C134,34 238,82 378,52 C492,28 574,60 664,46 L664,162 C568,180 478,150 370,170 C236,192 130,154 12,168 Z" fill="url(#aurG2)"/>
+    ${aurOp > 0 ? `<g class="aur-anim" opacity="${aurOp.toFixed(2)}">
+      <ellipse cx="290" cy="86" rx="340" ry="96" fill="url(#aurCoreG)"/>
+      <path d="M-32,18 C88,0 178,56 316,26 C442,0 534,42 672,18 L672,158 C532,178 432,134 310,162 C176,188 82,140 -32,160 Z" fill="url(#aurG)"/>
+    </g>` : ''}
+    ${aurOp > 0.14 ? `<g class="aur-anim-2" opacity="${aur2Op}">
+      <ellipse cx="400" cy="102" rx="310" ry="88" fill="url(#aurG2)"/>
     </g>` : ''}
     ${moonSvg}
     ${clouds}

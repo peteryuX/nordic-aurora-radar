@@ -2329,6 +2329,20 @@ test('50. Bilingual copy, localization & single-metric chart clarity lint gate (
     const ratio = contrast(hex, redSurf);
     assert.ok(ratio >= 4.5, `body.red-mode --${tok} (${hex}) vs --surface (${redSurf}) contrast ${ratio.toFixed(2)}:1 < 4.5:1 WCAG AA`);
   }
+
+  // 14. v37 Zero-Filter GPU Atmospheric Breathing & Arctic Battery Gate
+  const skyClear = api.buildSkySceneSVG({ cloudPct: 10, auroraScore: 86, moonUp: false, moonPct: 14, isTooBright: false });
+  const skyCloudy = api.buildSkySceneSVG({ cloudPct: 86, auroraScore: 20, moonUp: true, moonPct: 78, isTooBright: false });
+  const skyDay = api.buildSkySceneSVG({ cloudPct: 30, auroraScore: 80, moonUp: false, moonPct: 0, isTooBright: true });
+  for (const s of [skyClear, skyCloudy, skyDay]) {
+    assert.ok(!s.includes('<filter') && !s.includes('feGaussianBlur'), 'v37 buildSkySceneSVG must eliminate all per-frame SVG blur filters');
+  }
+  assert.ok(skyClear.includes('class="star-tw"') && skyClear.includes('aurCoreG'), 'Clear dark sky should render subtle star twinkle and soft feathered aurora core');
+  assert.ok(!skyCloudy.includes('class="star-tw"') && !skyDay.includes('class="star-tw"'), 'Overcast or bright sky must omit star twinkle');
+  assert.ok(skyCloudy.includes('cldSoftG'), 'Cloudy sky must render zero-filter radial feathered cloud gradients');
+  assert.ok(cssSrc.includes('contain: strict;') && cssSrc.includes('translate3d('), 'styles.css must isolate .sky-backdrop with contain: strict and GPU translate3d');
+  assert.ok(cssSrc.includes('body.red-mode .star-tw') && cssSrc.includes('body.anim-paused .star-tw'), 'Ambient sky & star twinkle must pause in red-mode and anim-paused');
+  assert.ok(appSrc.includes('state.redModeEnabled') && appSrc.includes("state.activeView !== 'home'") && appSrc.includes('state.alertEnabled') && appSrc.includes('> 220'), 'syncAnimBatteryGuard must pause ambient GPU breathing on red-mode, non-home tabs, Wake-Lock monitor, and scrollY > 220');
 });
 
 
