@@ -111,8 +111,12 @@ export async function fetchEnlilBackground() {
   }
 }
 
+// Global planetary NOAA cache (2-min TTL): switching cities reuses the 5.6 MB global telemetry in 0ms / 0KB
+const NOAA_GLOBAL_TTL_MS = 2 * 60 * 1000;
+let noaaRawCache = null;
+
 /** Track 1: 13 parallel fault-isolated NOAA SWPC space-weather endpoints (+ 1 background cached WSA-ENLIL = 14 total) */
-export async function fetchNoaaBundle({ pos, now, signal, cachedEnlil = null, isCurrent = () => true, onProgress = null }) {
+export async function fetchNoaaBundle({ pos, now, signal, cachedEnlil = null, force = false, isCurrent = () => true, onProgress = null }) {
   const res = {
     bz: null, speed: null, kp: null, ovation: null, hpiGw: null,
     goesSub: null, noaaScales: null, geo1h: null, noaaAlert: null,
@@ -120,62 +124,82 @@ export async function fetchNoaaBundle({ pos, now, signal, cachedEnlil = null, is
     noaaOk: false, magSeries: [], windSeries: [], kpForecast: [], noaaLagMin: null
   };
   try {
-    const [mR, wR, k1R, oR, hpiR, g1R, g2R, kfcR, scR, geoR, alR, dstR, propR] = await Promise.all([
-      fetchWithTimeout('https://services.swpc.noaa.gov/json/rtsw/rtsw_mag_1m.json', { timeoutMs: 7500, signal }).catch(() => null),
-      fetchWithTimeout('https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json', { timeoutMs: 7500, signal }).catch(() => null),
-      fetchWithTimeout('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json', { timeoutMs: 7500, signal }).catch(() => null),
-      fetchWithTimeout('https://services.swpc.noaa.gov/json/ovation_aurora_latest.json', { timeoutMs: 10000, signal }).catch(() => null),
-      fetchWithTimeout('https://services.swpc.noaa.gov/text/aurora-nowcast-hemi-power.txt', { timeoutMs: 7500, signal }).catch(() => null),
-      fetchWithTimeout('https://services.swpc.noaa.gov/json/goes/primary/magnetometers-6-hour.json', { timeoutMs: 7500, signal }).catch(() => null),
-      fetchWithTimeout('https://services.swpc.noaa.gov/json/goes/secondary/magnetometers-6-hour.json', { timeoutMs: 7500, signal }).catch(() => null),
-      fetchWithTimeout('https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json', { timeoutMs: 7500, signal }).catch(() => null),
-      fetchWithTimeout('https://services.swpc.noaa.gov/products/noaa-scales.json', { timeoutMs: 7500, signal }).catch(() => null),
-      fetchWithTimeout('https://services.swpc.noaa.gov/json/geospace/geospace_pred_est_kp_1_hour.json', { timeoutMs: 7500, signal }).catch(() => null),
-      fetchWithTimeout('https://services.swpc.noaa.gov/products/alerts.json', { timeoutMs: 7500, signal }).catch(() => null),
-      fetchWithTimeout('https://services.swpc.noaa.gov/products/kyoto-dst.json', { timeoutMs: 7500, signal }).catch(() => null),
-      fetchWithTimeout('https://services.swpc.noaa.gov/products/geospace/propagated-solar-wind-1-hour.json', { timeoutMs: 7500, signal }).catch(() => null)
-    ]);
-    const [mJ, wJ, k1J, ovJson, hpiTxt, g1J, g2J, kfcJ, scJ, geoJ, alJ, dstJ, propJ] = await Promise.all([
-      safeJson(mR), safeJson(wR), safeJson(k1R), safeJson(oR), safeText(hpiR),
-      safeJson(g1R), safeJson(g2R), safeJson(kfcR), safeJson(scR), safeJson(geoR), safeJson(alR),
-      safeJson(dstR), safeJson(propR)
-    ]);
-    if (!isCurrent()) return res;
-
     const nowMs = now.getTime();
-    if (mJ) res.magSeries = parseMagSeries(mJ, 180);
-    if (wJ) res.windSeries = parseWindSeries(wJ, 180);
-    if (kfcJ) res.kpForecast = parseKpForecast(kfcJ);
-    if (scJ) res.noaaScales = parseNoaaGeomagneticScales(scJ);
-    if (geoJ) res.geo1h = parseGeospacePredKp1h(geoJ, nowMs);
-    if (alJ) res.noaaAlert = parseNoaaAlerts(alJ, nowMs);
-    if (dstJ) res.kyotoDst = parseKyotoDst(dstJ, nowMs);
-    if (propJ) res.propSw = parsePropagatedSolarWind(propJ, nowMs);
+    let raw = null;
+    if (!force && noaaRawCache && (nowMs - noaaRawCache.ts) < NOAA_GLOBAL_TTL_MS) {
+      raw = noaaRawCache.raw;
+    } else {
+      const [mR, wR, k1R, oR, hpiR, g1R, g2R, kfcR, scR, geoR, alR, dstR, propR] = await Promise.all([
+        fetchWithTimeout('https://services.swpc.noaa.gov/json/rtsw/rtsw_mag_1m.json', { timeoutMs: 6500, signal }).catch(() => null),
+        fetchWithTimeout('https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json', { timeoutMs: 6500, signal }).catch(() => null),
+        fetchWithTimeout('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json', { timeoutMs: 5500, signal }).catch(() => null),
+        fetchWithTimeout('https://services.swpc.noaa.gov/json/ovation_aurora_latest.json', { timeoutMs: 6500, signal }).catch(() => null),
+        fetchWithTimeout('https://services.swpc.noaa.gov/text/aurora-nowcast-hemi-power.txt', { timeoutMs: 4200, signal }).catch(() => null),
+        fetchWithTimeout('https://services.swpc.noaa.gov/json/goes/primary/magnetometers-6-hour.json', { timeoutMs: 4200, signal }).catch(() => null),
+        fetchWithTimeout('https://services.swpc.noaa.gov/json/goes/secondary/magnetometers-6-hour.json', { timeoutMs: 4200, signal }).catch(() => null),
+        fetchWithTimeout('https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json', { timeoutMs: 5500, signal }).catch(() => null),
+        fetchWithTimeout('https://services.swpc.noaa.gov/products/noaa-scales.json', { timeoutMs: 4200, signal }).catch(() => null),
+        fetchWithTimeout('https://services.swpc.noaa.gov/json/geospace/geospace_pred_est_kp_1_hour.json', { timeoutMs: 4200, signal }).catch(() => null),
+        fetchWithTimeout('https://services.swpc.noaa.gov/products/alerts.json', { timeoutMs: 4200, signal }).catch(() => null),
+        fetchWithTimeout('https://services.swpc.noaa.gov/products/kyoto-dst.json', { timeoutMs: 4200, signal }).catch(() => null),
+        fetchWithTimeout('https://services.swpc.noaa.gov/products/geospace/propagated-solar-wind-1-hour.json', { timeoutMs: 4200, signal }).catch(() => null)
+      ]);
+      const [mJ, wJ, k1J, ovJson, hpiTxt, g1J, g2J, kfcJ, scJ, geoJ, alJ, dstJ, propJ] = await Promise.all([
+        safeJson(mR), safeJson(wR), safeJson(k1R), safeJson(oR), safeText(hpiR),
+        safeJson(g1R), safeJson(g2R), safeJson(kfcR), safeJson(scR), safeJson(geoR), safeJson(alR),
+        safeJson(dstR), safeJson(propR)
+      ]);
+      if (!isCurrent()) return res;
+
+      let kpObj = k1J ? parseLatestKp(k1J) : null;
+      if (!kpObj) {
+        const k3R = await fetchWithTimeout('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json', { timeoutMs: 4500, signal }).catch(() => null);
+        const k3J = await safeJson(k3R);
+        if (!isCurrent()) return res;
+        if (k3J) kpObj = parseLatestKp(k3J);
+      }
+
+      raw = {
+        magSeries: mJ ? parseMagSeries(mJ, 180) : [],
+        windSeries: wJ ? parseWindSeries(wJ, 180) : [],
+        kpForecast: kfcJ ? parseKpForecast(kfcJ) : [],
+        noaaScales: scJ ? parseNoaaGeomagneticScales(scJ) : null,
+        geo1h: geoJ ? parseGeospacePredKp1h(geoJ, nowMs) : null,
+        noaaAlert: alJ ? parseNoaaAlerts(alJ, nowMs) : null,
+        kyotoDst: dstJ ? parseKyotoDst(dstJ, nowMs) : null,
+        propSw: propJ ? parsePropagatedSolarWind(propJ, nowMs) : null,
+        kpObj,
+        ovJson: ovJson || noaaRawCache?.raw?.ovJson || null,
+        hpiTxt: hpiTxt || null,
+        g1Sub: g1J ? parseGoesSubstorm(g1J, -75, nowMs) : null,
+        g2Sub: g2J ? parseGoesSubstorm(g2J, -137, nowMs) : null
+      };
+      if (raw.magSeries.length || raw.windSeries.length || raw.kpObj || raw.ovJson || raw.geo1h) {
+        noaaRawCache = { ts: nowMs, raw };
+      }
+    }
+
+    res.magSeries = raw.magSeries;
+    res.windSeries = raw.windSeries;
+    res.kpForecast = raw.kpForecast;
+    res.noaaScales = raw.noaaScales;
+    res.geo1h = raw.geo1h;
+    res.noaaAlert = raw.noaaAlert;
+    res.kyotoDst = raw.kyotoDst;
+    res.propSw = raw.propSw;
 
     const lastMag = res.magSeries.length ? res.magSeries[res.magSeries.length - 1] : null;
     const wind = res.windSeries.length ? res.windSeries[res.windSeries.length - 1] : null;
-    let kpObj = k1J ? parseLatestKp(k1J) : null;
-    if (!kpObj) {
-      const k3R = await fetchWithTimeout('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json', { timeoutMs: 6500, signal }).catch(() => null);
-      const k3J = await safeJson(k3R);
-      if (!isCurrent()) return res;
-      if (k3J) kpObj = parseLatestKp(k3J);
-    }
-
-    const hpiObj = hpiTxt ? parseHemiPower(hpiTxt, pos.lat) : null;
-    res.goesSub = mergeGoesSubstorm(
-      g1J ? parseGoesSubstorm(g1J, -75, nowMs) : null,
-      g2J ? parseGoesSubstorm(g2J, -137, nowMs) : null,
-      pos.lon
-    );
+    const hpiObj = raw.hpiTxt ? parseHemiPower(raw.hpiTxt, pos.lat) : null;
+    res.goesSub = mergeGoesSubstorm(raw.g1Sub, raw.g2Sub, pos.lon);
 
     if (lastMag) { res.bz = lastMag.bz; res.noaaLagMin = computeDataLagMin(lastMag.time_tag, nowMs); }
     if (wind) res.speed = wind.speed;
-    if (kpObj) res.kp = kpObj.kp;
+    if (raw.kpObj) res.kp = raw.kpObj.kp;
     else if (Number.isFinite(res.geo1h?.nowPredKp)) res.kp = res.geo1h.nowPredKp;
-    if (ovJson) res.ovation = lookupOvationProb(ovJson, pos.lat, pos.lon);
+    if (raw.ovJson) res.ovation = lookupOvationProb(raw.ovJson, pos.lat, pos.lon);
     if (hpiObj) res.hpiGw = hpiObj.gw;
-    if (lastMag || wind || kpObj || res.ovation !== null || res.geo1h) res.noaaOk = true;
+    if (lastMag || wind || raw.kpObj || res.ovation !== null || res.geo1h) res.noaaOk = true;
 
     if (isCurrent() && typeof onProgress === 'function') {
       const progBal = computeBallisticCoupling(res.magSeries, res.windSeries.length ? res.windSeries : res.speed, nowMs, res.propSw?.etaMin ?? null);

@@ -89,22 +89,22 @@ export function tGrade(zhGrade, lang) {
 // All Nordic points verified winter-plowed, land-safe, and west of Norwegian/Russian border (lon <= 30.85)
 export const NORDIC_CORRIDORS = [
   { match: [69.97, 23.27], pts: [
-    { key: 'N', label: '往東北 Skaidi', lat: 70.4325, lon: 24.5020, roadKm: 85, roadNote: 'E6 山口易封路', roadNoteEn: 'E6 pass closures', isOcean: false },
+    { key: 'N', label: '往東北 Skaidi', lat: 70.4325, lon: 24.5020, roadKm: 85, roadNote: '高海拔山口易封路', roadNoteEn: 'Mountain pass closures', isOcean: false },
     { key: 'E', label: '往東 Lakselv', lat: 70.0513, lon: 24.9718, roadKm: 165, roadNote: '繞山口遠程', roadNoteEn: 'Long via pass', isOcean: false },
     { key: 'S', label: '往南 Kautokeino', lat: 69.0125, lon: 23.0412, roadKm: 130, roadNote: '極寒高原·訊號弱', roadNoteEn: 'Cold plateau · low cell', isOcean: false },
     { key: 'W', label: '往西 Burfjord', lat: 69.9360, lon: 22.0528, roadKm: 95, isOcean: false }
   ]},
   { match: [69.65, 18.96], pts: [
     { key: 'N', label: '往西北 Grøtfjord', lat: 69.7760, lon: 18.5450, roadKm: 42, isOcean: false },
-    { key: 'E', label: '往東南 Skibotn', lat: 69.3910, lon: 20.2680, roadKm: 118, roadNote: '雨影晴空區', roadNoteEn: 'Rain-shadow dry zone', isOcean: false },
+    { key: 'E', label: '往東南 Skibotn', lat: 69.3910, lon: 20.2680, roadKm: 118, roadNote: '背風晴空區', roadNoteEn: 'Rain-shadow dry zone', isOcean: false },
     { key: 'S', label: '往南 Balsfjord', lat: 69.2400, lon: 19.2250, roadKm: 70, isOcean: false },
     { key: 'W', label: '往西 Sommarøy', lat: 69.6340, lon: 18.0090, roadKm: 58, isOcean: false }
   ]},
   { match: [68.23, 14.57], pts: [
     { key: 'N', label: '往北 Gimsøy', lat: 68.3200, lon: 14.1500, roadKm: 35, isOcean: false },
-    { key: 'E', label: '往東 Lødingen', lat: 68.4140, lon: 15.9940, roadKm: 102, roadNote: 'E10 橋梁強風', roadNoteEn: 'E10 exposed bridges', isOcean: false },
+    { key: 'E', label: '往東 Lødingen', lat: 68.4140, lon: 15.9940, roadKm: 102, roadNote: '跨海橋梁強風', roadNoteEn: 'Exposed sea bridges', isOcean: false },
     { key: 'S', label: '往南 Henningsvær', lat: 68.1539, lon: 14.2014, roadKm: 24, isOcean: false },
-    { key: 'W', label: '往西 Ramberg', lat: 68.0900, lon: 13.2490, roadKm: 98, roadNote: 'E10 狹窄海風強', roadNoteEn: 'Narrow E10 · crosswinds', isOcean: false }
+    { key: 'W', label: '往西 Ramberg', lat: 68.0900, lon: 13.2490, roadKm: 98, roadNote: '沿海窄路強風', roadNoteEn: 'Narrow coastal road · crosswinds', isOcean: false }
   ]},
   { match: [69.35, 17.48], pts: [
     { key: 'N', label: '往北 Ersfjord', lat: 69.4860, lon: 17.3920, roadKm: 28, isOcean: false },
@@ -114,14 +114,14 @@ export const NORDIC_CORRIDORS = [
   ]},
   { match: [68.44, 17.43], pts: [
     { key: 'N', label: '往北 Gratangen', lat: 68.6930, lon: 17.5320, roadKm: 55, isOcean: false },
-    { key: 'E', label: '往東 Abisko', lat: 68.3495, lon: 18.8312, roadKm: 75, roadNote: 'E10 邊境山口易封', roadNoteEn: 'E10 border pass', isOcean: false },
+    { key: 'E', label: '往東 Abisko', lat: 68.3495, lon: 18.8312, roadKm: 75, roadNote: '邊境山口易封路', roadNoteEn: 'Border pass closures', isOcean: false },
     { key: 'S', label: '往南 Ballangen', lat: 68.3430, lon: 16.8320, roadKm: 42, isOcean: false },
     { key: 'W', label: '往西 Evenes', lat: 68.4910, lon: 16.6780, roadKm: 58, isOcean: false }
   ]},
   { match: [68.35, 18.83], pts: [
     { key: 'E', label: '往東 Torneträsk', lat: 68.2150, lon: 19.7200, roadKm: 45, isOcean: false },
-    { key: 'S', label: '往東南 Kiruna', lat: 67.8558, lon: 20.2253, roadKm: 95, roadNote: 'E10 主幹道', roadNoteEn: 'E10 highway', isOcean: false },
-    { key: 'W', label: '往西 Narvik', lat: 68.4385, lon: 17.4273, roadKm: 75, roadNote: 'E10 邊境山口易封', roadNoteEn: 'E10 border pass', isOcean: false }
+    { key: 'S', label: '往東南 Kiruna', lat: 67.8558, lon: 20.2253, roadKm: 95, roadNote: '主要幹道', roadNoteEn: 'Main highway', isOcean: false },
+    { key: 'W', label: '往西 Narvik', lat: 68.4385, lon: 17.4273, roadKm: 75, roadNote: '邊境山口易封路', roadNoteEn: 'Border pass closures', isOcean: false }
   ]},
   { match: [69.73, 30.05], pts: [
     { key: 'N', label: '往北 Vadsø', lat: 70.0740, lon: 29.7490, roadKm: 170, roadNote: '繞峽灣約 2.5h', roadNoteEn: '~2.5h around fjord', isOcean: false },
@@ -142,7 +142,7 @@ export const NORDIC_CORRIDORS = [
     { key: 'W', label: '往西北 Karigasniemi', lat: 69.3992, lon: 25.8472, roadKm: 102, roadNote: '偏遠幹道·訊號弱', roadNoteEn: 'Remote road · low cell', isOcean: false }
   ]},
   { match: [67.86, 20.23], pts: [
-    { key: 'N', label: '往西北 Abisko', lat: 68.3495, lon: 18.8312, roadKm: 95, roadNote: 'E10 山口注意風雪', roadNoteEn: 'E10 pass wind/snow', isOcean: false },
+    { key: 'N', label: '往西北 Abisko', lat: 68.3495, lon: 18.8312, roadKm: 95, roadNote: '山口注意風雪', roadNoteEn: 'Mountain pass wind/snow', isOcean: false },
     { key: 'E', label: '往東 Vittangi', lat: 67.6808, lon: 21.6486, roadKm: 73, isOcean: false },
     { key: 'S', label: '往南 Svappavaara', lat: 67.6480, lon: 21.0500, roadKm: 46, isOcean: false },
     { key: 'W', label: '往西 Nikkaluokta', lat: 67.8505, lon: 19.0144, roadKm: 66, roadNote: '極寒山谷·無補給', roadNoteEn: 'Cold valley · no services', isOcean: false }
@@ -152,7 +152,7 @@ export const NORDIC_CORRIDORS = [
 // Global aurora hotspot winter-open paved corridors (no winter-closed F-roads, no seasonal ice roads, no locked gates)
 export const GLOBAL_CORRIDORS = [
   { match: [64.15, -21.94], pts: [
-    { key: 'N', label: '往北 Borgarnes', lat: 64.5383, lon: -21.9206, roadKm: 75, roadNote: 'Kjalarnes 強側風', roadNoteEn: 'Kjalarnes crosswinds', isOcean: false },
+    { key: 'N', label: '往北 Borgarnes', lat: 64.5383, lon: -21.9206, roadKm: 75, roadNote: '沿海強側風路段', roadNoteEn: 'Strong coastal crosswinds', isOcean: false },
     { key: 'E', label: '往東 Þingvellir', lat: 64.2559, lon: -21.1295, roadKm: 48, isOcean: false },
     { key: 'S', label: '往南 Selfoss', lat: 63.9331, lon: -21.0023, roadKm: 58, isOcean: false },
     { key: 'W', label: '往西 Garður', lat: 64.0650, lon: -22.6464, roadKm: 55, isOcean: false }
@@ -160,7 +160,7 @@ export const GLOBAL_CORRIDORS = [
   { match: [65.69, -18.13], pts: [
     { key: 'N', label: '往北 Dalvík', lat: 65.9702, lon: -18.5286, roadKm: 43, isOcean: false },
     { key: 'E', label: '往東 Goðafoss', lat: 65.6828, lon: -17.5502, roadKm: 35, roadNote: '收費隧道／山口', roadNoteEn: 'Toll tunnel / pass', isOcean: false },
-    { key: 'W', label: '往西 Varmahlíð', lat: 65.5529, lon: -19.4452, roadKm: 94, roadNote: 'Öxnadalsheiði 山口易封', roadNoteEn: 'Öxnadalsheiði pass risk', isOcean: false }
+    { key: 'W', label: '往西 Varmahlíð', lat: 65.5529, lon: -19.4452, roadKm: 94, roadNote: '高海拔山口易封', roadNoteEn: 'High pass closure risk', isOcean: false }
   ]},
   { match: [64.84, -147.72], pts: [
     { key: 'N', label: '往北 Cleary Summit', lat: 65.0736, lon: -147.4197, roadKm: 34, isOcean: false },
@@ -171,24 +171,24 @@ export const GLOBAL_CORRIDORS = [
   { match: [62.45, -114.37], pts: [
     { key: 'N', label: '往東北 Prelude Lake', lat: 62.5564, lon: -113.9169, roadKm: 30, isOcean: false },
     { key: 'E', label: '往東 Tibbitt Lake', lat: 62.5333, lon: -113.3500, roadKm: 68, roadNote: '終點無訊號', roadNoteEn: 'No cell service', isOcean: false },
-    { key: 'W', label: '往西 Behchokǫ̀', lat: 62.8025, lon: -116.0461, roadKm: 105, roadNote: 'Hwy 3 遠程無訊號', roadNoteEn: 'Hwy 3 · low cell', isOcean: false }
+    { key: 'W', label: '往西 Behchokǫ̀', lat: 62.8025, lon: -116.0461, roadKm: 105, roadNote: '遠程偏遠·無訊號', roadNoteEn: 'Remote road · no cell', isOcean: false }
   ]},
   { match: [60.72, -135.06], pts: [
     { key: 'N', label: '往北 Lake Laberge', lat: 60.9550, lon: -135.1650, roadKm: 36, roadNote: '出城無訊號', roadNoteEn: 'No cell outside town', isOcean: false },
-    { key: 'E', label: '往東 Marsh Lake', lat: 60.5333, lon: -134.3333, roadKm: 48, roadNote: 'Alaska Hwy·訊號弱', roadNoteEn: 'Alaska Hwy · low cell', isOcean: false },
-    { key: 'S', label: '往南 Carcross', lat: 60.1686, lon: -134.7064, roadKm: 72, roadNote: 'Hwy 2·勿越關口', roadNoteEn: 'Hwy 2 · stop at Carcross', isOcean: false },
+    { key: 'E', label: '往東 Marsh Lake', lat: 60.5333, lon: -134.3333, roadKm: 48, roadNote: '偏遠幹道·訊號弱', roadNoteEn: 'Remote highway · low cell', isOcean: false },
+    { key: 'S', label: '往南 Carcross', lat: 60.1686, lon: -134.7064, roadKm: 72, roadNote: '勿越邊境關口', roadNoteEn: 'Stop before border', isOcean: false },
     { key: 'W', label: '往西 Takhini', lat: 60.8750, lon: -135.3600, roadKm: 28, isOcean: false }
   ]},
   { match: [-45.03, 168.66], pts: [
-    { key: 'N', label: '往北 Wanaka', lat: -44.7032, lon: 169.1321, roadKm: 68, roadNote: 'Crown Range 冬季需雪鏈', roadNoteEn: 'Crown Range (winter chains)', isOcean: false },
+    { key: 'N', label: '往北 Wanaka', lat: -44.7032, lon: 169.1321, roadKm: 68, roadNote: '高山路段·冬季需雪鏈', roadNoteEn: 'Alpine pass · winter chains', isOcean: false },
     { key: 'E', label: '往東 Cromwell', lat: -45.0384, lon: 169.2007, roadKm: 60, isOcean: false },
     { key: 'S', label: '往南 Kingston', lat: -45.3327, lon: 168.7167, roadKm: 47, isOcean: false },
     { key: 'W', label: '往西 Glenorchy', lat: -44.8505, lon: 168.3879, roadKm: 46, isOcean: false }
   ]},
   { match: [-44.00, 170.48], pts: [
-    { key: 'E', label: '往東 Fairlie', lat: -44.1003, lon: 170.8294, roadKm: 42, roadNote: 'SH8 Burkes 山口（冬季雪鏈）', roadNoteEn: 'SH8 Burkes Pass (winter chains)', isOcean: false },
-    { key: 'S', label: '往南 Twizel', lat: -44.2564, lon: 170.0972, roadKm: 58, roadNote: 'SH8 主幹道', roadNoteEn: 'SH8 main highway', isOcean: false },
-    { key: 'W', label: '往西南 Lake Pukaki', lat: -44.1806, lon: 170.1194, roadKm: 45, roadNote: 'SH8 暗空保護區', roadNoteEn: 'SH8 Dark Sky Reserve', isOcean: false }
+    { key: 'E', label: '往東 Fairlie', lat: -44.1003, lon: 170.8294, roadKm: 42, roadNote: '山口路段·冬季需雪鏈', roadNoteEn: 'Mountain pass · winter chains', isOcean: false },
+    { key: 'S', label: '往南 Twizel', lat: -44.2564, lon: 170.0972, roadKm: 58, roadNote: '主要幹道', roadNoteEn: 'Main highway', isOcean: false },
+    { key: 'W', label: '往西南 Lake Pukaki', lat: -44.1806, lon: 170.1194, roadKm: 45, roadNote: '暗空保護區', roadNoteEn: 'Dark Sky Reserve', isOcean: false }
   ]},
   { match: [-42.88, 147.33], pts: [
     { key: 'N', label: '往北 Kempton', lat: -42.5333, lon: 147.2000, roadKm: 52, isOcean: false },

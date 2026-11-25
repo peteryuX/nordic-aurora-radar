@@ -1273,7 +1273,7 @@ function renderFromState(st) {
 }
 
 // ====== Live Data Orchestration & Offline Recovery ======
-async function refreshAll(manual) {
+async function refreshAll(manual, { forceNoaa = false } = {}) {
   const nowMs = Date.now();
   if (!manual && state.isRefreshing) return;
   if (!manual && nowMs - state.lastAttemptMs < 15000) return;
@@ -1297,6 +1297,24 @@ async function refreshAll(manual) {
   const now = new Date();
   let moon = updateClockAndPhoto();
 
+  // Instant Stale-While-Revalidate (SWR) paint: if we have a recent (<20 min) cached snapshot for this city,
+  // render it immediately (<10ms) while syncing fresh data quietly in the background (1P Apple Weather feel).
+  if (!forceNoaa) {
+    const swrHit = findMatchingOfflineCache(pos, nowMs);
+    if (swrHit && (nowMs - swrHit.ts) < 20 * 60 * 1000) {
+      const hydrated = hydrateOfflineState(swrHit, pos, nowMs);
+      if (hydrated) {
+        state.scoredHours = hydrated.scoredHours;
+        state.bestAurora = hydrated.bestAurora;
+        state.selectedHourIdx = hydrated.selectedHourIdx;
+        state.renderState = hydrated.renderState;
+        state.bannerState.offline = false;
+        renderFromState(state.renderState);
+        setText('syncTime', en ? 'Updating...' : '更新中...');
+      }
+    }
+  }
+
   const cachedEnlil = readCachedEnlil(now.getTime());
   if (!cachedEnlil) {
     fetchEnlilBackground().then(parsed => {
@@ -1318,7 +1336,7 @@ async function refreshAll(manual) {
   let noaaOk = false, metOk = false;
   try {
     const [noaa, wx] = await Promise.all([
-      fetchNoaaBundle({ pos, now, signal: ctrl.signal, cachedEnlil, isCurrent, onProgress: renderNoaaSection }),
+      fetchNoaaBundle({ pos, now, signal: ctrl.signal, cachedEnlil, force: Boolean(forceNoaa), isCurrent, onProgress: renderNoaaSection }),
       fetchWeatherBundle({ pos, now, signal: ctrl.signal, isCurrent })
     ]);
     if (!isCurrent()) return;
@@ -1781,7 +1799,7 @@ function bindPullToRefresh() {
     pullY = 0;
     if (shouldRefresh) {
       haptic(10);
-      refreshAll(true);
+      refreshAll(true, { forceNoaa: true });
     }
   };
   document.addEventListener('touchstart', (e) => {
@@ -1822,7 +1840,7 @@ function bindEvents() {
   $('redBtn')?.addEventListener('click', toggleRedMode);
   $('langBtn')?.addEventListener('click', toggleLang);
   $('alertBtn')?.addEventListener('click', toggleAlertMode);
-  $('refBtn')?.addEventListener('click', () => { haptic(8); refreshAll(true); });
+  $('refBtn')?.addEventListener('click', () => { haptic(8); refreshAll(true, { forceNoaa: true }); });
   $('pickBtn')?.addEventListener('click', (e) => togglePicker(false, e.currentTarget));
   $('pickerCloseBtn')?.addEventListener('click', () => togglePicker(true));
   $('picker')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) togglePicker(true); });
@@ -1860,7 +1878,7 @@ function bindEvents() {
     syncBannerBudget();
     try { sessionStorage.setItem('aurora_line_tip_dismissed', '1'); } catch {}
   });
-  $('offlineRetryBtn')?.addEventListener('click', () => { haptic(8); refreshAll(true); });
+  $('offlineRetryBtn')?.addEventListener('click', () => { haptic(8); refreshAll(true, { forceNoaa: true }); });
 
   $('camBrightBtn')?.addEventListener('click', () => {
     state.camFullBright = !state.camFullBright;
