@@ -1779,6 +1779,18 @@ test('44. Overcast CME shock verdict never contradicts score with fake rising co
   assert.ok(!actZh.lead.includes('升至'), `Overcast shock must not say 升至 when scNext=${scNext.total}: ${actZh.lead}`);
   assert.ok(actZh.lead.includes('厚雲') && actZh.ctaView === 'dir', 'Overcast shock must warn about clouds and link to Clear-Sky Radar');
   assert.ok(!actEn.title.toLowerCase().includes('rising') && actEn.ctaView === 'dir', `EN overcast shock must not claim rising: ${actEn.title}`);
+
+  // Chart 2: ★ HH:MM Best badge must stay anchored over far-left best hour (x=56), never shifted to middle daytime!
+  const hrsLeftBest = Array.from({ length: 12 }, (_, i) => ({
+    time: `${String((6 + i) % 24).padStart(2, '0')}:00`,
+    clear: i === 0 ? 63 : 30, block: i === 0 ? 37 : 70, score: i === 0 ? 18 : 0, temp: 2,
+    isDay: i >= 3 && i <= 8
+  }));
+  const svgLeft = api.buildSkyWaveSVG(hrsLeftBest, hrsLeftBest[0], 0, 'zh');
+  assert.ok(svgLeft.includes('★ 06:00 最佳'), 'Best badge must include exact best hour 06:00');
+  assert.ok(svgLeft.includes('x1="56.0" y1="22"'), 'Best vertical pointer stem must anchor directly to 06:00 (x=56)');
+  assert.ok(svgLeft.includes('x="56.0" y="2"'), 'Best pill must sit at left edge above 06:00, not shifted to x=224');
+  assert.ok(svgLeft.includes('白天過亮'), 'Contiguous daylight band must be clearly labeled');
 });
 
 

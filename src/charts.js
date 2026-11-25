@@ -245,6 +245,27 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     ? `<rect x="${Math.max(padL, xOf(i) - stepW / 2).toFixed(1)}" y="${padT}" width="${Math.max(0, Math.min(stepW, W - padR - Math.max(padL, xOf(i) - stepW / 2))).toFixed(1)}" height="${plotH}" fill="rgba(102,189,255,0.10)"/>`
     : '').join('');
 
+  // Label the widest contiguous daylight band (if >= 44px wide) so users instantly see why daytime has no score bars
+  let dayLabelSvg = '';
+  let bestRun = null, curRun = null;
+  hrs.forEach((h, i) => {
+    if (h?.isDay) {
+      if (!curRun) curRun = [i, i];
+      else curRun[1] = i;
+      if (!bestRun || (curRun[1] - curRun[0]) > (bestRun[1] - bestRun[0])) bestRun = [...curRun];
+    } else {
+      curRun = null;
+    }
+  });
+  if (bestRun) {
+    const dx1 = Math.max(padL, xOf(bestRun[0]) - stepW / 2);
+    const dx2 = Math.min(W - padR, xOf(bestRun[1]) + stepW / 2);
+    if (dx2 - dx1 >= 46) {
+      const dMid = (dx1 + dx2) / 2;
+      dayLabelSvg = `<text x="${dMid.toFixed(1)}" y="${padT + 15}" text-anchor="middle" fill="rgba(147,208,255,0.68)" font-size="10.5" font-weight="700">${en ? 'Daylight' : '白天過亮'}</text>`;
+    }
+  }
+
   const vGrid = hrs.map((_, i) => i % 2 === 0
     ? `<line x1="${xOf(i).toFixed(1)}" y1="${padT}" x2="${xOf(i).toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(255,255,255,0.08)" stroke-dasharray="2 4"/>`
     : '').join('');
@@ -265,6 +286,12 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
   const bestIdx = (bestDark && ((bestDark.clear ?? 0) >= 25 || (bestDark.score ?? 0) >= 18))
     ? hrs.findIndex(h => h && h.time === bestDark.time && !h.isDay)
     : -1;
+  const bestX = bestIdx >= 0 ? xOf(bestIdx) : -1;
+  const hintOnRight = bestIdx >= 0 && bestX < 230;
+  const hintTxt = en ? '↑ Higher = better' : '↑ 越高越好';
+  const hintSvg = hintOnRight
+    ? `<text x="${W - padR}" y="16" text-anchor="end" fill="#9fb5d0" font-size="11.5" font-weight="700">${hintTxt}</text>`
+    : `<text x="${padL}" y="16" fill="#9fb5d0" font-size="11.5" font-weight="700">${hintTxt}</text>`;
 
   const dots = hrs.map((h, i) => {
     const clearVal = clampNum(h?.clear, 0, 100, 0);
@@ -278,13 +305,22 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     const hhmm = escSvg(rawTime.length >= 5 ? rawTime.slice(0, 5) : (rawTime.length >= 2 ? `${rawTime.slice(0, 2)}:00` : '--:--'));
     const lbl = showTick ? `<text x="${x.toFixed(1)}" y="${H - 24}" text-anchor="middle" fill="${isSel ? '#ffffff' : (isBest ? '#34f0b0' : '#a9c0da')}" font-size="12.5" font-weight="${isBest || isSel ? '800' : '700'}">${hhmm}</text>` : '';
     const tempLbl = showTick ? `<text x="${x.toFixed(1)}" y="${H - 7}" text-anchor="middle" fill="#92abc7" font-size="11.5" font-weight="600">${tInt > 0 ? '+' : ''}${tInt}°</text>` : '';
-    const starTxt = en ? '★ Best' : '★ 最佳';
-    const starX = Math.min(W - 36, Math.max(padL + 168, x));
-    const star = isBest ? `<text x="${starX.toFixed(1)}" y="17" text-anchor="middle" fill="#34f0b0" font-size="12" font-weight="800">${starTxt}</text>` : '';
-    const selLine = isSel ? `<line x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(255,255,255,0.34)" stroke-dasharray="2 3" stroke-width="1.2"/>` : '';
+    let bestSvg = '';
+    if (isBest) {
+      const starTxt = en ? `★ ${hhmm} Best` : `★ ${hhmm} 最佳`;
+      const pillW = en ? 88 : 86;
+      const pillX = Math.max(padL, Math.min(W - padR - pillW, x - pillW / 2));
+      const pillCx = pillX + pillW / 2;
+      bestSvg =
+        `<line x1="${x.toFixed(1)}" y1="22" x2="${x.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="#34f0b0" stroke-dasharray="2.5 3" stroke-width="1.35" opacity="0.68"/>` +
+        `<rect x="${pillX.toFixed(1)}" y="2" width="${pillW}" height="19" rx="9.5" fill="rgba(52,240,176,0.14)" stroke="rgba(52,240,176,0.58)" stroke-width="1"/>` +
+        `<text x="${pillCx.toFixed(1)}" y="15.2" text-anchor="middle" fill="#34f0b0" font-size="11.5" font-weight="800">${starTxt}</text>` +
+        (!isSel ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7.5" fill="none" stroke="#34f0b0" stroke-width="1.4" opacity="0.82"/>` : '');
+    }
+    const selLine = isSel && !isBest ? `<line x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(255,255,255,0.34)" stroke-dasharray="2 3" stroke-width="1.2"/>` : '';
     const selRing = isSel ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7.5" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.9"/>` : '';
     const hitRect = `<rect class="hr-hit" data-hour-idx="${i}" x="${(x - stepW / 2).toFixed(1)}" y="${padT}" width="${stepW.toFixed(1)}" height="${plotH + 34}" fill="transparent" style="cursor:pointer;"/>`;
-    return `${selLine}${star}${selRing}<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${isBest || isSel ? 5 : 3.6}" fill="${c}" stroke="#040912" stroke-width="1.5"/>${lbl}${tempLbl}${hitRect}`;
+    return `${selLine}${bestSvg}${selRing}<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${isBest || isSel ? 5 : 3.6}" fill="${c}" stroke="#040912" stroke-width="1.5"/>${lbl}${tempLbl}${hitRect}`;
   }).join('');
 
   return `
@@ -294,8 +330,9 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
         <stop offset="100%" stop-color="#34f0b0" stop-opacity="0.02"/>
       </linearGradient>
     </defs>
-    <text x="${padL}" y="17" fill="#9fb5d0" font-size="11.5" font-weight="700">${en ? '↑ Higher = better (0–100)' : '↑ 越高越好（滿分 100）'}</text>
+    ${hintSvg}
     ${dayBands}
+    ${dayLabelSvg}
     ${vGrid}
     <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(255,255,255,0.14)"/>
     <line x1="${padL}" y1="${padT}" x2="${W - padR}" y2="${padT}" stroke="rgba(255,255,255,0.10)" stroke-dasharray="3 4"/>
