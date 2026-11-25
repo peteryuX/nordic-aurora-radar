@@ -503,12 +503,12 @@ body.is-loading .skel-day .od-stat {
 /* Hairline Condition Footnote Row (Monochrome SVG Meta + Explanation Trigger) */
 .cond-foot {
   margin-top: 10px; padding-top: 8px; border-top: 0.5px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px;
 }
 .hero-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-width: 0; margin: 0; padding: 0; }
 .meta-item {
   display: inline-flex; align-items: center; gap: 4px;
-  font-size: 0.75rem; font-weight: 500; line-height: 1.28; color: var(--muted); white-space: nowrap;
+  font-size: 0.75rem; font-weight: 500; line-height: 1.28; color: var(--muted); white-space: normal; text-align: left;
 }
 .meta-item svg { width: 13px; height: 13px; flex-shrink: 0; display: block; }
 .meta-btn {
@@ -1173,6 +1173,7 @@ body.a11y-large .f-val { font-size: 1.24rem; text-align: right; }
 body.a11y-large .f-sub { grid-column: 1 / -1; font-size: 0.82rem; margin-top: 2px; white-space: normal; }
 
 body.a11y-large .cond-foot { flex-wrap: wrap; gap: 6px 10px; }
+body.a11y-large .meta-item { white-space: normal; text-align: left; }
 body.a11y-large .hr-legend { font-size: 0.78rem; gap: 4px 8px; }
 body.a11y-large .dir { flex-wrap: wrap; }
 body.a11y-large .outlook-grid .od-row-top { grid-template-columns: minmax(4.2em, auto) 20px 1fr auto; }

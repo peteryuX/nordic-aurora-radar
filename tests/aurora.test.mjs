@@ -2400,5 +2400,54 @@ test('50. Bilingual copy, localization & single-metric chart clarity lint gate (
   assert.ok(appSrc.includes('sameCityRendered') && appSrc.includes('!forceNoaa && !sameCityRendered'), 'refreshAll must not overwrite live same-city UI with stale SWR cache during 5-min auto-refresh');
 });
 
+test('51. Norway live weather & Kp audit: Svalbard AROME Arctic, 45m 0Z bin guard, obs-calibrated footer & Kirkenes road link', () => {
+  const appSrc = fs.readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+
+  // (a) Svalbard (78.22°N, 15.63°E) must be inside Nordic MET box for official MET Norway AROME Arctic 2.5km
+  assert.equal(api.isInNordicMetBox(78.2232, 15.6267), true, 'Svalbard Longyearbyen must use official MET Norway AROME Arctic');
+  assert.equal(api.isInNordicMetBox(69.6492, 18.9553), true, 'Tromsø must remain inside Nordic MET box');
+  assert.equal(api.isInNordicMetBox(64.1466, -21.9426), false, 'Reykjavik must remain outside Nordic MET box');
+
+  // (b) 3h UT boundary all-zero startup persisting 20-40 min (e.g. 18:00..18:25 UTC after settled Kp 1.0)
+  const kp25mZero = [
+    { time_tag: '2026-11-25T17:58:00', estimated_kp: 1.0, kp_index: 1 },
+    { time_tag: '2026-11-25T17:59:00', estimated_kp: 1.0, kp_index: 1 },
+    ...Array.from({ length: 26 }, (_, m) => ({
+      time_tag: `2026-11-25T18:${String(m).padStart(2, '0')}:00`, estimated_kp: 0, kp_index: 0
+    }))
+  ];
+  assert.equal(api.parseLatestKp(kp25mZero)?.kp, 1.0, 'parseLatestKp must hold settled prior-bin Kp >= 0.67 while all startup samples in new 3h bin are still 0');
+
+  // Genuine quiet day (prior bin 0.33 -> 0.0 for 25m) must NOT be artificially held
+  const kpQuietZero = [
+    { time_tag: '2026-11-25T17:59:00', estimated_kp: 0.33, kp_index: 0 },
+    ...Array.from({ length: 26 }, (_, m) => ({
+      time_tag: `2026-11-25T18:${String(m).padStart(2, '0')}:00`, estimated_kp: 0, kp_index: 0
+    }))
+  ];
+  assert.equal(api.parseLatestKp(kpQuietZero)?.kp, 0, 'Genuine quiet Kp 0.33 -> 0 must report 0');
+
+  // (c) Local weather-station calibration resolves model-diverge low confidence cleanly without cryptic airport footer tags
+  const ccDiv = { level: 'low', diffPct: 45, metAvg3h: 24, omAvg3h: 69 };
+  const expRaw = api.explainAuroraScore({ lat: 69.65, lon: 18.96, cloudNow: 67, sunAlt: -20, kp: 1, ovation: 8, usedMet: true, cloudConsensus: ccDiv, metarCalibrated: false, lang: 'zh' });
+  assert.equal(expRaw.confidence.level, 'low');
+  assert.equal(expRaw.confidence.primaryReason, 'model-diverge');
+
+  const expCal = api.explainAuroraScore({ lat: 69.65, lon: 18.96, cloudNow: 67, sunAlt: -20, kp: 1, ovation: 8, usedMet: true, cloudConsensus: ccDiv, metarCalibrated: true, lang: 'zh' });
+  assert.equal(expCal.confidence.level, 'medium');
+  assert.equal(expCal.confidence.primaryReason, 'obs-calibrated');
+  assert.ok(expCal.confidence.badgeText.includes('已參照當地實測'), `Expected calm local obs badge, got ${expCal.confidence.badgeText}`);
+
+  const expCalEn = api.explainAuroraScore({ lat: 69.65, lon: 18.96, cloudNow: 67, sunAlt: -20, kp: 1, ovation: 8, usedMet: true, cloudConsensus: ccDiv, metarCalibrated: true, lang: 'en' });
+  assert.equal(expCalEn.confidence.primaryReason, 'obs-calibrated');
+  assert.ok(!/[\u4e00-\u9fff]/.test(expCalEn.confidence.badgeText + expCalEn.confidence.headline), 'EN obs-calibrated copy must not leak CJK');
+
+  // (d) No cryptic '機場實測校正' in main heroTags, clearer moon label, and Kirkenes included in Norway Vegvesen
+  assert.ok(!appSrc.includes('機場實測校正'), 'Cryptic 機場實測校正 tag must not appear in hero card footer');
+  assert.ok(appSrc.includes("'滿月'") && appSrc.includes("'有亮月'"), 'Darkness pillar moon sub-label must clearly distinguish 滿月 / 有亮月');
+  assert.ok(appSrc.includes('pos.lon < 26 || pos.lat >= 69.0'), 'Norway Vegvesen road link must cover Finnmark/Kirkenes');
+});
+
+
 
 

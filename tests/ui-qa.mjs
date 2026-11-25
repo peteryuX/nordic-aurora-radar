@@ -199,17 +199,15 @@ html { font-size: ${rootPx}px !important; }
             <div class="f-box">
               <div class="f-lbl-row"><span class="f-ico">${fDarkIco}</span><span class="f-lbl">${en ? 'Darkness' : '夜空暗度'}</span></div>
               <div class="f-val" style="color:${isCloudy ? 'var(--amber)' : 'var(--text)'};">${isCloudy ? '74' : '100'}<span class="f-unit">%</span></div>
-              <div class="f-sub">${isCloudy ? (en ? 'Bright · 09:10' : '偏亮 · 09:10 亮') : (en ? 'Full dark' : '全暗')}</div>
+              <div class="f-sub">${isCloudy ? (en ? '<span class="nowrap">Full moon</span><span class="sub-dot">·</span><span class="nowrap">Light 09:10</span>' : '<span class="nowrap">滿月</span><span class="sub-dot">·</span><span class="nowrap">09:10 天亮</span>') : (en ? 'Full dark' : '全暗')}</div>
             </div>
           </div>
 
           <div class="cond-foot">
             <div class="hero-tags">
-              <button type="button" class="meta-item meta-btn t-amber">${stormSvg}<span>${en ? 'G1 storm active' : '地磁暴進行中'}</span></button>
-              <span class="meta-sep" aria-hidden="true"></span>
-              <span class="meta-item t-muted">${metarSvg}<span>${en ? 'Airport calibrated' : '機場實測校正'}</span></span>
+              <button type="button" class="meta-item meta-btn t-amber">${stormSvg}<span>${en ? 'G1 storm watch · Nov 26' : '11月26日 可能發生 G1 地磁暴'}</span></button>
             </div>
-            <button class="fc-conf-btn" type="button"><span>${en ? 'Details' : '說明'}</span>${chevSvg}</button>
+            <button class="fc-conf-btn" type="button"><span>${isCloudy ? (en ? 'Confidence: medium · local obs adjusted' : '可信度：中 · 已參照當地實測') : (en ? 'Why?' : '說明')}</span>${chevSvg}</button>
           </div>
         </div>
       </section>

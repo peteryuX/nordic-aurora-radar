@@ -299,8 +299,10 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
     if (omList[0]?.timezone) {
       out.resolvedTz = omList[0].timezone;
     } else if (out.resolvedTz === 'auto' && inNordic) {
-      // Fallback IANA timezone inside Nordic MET box when Open-Meteo fails (Finland EET/EEST vs Norway/Sweden CET/CEST)
-      out.resolvedTz = (pos.lon >= 20.6 && pos.lat < 69.15 && pos.lat >= 59.5) ? 'Europe/Helsinki' : 'Europe/Oslo';
+      // Fallback IANA timezone inside Nordic MET box when Open-Meteo fails (Svalbard / Finland EET / Norway-Sweden CET)
+      out.resolvedTz = pos.lat >= 74.0
+        ? 'Arctic/Longyearbyen'
+        : ((pos.lon >= 20.6 && pos.lat < 69.15 && pos.lat >= 59.5) ? 'Europe/Helsinki' : 'Europe/Oslo');
     }
 
     const parseOmPoint = (omObj, lat, lon, ptTz, horizon = 12) => {

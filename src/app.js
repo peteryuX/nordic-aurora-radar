@@ -1283,33 +1283,35 @@ function formatDarkCountdownSub(darkWin, moon, en) {
   if (darkWin?.state === 'twilight-wait' && darkWin.nextDarkHM) {
     return en ? `Dark ${escapeHtml(darkWin.nextDarkHM)}` : `${escapeHtml(darkWin.nextDarkHM)} 天黑`;
   }
+  const moonBright = Boolean(moon.up && moon.effMoonPct >= 40);
+  const moonLbl = (moon.pct ?? 0) >= 85
+    ? (en ? 'Full moon' : '滿月')
+    : (en ? 'Moonlit' : '有亮月');
   if (darkWin?.state === 'polar-night') {
-    return (moon.up && moon.effMoonPct >= 40)
-      ? (en ? 'Polar night · Bright' : '極夜 · 偏亮')
+    return moonBright
+      ? (en ? `Polar night · ${moonLbl}` : `極夜 · ${moonLbl}`)
       : (en ? 'Polar night' : '極夜全暗');
   }
   if (darkWin?.state === 'dark' && darkWin.darkEndHM) {
-    if (moon.up && moon.effMoonPct >= 40) {
+    if (moonBright) {
       return en
-        ? `Bright · Light ${escapeHtml(darkWin.darkEndHM)}`
-        : `偏亮 · ${escapeHtml(darkWin.darkEndHM)} 亮`;
+        ? `<span class="nowrap">${moonLbl}</span><span class="sub-dot" aria-hidden="true">·</span><span class="nowrap">Light ${escapeHtml(darkWin.darkEndHM)}</span>`
+        : `<span class="nowrap">${moonLbl}</span><span class="sub-dot" aria-hidden="true">·</span><span class="nowrap">${escapeHtml(darkWin.darkEndHM)} 天亮</span>`;
     }
-    return en ? `Light ${escapeHtml(darkWin.darkEndHM)}` : `${escapeHtml(darkWin.darkEndHM)} 天亮`;
+    return en ? `<span class="nowrap">Light ${escapeHtml(darkWin.darkEndHM)}</span>` : `<span class="nowrap">${escapeHtml(darkWin.darkEndHM)} 天亮</span>`;
   }
-  return (moon.up && moon.effMoonPct >= 40)
-    ? (en ? 'Bright sky' : '夜空偏亮')
-    : term(TERMS.darkFull, en);
+  return moonBright ? moonLbl : term(TERMS.darkFull, en);
 }
 
 function renderRoadLinks(pos, en) {
   const wrap = $('roadLinks');
   if (!wrap || !pos) return;
   let links = [];
-  if (pos.lat >= 55 && pos.lon >= -26 && pos.lon <= 35) {
+  if (pos.lat >= 55 && pos.lat <= 72 && pos.lon >= -26 && pos.lon <= 35) {
     if (pos.lon <= -10) {
       links.push({ id: 'roadIs', url: 'https://umferdin.is/en', zh: '冰島 Umferðin ↗', en: 'Iceland Umferðin ↗' });
     } else {
-      if (pos.lon < 26) links.push({ id: 'roadNo', url: 'https://www.vegvesen.no/trafikk', zh: '挪威 Vegvesen ↗', en: 'Norway Vegvesen ↗' });
+      if (pos.lon < 26 || pos.lat >= 69.0) links.push({ id: 'roadNo', url: 'https://www.vegvesen.no/trafikk', zh: '挪威 Vegvesen ↗', en: 'Norway Vegvesen ↗' });
       if (pos.lon >= 11 && pos.lon <= 25) links.push({ id: 'roadSe', url: 'https://www.trafikverket.se/trafikinformation/vag/', zh: '瑞典 Trafikverket ↗', en: 'Sweden Trafikverket ↗' });
       if (pos.lon >= 20) links.push({ id: 'roadFi', url: 'https://liikennetilanne.fintraffic.fi/', zh: '芬蘭 Fintraffic ↗', en: 'Finland Roads ↗' });
     }
@@ -1395,7 +1397,6 @@ function renderCompassPanel(dirResults, pos, en) {
 }
 
 const SVG_ICO_BOLT = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.2 1.8L3.8 9h4.1l-1.1 5.2L12.2 7H8.1l1.1-5.2z"/></svg>`;
-const SVG_ICO_TARGET = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="1.8" fill="currentColor" stroke="none"/></svg>`;
 const SVG_ICO_WARN = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.2L14.2 13H1.8L8 2.2z"/><path d="M8 6.4v3.2"/><circle cx="8" cy="11.4" r="0.65" fill="currentColor" stroke="none"/></svg>`;
 const SVG_ICO_CHEV_R = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg>`;
 const SVG_ICO_ARR_R = `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8h9M9 4.5L12.5 8 9 11.5"/></svg>`;
@@ -1423,6 +1424,9 @@ function renderFromState(st) {
   const severeStorm = Boolean((noaaAlert?.active && (noaaAlert.kind === 'cme-shock' || (noaaAlert.gScale || 0) >= 3)) || (noaaScales?.currentScale || 0) >= 3);
   document.body.dataset.mood = severeStorm ? 'storm' : (sc.total >= 65 ? 'prime' : (sc.total >= 35 ? 'active' : 'quiet'));
 
+  const metarCalibrated = Boolean(
+    metarObs && metarFusion?.applied && (metarObs.distKm ?? 99) <= 25 && (metarObs.ageMin ?? 99) <= 60
+  );
   const expNow = explainAuroraScore({
     lat: pos.lat, lon: pos.lon,
     cloudNow: c0, sunAlt: sunAltNow,
@@ -1433,18 +1437,18 @@ function renderFromState(st) {
     dst: kyotoDst?.dst ?? null,
     mlt: mltNow, effMoonPct: moon.effMoonPct,
     moonPct: moon.pct, moonAltDeg: moon.altDeg,
-    scNext, noaaOk, noaaLagMin, usedMet, cloudConsensus, hereHrs, noaaAlert, predKp1h
+    scNext, noaaOk, noaaLagMin, usedMet, cloudConsensus, hereHrs, noaaAlert, predKp1h, metarCalibrated
   });
 
   const confBtn = $('fcConfBtn');
   if (confBtn) {
     const degraded = expNow.confidence.level === 'low' || !noaaOk || (noaaLagMin !== null && noaaLagMin > 45) || cloudConsensus?.level === 'low';
-    confBtn.classList.toggle('warn', degraded);
+    confBtn.classList.toggle('warn', degraded && expNow.confidence.primaryReason !== 'obs-calibrated');
     const lbl = degraded ? escapeHtml(expNow.confidence.badgeText) : (en ? 'Why?' : '說明');
     confBtn.innerHTML = `<span>${lbl}</span>${SVG_ICO_CHEV_R}`;
   }
 
-  // Live raw telemetry & dedicated METAR calibration note inside Trust Sheet
+  // Live raw telemetry & dedicated local weather-station calibration note inside Trust Sheet
   const displayBz = Number.isFinite(safeBal.cleanLatestBz) ? safeBal.cleanLatestBz : bz;
   const rawParts = [
     `Bz ${displayBz !== null && Number.isFinite(displayBz) ? (displayBz >= 0 ? '+' : '') + displayBz.toFixed(1) + ' nT' : '--'}`,
@@ -1458,10 +1462,12 @@ function renderFromState(st) {
     const ceilStr = metarObs.ceilingM ? ` ${metarObs.ceilingM}m` : '';
     rawParts.push(`METAR ${metarObs.icao} ${metarObs.skyCode}${ceilStr} (${metarObs.ageMin}m)`);
   }
-  const metarNote = (metarObs && metarFusion?.discrepancyFlag)
+  const showMetarNote = Boolean(metarObs && metarFusion?.applied && (metarFusion.discrepancyFlag || cloudConsensus?.level === 'low'));
+  const stLabel = metarObs?.name ? `${metarObs.name} · ${metarObs.icao}` : (metarObs?.icao || '');
+  const metarNote = showMetarNote
     ? (en
-        ? `${metarObs.icao} airport observed ${metarObs.clearPct}% clear ${metarObs.ageMin} min ago${metarObs.ceilingM ? ` · cloud base ${metarObs.ceilingM} m` : ''} — short-term forecast corrected.`
-        : `鄰近 ${metarObs.icao} 機場 ${metarObs.ageMin} 分鐘前實測晴空率 ${metarObs.clearPct}%${metarObs.ceilingM ? ` · 雲底 ${metarObs.ceilingM} m` : ''}，已用來校正短時預報。`)
+        ? `Local weather station (${stLabel}, ${metarObs.distKm} km) observed ${metarObs.clearPct}% clear ${metarObs.ageMin} min ago${metarObs.ceilingM ? ` · cloud base ${metarObs.ceilingM} m` : ''} — short-term clouds adjusted.`
+        : `當地氣象站（${stLabel}，距 ${metarObs.distKm} km）${metarObs.ageMin} 分鐘前實測晴空率 ${metarObs.clearPct}%${metarObs.ceilingM ? ` · 雲底 ${metarObs.ceilingM} m` : ''}，已用於修正短時雲量預報。`)
     : '';
   renderTrustSheetLive(expNow, sc, rawParts.join(' · '), metarNote);
 
@@ -1484,7 +1490,7 @@ function renderFromState(st) {
     skyParts.push(`<span class="nowrap">${t0Int <= 1 ? (en ? 'Snow' : '降雪') : (en ? 'Rain' : '降雨')}</span>`);
   }
 
-  // Frameless monochrome 1.5px SVG footnote items (replaces colored pill soup & emoji!)
+  // Frameless monochrome 1.5px SVG footnote items (traveler-relevant alerts only; local station calibration lives cleanly in Trust Sheet & confidence link)
   const heroTags = [];
   if (isExtremeCold) {
     heroTags.push(`<span class="meta-item t-red">${SVG_ICO_WARN}<span>${en ? `Extreme cold (${fmtTemp(wc0Int)})` : `極寒 ${fmtTemp(wc0Int)}`}</span></span>`);
@@ -1494,9 +1500,6 @@ function renderFromState(st) {
   }
   if (state.bannerState.stormMinorTag) {
     heroTags.push(`<button type="button" class="meta-item meta-btn t-amber" data-open-trust="1" aria-haspopup="dialog" aria-controls="trustSheet">${SVG_ICO_BOLT}<span>${escapeHtml(state.bannerState.stormMinorTag)}</span></button>`);
-  }
-  if (metarObs && metarFusion?.discrepancyFlag) {
-    heroTags.push(`<span class="meta-item t-muted">${SVG_ICO_TARGET}<span>${en ? 'Airport obs' : '機場實測校正'}</span></span>`);
   }
   if (!heroTags.length && scNext && !sc.outOfZone) {
     const diff = scNext.total - sc.total;
@@ -1991,12 +1994,16 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
       const pr = exp.confidence.primaryReason;
       const cc = stLive?.cloudConsensus;
       const isMet = Boolean(stLive?.usedMet);
-      if ((pr === 'model-diverge' || pr === 'cloud-spread') && cc && Number.isFinite(cc.metAvg3h) && Number.isFinite(cc.omAvg3h)) {
+      if ((pr === 'model-diverge' || pr === 'obs-calibrated' || pr === 'cloud-spread') && cc && Number.isFinite(cc.metAvg3h) && Number.isFinite(cc.omAvg3h)) {
         const c1 = Math.max(0, Math.min(100, Math.round(100 - cc.metAvg3h)));
         const c2 = Math.max(0, Math.min(100, Math.round(100 - cc.omAvg3h)));
-        detailTxt = en
-          ? `Clear-sky models disagree (${isMet ? 'MET Norway' : 'Primary'} ${c1}% vs ${isMet ? 'ECMWF' : 'Secondary'} ${c2}%) — check live cams.`
-          : `兩組晴空預報分歧（${isMet ? '挪威官方' : '主模型'} ${c1}%、${isMet ? 'ECMWF 全球模型' : '對照模型'} ${c2}%），建議看即時實拍確認。`;
+        detailTxt = pr === 'obs-calibrated'
+          ? (en
+              ? `Models differed (${isMet ? 'MET Norway' : 'Primary'} ${c1}% vs ${isMet ? 'ECMWF' : 'Secondary'} ${c2}% clear) — short-term clouds adjusted using local live observations.`
+              : `兩組預報晴空率有分歧（${isMet ? '挪威官方' : '主模型'} ${c1}%、${isMet ? 'ECMWF 全球模型' : '對照模型'} ${c2}%），已優先參照當地即時實測修正。`)
+          : (en
+              ? `Clear-sky models disagree (${isMet ? 'MET Norway' : 'Primary'} ${c1}% vs ${isMet ? 'ECMWF' : 'Secondary'} ${c2}%) — check live cams.`
+              : `兩組晴空預報分歧（${isMet ? '挪威官方' : '主模型'} ${c1}%、${isMet ? 'ECMWF 全球模型' : '對照模型'} ${c2}%），建議看即時實拍確認。`);
       } else if (pr === 'fast-clouds') {
         detailTxt = en
           ? 'Fast-moving clouds over the next 3h — clear windows may shift.'

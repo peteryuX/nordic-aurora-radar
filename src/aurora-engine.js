@@ -221,7 +221,10 @@ export function parseUtcMs(tag) {
 }
 
 export function isInNordicMetBox(lat, lon) {
-  return Number.isFinite(lat) && Number.isFinite(lon) && lat >= 55.0 && lat <= 72.0 && lon >= 4.0 && lon <= 33.0;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
+  const mainland = lat >= 55.0 && lat <= 72.0 && lon >= 4.0 && lon <= 33.0;
+  const svalbard = lat >= 74.0 && lat <= 81.0 && lon >= 10.0 && lon <= 35.0;
+  return mainland || svalbard;
 }
 
 export function computeCompassPoints(lat, lon, distKm = 60) {
@@ -1375,7 +1378,7 @@ export function explainAuroraScore(params = {}) {
     scNext = null, noaaOk = true, noaaLagMin = null, usedMet = false,
     cloudConsensus = null, hereHrs = null, cloudSpan3h = null,
     kp = null, ovation = null, moonPct = null, moonAltDeg = null,
-    noaaAlert = null, predKp1h = null, lang
+    noaaAlert = null, predKp1h = null, metarCalibrated = false, lang
   } = params;
   const en = isEn(lang);
   const { result: sc, breakdown: bd } = computeAuroraScoreInternal(params);
@@ -1538,8 +1541,13 @@ export function explainAuroraScore(params = {}) {
     if (!usedMet && !cloudConsensus) reasons.push('single-model');
 
     if (reasons.includes('model-diverge')) {
-      confLevel = 'low';
-      primaryReason = 'model-diverge';
+      if (metarCalibrated) {
+        confLevel = 'medium';
+        primaryReason = 'obs-calibrated';
+      } else {
+        confLevel = 'low';
+        primaryReason = 'model-diverge';
+      }
     } else if (reasons.length > 0) {
       confLevel = 'medium';
       primaryReason = reasons[0];
@@ -1552,6 +1560,7 @@ export function explainAuroraScore(params = {}) {
 
   const confBadgeMap = {
     'latitude-gate': en ? 'Confidence: high' : '可信度：高',
+    'obs-calibrated': en ? 'Confidence: medium · local obs adjusted' : '可信度：中 · 已參照當地實測',
     'model-diverge': en ? 'Confidence: low · models disagree' : '可信度：低 · 雲量預報分歧',
     'noaa-offline': en ? 'Confidence: medium · NOAA offline' : '可信度：中 · NOAA 離線',
     'sat-lag': en ? 'Confidence: medium · satellite delay' : '可信度：中 · 衛星資料延遲',
@@ -1582,8 +1591,8 @@ export function explainAuroraScore(params = {}) {
     }
     if (key === 'model-diverge') {
       return en
-        ? `${m1En} (${ccMet}% 3h avg cloud) and ${m2En} (${ccOm}%) diverge by ${ccDiff}% (≥ 35% threshold) — check the sky or webcams.`
-        : `${m1Zh}（3h 均雲 ${ccMet}%）與${m2Zh}（${ccOm}%）分歧達 ${ccDiff}%（≥ 35% 門檻），請以實際抬頭與天文台實拍為準。`;
+        ? `${m1En} (${ccMet}% 3h avg cloud) and ${m2En} (${ccOm}%) diverge by ${ccDiff}% (≥ 35% threshold)${metarCalibrated ? ' — short-term clouds adjusted with nearby live weather-station observations.' : ' — check the sky or webcams.'}`
+        : `${m1Zh}（3h 均雲 ${ccMet}%）與${m2Zh}（${ccOm}%）分歧達 ${ccDiff}%（≥ 35% 門檻）${metarCalibrated ? '，短時雲量已參照鄰近氣象站即時實測修正。' : '，請以實際抬頭與天文台實拍為準。'}`;
     }
     if (key === 'noaa-offline') {
       return en
@@ -1775,13 +1784,16 @@ export function parseLatestKp(rows) {
   if (!items.length) return null;
   items.sort((a, b) => a.ts - b.ts);
   const last = items[items.length - 1];
-  // NOAA 1-minute Kp resets to provisional 0Z at the start of every 3h UT bin (00/03/06/09/12/15/18/21 UTC)
-  // for up to 10-15 min while the new bin accumulates, and also emits brief 1-5 min provisional 0Z rows.
+  // NOAA 1-minute Kp resets to provisional 0Z at the start of every 3h UT bin (00/03/06/09/12/15/18/21 UTC):
+  // - During active conditions it ramps up over 10-15 min (guard sharp drops >= 0.67 within first 15 min)
+  // - During quiet/unsettled conditions (Kp 1-2) it often stays identically 0Z for 20-40 min until first deflection
+  //   accumulates; hold the settled prior-bin Kp while every sample in the new bin so far is still 0.
   if (is1m && items.length >= 2) {
     const lastDt = new Date(last.ts);
-    const inBoundaryWindow = (lastDt.getUTCHours() % 3 === 0) && lastDt.getUTCMinutes() < 15;
-    if (inBoundaryWindow) {
-      const binStartMs = last.ts - (lastDt.getUTCMinutes() * 60000 + lastDt.getUTCSeconds() * 1000);
+    const isBinStartHour = (lastDt.getUTCHours() % 3 === 0);
+    const binMin = lastDt.getUTCMinutes();
+    if (isBinStartHour && binMin < 45) {
+      const binStartMs = last.ts - (binMin * 60000 + lastDt.getUTCSeconds() * 1000);
       let prevBinSettled = null;
       for (let i = items.length - 2; i >= 0; i--) {
         if (items[i].ts < binStartMs && (binStartMs - items[i].ts) <= 20 * 60000 && items[i].kp > 0) {
@@ -1789,8 +1801,13 @@ export function parseLatestKp(rows) {
           break;
         }
       }
-      if (prevBinSettled && (prevBinSettled.kp - last.kp) >= 0.67) {
-        return { kp: prevBinSettled.kp, time_tag: prevBinSettled.time_tag };
+      if (prevBinSettled) {
+        const sharpEarlyDrop = binMin < 15 && (prevBinSettled.kp - last.kp) >= 0.67;
+        const allZeroStartup = last.kp === 0 && prevBinSettled.kp >= 0.67 &&
+          items.every(it => it.ts < binStartMs || it.kp === 0);
+        if (sharpEarlyDrop || allZeroStartup) {
+          return { kp: prevBinSettled.kp, time_tag: prevBinSettled.time_tag };
+        }
       }
     }
     if (last.kp === 0) {
