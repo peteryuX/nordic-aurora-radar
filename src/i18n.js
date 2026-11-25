@@ -93,7 +93,7 @@ export const STATIC_TEXT_MAP = {
   h2Wave: pair(TERMS.nav.hourlyTrend),
   waveRange: pair(TERMS.nav.range24h),
   h2Energy: pair(TERMS.solarWind.title),
-  swToggleTxt: ['查看衛星資料與 2 小時曲線', 'Satellite data & 2h chart'],
+  swToggleTxt: ['查看 2 小時能量曲線', 'View 2h energy chart'],
   h2Outlook: pair(TERMS.nav.next3Nights),
   outlookNote: ['明後天雲量與 Kp 變動較大，出發前 3 小時請再確認。', 'Clouds & Kp shift — recheck 3h before going out.'],
   seoFootLbl: ['熱門極光地點攻略', 'Aurora destination guides'],
@@ -161,11 +161,9 @@ export const LOADING_PLACEHOLDER_MAP = {
   fSkySub: ['讀取中…', 'Loading…'],
   fAurSub: ['讀取中…', 'Loading…'],
   fDarkSub: ['讀取中…', 'Loading…'],
-  fcNextTxt: ['未來 1 小時：計算中…', 'Next hour: calculating…'],
-  fcConfBtn: ['說明 ›', 'Why? ›'],
   pMet: ['Yr.no 天氣 ↗', 'Yr.no Weather ↗'],
   syncTime: ['同步中', 'Syncing…'],
-  energyBanner: ['正在讀取即時太陽風…', 'Loading live solar wind…'],
+  energyBanner: ['正在讀取即時衛星預警…', 'Loading live satellite alert…'],
   etaHint: ['時間軸已換算為到達地球的當地時間', 'Time axis shows estimated Earth arrival'],
   homeBest: ['載入中…', 'Loading…'],
   compassSummary: ['正在掃描周邊晴空…', 'Scanning nearby clear skies…'],
@@ -185,7 +183,11 @@ const ARIA_LABELS = {
   trustCloseBtn: ['關閉', 'Close', false],
   pickerCloseBtn: ['關閉', 'Close', false],
   lineTipClose: ['關閉提示', 'Dismiss tip', false],
-  outlookInfoBtn: ['指數說明', 'About this score', false]
+  outlookInfoBtn: ['指數說明', 'About this score', false],
+  hrPrevBtn: ['上一小時', 'Previous hour', false],
+  hrNextBtn: ['下一小時', 'Next hour', false],
+  bzPrevBtn: ['前 5 分鐘', 'Previous 5 minutes', false],
+  bzNextBtn: ['後 5 分鐘', 'Next 5 minutes', false]
 };
 
 export function renderSkyCamCaption($, key, en) {

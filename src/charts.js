@@ -30,75 +30,74 @@ export function buildSkySceneSVG({ cloudPct, auroraScore, moonUp, moonPct, isToo
   const mPct = clampNum(moonPct, 0, 100, 0);
   const bright = Boolean(isTooBright);
 
-  const bgTop = bright ? '#1a3149' : '#050c18';
-  const bgMid = bright ? '#2c4863' : '#0b192d';
-  const bgBot = bright ? '#192a3d' : '#080f1c';
-  const starOp = bright ? 0 : Math.max(0.08, (100 - cPct) / 100);
-  const aurOp = (bright || aSc <= 0) ? 0 : Math.max(0.08, (aSc / 100) * Math.max(0.22, (100 - cPct * 0.85) / 100));
-  const cloudOp = Math.min(0.82, Math.max(0.06, (cPct / 100) * 0.80));
+  const bgTop = bright ? '#1a3149' : '#0b1b2e';
+  const bgMid = bright ? '#233b54' : '#091423';
+  const bgBot = bright ? '#08101c' : '#08101c';
+  const starOp = bright ? 0 : Math.max(0.10, (100 - cPct) / 100);
+  const aurOp = (bright || aSc <= 0) ? 0 : Math.max(0.10, (aSc / 100) * Math.max(0.24, (100 - cPct * 0.85) / 100));
+  const cloudOp = Math.min(0.68, Math.max(0.05, (cPct / 100) * 0.66));
   const showMoon = Boolean(moonUp) && !bright;
-  const moonOp = showMoon ? Math.max(0.20, (100 - cPct * 0.7) / 100) : 0;
-  const moonR = 9 + (mPct / 100) * 7;
+  const moonOp = showMoon ? Math.max(0.24, (100 - cPct * 0.7) / 100) : 0;
+  const moonR = 8 + (mPct / 100) * 6;
 
   const stars = [
-    [40,28,1.1],[95,52,0.9],[148,24,1.3],[215,40,0.8],[275,20,1.2],
-    [340,46,1.0],[410,25,1.2],[465,55,0.9],[530,30,1.1],[595,48,1.0],
-    [70,92,0.8],[180,84,1.0],[305,88,0.9],[440,96,1.0],[560,82,1.1],
-    [125,128,0.8],[375,118,0.9],[515,132,0.8]
-  ].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#ffffff" opacity="${(starOp * 0.72).toFixed(2)}"/>`).join('');
+    [36,30,1.0],[88,22,0.8],[146,38,1.1],[214,24,0.7],[284,32,1.0],
+    [352,20,0.9],[424,34,1.1],[496,26,0.8],[562,40,1.0],[608,28,0.8],
+    [66,74,0.7],[182,66,0.9],[316,68,0.8],[460,72,0.9],[580,76,0.8],
+    [118,104,0.7],[394,98,0.8],[526,106,0.7]
+  ].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#f5f8ff" opacity="${(starOp * 0.72).toFixed(2)}"/>`).join('');
 
-  const clouds = cPct >= 15 ? `
+  const clouds = cPct >= 20 ? `
     <g class="cld-anim" opacity="${cloudOp.toFixed(2)}" filter="url(#cldBlur)">
-      <ellipse cx="120" cy="76" rx="155" ry="38" fill="${bright ? '#5d7b99' : '#24374f'}"/>
-      <ellipse cx="320" cy="62" rx="190" ry="46" fill="${bright ? '#4c6a87' : '#1d2f46'}"/>
-      <ellipse cx="520" cy="84" rx="175" ry="40" fill="${bright ? '#5a7896' : '#23364d'}"/>
-      <ellipse cx="220" cy="120" rx="200" ry="36" fill="${bright ? '#3c5874' : '#162538'}"/>
-      <ellipse cx="460" cy="126" rx="210" ry="38" fill="${bright ? '#395470' : '#18283c'}"/>
+      <ellipse cx="140" cy="68" rx="170" ry="32" fill="${bright ? '#486684' : '#1b2b3f'}"/>
+      <ellipse cx="360" cy="58" rx="200" ry="38" fill="${bright ? '#3d5a78' : '#162436'}"/>
+      <ellipse cx="550" cy="76" rx="165" ry="30" fill="${bright ? '#456381' : '#1a293d'}"/>
     </g>` : '';
 
   const moonSvg = showMoon ? `
     <g opacity="${moonOp.toFixed(2)}">
-      <circle cx="515" cy="46" r="${(moonR * 2.1).toFixed(1)}" fill="#ffefc2" opacity="0.14"/>
-      <circle cx="515" cy="46" r="${moonR.toFixed(1)}" fill="#fff6db" opacity="0.88"/>
+      <circle cx="524" cy="42" r="${(moonR * 2.0).toFixed(1)}" fill="#ffefc2" opacity="0.12"/>
+      <circle cx="524" cy="42" r="${moonR.toFixed(1)}" fill="#fff6db" opacity="0.86"/>
     </g>` : '';
 
-  const aur2Op = aurOp > 0.14 ? (aurOp * 0.62).toFixed(2) : '0';
+  const aur2Op = aurOp > 0.14 ? (aurOp * 0.68).toFixed(2) : '0';
 
   return `
     <defs>
       <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="${bgTop}"/>
-        <stop offset="48%" stop-color="${bgMid}"/>
+        <stop offset="56%" stop-color="${bgMid}"/>
         <stop offset="100%" stop-color="${bgBot}"/>
       </linearGradient>
-      <linearGradient id="aurG" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#3ec99a" stop-opacity="0.72"/>
-        <stop offset="52%" stop-color="#35a8bd" stop-opacity="0.54"/>
-        <stop offset="100%" stop-color="#6b63b5" stop-opacity="0.38"/>
+      <linearGradient id="aurG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#7c6fd4" stop-opacity="0.22"/>
+        <stop offset="42%" stop-color="#58dba4" stop-opacity="0.52"/>
+        <stop offset="100%" stop-color="#08101c" stop-opacity="0"/>
       </linearGradient>
-      <linearGradient id="aurG2" x1="1" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#48d8a2" stop-opacity="0.55"/>
-        <stop offset="55%" stop-color="#58b8d8" stop-opacity="0.34"/>
-        <stop offset="100%" stop-color="#7c6fd4" stop-opacity="0.22"/>
+      <linearGradient id="aurG2" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#48c4d8" stop-opacity="0.18"/>
+        <stop offset="48%" stop-color="#58dba4" stop-opacity="0.38"/>
+        <stop offset="100%" stop-color="#08101c" stop-opacity="0"/>
       </linearGradient>
       <linearGradient id="horizonFade" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="${bgBot}" stop-opacity="0"/>
-        <stop offset="100%" stop-color="${bgBot}" stop-opacity="0.96"/>
+        <stop offset="72%" stop-color="${bgBot}" stop-opacity="0.92"/>
+        <stop offset="100%" stop-color="${bgBot}" stop-opacity="1"/>
       </linearGradient>
-      <filter id="aurBlur"><feGaussianBlur stdDeviation="16"/></filter>
-      <filter id="cldBlur"><feGaussianBlur stdDeviation="10"/></filter>
+      <filter id="aurBlur"><feGaussianBlur stdDeviation="10"/></filter>
+      <filter id="cldBlur"><feGaussianBlur stdDeviation="12"/></filter>
     </defs>
     <rect width="640" height="225" fill="url(#skyG)"/>
     ${stars}
     <g class="aur-anim" opacity="${aurOp.toFixed(2)}" filter="url(#aurBlur)">
-      <path d="M-30,115 C95,38 205,126 320,54 C440,-8 530,96 670,34 L670,96 C530,148 440,54 320,112 C205,172 95,94 -30,152 Z" fill="url(#aurG)"/>
+      <path d="M-24,26 C88,8 178,62 316,32 C442,6 534,48 664,24 L664,146 C532,168 432,126 310,152 C176,178 82,132 -24,150 Z" fill="url(#aurG)"/>
     </g>
     ${aurOp > 0.14 ? `<g class="aur-anim-2" opacity="${aur2Op}" filter="url(#aurBlur)">
-      <path d="M-20,86 C110,124 235,34 360,82 C475,124 565,42 665,78 L665,128 C560,92 470,162 350,126 C230,88 105,164 -20,132 Z" fill="url(#aurG2)"/>
+      <path d="M12,58 C134,34 238,82 378,52 C492,28 574,60 664,46 L664,162 C568,180 478,150 370,170 C236,192 130,154 12,168 Z" fill="url(#aurG2)"/>
     </g>` : ''}
     ${moonSvg}
     ${clouds}
-    <rect y="148" width="640" height="77" fill="url(#horizonFade)"/>
+    <rect y="128" width="640" height="97" fill="url(#horizonFade)"/>
   `;
 }
 
@@ -109,9 +108,9 @@ export function buildSkySceneSVG({ cloudPct, auroraScore, moonUp, moonPct, isToo
 export function buildBzChartSVG(series, timeZone, speed, balOpt, lang, selectedIdx = -1) {
   const en = isEn(lang);
   if (!Array.isArray(series) || series.length < 2) {
-    return `<text x="210" y="90" text-anchor="middle" fill="var(--muted)" font-size="13" font-weight="700">${en ? 'No live satellite energy data' : '暫無衛星即時太陽風曲線'}</text>`;
+    return `<text x="210" y="84" text-anchor="middle" fill="var(--muted)" font-size="13" font-weight="600">${en ? 'No live satellite energy data' : '暫無衛星即時太陽風曲線'}</text>`;
   }
-  const W = 420, H = 170, padL = 56, padR = 14, padT = 28, padB = 26;
+  const W = 420, H = 156, padL = 56, padR = 14, padT = 22, padB = 26;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const yOf = e => padT + ((100 - clampNum(e, 0, 100, 4)) / 100) * plotH;
 
@@ -157,7 +156,6 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang, selectedI
   const lx = xOf(lastIdx), ly = yOf(lastE);
   const colOf = e => (e >= 62 ? 'var(--green)' : e >= 25 ? 'var(--amber)' : 'var(--muted)');
   const col = colOf(lastE);
-  const stateWord = lastE >= 62 ? term(TERMS.solarWind.active, en) : lastE >= 25 ? term(TERMS.solarWind.building, en) : term(TERMS.solarWind.low, en);
 
   const areaSvg = segments.filter(seg => seg.length >= 2).map(seg => {
     const sPts = seg.map(i => `${xOf(i).toFixed(1)},${yOf(energies[i]).toFixed(1)}`).join(' ');
@@ -171,14 +169,14 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang, selectedI
       return `<circle cx="${xOf(i).toFixed(1)}" cy="${yOf(energies[i]).toFixed(1)}" r="2.2" fill="${col}"/>`;
     }
     const sPts = seg.map(i => `${xOf(i).toFixed(1)},${yOf(energies[i]).toFixed(1)}`).join(' ');
-    return `<polyline fill="none" stroke="${col}" stroke-width="2.6" stroke-linejoin="round" points="${sPts}"/>`;
+    return `<polyline fill="none" stroke="${col}" stroke-width="2.4" stroke-linejoin="round" points="${sPts}"/>`;
   }).join('');
 
   let gapSvg = '';
   for (let s = 1; s < segments.length; s++) {
     const iA = segments[s - 1][segments[s - 1].length - 1];
     const iB = segments[s][0];
-    gapSvg += `<line x1="${xOf(iA).toFixed(1)}" y1="${yOf(energies[iA]).toFixed(1)}" x2="${xOf(iB).toFixed(1)}" y2="${yOf(energies[iB]).toFixed(1)}" stroke="rgba(148,188,232,0.4)" stroke-width="1.4" stroke-dasharray="2 4"/>`;
+    gapSvg += `<line x1="${xOf(iA).toFixed(1)}" y1="${yOf(energies[iA]).toFixed(1)}" x2="${xOf(iB).toFixed(1)}" y2="${yOf(energies[iB]).toFixed(1)}" stroke="var(--chart-axis)" stroke-width="1.3" stroke-dasharray="2 4"/>`;
   }
 
   let xTicksSvg = '';
@@ -190,19 +188,19 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang, selectedI
     let guardCount = 0;
     for (let t = firstTick; t <= maxMs && guardCount < 24; t += stepMs, guardCount++) {
       const tx = xOfMs(t);
-      if (tx < padL + 12 || tx > W - padR - 12) continue;
+      if (tx < padL + 14 || tx > W - padR - 14) continue;
       const z = getZoneParts(new Date(t), timeZone);
       xTicksSvg += `
         <line x1="${tx.toFixed(1)}" y1="${padT}" x2="${tx.toFixed(1)}" y2="${baseY}" stroke="var(--chart-grid)" stroke-dasharray="2 4"/>
-        <text x="${tx.toFixed(1)}" y="${H - 7}" text-anchor="middle" fill="var(--muted)" font-size="11.5" font-weight="600">${escSvg(z.hourStr)}:${escSvg(z.minStr)}</text>`;
+        <text x="${tx.toFixed(1)}" y="${H - 6}" text-anchor="middle" fill="var(--muted)" font-size="12" font-weight="500">${escSvg(z.hourStr)}:${escSvg(z.minStr)}</text>`;
     }
   }
   if (!xTicksSvg) {
     const tStart = escSvg(utcTagToLocalHM(series[0]?.time_tag, timeZone, etaMin));
     const tEnd = escSvg(utcTagToLocalHM(series[lastIdx]?.time_tag, timeZone, etaMin));
     xTicksSvg = `
-      <text x="${padL}" y="${H - 7}" fill="var(--muted)" font-size="11.5" font-weight="600">${tStart}</text>
-      <text x="${W - padR}" y="${H - 7}" text-anchor="end" fill="var(--text)" font-size="11.5" font-weight="600">${tEnd}</text>`;
+      <text x="${padL}" y="${H - 6}" fill="var(--muted)" font-size="12" font-weight="500">${tStart}</text>
+      <text x="${W - padR}" y="${H - 6}" text-anchor="end" fill="var(--text)" font-size="12" font-weight="500">${tEnd}</text>`;
   }
 
   let arriveSvg = '';
@@ -210,13 +208,13 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang, selectedI
   if (balOpt && Number.isInteger(balOpt.arrivingIdx) && balOpt.arrivingIdx > 4 && balOpt.arrivingIdx < series.length - 4) {
     const ax = xOf(balOpt.arrivingIdx);
     const tNowEarth = escSvg(utcTagToLocalHM(series[balOpt.arrivingIdx]?.time_tag, timeZone, etaMin));
-    const lxClamped = Math.max(padL + 92, Math.min(W - 156, ax));
+    const lxClamped = Math.max(padL + 84, Math.min(W - padR - 40, ax));
     const futureW = Math.max(0, W - padR - ax);
-    futureBandSvg = `<rect x="${ax.toFixed(1)}" y="${padT}" width="${futureW.toFixed(1)}" height="${plotH}" fill="var(--text)" fill-opacity="0.04"/>`;
+    futureBandSvg = `<rect x="${ax.toFixed(1)}" y="${padT}" width="${futureW.toFixed(1)}" height="${plotH}" fill="var(--text)" fill-opacity="0.035"/>`;
     arriveSvg = `
-      <line x1="${ax.toFixed(1)}" y1="${padT}" x2="${ax.toFixed(1)}" y2="${baseY}" stroke="var(--text)" stroke-dasharray="3 3" stroke-width="1.3" opacity="0.72"/>
-      <circle cx="${ax.toFixed(1)}" cy="${yOf(energies[balOpt.arrivingIdx]).toFixed(1)}" r="3.4" fill="var(--text)" stroke="var(--bg)" stroke-width="1.5"/>
-      <text x="${lxClamped.toFixed(1)}" y="17" text-anchor="middle" fill="var(--text)" font-size="11" font-weight="600">${en ? `Now ${tNowEarth}` : `現在 ${tNowEarth}`}</text>`;
+      <line x1="${ax.toFixed(1)}" y1="${padT}" x2="${ax.toFixed(1)}" y2="${baseY}" stroke="var(--text)" stroke-dasharray="3 3" stroke-width="1.15" opacity="0.62"/>
+      <circle cx="${ax.toFixed(1)}" cy="${yOf(energies[balOpt.arrivingIdx]).toFixed(1)}" r="3.2" fill="var(--text)" stroke="var(--bg)" stroke-width="1.4"/>
+      <text x="${lxClamped.toFixed(1)}" y="14" text-anchor="middle" fill="var(--text-soft)" font-size="11.5" font-weight="600">${en ? `Now ${tNowEarth}` : `現在 ${tNowEarth}`}</text>`;
   }
 
   const hasSel = Number.isInteger(selectedIdx) && selectedIdx >= 0 && selectedIdx < energies.length;
@@ -225,44 +223,39 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang, selectedI
     const sx = xOf(selectedIdx), sy = yOf(energies[selectedIdx]);
     const sCol = colOf(energies[selectedIdx]);
     scrubSvg = `
-      <line data-role="scrubber" x1="${sx.toFixed(1)}" y1="${padT}" x2="${sx.toFixed(1)}" y2="${baseY}" stroke="var(--text)" stroke-opacity="0.58" stroke-width="1.2"/>
+      <line data-role="scrubber" x1="${sx.toFixed(1)}" y1="${padT}" x2="${sx.toFixed(1)}" y2="${baseY}" stroke="var(--text)" stroke-opacity="0.55" stroke-width="1.2"/>
       <circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="7.5" fill="${sCol}" fill-opacity="0.22"/>
-      <circle data-role="scrubber-dot" cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="4.6" fill="${sCol}" stroke="var(--bg)" stroke-width="1.8"/>`;
+      <circle data-role="scrubber-dot" cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="4.5" fill="${sCol}" stroke="var(--bg)" stroke-width="1.8"/>`;
   }
   const endDotSvg = (!hasSel || selectedIdx !== lastIdx)
-    ? `<circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="${hasSel ? '3.2' : '4.8'}" fill="${col}" stroke="var(--bg)" stroke-width="${hasSel ? '1.4' : '2'}"/>`
+    ? `<circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="${hasSel ? '3.0' : '4.4'}" fill="${col}" stroke="var(--bg)" stroke-width="${hasSel ? '1.3' : '1.8'}"/>`
     : '';
 
   return `
     <defs>
       <linearGradient id="enGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="var(--text)" stop-opacity="0.16"/>
-        <stop offset="100%" stop-color="var(--text)" stop-opacity="0.01"/>
+        <stop offset="0%" stop-color="${col}" stop-opacity="0.18"/>
+        <stop offset="100%" stop-color="${col}" stop-opacity="0"/>
       </linearGradient>
     </defs>
-    <text x="${padL}" y="17" data-role="y-title" fill="var(--muted)" font-size="10.5" font-weight="600">${term(TERMS.solarWind.axisTitle, en)}</text>
-    <rect x="${padL}" y="${padT}" width="${plotW}" height="${(yBurst - padT).toFixed(1)}" fill="var(--green)" fill-opacity="0.06"/>
-    <rect x="${padL}" y="${yBurst.toFixed(1)}" width="${plotW}" height="${(yWarm - yBurst).toFixed(1)}" fill="var(--amber)" fill-opacity="0.04"/>
+    <text x="${padL}" y="14" data-role="y-title" fill="var(--muted)" font-size="11.5" font-weight="600">${term(TERMS.solarWind.axisTitle, en)}</text>
     ${futureBandSvg}
     ${xTicksSvg}
-    <line x1="${padL}" y1="${yBurst.toFixed(1)}" x2="${W - padR}" y2="${yBurst.toFixed(1)}" stroke="var(--green)" stroke-dasharray="4 4" stroke-width="1.1" opacity="0.55"/>
-    <line x1="${padL}" y1="${yWarm.toFixed(1)}" x2="${W - padR}" y2="${yWarm.toFixed(1)}" stroke="var(--chart-axis)" stroke-dasharray="3 4" stroke-width="1"/>
+    <line x1="${padL}" y1="${yBurst.toFixed(1)}" x2="${W - padR}" y2="${yBurst.toFixed(1)}" stroke="var(--chart-grid)" stroke-dasharray="3 4" stroke-width="1"/>
+    <line x1="${padL}" y1="${yWarm.toFixed(1)}" x2="${W - padR}" y2="${yWarm.toFixed(1)}" stroke="var(--chart-grid)" stroke-dasharray="3 4" stroke-width="1"/>
     <line x1="${padL}" y1="${baseY}" x2="${W - padR}" y2="${baseY}" stroke="var(--chart-axis)"/>
-    <text x="${padL - 8}" y="${(padT + (yBurst - padT) / 2 + 4).toFixed(1)}" text-anchor="end" fill="var(--green)" font-size="12.5" font-weight="800">${term(TERMS.solarWind.active, en)}</text>
-    <text x="${padL - 8}" y="${(yBurst + (yWarm - yBurst) / 2 + 4).toFixed(1)}" text-anchor="end" fill="var(--amber)" font-size="12.5" font-weight="700">${term(TERMS.solarWind.building, en)}</text>
-    <text x="${padL - 8}" y="${(yWarm + (padT + plotH - yWarm) / 2 + 4).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="12.5" font-weight="700">${term(TERMS.solarWind.low, en)}</text>
+    <text x="${padL - 8}" y="${(yBurst + 4).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="11.5" font-weight="500">${term(TERMS.solarWind.active, en)}</text>
+    <text x="${padL - 8}" y="${(yWarm + 4).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="11.5" font-weight="500">${term(TERMS.solarWind.building, en)}</text>
     ${areaSvg}
     ${gapSvg}
     ${lineSvg}
     ${arriveSvg}
     ${endDotSvg}
     ${scrubSvg}
-    <rect x="${W - 110}" y="2" width="96" height="21" rx="10.5" fill="rgba(8,9,12,0.88)" stroke="${col}" stroke-width="1"/>
-    <text x="${W - 62}" y="16.5" text-anchor="middle" fill="${col}" font-size="12" font-weight="800">${en ? `Next · ${stateWord}` : `預告 · ${stateWord}`}</text>
   `;
 }
 
-/** 24h Single-Metric Viewing-Score Bar Chart + Separated Clear-Sky Context Strip (Compact iOS 18 Geometry) */
+/** 24h Single-Metric Viewing-Score Bar Chart + Separated Clear-Sky Context Strip (Direction B Nordic 1P) */
 export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
   const en = isEn(lang);
   if (!Array.isArray(hrs) || hrs.length < 2) {
@@ -270,14 +263,14 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
   }
   const is24 = hrs.length > 14;
   const tickStep = is24 ? 4 : 2;
-  const W = 420, H = 154, padL = 56, padR = 10, padT = 22;
-  const plotH = 86; // Score bars: y=22..108; Clear-sky strip: y=114..122; X-axis labels: y=144
+  const W = 420, H = 156, padL = 56, padR = 10, padT = 22;
+  const plotH = 88; // Score bars: y=22..110; Clear-sky strip: y=116..121; X-axis labels: y=148
   const plotW = W - padL - padR;
-  const stripY = 114, stripH = 8;
+  const stripY = 116, stripH = 5;
   const xOf = i => padL + (i / (hrs.length - 1)) * plotW;
   const yOf = sc => padT + ((100 - clampNum(sc, 0, 100, 0)) / 100) * plotH;
   const stepW = plotW / (hrs.length - 1);
-  const tierFill = sc => (sc >= 65 ? 'var(--green)' : sc >= 40 ? 'var(--good)' : sc >= 18 ? 'var(--amber)' : 'var(--muted)');
+  const tierFill = sc => (sc >= 65 ? 'var(--green)' : sc >= 40 ? 'var(--good)' : sc >= 18 ? 'var(--amber)' : 'var(--bar-dim)');
 
   const nightHrs = hrs.filter(h => h && !h.isDay);
   const allOutOfZone = nightHrs.length > 0 && nightHrs.every(h => Boolean(h.outOfZone));
@@ -302,9 +295,9 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
   if (bestRun) {
     const dx1 = Math.max(padL, xOf(bestRun[0]) - stepW / 2);
     const dx2 = Math.min(W - padR, xOf(bestRun[1]) + stepW / 2);
-    if (dx2 - dx1 >= 44) {
+    if (dx2 - dx1 >= 40) {
       dayLabelX = (dx1 + dx2) / 2;
-      dayLabelSvg = `<text x="${dayLabelX.toFixed(1)}" y="${padT + 13}" text-anchor="middle" fill="var(--blue)" fill-opacity="0.78" font-size="10" font-weight="600">${term(TERMS.status.tooBright, en)}</text>`;
+      dayLabelSvg = `<text x="${dayLabelX.toFixed(1)}" y="${padT + 15}" text-anchor="middle" fill="var(--blue)" font-size="11" font-weight="600">${term(TERMS.status.tooBright, en)}</text>`;
     }
   }
 
@@ -319,30 +312,30 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
   const titleOnRight = bestIdx >= 0 && bestX < 210;
   const titleTxt = en ? `${term(TERMS.score, true)} (0–99)` : `${term(TERMS.score, false)}（0–99）`;
   const titleSvg = titleOnRight
-    ? `<text x="${W - padR}" y="13.5" data-role="y-title" text-anchor="end" fill="var(--muted)" font-size="10" font-weight="600">${titleTxt}</text>`
-    : `<text x="${padL}" y="13.5" data-role="y-title" fill="var(--muted)" font-size="10" font-weight="600">${titleTxt}</text>`;
+    ? `<text x="${W - padR}" y="13.5" data-role="y-title" text-anchor="end" fill="var(--muted)" font-size="11" font-weight="500">${titleTxt}</text>`
+    : `<text x="${padL}" y="13.5" data-role="y-title" fill="var(--muted)" font-size="11" font-weight="500">${titleTxt}</text>`;
 
   // Midnight boundary hairline (00:xx when 0 < i < len - 1)
   let midnightSvg = '';
   const midIdx = hrs.findIndex((h, i) => i > 0 && i < hrs.length - 1 && typeof h?.time === 'string' && h.time.startsWith('00:'));
   if (midIdx > 0) {
     const mx = xOf(midIdx);
-    const tooCloseToBest = bestX >= 0 && Math.abs(mx - bestX) < 48;
-    const tooCloseToDay = Math.abs(mx - dayLabelX) < 38;
+    const tooCloseToBest = bestX >= 0 && Math.abs(mx - bestX) < 52;
+    const tooCloseToDay = Math.abs(mx - dayLabelX) < 42;
     const midLbl = (!tooCloseToBest && !tooCloseToDay)
-      ? `<text x="${Math.min(W - padR - 14, mx + 4).toFixed(1)}" y="${padT + 11}" text-anchor="start" fill="var(--muted)" fill-opacity="0.72" font-size="9.5" font-weight="600">${term(TERMS.tomorrow, en)}</text>`
+      ? `<text x="${Math.min(W - padR - 18, mx + 4).toFixed(1)}" y="${padT + 13}" text-anchor="start" fill="var(--muted)" font-size="10.5" font-weight="500">${term(TERMS.tomorrow, en)}</text>`
       : '';
     midnightSvg = `<line x1="${mx.toFixed(1)}" y1="${padT}" x2="${mx.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="var(--chart-axis)" stroke-dasharray="3 3" stroke-width="1"/>${midLbl}`;
   }
 
-  // Tier guide lines at 65 (Excellent), 40 (Good), 18 (Fair)
-  const y65 = yOf(65), y40 = yOf(40), y18 = yOf(18), baseY = padT + plotH;
-  const barW = is24 ? 8.8 : Math.max(10, Math.min(18, stepW * 0.46));
-  const barRx = 3;
-  const tileW = Math.max(4, stepW - 2.4);
+  // Tier guide lines at 65 (Excellent), 40 (Good)
+  const y65 = yOf(65), y40 = yOf(40), baseY = padT + plotH;
+  const barW = is24 ? 7.6 : Math.max(9, Math.min(16, stepW * 0.44));
+  const barRx = 2.2;
+  const tileW = Math.max(4, stepW - 2.6);
 
   const scoreBars = allOutOfZone
-    ? `<text x="${(padL + plotW / 2).toFixed(1)}" y="${(padT + plotH / 2 + 4).toFixed(1)}" text-anchor="middle" fill="var(--muted)" font-size="11.5" font-weight="600">${term(TERMS.status.outOfZoneLong, en)}</text>`
+    ? `<text x="${(padL + plotW / 2).toFixed(1)}" y="${(padT + plotH / 2 + 4).toFixed(1)}" text-anchor="middle" fill="var(--muted)" font-size="12" font-weight="600">${term(TERMS.status.outOfZoneLong, en)}</text>`
     : hrs.map((h, i) => {
         if (!h || h.isDay) return '';
         const scVal = clampNum(h?.score, 0, 100, 0);
@@ -350,25 +343,25 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
         const isSel = i === selectedIdx;
         const isBest = i === bestIdx;
         if (scVal <= 0) {
-          return `<rect class="sc-bar" data-bar-idx="${i}" x="${x.toFixed(1)}" y="${(baseY - 2.5).toFixed(1)}" width="${barW.toFixed(1)}" height="2.5" rx="1" fill="var(--muted)" fill-opacity="${isSel ? '0.95' : '0.42'}"/>`;
+          return `<rect class="sc-bar" data-bar-idx="${i}" x="${x.toFixed(1)}" y="${(baseY - 2.5).toFixed(1)}" width="${barW.toFixed(1)}" height="2.5" rx="1" fill="var(--bar-dim)" fill-opacity="${isSel ? '1' : '0.6'}"/>`;
         }
         const y = yOf(scVal);
-        const bh = Math.max(3, baseY - y);
+        const bh = Math.max(3.5, baseY - y);
         const fill = tierFill(scVal);
-        const op = isSel ? '1' : (isBest ? '0.90' : '0.68');
-        const capDot = isSel ? `<circle cx="${xOf(i).toFixed(1)}" cy="${Math.max(padT + 2, y - 3.5).toFixed(1)}" r="2.2" fill="var(--text)"/>` : '';
+        const op = isSel ? '1' : (isBest ? '0.84' : '0.62');
+        const capDot = isSel ? `<circle cx="${xOf(i).toFixed(1)}" cy="${Math.max(padT + 2.5, y).toFixed(1)}" r="3.2" fill="var(--text)" stroke="var(--bg)" stroke-width="1.4"/>` : '';
         return `<rect class="sc-bar" data-bar-idx="${i}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="${barRx}" fill="${fill}" fill-opacity="${op}"/>${capDot}`;
       }).join('');
 
-  // Separated Clear-Sky Context Strip (pure luminance — zero competing hue, zero shared Y-axis)
+  // Separated Clear-Sky Context Strip (soft glacier blue luminance — clear sky = bright blue, overcast = dark)
   const clearStrip = hrs.map((h, i) => {
     const clearVal = clampNum(h?.clear, 0, 100, 0);
     const x = xOf(i) - tileW / 2;
     const tx = Math.max(padL, x);
     const tw = Math.max(2, Math.min(tileW, W - padR - tx));
-    const op = (0.09 + 0.72 * (clearVal / 100)).toFixed(2);
+    const op = (0.08 + 0.72 * (clearVal / 100)).toFixed(2);
     const isSel = i === selectedIdx;
-    return `<rect x="${tx.toFixed(1)}" y="${stripY}" width="${tw.toFixed(1)}" height="${stripH}" rx="2.5" fill="var(--text)" fill-opacity="${op}"${isSel ? ' stroke="var(--text)" stroke-width="0.9"' : ''}/>`;
+    return `<rect x="${tx.toFixed(1)}" y="${stripY}" width="${tw.toFixed(1)}" height="${stripH}" rx="2" fill="var(--blue)" fill-opacity="${op}"${isSel ? ' stroke="var(--text)" stroke-width="0.9"' : ''}/>`;
   }).join('');
 
   const overlays = hrs.map((h, i) => {
@@ -380,22 +373,19 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     const hhmm = escSvg(rawTime.length >= 5 ? rawTime.slice(0, 5) : (rawTime.length >= 2 ? `${rawTime.slice(0, 2)}:00` : '--:--'));
     const bestCol = isBest ? tierFill(clampNum(h?.score, 0, 100, 0)) : 'var(--green)';
     const lbl = showTick
-      ? `<text x="${x.toFixed(1)}" y="${H - 8}" text-anchor="middle" fill="${isSel ? 'var(--text)' : (isBest ? bestCol : 'var(--muted)')}" font-size="10.5" font-weight="${isBest || isSel ? '600' : '500'}">${hhmm}</text>`
+      ? `<text x="${x.toFixed(1)}" y="${H - 8}" text-anchor="middle" fill="${isSel ? 'var(--text)' : (isBest ? bestCol : 'var(--muted)')}" font-size="11.5" font-weight="${isBest || isSel ? '600' : '500'}">${hhmm}</text>`
       : '';
     let bestSvg = '';
     if (isBest) {
-      const starTxt = `★ ${hhmm} ${term(TERMS.best, en)}`;
-      const pillW = en ? 82 : 78;
-      const pillX = Math.max(padL, Math.min(W - padR - pillW, x - pillW / 2));
-      const pillCx = pillX + pillW / 2;
+      const peakTxt = `${hhmm} ${term(TERMS.best, en)}`;
+      const tx = Math.max(padL + 36, Math.min(W - padR - 36, x));
       const barTopY = h && !h.isDay && clampNum(h.score, 0, 100, 0) > 0 ? yOf(h.score) : baseY;
       bestSvg =
-        `<line x1="${x.toFixed(1)}" y1="18" x2="${x.toFixed(1)}" y2="${barTopY.toFixed(1)}" stroke="${bestCol}" stroke-dasharray="2.5 3" stroke-width="1.1" opacity="0.68"/>` +
-        `<rect x="${pillX.toFixed(1)}" y="1" width="${pillW}" height="16.5" rx="8.25" fill="var(--surface-2)" stroke="${bestCol}" stroke-opacity="0.52" stroke-width="0.9"/>` +
-        `<text x="${pillCx.toFixed(1)}" y="12.6" text-anchor="middle" fill="${bestCol}" font-size="10" font-weight="600">${starTxt}</text>`;
+        `<line x1="${x.toFixed(1)}" y1="18" x2="${x.toFixed(1)}" y2="${Math.max(18, barTopY - 4).toFixed(1)}" stroke="${bestCol}" stroke-dasharray="2.5 3" stroke-width="1" opacity="0.65"/>` +
+        `<text x="${tx.toFixed(1)}" y="13.5" text-anchor="middle" fill="${bestCol}" font-size="11.5" font-weight="600">${peakTxt}</text>`;
     }
-    const selLine = isSel && !isBest
-      ? `<line x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${baseY.toFixed(1)}" stroke="var(--chart-mid)" stroke-width="1"/>`
+    const selLine = isSel
+      ? `<line x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${baseY.toFixed(1)}" stroke="var(--text)" stroke-opacity="0.34" stroke-width="1.1"/>`
       : '';
     const hitRect = `<rect class="hr-hit" data-hour-idx="${i}" x="${(x - stepW / 2).toFixed(1)}" y="${padT}" width="${stepW.toFixed(1)}" height="${H - padT}" fill="transparent" style="cursor:pointer;"/>`;
     return `${selLine}${bestSvg}${lbl}${hitRect}`;
@@ -407,21 +397,19 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     ${dayLabelSvg}
     ${vGrid}
     ${midnightSvg}
-    <line x1="${padL}" y1="${y65.toFixed(1)}" x2="${W - padR}" y2="${y65.toFixed(1)}" stroke="var(--green)" stroke-opacity="0.22" stroke-dasharray="3 4"/>
-    <line x1="${padL}" y1="${y40.toFixed(1)}" x2="${W - padR}" y2="${y40.toFixed(1)}" stroke="var(--good)" stroke-opacity="0.20" stroke-dasharray="3 4"/>
-    <line x1="${padL}" y1="${y18.toFixed(1)}" x2="${W - padR}" y2="${y18.toFixed(1)}" stroke="var(--chart-grid)" stroke-dasharray="2 4"/>
+    <line x1="${padL}" y1="${y65.toFixed(1)}" x2="${W - padR}" y2="${y65.toFixed(1)}" stroke="var(--chart-grid)" stroke-dasharray="3 4"/>
+    <line x1="${padL}" y1="${y40.toFixed(1)}" x2="${W - padR}" y2="${y40.toFixed(1)}" stroke="var(--chart-grid)" stroke-dasharray="3 4"/>
     <line x1="${padL}" y1="${baseY.toFixed(1)}" x2="${W - padR}" y2="${baseY.toFixed(1)}" stroke="var(--chart-axis)"/>
-    <text x="${padL - 7}" y="${(y65 + 3.2).toFixed(1)}" text-anchor="end" fill="var(--green)" font-size="10" font-weight="600">${term(TERMS.tier.excellent, en)}</text>
-    <text x="${padL - 7}" y="${(y40 + 3.2).toFixed(1)}" text-anchor="end" fill="var(--good)" font-size="10" font-weight="600">${term(TERMS.tier.goodShort, en)}</text>
-    <text x="${padL - 7}" y="${(y18 + 3.2).toFixed(1)}" text-anchor="end" fill="var(--amber)" font-size="10" font-weight="600">${term(TERMS.tier.fair, en)}</text>
-    <text x="${padL - 7}" y="${(stripY + 7.2).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="10" font-weight="600">${term(TERMS.clearShort, en)}</text>
+    <text x="${padL - 8}" y="${(y65 + 4).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="11.5" font-weight="500">${term(TERMS.tier.excellent, en)}</text>
+    <text x="${padL - 8}" y="${(y40 + 4).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="11.5" font-weight="500">${term(TERMS.tier.goodShort, en)}</text>
+    <text x="${padL - 8}" y="${(stripY + 5.5).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="11" font-weight="500">${term(TERMS.clearShort, en)}</text>
     ${scoreBars}
     ${clearStrip}
     ${overlays}
   `;
 }
 
-/** True 360° Continuous Polar Clear-Sky Radar SVG (real compass bearing + proportional distance, zero rigid 4-slice grid) */
+/** True 360° Continuous Polar Clear-Sky Radar SVG (clickable beacons, real compass bearing + proportional distance) */
 export function buildCompassRadarSVG(dirResults, originPos, lang) {
   if (!Array.isArray(dirResults) || dirResults.length < 3) return '';
   const en = isEn(lang);
@@ -439,7 +427,7 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
   const fillOf = (clearPct, sea, unavail, hazard) => unavail ? 'rgba(139,148,165,0.10)' : (sea ? 'var(--blue-bg)' : (hazard ? 'var(--red-bg)' : (clearPct >= 65 ? 'var(--green-bg)' : clearPct >= 35 ? 'var(--amber-bg)' : 'rgba(139,148,165,0.12)')));
   const glyphOf = (clearPct, sea, unavail, hazard) => unavail ? '' : (sea ? '' : (hazard ? '⚠ ' : (clearPct >= 65 ? '✓ ' : clearPct >= 35 ? '~ ' : '✕ ')));
 
-  const CX = 160, CY = 160, R_OUTER = 146, R_MIN = 64, R_MAX = 114;
+  const CX = 160, CY = 160, R_OUTER = 146, R_MIN = 64, R_MAX = 112;
   const toRad = d => d * Math.PI / 180;
   const oLat = Number(originPos?.lat), oLon = Number(originPos?.lon);
   const hasOrigin = Number.isFinite(oLat) && Number.isFinite(oLon);
@@ -481,30 +469,29 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
   const scaleMaxKm = Math.ceil(maxKmRaw / 20) * 20;
   const midRingKm = Math.round(scaleMaxKm / 2);
 
-  // Place each beacon at its exact compass bearing & proportional distance
+  // Place each beacon at its exact compass bearing & proportional distance, safely inset from N/E/S/W
   const nodes = plotted.map(p => {
     const r = R_MIN + (Math.min(p.km, scaleMaxKm) / scaleMaxKm) * (R_MAX - R_MIN);
     const rad = toRad(p.deg - 90);
     const px = CX + r * Math.cos(rad);
     const py = CY + r * Math.sin(rad);
-    // Offset label slightly outward along bearing (or gently inward near outer rim) so it never clips
-    const outBias = r > 100 ? -16 : 16;
-    const lx = Math.max(52, Math.min(268, px + Math.cos(rad) * outBias * 0.45));
-    const ly = Math.max(36, Math.min(282, py + (py < CY ? -22 : 22)));
+    const outBias = r > 98 ? -14 : 16;
+    const lx = Math.max(66, Math.min(254, px + Math.cos(rad) * outBias * 0.45));
+    const ly = Math.max(44, Math.min(276, py + (py < CY ? -22 : 22)));
     return { ...p, r, rad, px, py, lx, ly };
   });
 
-  // 2-pass label repulsion so closely spaced real-world corridors never overlap
+  // 3-pass label repulsion so closely spaced real-world corridors never overlap
   for (let pass = 0; pass < 3; pass++) {
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
         const a = nodes[i], b = nodes[j];
-        if (Math.abs(a.lx - b.lx) < 76 && Math.abs(a.ly - b.ly) < 28) {
-          const push = (28 - Math.abs(a.ly - b.ly)) / 2 + 2;
+        if (Math.abs(a.lx - b.lx) < 82 && Math.abs(a.ly - b.ly) < 30) {
+          const push = (30 - Math.abs(a.ly - b.ly)) / 2 + 2;
           if (a.ly <= b.ly) { a.ly -= push; b.ly += push; }
           else { a.ly += push; b.ly -= push; }
-          a.ly = Math.max(38, Math.min(280, a.ly));
-          b.ly = Math.max(38, Math.min(280, b.ly));
+          a.ly = Math.max(44, Math.min(276, a.ly));
+          b.ly = Math.max(44, Math.min(276, b.ly));
         }
       }
     }
@@ -522,8 +509,8 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
     const cx = CX + 98 * Math.cos(rad);
     const cy = CY + 98 * Math.sin(rad);
     return `<g class="radar-sector radar-closed">
-      <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.2" fill="var(--muted)" fill-opacity="0.45"/>
-      <text x="${cx.toFixed(1)}" y="${(cy + 14).toFixed(1)}" text-anchor="middle" fill="var(--muted)" font-size="9.5" font-weight="700" opacity="0.78">${term(TERMS.status.closedWinter, en)}</text>
+      <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.4" fill="var(--muted)" fill-opacity="0.5"/>
+      <text x="${cx.toFixed(1)}" y="${(cy + 15).toFixed(1)}" text-anchor="middle" fill="var(--muted)" font-size="10.5" font-weight="600">${term(TERMS.status.closedWinter, en)}</text>
     </g>`;
   }).join('');
 
@@ -535,15 +522,15 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
     const kmSub = n.d.isOcean ? '' : ` · ${Math.round(n.km)}km`;
     const rayX1 = CX + 38 * Math.cos(n.rad);
     const rayY1 = CY + 38 * Math.sin(n.rad);
-    const pillW = Math.max(66, Math.min(116, Math.max(n.shortLbl.length * 6.8 + (kmSub ? 28 : 10), valTxt.length * 7.8 + 16)));
+    const pillW = Math.max(72, Math.min(124, Math.max(n.shortLbl.length * 7.2 + (kmSub ? 32 : 12), valTxt.length * 8 + 18)));
     return `
-      <g class="radar-sector" data-bearing="${Math.round(n.deg)}" data-km="${Math.round(n.km)}">
-        <line x1="${rayX1.toFixed(1)}" y1="${rayY1.toFixed(1)}" x2="${n.px.toFixed(1)}" y2="${n.py.toFixed(1)}" stroke="${col}" stroke-opacity="0.34" stroke-width="1.2" stroke-dasharray="${n.d.isOcean || n.unavail || n.hazard ? '3 3' : '2 3'}"/>
-        <circle cx="${n.px.toFixed(1)}" cy="${n.py.toFixed(1)}" r="10.5" fill="${fill}"/>
+      <g class="radar-sector" data-dir-key="${escSvg(n.d.key)}" data-bearing="${Math.round(n.deg)}" data-km="${Math.round(n.km)}" style="cursor:pointer;">
+        <line x1="${rayX1.toFixed(1)}" y1="${rayY1.toFixed(1)}" x2="${n.px.toFixed(1)}" y2="${n.py.toFixed(1)}" stroke="${col}" stroke-opacity="0.38" stroke-width="1.2" stroke-dasharray="${n.d.isOcean || n.unavail || n.hazard ? '3 3' : '2 3'}"/>
+        <circle cx="${n.px.toFixed(1)}" cy="${n.py.toFixed(1)}" r="11" fill="${fill}"/>
         <circle cx="${n.px.toFixed(1)}" cy="${n.py.toFixed(1)}" r="5" fill="${col}" stroke="var(--bg)" stroke-width="1.6"/>
-        <rect x="${(n.lx - pillW / 2).toFixed(1)}" y="${(n.ly - 13).toFixed(1)}" width="${pillW.toFixed(1)}" height="28" rx="8" fill="var(--surface)" fill-opacity="0.90" stroke="${col}" stroke-opacity="0.42" stroke-width="1"/>
-        <text x="${n.lx.toFixed(1)}" y="${(n.ly - 1.5).toFixed(1)}" text-anchor="middle" fill="var(--text)" font-size="10" font-weight="750">${n.shortLbl}<tspan fill="var(--muted)" font-size="8.8" font-weight="600">${kmSub}</tspan></text>
-        <text x="${n.lx.toFixed(1)}" y="${(n.ly + 11.5).toFixed(1)}" text-anchor="middle" fill="${col}" font-size="11.5" font-weight="900">${valTxt}</text>
+        <rect x="${(n.lx - pillW / 2).toFixed(1)}" y="${(n.ly - 14).toFixed(1)}" width="${pillW.toFixed(1)}" height="30" rx="8" fill="var(--bg)" fill-opacity="0.90" stroke="${col}" stroke-opacity="0.45" stroke-width="0.9"/>
+        <text x="${n.lx.toFixed(1)}" y="${(n.ly - 1.5).toFixed(1)}" text-anchor="middle" fill="var(--text)" font-size="10.5" font-weight="600">${n.shortLbl}<tspan fill="var(--muted)" font-size="9.8" font-weight="500">${kmSub}</tspan></text>
+        <text x="${n.lx.toFixed(1)}" y="${(n.ly + 12).toFixed(1)}" text-anchor="middle" fill="${col}" font-size="11.5" font-weight="600">${valTxt}</text>
       </g>`;
   }).join('');
 
@@ -551,7 +538,7 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
   const hUnavail = Boolean(h.unavailable) || !Number.isFinite(Number(h.avg3h));
   const hClear = Math.round(100 - clampNum(h.avg3h, 0, 100, 100));
   const hCol = colOf(hClear, false, hUnavail, false);
-  const hTxt = hUnavail ? '--' : `${en ? '' : '晴 '}${hClear}%`;
+  const hTxt = hUnavail ? '--' : `${en ? '' : '晴空 '}${hClear}%`;
   const rMid = R_MIN + 0.5 * (R_MAX - R_MIN);
 
   return `
@@ -559,52 +546,52 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
     <circle cx="${CX}" cy="${CY}" r="${R_MAX}" fill="none" stroke="var(--chart-grid)" stroke-dasharray="2 4"/>
     <circle cx="${CX}" cy="${CY}" r="${rMid.toFixed(1)}" fill="none" stroke="var(--chart-grid)" stroke-dasharray="3 4"/>
     ${radialGuides}
-    <text x="${CX}" y="22" text-anchor="middle" fill="var(--muted)" font-size="10.5" font-weight="600">${en ? 'N' : '北'}</text>
-    <text x="298" y="${CY + 4}" text-anchor="middle" fill="var(--muted)" font-size="10.5" font-weight="600">${en ? 'E' : '東'}</text>
-    <text x="${CX}" y="305" text-anchor="middle" fill="var(--muted)" font-size="10.5" font-weight="600">${en ? 'S' : '南'}</text>
-    <text x="22" y="${CY + 4}" text-anchor="middle" fill="var(--muted)" font-size="10.5" font-weight="600">${en ? 'W' : '西'}</text>
-    <text x="${(CX + rMid * 0.707 + 3).toFixed(1)}" y="${(CY - rMid * 0.707 + 3).toFixed(1)}" fill="var(--muted)" fill-opacity="0.62" font-size="8.5" font-weight="600">${midRingKm}km</text>
-    <text x="${(CX + R_MAX * 0.707 + 2).toFixed(1)}" y="${(CY - R_MAX * 0.707 + 3).toFixed(1)}" fill="var(--muted)" fill-opacity="0.62" font-size="8.5" font-weight="600">${scaleMaxKm}km</text>
+    <text x="${CX}" y="22" text-anchor="middle" fill="var(--muted)" font-size="11.5" font-weight="600">${en ? 'N' : '北'}</text>
+    <text x="298" y="${CY + 4}" text-anchor="middle" fill="var(--muted)" font-size="11.5" font-weight="600">${en ? 'E' : '東'}</text>
+    <text x="${CX}" y="305" text-anchor="middle" fill="var(--muted)" font-size="11.5" font-weight="600">${en ? 'S' : '南'}</text>
+    <text x="22" y="${CY + 4}" text-anchor="middle" fill="var(--muted)" font-size="11.5" font-weight="600">${en ? 'W' : '西'}</text>
+    <text x="${(CX + rMid * 0.707 + 3).toFixed(1)}" y="${(CY - rMid * 0.707 + 3).toFixed(1)}" fill="var(--muted)" font-size="10" font-weight="500">${midRingKm}km</text>
+    <text x="${(CX + R_MAX * 0.707 + 2).toFixed(1)}" y="${(CY - R_MAX * 0.707 + 3).toFixed(1)}" fill="var(--muted)" font-size="10" font-weight="500">${scaleMaxKm}km</text>
     ${closedMarks}
     ${beaconsSvg}
-    <circle cx="${CX}" cy="${CY}" r="36" fill="var(--bg)" stroke="${hCol}" stroke-width="2.2"/>
-    <text x="${CX}" y="${CY - 6}" text-anchor="middle" fill="var(--muted)" font-size="10" font-weight="600">${en ? 'Here (3h)' : '目前 3h'}</text>
-    <text x="${CX}" y="${CY + 14}" text-anchor="middle" fill="${hCol}" font-size="15.5" font-weight="700">${hTxt}</text>
+    <circle cx="${CX}" cy="${CY}" r="38" fill="var(--bg)" stroke="${hCol}" stroke-width="2"/>
+    <text x="${CX}" y="${CY - 6}" text-anchor="middle" fill="var(--muted)" font-size="10.5" font-weight="500">${en ? 'Here (3h)' : '目前 3h'}</text>
+    <text x="${CX}" y="${CY + 14}" text-anchor="middle" fill="${hCol}" font-size="14" font-weight="600">${hTxt}</text>
   `;
 }
 
-// ====== Visual-First Micro-Icons & Aurora Early-Warning Signal Bar ======
+// ====== Unified 1.5px Nordic Duotone Micro-Icons & Early-Warning Signal Bar ======
 
 /**
- * Crisp 16x16 clear-sky / cloud status icon for the 3-column metrics card.
+ * Crisp 16x16 clear-sky / cloud status icon for the 3-column metrics strip.
  */
 export function buildSkyFactorIcon(clearPct = 0, isTooBright = false) {
   const c = clampNum(clearPct, 0, 100, 0);
   if (isTooBright) {
-    return `<svg viewBox="0 0 16 16" fill="none" stroke="var(--blue)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.1"/><path d="M8 2v1.3M8 12.7V14M2 8h1.3M12.7 8H14M3.8 3.8l.9.9M11.3 11.3l.9.9M12.2 3.8l-.9.9M4.7 11.3l-.9.9"/></svg>`;
+    return `<svg viewBox="0 0 16 16" fill="none" stroke="var(--blue)" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.1" fill="var(--blue)" fill-opacity="0.14"/><path d="M8 2v1.3M8 12.7V14M2 8h1.3M12.7 8H14M3.8 3.8l.9.9M11.3 11.3l.9.9M12.2 3.8l-.9.9M4.7 11.3l-.9.9"/></svg>`;
   }
   if (c >= 70) {
-    return `<svg viewBox="0 0 16 16" fill="none"><path d="M8.5 2.2l1.15 3.45L13.1 6.8l-3.45 1.15L8.5 11.4 7.35 7.95 3.9 6.8l3.45-1.15L8.5 2.2z" fill="var(--green)"/><circle cx="3.2" cy="11.8" r="1.05" fill="var(--green)" opacity="0.72"/><circle cx="13.2" cy="12.2" r="0.85" fill="var(--green)" opacity="0.58"/></svg>`;
+    return `<svg viewBox="0 0 16 16" fill="none" stroke="var(--green)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.2l1.2 3.6 3.6 1.2-3.6 1.2L8 11.8 6.8 8.2 3.2 7l3.6-1.2L8 2.2z" fill="var(--green)" fill-opacity="0.16"/><circle cx="12.8" cy="3.5" r="0.8" fill="var(--green)" stroke="none"/></svg>`;
   }
   if (c >= 35) {
-    return `<svg viewBox="0 0 16 16" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M11.4 2.4l.55 1.65 1.65.55-1.65.55-.55 1.65-.55-1.65-1.65-.55 1.65-.55.55-1.65z" fill="var(--amber)"/><path d="M4.8 13h6.4a2.3 2.3 0 0 0 .3-4.58A3.2 3.2 0 0 0 5.3 7.5a2.7 2.7 0 0 0-.5 5.5z" fill="var(--svg-cloud-fill)" stroke="var(--amber)" stroke-width="1.35"/></svg>`;
+    return `<svg viewBox="0 0 16 16" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M11.4 2.4l.55 1.65 1.65.55-1.65.55-.55 1.65-.55-1.65-1.65-.55 1.65-.55.55-1.65z" fill="var(--amber)"/><path d="M4.8 13h6.4a2.3 2.3 0 0 0 .3-4.58A3.2 3.2 0 0 0 5.3 7.5a2.7 2.7 0 0 0-.5 5.5z" fill="var(--svg-cloud-fill)" stroke="var(--amber)" stroke-width="1.4"/></svg>`;
   }
   return `<svg viewBox="0 0 16 16" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.6h7a2.5 2.5 0 0 0 .35-4.97 3.55 3.55 0 0 0-6.8-1.05A2.85 2.85 0 0 0 4.5 12.6z" fill="var(--svg-cloud-fill)" stroke="var(--muted)" stroke-width="1.4"/></svg>`;
 }
 
 /**
- * Crisp 16x16 aurora ribbon activity icon for the 3-column metrics card.
+ * Crisp 16x16 vertical aurora curtain pillar icon for the 3-column metrics strip.
  */
 export function buildAuroraFactorIcon(auroraScore = 0) {
   const a = clampNum(auroraScore, 0, 100, 0);
   const col = a >= 65 ? 'var(--green)' : (a >= 35 ? 'var(--amber)' : 'var(--muted)');
   if (a >= 65) {
-    return `<svg viewBox="0 0 16 16" fill="none" stroke="${col}" stroke-linecap="round"><path d="M2 10.6c2-3.4 4-3.4 6-1.4s4 2 6-2.4" stroke-width="1.75"/><path d="M2.6 13.2c1.8-2.6 3.7-2.6 5.5-1s3.7 1.6 5.4-1.8" stroke-width="1.25" opacity="0.62"/><path d="M5 4.2v2.4M8.4 3v3.2M11.8 4.4v2.2" stroke-width="1.25" opacity="0.78"/></svg>`;
+    return `<svg viewBox="0 0 16 16" fill="none" stroke="${col}" stroke-width="1.45" stroke-linecap="round"><path d="M3.5 12.5V6.5M6.5 12.5V3.8M9.5 12.5V5.2M12.5 12.5V7.5"/><path d="M3 13.5h10" opacity="0.35"/></svg>`;
   }
   if (a >= 35) {
-    return `<svg viewBox="0 0 16 16" fill="none" stroke="${col}" stroke-linecap="round"><path d="M2.2 10.8c2-2.9 3.9-2.9 5.8-1.1s3.9 1.7 5.8-1.9" stroke-width="1.6"/><path d="M6.2 4.8v2M10.4 4.4v2.2" stroke-width="1.2" opacity="0.65"/></svg>`;
+    return `<svg viewBox="0 0 16 16" fill="none" stroke="${col}" stroke-width="1.45" stroke-linecap="round"><path d="M4.5 12.5V8M8 12.5V5.8M11.5 12.5V8.5"/><path d="M3 13.5h10" opacity="0.35"/></svg>`;
   }
-  return `<svg viewBox="0 0 16 16" fill="none" stroke="${col}" stroke-linecap="round"><path d="M2.4 11.4c2.4-1.6 4.6-1.6 5.6-.7 1.1.9 3.2.9 5.6-.8" stroke-width="1.45" opacity="0.82"/></svg>`;
+  return `<svg viewBox="0 0 16 16" fill="none" stroke="${col}" stroke-width="1.4" stroke-linecap="round"><path d="M5 12.5V10M8 12.5V8.8M11 12.5V10.4"/><path d="M3 13.5h10" opacity="0.35"/></svg>`;
 }
 
 /**
@@ -617,45 +604,45 @@ export function buildMoonPhaseIcon({ pct = 0, up = false, waxing = true, isTooBr
   }
   if (!up) {
     // Moon below horizon -> unobstructed dark night sky
-    return `<svg viewBox="0 0 16 16" fill="none"><path d="M9.6 2.8a4.9 4.9 0 1 0 3.6 8.2 4.1 4.1 0 0 1-3.6-8.2z" fill="var(--green)" opacity="0.88"/><path d="M11.8 3.2l.45 1.25 1.25.45-1.25.45-.45 1.25-.45-1.25-1.25-.45 1.25-.45.45-1.25z" fill="var(--green)"/></svg>`;
+    return `<svg viewBox="0 0 16 16" fill="none" stroke="var(--green)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12.2 9.6A4.8 4.8 0 0 1 6.4 3.8a4.8 4.8 0 1 0 5.8 5.8z" fill="var(--green)" fill-opacity="0.18"/></svg>`;
   }
   const f = clampNum(pct, 0, 100, 0) / 100;
-  const r = 5.4;
+  const r = 5.2;
   const cx = 8, cy = 8;
   const topY = (cy - r).toFixed(2);
   const botY = (cy + r).toFixed(2);
   if (f <= 0.04) {
-    return `<svg viewBox="0 0 16 16" fill="none"><circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--svg-cloud-fill)" stroke="var(--muted)" stroke-width="1.3"/></svg>`;
+    return `<svg viewBox="0 0 16 16" fill="none"><circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--svg-cloud-fill)" stroke="var(--muted)" stroke-width="1.35"/></svg>`;
   }
   if (f >= 0.96) {
-    return `<svg viewBox="0 0 16 16" fill="none"><circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--moon-fill)" stroke="var(--moon-fill)" stroke-opacity="0.35" stroke-width="1"/></svg>`;
+    return `<svg viewBox="0 0 16 16" fill="none"><circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--moon-fill)" stroke="var(--moon-fill)" stroke-opacity="0.38" stroke-width="1"/></svg>`;
   }
   const rx = (Math.abs(1 - 2 * f) * r).toFixed(2);
   const outerSweep = waxing ? 1 : 0;
   const innerSweep = waxing ? (f < 0.5 ? 0 : 1) : (f < 0.5 ? 1 : 0);
   const litPath = `M ${cx} ${topY} A ${r} ${r} 0 0 ${outerSweep} ${cx} ${botY} A ${rx} ${r} 0 0 ${innerSweep} ${cx} ${topY} Z`;
-  return `<svg viewBox="0 0 16 16" fill="none"><circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--svg-cloud-fill)" stroke="var(--muted)" stroke-opacity="0.55" stroke-width="1.15"/><path d="${litPath}" fill="var(--moon-fill)"/></svg>`;
+  return `<svg viewBox="0 0 16 16" fill="none"><circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--svg-cloud-fill)" stroke="var(--muted)" stroke-opacity="0.55" stroke-width="1.2"/><path d="${litPath}" fill="var(--moon-fill)"/></svg>`;
 }
 
 /**
- * Crisp 20x20 visual weather/aurora icon for each night in the 3-Night Outlook card.
+ * Crisp 20x20 vertical aurora pillars / clear-star / cloud icon for 3-Night Outlook rows.
  */
 export function buildOutlookSkyIcon({ score = 0, clearPct = null, scoreAvailable = true } = {}) {
   if (!scoreAvailable) {
-    return `<svg viewBox="0 0 22 22" fill="none" stroke="var(--blue)" stroke-width="1.6" stroke-linecap="round"><path d="M3 15.5h16"/><path d="M6.2 15.5a4.8 4.8 0 0 1 9.6 0"/><path d="M11 5.5v2M5.5 8.5l1.4 1.4M16.5 8.5l-1.4 1.4"/></svg>`;
+    return `<svg viewBox="0 0 20 20" fill="none" stroke="var(--blue)" stroke-width="1.5" stroke-linecap="round"><path d="M3 14.5h14"/><path d="M6 14.5a4 4 0 0 1 8 0"/><path d="M10 5.5v1.8M5.2 8.2l1.2 1.2M14.8 8.2l-1.2 1.2"/></svg>`;
   }
   const s = clampNum(score, 0, 99, 0);
   const c = clearPct === null || clearPct === undefined ? 50 : clampNum(clearPct, 0, 100, 50);
   if (s >= 60) {
-    return `<svg viewBox="0 0 22 22" fill="none" stroke-linecap="round"><path d="M2.8 14.4c2.8-4.6 5.4-4.6 8.2-1.8s5.4 2.8 8.2-3.4" stroke="var(--green)" stroke-width="2"/><path d="M3.6 17.6c2.5-3.4 5-3.4 7.4-1.3s4.9 2 7.4-2.4" stroke="var(--green)" stroke-width="1.35" opacity="0.58"/><path d="M16.4 3.4l.65 1.85 1.85.65-1.85.65-.65 1.85-.65-1.85-1.85-.65 1.85-.65.65-1.85z" fill="var(--green)"/></svg>`;
+    return `<svg viewBox="0 0 20 20" fill="none" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round"><path d="M4.5 15.5V8.5M8 15.5V4.8M11.5 15.5V6.5M15 15.5V9.5"/><circle cx="15.5" cy="4.2" r="1.05" fill="var(--green)" stroke="none"/></svg>`;
   }
   if (s >= 40) {
-    return `<svg viewBox="0 0 22 22" fill="none" stroke-linecap="round"><path d="M3 14.8c2.7-3.8 5.3-3.8 8-1.4s5.3 2.3 8-2.7" stroke="var(--good)" stroke-width="1.85"/><circle cx="7" cy="6.6" r="1.2" fill="var(--good)"/><circle cx="15.8" cy="6.2" r="1" fill="var(--good)" opacity="0.72"/></svg>`;
+    return `<svg viewBox="0 0 20 20" fill="none" stroke="var(--good)" stroke-width="1.5" stroke-linecap="round"><path d="M5.5 15.5V9.5M9.5 15.5V6.5M13.5 15.5V8.5"/><circle cx="15.2" cy="5.2" r="0.95" fill="var(--good)" stroke="none"/></svg>`;
   }
   if (c >= 45) {
-    return `<svg viewBox="0 0 22 22" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14.8 4.2l.55 1.55 1.55.55-1.55.55-.55 1.55-.55-1.55-1.55-.55 1.55-.55.55-1.55z" fill="var(--amber)"/><path d="M6.4 17.2h8.6a3 3 0 0 0 .4-5.97 4.2 4.2 0 0 0-8.1-1.2 3.4 3.4 0 0 0-.9 7.17z" fill="var(--svg-cloud-fill)" stroke="var(--amber)" stroke-width="1.5"/></svg>`;
+    return `<svg viewBox="0 0 20 20" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14.2 3.8l.5 1.4 1.4.5-1.4.5-.5 1.4-.5-1.4-1.4-.5 1.4-.5.5-1.4z" fill="var(--amber)"/><path d="M5.5 15h8.2a2.6 2.6 0 0 0 .3-5.18 3.6 3.6 0 0 0-7-1.05A3 3 0 0 0 5.5 15z" fill="var(--svg-cloud-fill)" stroke="var(--amber)" stroke-width="1.45"/></svg>`;
   }
-  return `<svg viewBox="0 0 22 22" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17h9.8a3.2 3.2 0 0 0 .45-6.37 4.6 4.6 0 0 0-8.85-1.35A3.65 3.65 0 0 0 6 17z" fill="var(--svg-cloud-fill)" stroke="var(--muted)" stroke-width="1.6"/></svg>`;
+  return `<svg viewBox="0 0 20 20" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5.2 15h9.2a2.9 2.9 0 0 0 .4-5.77 4.1 4.1 0 0 0-7.9-1.2A3.3 3.3 0 0 0 5.2 15z" fill="var(--svg-cloud-fill)" stroke="var(--muted)" stroke-width="1.45"/></svg>`;
 }
 
 /**

@@ -127,13 +127,8 @@ function syncSwToggleUI() {
   card.classList.toggle('sw-expanded', state.swExpanded);
   btn.setAttribute('aria-expanded', String(state.swExpanded));
   panel.setAttribute('aria-hidden', String(!state.swExpanded));
-  const tele = state.swTelemetryTag;
-  const collapsedTxt = tele
-    ? (en ? `2h satellite chart (${tele})` : `2 小時衛星曲線（${tele}）`)
-    : (en ? 'Satellite data & 2h chart' : '查看衛星資料與 2 小時曲線');
-  const expandedTxt = en
-    ? 'Hide 2h satellite chart · Scrub to inspect'
-    : '收起 2 小時衛星曲線 · 滑動查看數值';
+  const collapsedTxt = en ? 'View 2h energy chart' : '查看 2 小時能量曲線';
+  const expandedTxt = en ? 'Hide 2h energy chart · Scrub or tap' : '收起 2 小時能量曲線 · 滑動或點選';
   setText('swToggleTxt', state.swExpanded ? expandedTxt : collapsedTxt);
 }
 
@@ -735,34 +730,39 @@ function toggleTempUnit() {
   if (state.renderState) renderFromState(state.renderState);
 }
 
+function auroraStrengthWord(auroraScore, en) {
+  const a = Number(auroraScore) || 0;
+  if (a >= 75) return en ? 'Very strong' : '極強';
+  if (a >= 50) return en ? 'Strong' : '強';
+  if (a >= 25) return en ? 'Moderate' : '中等';
+  return en ? 'Quiet' : '偏弱';
+}
+
 function renderGauge(sc, details) {
   state.lastScore = sc;
   syncAnimBatteryGuard();
   const en = isEn();
-  const circ = 2 * Math.PI * 52;
-  const visPct = sc.total <= 0 ? 0 : sc.total;
   const ringCol = sc.isTooBright ? 'var(--blue)' : (sc.outOfZone ? 'var(--muted)' : tierColor(sc.total));
-  const prog = $('ringProg');
-  if (prog) {
-    prog.style.strokeDasharray = circ.toFixed(1);
-    prog.style.strokeDashoffset = (circ * (1 - visPct / 100)).toFixed(1);
-    prog.style.stroke = ringCol;
-    prog.style.filter = visPct > 0 ? `drop-shadow(0 0 8px color-mix(in srgb, ${ringCol} 50%, transparent))` : 'none';
-  }
   const numEl = $('ringNum');
-  if (numEl) { animateScoreNumber(sc.total, numEl); numEl.style.color = 'var(--text)'; }
+  if (numEl) {
+    animateScoreNumber(sc.total, numEl);
+    numEl.style.color = sc.total < 18 ? 'var(--muted)' : 'var(--text)';
+  }
   const grEl = $('ringGrade');
   if (grEl) { grEl.textContent = tGrade(sc.grade).replace(/^[^\p{L}\p{N}]+\s*/u, ''); grEl.style.color = ringCol; }
 
-  const setFactor = (vid, bid, sid, pct, lbl, subHtml, forceC) => {
-    const c = forceC || barColor(pct);
-    const ve = $(vid); if (ve) { ve.textContent = lbl; ve.style.color = c; }
-    const be = $(bid); if (be) { be.style.width = `${Math.max(6, pct)}%`; be.style.background = c; }
+  const valCol = (pct, forceC) => forceC || (pct >= 65 ? 'var(--text)' : (pct >= 35 ? 'var(--amber)' : 'var(--muted)'));
+  const setFactor = (vid, sid, pct, valHtml, subHtml, forceC) => {
+    const ve = $(vid);
+    if (ve) { ve.innerHTML = valHtml; ve.style.color = valCol(pct, forceC); }
     setHtml(sid, subHtml);
   };
-  setFactor('fSkyVal', 'fSkyBar', 'fSkySub', sc.skyScore, `${sc.skyScore}%`, details.skySubHtml ?? escapeHtml(details.skySub || ''));
-  setFactor('fAurVal', 'fAurBar', 'fAurSub', sc.auroraScore, `${sc.auroraScore}`, details.aurSubHtml ?? escapeHtml(details.aurSub || ''));
-  setFactor('fDarkVal', 'fDarkBar', 'fDarkSub', sc.darkScore, details.isTooBright ? term(TERMS.status.tooBright, en) : `${sc.darkScore}%`, details.darkSubHtml ?? escapeHtml(details.darkSub || ''), details.isTooBright ? 'var(--blue)' : null);
+  setFactor('fSkyVal', 'fSkySub', sc.skyScore, `${sc.skyScore}<span class="f-unit">%</span>`, details.skySubHtml ?? escapeHtml(details.skySub || ''));
+  setFactor('fAurVal', 'fAurSub', sc.auroraScore, escapeHtml(auroraStrengthWord(sc.auroraScore, en)), details.aurSubHtml ?? escapeHtml(details.aurSub || ''));
+  const darkValHtml = details.isTooBright
+    ? escapeHtml(term(TERMS.status.tooBright, en))
+    : `${sc.darkScore}<span class="f-unit">%</span>`;
+  setFactor('fDarkVal', 'fDarkSub', sc.darkScore, darkValHtml, details.darkSubHtml ?? escapeHtml(details.darkSub || ''), details.isTooBright ? 'var(--blue)' : null);
 
   setHtml('fSkyIco', buildSkyFactorIcon(sc.skyScore, details.isTooBright));
   setHtml('fAurIco', buildAuroraFactorIcon(sc.auroraScore));
@@ -918,11 +918,14 @@ function selectForecastHour(idx) {
   const tStr = formatHourLabel(h, en);
   const scCol = h.isDay ? 'var(--blue)' : tierColor(h.score);
   const scTier = scoreTierWord(h.score, h.isDay, en);
-  const clearPart = en ? `${h.clear}% clear` : `${term(TERMS.clearShort, false)} ${h.clear}%`;
+  const clearPart = en ? `${h.clear}% clear` : `晴空 ${h.clear}%`;
   const tempPart = hasTemp ? fmtTemp(tInt) : '';
   const rightMeta = [clearPart, darkTxt, tempPart, kpBadge].filter(Boolean).join(' · ');
   setHtml('hourDetail',
-    `<span class="hr-det-main"><strong>${tStr}</strong> <strong style="color:${scCol}">${h.score}</strong> <span style="color:${scCol}">${scTier}</span></span><span class="hr-det-meta">${rightMeta}</span>`);
+    `<div class="sb-top"><strong>${tStr}</strong> <strong style="color:${scCol}">${h.score} ${scTier}</strong></div><div class="sb-bot">${rightMeta}</div>`);
+  const prevBtn = $('hrPrevBtn'), nextBtn = $('hrNextBtn');
+  if (prevBtn) prevBtn.disabled = idx <= 0;
+  if (nextBtn) nextBtn.disabled = idx >= vis.length - 1;
 }
 
 function fmtMonthDay(iso, en) {
@@ -1114,7 +1117,10 @@ function selectBzPoint(idx) {
   const metaTxt = [phaseTxt, bzTxt, spdTxt].filter(Boolean).join(' · ');
 
   setHtml('bzDetail',
-    `<span class="hr-det-main"><strong>${escapeHtml(tStr)}</strong> <strong style="color:${eCol}">${eVal}</strong> <span style="color:${eCol}">${escapeHtml(eWord)}</span></span><span class="hr-det-meta">${escapeHtml(metaTxt)}</span>`);
+    `<div class="sb-top"><strong>${escapeHtml(tStr)}</strong> <strong style="color:${eCol}">${escapeHtml(eWord)} · ${eVal}</strong></div><div class="sb-bot">${escapeHtml(metaTxt)}</div>`);
+  const prevBtn = $('bzPrevBtn'), nextBtn = $('bzNextBtn');
+  if (prevBtn) prevBtn.disabled = clampedIdx <= 0;
+  if (nextBtn) nextBtn.disabled = clampedIdx >= series.length - 1;
 }
 
 function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales, noaaAlert, bal, noaaOk, noaaLagMin, pos }) {
@@ -1140,18 +1146,18 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales,
 
   const bzBadge = $('bzBadge');
   if (bzBadge) {
-    const leadTag = en ? `~${etaMin}m` : `提前 ${etaMin} 分鐘`;
+    const leadTag = en ? `~${etaMin}m` : `約 ${etaMin} 分後`;
     if (isBurst) {
-      bzBadge.textContent = `${leadTag} · ${term(TERMS.solarWind.strong, en)}`;
+      bzBadge.innerHTML = `${leadTag} · <strong style="color:var(--green);">${escapeHtml(term(TERMS.solarWind.strong, en))}</strong>`;
       bzBadge.className = 'sw-badge sw-good';
     } else if (isBrighten) {
-      bzBadge.textContent = `${leadTag} · ${term(TERMS.solarWind.active, en)}`;
+      bzBadge.innerHTML = `${leadTag} · <strong style="color:var(--green);">${escapeHtml(term(TERMS.solarWind.active, en))}</strong>`;
       bzBadge.className = 'sw-badge sw-good';
     } else if (isBuilding) {
-      bzBadge.textContent = `${leadTag} · ${term(TERMS.solarWind.building, en)}`;
+      bzBadge.innerHTML = `${leadTag} · <strong style="color:var(--amber);">${escapeHtml(term(TERMS.solarWind.building, en))}</strong>`;
       bzBadge.className = 'sw-badge sw-warn';
     } else if (enSum.raw || liveBz !== null) {
-      bzBadge.textContent = `${leadTag} · ${term(TERMS.solarWind.low, en)}`;
+      bzBadge.innerHTML = `${leadTag} · <strong>${escapeHtml(term(TERMS.solarWind.low, en))}</strong>`;
       bzBadge.className = 'sw-badge';
     } else {
       bzBadge.textContent = '';
@@ -1201,6 +1207,14 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales,
   const isFutureEta = Number.isFinite(lastArrMs) && lastArrMs >= Date.now() - 2 * 60000;
   const etaClock = isFutureEta ? utcTagToLocalHM(lastM.time_tag, tz, etaMin) : '';
   const hasDashedLine = Boolean(bal && Number.isInteger(bal.arrivingIdx) && bal.arrivingIdx > 4 && bal.arrivingIdx < (chartSeries?.length || 0) - 4);
+  const nowClock = hasDashedLine ? utcTagToLocalHM(chartSeries[bal.arrivingIdx]?.time_tag, tz, etaMin) : '';
+  setHtml('bzHtmlHead', hasDashedLine && nowClock
+    ? (en
+        ? `<span>${escapeHtml(term(TERMS.solarWind.axisTitle, true))}</span><span>Now <strong>${escapeHtml(nowClock)}</strong> · Incoming right</span>`
+        : `<span>${escapeHtml(term(TERMS.solarWind.axisTitle, false))}</span><span>現在 <strong>${escapeHtml(nowClock)}</strong> · 虛線右側陸續抵達</span>`)
+    : (en
+        ? `<span>${escapeHtml(term(TERMS.solarWind.axisTitle, true))}</span><span>Estimated Earth arrival</span>`
+        : `<span>${escapeHtml(term(TERMS.solarWind.axisTitle, false))}</span><span>已換算為到達地球當地時間</span>`));
   setText('etaHint', en
     ? (hasDashedLine && etaClock
         ? `Right of dashed line = arriving by ${etaClock}`
@@ -1238,6 +1252,15 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales,
   return etaClock;
 }
 
+function fmtWinterDrive(km, en) {
+  if (!Number.isFinite(km) || km <= 0) return '';
+  const mins = Math.max(15, Math.round(((km / 65) * 60) / 5) * 5);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  const dur = h > 0 ? `${h}h${m ? ` ${String(m).padStart(2, '0')}m` : ''}` : `${m}m`;
+  return en ? `~${dur} drive` : `約 ${dur}`;
+}
+
 function formatDarkCountdownSub(darkWin, moon, en) {
   if (darkWin?.state === 'midnight-sun') return en ? 'Midnight sun' : '極晝偏亮';
   if (darkWin?.state === 'twilight-wait' && darkWin.nextDarkHM) {
@@ -1249,6 +1272,11 @@ function formatDarkCountdownSub(darkWin, moon, en) {
       : (en ? 'Polar night' : '極夜全暗');
   }
   if (darkWin?.state === 'dark' && darkWin.darkEndHM) {
+    if (moon.up && moon.effMoonPct >= 40) {
+      return en
+        ? `Bright · Light ${escapeHtml(darkWin.darkEndHM)}`
+        : `偏亮 · ${escapeHtml(darkWin.darkEndHM)} 亮`;
+    }
     return en ? `Light ${escapeHtml(darkWin.darkEndHM)}` : `${escapeHtml(darkWin.darkEndHM)} 天亮`;
   }
   return (moon.up && moon.effMoonPct >= 40)
@@ -1259,27 +1287,24 @@ function formatDarkCountdownSub(darkWin, moon, en) {
 function renderRoadLinks(pos, en) {
   const wrap = $('roadLinks');
   if (!wrap || !pos) return;
-  let links = null;
+  let links = [];
   if (pos.lat >= 55 && pos.lon >= -26 && pos.lon <= 35) {
-    links = [
-      { id: 'roadNo', url: 'https://www.vegvesen.no/trafikk', zh: '挪威 Vegvesen ↗', en: 'Norway Vegvesen ↗' },
-      { id: 'roadSe', url: 'https://www.trafikverket.se/trafikinformation/vag/', zh: '瑞典 Trafikverket ↗', en: 'Sweden Trafikverket ↗' },
-      { id: 'roadIs', url: 'https://umferdin.is/en', zh: '冰島 Umferðin ↗', en: 'Iceland Umferðin ↗' },
-      { id: 'roadFi', url: 'https://liikennetilanne.fintraffic.fi/', zh: '芬蘭路況 ↗', en: 'Finland Roads ↗' }
-    ];
+    if (pos.lon <= -10) {
+      links.push({ id: 'roadIs', url: 'https://umferdin.is/en', zh: '冰島 Umferðin ↗', en: 'Iceland Umferðin ↗' });
+    } else {
+      if (pos.lon < 26) links.push({ id: 'roadNo', url: 'https://www.vegvesen.no/trafikk', zh: '挪威 Vegvesen ↗', en: 'Norway Vegvesen ↗' });
+      if (pos.lon >= 11 && pos.lon <= 25) links.push({ id: 'roadSe', url: 'https://www.trafikverket.se/trafikinformation/vag/', zh: '瑞典 Trafikverket ↗', en: 'Sweden Trafikverket ↗' });
+      if (pos.lon >= 20) links.push({ id: 'roadFi', url: 'https://liikennetilanne.fintraffic.fi/', zh: '芬蘭 Fintraffic ↗', en: 'Finland Roads ↗' });
+    }
   } else if (pos.lat >= 45 && pos.lon <= -50) {
-    links = [
-      { id: 'roadAk', url: 'https://511.alaska.gov/', zh: '阿拉斯加 511 ↗', en: 'Alaska 511 ↗' },
-      { id: 'roadNwt', url: 'https://www.inf.gov.nt.ca/en/services/highways/highway-conditions', zh: '黃刀公路路況 ↗', en: 'NWT Highways ↗' },
-      { id: 'roadYk', url: 'https://511yukon.ca/', zh: '育空 511 ↗', en: 'Yukon 511 ↗' }
-    ];
+    if (pos.lon <= -135) links.push({ id: 'roadAk', url: 'https://511.alaska.gov/', zh: '阿拉斯加 511 ↗', en: 'Alaska 511 ↗' });
+    if (pos.lon >= -142 && pos.lon <= -123) links.push({ id: 'roadYk', url: 'https://511yukon.ca/', zh: '育空 511 ↗', en: 'Yukon 511 ↗' });
+    if (pos.lon >= -125) links.push({ id: 'roadNwt', url: 'https://www.inf.gov.nt.ca/en/services/highways/highway-conditions', zh: '黃刀公路路況 ↗', en: 'NWT Highways ↗' });
   } else if (pos.lat <= -30 && pos.lon >= 130) {
-    links = [
-      { id: 'roadNz', url: 'https://www.journeys.nzta.govt.nz/', zh: '紐西蘭 NZTA 路況 ↗', en: 'NZTA Journeys ↗' },
-      { id: 'roadTas', url: 'https://www.police.tas.gov.au/community-alerts/', zh: '塔斯馬尼亞路況 ↗', en: 'Tasmania Alerts ↗' }
-    ];
+    if (pos.lon >= 160) links.push({ id: 'roadNz', url: 'https://www.journeys.nzta.govt.nz/', zh: '紐西蘭 NZTA 路況 ↗', en: 'NZTA Journeys ↗' });
+    else links.push({ id: 'roadTas', url: 'https://www.police.tas.gov.au/community-alerts/', zh: '塔斯馬尼亞路況 ↗', en: 'Tasmania Alerts ↗' });
   }
-  if (!links) {
+  if (!links.length) {
     wrap.style.display = 'none';
     return;
   }
@@ -1297,7 +1322,7 @@ function renderCompassPanel(dirResults, pos, en) {
     cs.className = 'callout ' + (sum?.good ? 'good' : 'warn');
     cs.textContent = sum ? sum.text : (en ? 'No data' : '無資料');
   }
-  setHtml('radarSvg', buildCompassRadarSVG(dirResults, pos));
+  setHtml('radarSvg', buildCompassRadarSVG(dirResults, pos, getLang()));
 
   const cBox = $('compassBox');
   if (!cBox || !Array.isArray(dirResults)) return;
@@ -1309,16 +1334,19 @@ function renderCompassPanel(dirResults, pos, en) {
     const clearNow = unavail ? null : Math.max(0, Math.min(100, Math.round(100 - d.nowC)));
     const col = unavail ? '' : (d.isOcean ? 'c-blue' : (hazard ? 'c-red' : (clear3h >= 65 ? 'c-green' : clear3h >= 35 ? 'c-amber' : 'c-muted')));
     const kmVal = Number.isFinite(d.roadKm) ? d.roadKm : (Number.isFinite(d.distKm) ? d.distKm : Math.round(computeDistanceKm(pos.lat, pos.lon, d.lat, d.lon)));
+    const driveEst = (!d.isOcean && !d.isGeneric && Number.isFinite(kmVal) && kmVal > 0) ? fmtWinterDrive(kmVal, en) : '';
     const distTag = d.isGeneric
       ? (en ? ' · straight-line (verify road)' : ' · 直線參考（請確認路況）')
-      : (Number.isFinite(kmVal) && kmVal > 0 ? (en ? ` · ~${kmVal} km road` : ` · 公路 ~${kmVal} km`) : '');
+      : (Number.isFinite(kmVal) && kmVal > 0
+          ? (en ? ` · ~${kmVal} km${driveEst ? ` (${driveEst})` : ''}` : ` · ~${kmVal} km${driveEst ? `（${driveEst}）` : ''}`)
+          : '');
     const windMs = Number(d.maxWind3h) || 0;
     const precipMm = Number(d.maxPrecip3h) || 0;
     const hazards = [];
     if (!d.isOcean && !unavail && windMs >= 12) {
       hazards.push(en ? `⚠ Gale ${Math.round(windMs)}m/s` : `⚠ 強風 ${Math.round(windMs)}m/s`);
     } else if (!d.isOcean && !unavail && windMs >= 9 && (d.temp ?? 5) <= 1.5) {
-      hazards.push(en ? `⚠ Drifting snow ${Math.round(windMs)}m/s` : `⚠ 吹雪風 ${Math.round(windMs)}m/s`);
+      hazards.push(en ? `⚠ Drifting snow ${Math.round(windMs)}m/s` : `⚠ 吹雪強風 ${Math.round(windMs)}m/s`);
     }
     if (!d.isOcean && !unavail && precipMm >= 0.2 && d.temp <= 1.5) {
       hazards.push(en ? 'Snow/Ice risk' : '降雪／結冰風險');
@@ -1335,19 +1363,25 @@ function renderCompassPanel(dirResults, pos, en) {
     const noteHtml = noteText ? `<div class="${isPositiveNote ? 'dir-tip' : 'dir-note'}">${escapeHtml(noteText)}</div>` : '';
     const nav = (d.isOcean || unavail)
       ? (d.isOcean
-          ? `<span style="font-size:0.75rem;color:var(--blue);font-weight:700;">${en ? 'Open Sea' : '海域參考'}</span>`
-          : `<span style="font-size:0.75rem;color:var(--muted);font-weight:700;">${en ? 'Unavailable' : '暫無資料'}</span>`)
-      : `<a class="btn ${hazard ? 'btn-hazard' : 'btn-blue'}" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/dir/?api=1&origin=${pos.lat},${pos.lon}&destination=${d.lat},${d.lon}&travelmode=driving">${en ? (hazard ? 'Caution' : 'Drive') : (hazard ? '注意路況' : '導航')}</a>`;
+          ? `<span class="dir-ref c-blue">${en ? 'Open Sea' : '海域參考'}</span>`
+          : `<span class="dir-ref c-muted">${en ? 'Unavailable' : '暫無資料'}</span>`)
+      : `<a class="btn ${hazard ? 'btn-hazard' : 'btn-blue'}" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/dir/?api=1&origin=${pos.lat},${pos.lon}&destination=${d.lat},${d.lon}&travelmode=driving">${en ? (hazard ? 'Drive anyway' : 'Drive') : (hazard ? '仍要導航' : '導航')}</a>`;
     const statLine = unavail
       ? (en ? 'Forecast temporarily unavailable' : '此方向氣象暫時無法取得')
       : `${en ? 'Next 3h' : '3 小時晴空率'} <strong class="${col}">${clear3h}%</strong> · ${en ? 'now' : '目前'} ${clearNow}% · ${fmtTemp(d.temp)}${rainTag}`;
-    return `<div class="dir ${isBest ? 'best' : ''} ${hazard ? 'hazard' : ''} ${d.isOcean ? 'sea' : ''}">
-      <div><div style="font-weight:800;font-size:0.9rem;">${escapeHtml(tDirLabel(d.label))}${isBest ? ' ★' : ''}<span style="font-weight:600;font-size:0.74rem;color:var(--muted);">${distTag}</span></div>
-      <div style="font-size:0.74rem;color:var(--muted);">${statLine}</div>${hazardHtml}${noteHtml}</div>
+    return `<div class="dir ${isBest ? 'best' : ''} ${hazard ? 'hazard' : ''} ${d.isOcean ? 'sea' : ''}" data-dir-card="${escapeHtml(d.key)}">
+      <div class="dir-main"><div class="dir-title">${escapeHtml(tDirLabel(d.label))}${isBest ? ` <span class="dir-best-tag">${en ? 'Best' : '最佳'}</span>` : ''}<span class="dir-dist">${distTag}</span></div>
+      <div class="dir-stat">${statLine}</div>${hazardHtml}${noteHtml}</div>
       ${nav}
     </div>`;
   }).join('');
 }
+
+const SVG_ICO_BOLT = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.2 1.8L3.8 9h4.1l-1.1 5.2L12.2 7H8.1l1.1-5.2z"/></svg>`;
+const SVG_ICO_TARGET = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="1.8" fill="currentColor" stroke="none"/></svg>`;
+const SVG_ICO_WARN = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.2L14.2 13H1.8L8 2.2z"/><path d="M8 6.4v3.2"/><circle cx="8" cy="11.4" r="0.65" fill="currentColor" stroke="none"/></svg>`;
+const SVG_ICO_CHEV_R = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg>`;
+const SVG_ICO_ARR_R = `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8h9M9 4.5L12.5 8 9 11.5"/></svg>`;
 
 function renderFromState(st) {
   if (!st) return;
@@ -1385,25 +1419,12 @@ function renderFromState(st) {
     scNext, noaaOk, noaaLagMin, usedMet, cloudConsensus, hereHrs, noaaAlert, predKp1h
   });
 
-  // +ETA Forward Forecast Strip with Semantic Score Coloring
-  if (sc.outOfZone && (!scNext || scNext.outOfZone)) {
-    setHtml('fcNextTxt', en
-      ? `Next hour: score <strong style="color:var(--muted)">0</strong> (out of zone)`
-      : `未來 1 小時：指數 <strong style="color:var(--muted)">0</strong>（不在極光帶）`);
-  } else if (scNext) {
-    const diff = scNext.total - sc.total;
-    const arrow = diff >= 6 ? (en ? 'rising' : '可能增強') : (diff <= -6 ? (en ? 'fading' : '可能轉弱') : (en ? 'little change' : '變化不大'));
-    const etaSafe = escapeHtml(etaClock);
-    const nextCol = scNext.isTooBright ? 'var(--blue)' : (scNext.outOfZone ? 'var(--muted)' : tierColor(scNext.total));
-    setHtml('fcNextTxt', en
-      ? `${etaSafe ? `By ${etaSafe}` : `In about ${safeBal.etaMin} min`}: score <strong style="color:${nextCol}">${scNext.total}</strong> · ${arrow}`
-      : `${etaSafe ? `${etaSafe} 前` : `約 ${safeBal.etaMin} 分鐘後`}：指數 <strong style="color:${nextCol}">${scNext.total}</strong>，${arrow}`);
-  }
   const confBtn = $('fcConfBtn');
   if (confBtn) {
     const degraded = expNow.confidence.level === 'low' || !noaaOk || (noaaLagMin !== null && noaaLagMin > 45) || cloudConsensus?.level === 'low';
     confBtn.classList.toggle('warn', degraded);
-    confBtn.textContent = degraded ? `⚠ ${expNow.confidence.badgeText} ›` : (en ? 'Why? ›' : '說明 ›');
+    const lbl = degraded ? escapeHtml(expNow.confidence.badgeText) : (en ? 'Why?' : '說明');
+    confBtn.innerHTML = `<span>${lbl}</span>${SVG_ICO_CHEV_R}`;
   }
 
   // Live raw telemetry & dedicated METAR calibration note inside Trust Sheet
@@ -1438,7 +1459,7 @@ function renderFromState(st) {
   const isExtremeCold = (t0Int <= -25 || wc0Int <= -32);
   const isBlowingSnow = (wind0 >= 9 && t0Int <= 1 && precip0 >= 0.2);
 
-  // Single-line atomic bento sub-metrics (zero awkward wrap on 360px/390px)
+  // Flex-wrapped atomic sub-metrics (zero awkward floating dot wrap at 19px-21px)
   const skyParts = [`<span class="nowrap">${fmtTemp(t0Int)}</span>`];
   if (t0Int - wc0Int >= 3) {
     skyParts.push(`<span class="nowrap">${en ? `Feels ${fmtTemp(wc0Int)}` : `體感 ${fmtTemp(wc0Int)}`}</span>`);
@@ -1446,34 +1467,39 @@ function renderFromState(st) {
     skyParts.push(`<span class="nowrap">${t0Int <= 1 ? (en ? 'Snow' : '降雪') : (en ? 'Rain' : '降雨')}</span>`);
   }
 
-  // Dedicated compact safety, G1-G2 activity & laser calibration micro-pills below Bento
+  // Frameless monochrome 1.5px SVG footnote items (replaces colored pill soup & emoji!)
   const heroTags = [];
   if (isExtremeCold) {
-    heroTags.push(`<span class="hero-tag t-red">${en ? `⚠ Extreme cold (${fmtTemp(wc0Int)})` : `⚠ 極寒（體感 ${fmtTemp(wc0Int)}）`}</span>`);
+    heroTags.push(`<span class="meta-item t-red">${SVG_ICO_WARN}<span>${en ? `Extreme cold (${fmtTemp(wc0Int)})` : `極寒 ${fmtTemp(wc0Int)}`}</span></span>`);
   }
   if (isBlowingSnow) {
-    heroTags.push(`<span class="hero-tag t-amber">${en ? '⚠ Blowing snow' : '⚠ 吹雪強風'}</span>`);
+    heroTags.push(`<span class="meta-item t-amber">${SVG_ICO_WARN}<span>${en ? 'Blowing snow' : '吹雪強風'}</span></span>`);
   }
   if (state.bannerState.stormMinorTag) {
-    heroTags.push(`<button type="button" class="hero-tag t-amber hero-tag-btn" data-open-trust="1" aria-haspopup="dialog" aria-controls="trustSheet">⚡ ${escapeHtml(state.bannerState.stormMinorTag)} ›</button>`);
+    heroTags.push(`<button type="button" class="meta-item meta-btn t-amber" data-open-trust="1" aria-haspopup="dialog" aria-controls="trustSheet">${SVG_ICO_BOLT}<span>${escapeHtml(state.bannerState.stormMinorTag)}</span></button>`);
   }
   if (metarObs && metarFusion?.discrepancyFlag) {
-    heroTags.push(`<span class="hero-tag t-blue">${en ? `◎ ${escapeHtml(metarObs.icao)} obs` : `◎ ${escapeHtml(metarObs.icao)} 實測`}</span>`);
+    heroTags.push(`<span class="meta-item t-muted">${SVG_ICO_TARGET}<span>${en ? 'Airport obs' : '機場實測校正'}</span></span>`);
   }
-  setHtml('heroTags', heroTags.join(''));
+  if (!heroTags.length && scNext && !sc.outOfZone) {
+    const diff = scNext.total - sc.total;
+    const trendTxt = diff >= 6 ? (en ? 'Rising next hour' : '未來 1 小時趨勢上升') : (diff <= -6 ? (en ? 'Fading next hour' : '未來 1 小時趨勢轉弱') : (en ? 'Steady next hour' : '未來 1 小時變化不大'));
+    heroTags.push(`<span class="meta-item t-muted"><span>${trendTxt}</span></span>`);
+  }
+  setHtml('heroTags', heroTags.join('<span class="meta-sep" aria-hidden="true"></span>'));
 
   const kpShort = kp !== null ? kp.toFixed(1) : '--';
   const aurSubHtml = sc.outOfZone === 'low-lat'
     ? `<span class="nowrap">${en ? `Mag ${sc.magLat}°` : `地磁 ${sc.magLat}°`}</span>`
     : (sc.outOfZone === 'need-storm'
         ? `<span class="nowrap">Kp ${kpShort} · ${en ? `need ${sc.neededKp}` : `需 ${sc.neededKp}`}</span>`
-        : `<span class="nowrap">Kp ${kpShort}</span>`);
+        : `<span class="nowrap">Kp ${kpShort}${sc.auroraScore >= 55 ? (en ? ' · Active' : ' · 活躍') : ''}</span>`);
   const darkWin = computeDarkWindow(refNow, pos.lat, pos.lon, pos.tz);
   document.body.classList.remove('is-loading');
   renderGauge(sc, {
     isTooBright: sc.isTooBright,
     moon,
-    skySubHtml: skyParts.join(' · '),
+    skySubHtml: skyParts.join('<span class="sub-dot" aria-hidden="true">·</span>'),
     aurSubHtml,
     darkSubHtml: formatDarkCountdownSub(darkWin, moon, en)
   });
@@ -1495,7 +1521,8 @@ function renderFromState(st) {
     bestDark, dirResults, nights3: localizedNights3, darkWin,
     kp, mlt: mltNow ?? null, effMoonPct: moon.effMoonPct
   });
-  // Derive a single crisp, non-redundant Hero action cue (never repeats #ringGrade or Card 2 numbers; uses actual start of green window, not midnight peak)
+  const refNowMs = refNow.getTime();
+  // Derive a single crisp, non-redundant Hero action cue (filter out already-passed hours!)
   let heroCue = act.title;
   let heroSub = '';
   if (act.actionType === 'drive') {
@@ -1508,12 +1535,12 @@ function renderFromState(st) {
     const dirCueEn = sc.total >= 65 ? 'Go out now — look overhead and north' : 'Good to head out — watch the northern sky';
     heroCue = en ? dirCueEn : dirCueZh;
   } else if (act.actionType === 'wait' && sc.total < 18 && sc.skyScore < 45) {
-    const upcoming = (activeHrs || []).slice(1, 24);
+    const upcoming = (activeHrs || []).slice(1, 24).filter(h => !Number.isFinite(h?.dtMs) || h.dtMs > refNowMs + 15 * 60000);
     const firstGood = upcoming.find(h => h && !h.isDay && h.score >= 40)
       || upcoming.find(h => h && !h.isDay && h.clear >= 55);
-    const startT = firstGood?.time || bestDark?.time || '';
+    const startT = firstGood?.time || '';
     heroCue = startT
-      ? (en ? `Rest for now — conditions improve after ${startT}` : `先休息，預計 ${startT} 後有望轉佳`)
+      ? (en ? `Rest for now — skies improve after ${startT}` : `先休息，預計 ${startT} 後有望轉佳`)
       : act.title;
   } else if (act.actionType === 'sleep') {
     const futureBest = (localizedNights3 || []).slice(1)
@@ -1531,10 +1558,35 @@ function renderFromState(st) {
   }
   const actBtn = $('vActionBtn');
   if (actBtn) {
-    actBtn.style.display = (act.ctaView && act.ctaLabel) ? 'inline-flex' : 'none';
-    if (act.ctaView && act.ctaLabel) {
-      actBtn.textContent = act.ctaLabel;
+    const compassSum = summarizeCompass(dirResults);
+    const bestDir = (compassSum?.good && Array.isArray(dirResults))
+      ? dirResults.find(d => d && d.key === compassSum.bestKey)
+      : null;
+    const isCloudyNight = !sc.isTooBright && !sc.outOfZone && sc.skyScore < 45;
+    if (bestDir && isCloudyNight) {
+      const clear3h = Math.max(0, Math.min(100, Math.round(100 - bestDir.avg3h)));
+      const kmVal = Number.isFinite(bestDir.roadKm) ? bestDir.roadKm : (Number.isFinite(bestDir.distKm) ? bestDir.distKm : Math.round(computeDistanceKm(pos.lat, pos.lon, bestDir.lat, bestDir.lon)));
+      const drv = fmtWinterDrive(kmVal, en);
+      const mainT = en
+        ? `Clear skies ${escapeHtml(tDirLabel(bestDir.label))} (${clear3h}% clear)`
+        : `${escapeHtml(tDirLabel(bestDir.label))} 找晴空（晴空 ${clear3h}%）`;
+      const subT = en
+        ? `~${kmVal} km · ${drv || 'check winter roads'}`
+        : `公路 ~${kmVal} km${drv ? ` · 冬季車程${drv}` : ''}`;
+      actBtn.innerHTML = `<span class="cta-txt"><strong>${mainT}</strong><span class="cta-sub">${escapeHtml(subT)}</span></span>${SVG_ICO_ARR_R}`;
+      actBtn.dataset.targetView = 'dir';
+      actBtn.style.display = 'flex';
+    } else if (act.ctaView && act.ctaLabel) {
+      actBtn.innerHTML = `<span class="cta-txt"><strong>${escapeHtml(act.ctaLabel)}</strong></span>${SVG_ICO_ARR_R}`;
       actBtn.dataset.targetView = act.ctaView;
+      actBtn.style.display = 'flex';
+    } else if (isCloudyNight) {
+      const fallbackLbl = en ? 'Check 360° clear skies & live cams' : '查看 360° 周邊晴空與實拍';
+      actBtn.innerHTML = `<span class="cta-txt"><strong>${fallbackLbl}</strong></span>${SVG_ICO_ARR_R}`;
+      actBtn.dataset.targetView = 'dir';
+      actBtn.style.display = 'flex';
+    } else {
+      actBtn.style.display = 'none';
     }
   }
 
@@ -2066,7 +2118,7 @@ function bindWaveScrubbing() {
     const rect = svg.getBoundingClientRect();
     if (!rect.width) return;
     const svgX = ((clientX - rect.left) / rect.width) * 420;
-    const padL = 56, plotW = 420 - 56 - 14;
+    const padL = 56, plotW = 420 - 56 - 10;
     const ratio = Math.max(0, Math.min(1, (svgX - padL) / plotW));
     const idx = Math.round(ratio * (vis.length - 1));
     if (idx !== state.selectedHourIdx) {
@@ -2277,6 +2329,33 @@ function bindEvents() {
     haptic(6);
   });
 
+  $('hrPrevBtn')?.addEventListener('click', () => {
+    if (state.selectedHourIdx > 0) { selectForecastHour(state.selectedHourIdx - 1); haptic(5); }
+  });
+  $('hrNextBtn')?.addEventListener('click', () => {
+    const vis = getVisibleHours();
+    if (state.selectedHourIdx < vis.length - 1) { selectForecastHour(state.selectedHourIdx + 1); haptic(5); }
+  });
+  $('bzPrevBtn')?.addEventListener('click', () => {
+    if (state.selectedBzIdx > 0) { selectBzPoint(Math.max(0, state.selectedBzIdx - 5)); haptic(5); }
+  });
+  $('bzNextBtn')?.addEventListener('click', () => {
+    const len = state.bzChartState?.series?.length || 0;
+    if (len > 1 && state.selectedBzIdx < len - 1) { selectBzPoint(Math.min(len - 1, state.selectedBzIdx + 5)); haptic(5); }
+  });
+  $('radarSvg')?.addEventListener('click', (e) => {
+    const sec = e.target.closest?.('.radar-sector[data-dir-key]');
+    if (!sec) return;
+    const key = sec.getAttribute('data-dir-key');
+    const card = key ? document.querySelector(`#compassBox .dir[data-dir-card="${CSS.escape(key)}"]`) : null;
+    if (!card) return;
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.classList.remove('dir-pulse');
+    void card.offsetWidth;
+    card.classList.add('dir-pulse');
+    haptic(6);
+  });
+
   $('monitorBar')?.addEventListener('click', (e) => {
     const act = e.target.closest?.('[data-mon-act]')?.dataset?.monAct;
     if (act === 'off') toggleAlertMode();
@@ -2308,7 +2387,7 @@ function bindEvents() {
   const syncFontScaleClass = () => {
     const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
     const effEm = Math.min(window.innerWidth, document.documentElement.clientWidth || window.innerWidth) / rootPx;
-    document.body.classList.toggle('a11y-large', effEm <= 17.8);
+    document.body.classList.toggle('a11y-large', effEm <= 19.6);
     document.body.classList.toggle('a11y-xlarge', effEm <= 15.2);
   };
   window.addEventListener('resize', syncFontScaleClass, { passive: true });

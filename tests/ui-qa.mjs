@@ -134,6 +134,15 @@ function buildPageHtml({
   const homeBarOverlay = safeBottom > 0 ? `
     <div style="position:fixed;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:99px;background:rgba(255,255,255,0.45);z-index:80;pointer-events:none;"></div>` : '';
 
+  const chevSvg = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg>`;
+  const stepPrevSvg = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.5L5.5 8l4.5 4.5"/></svg>`;
+  const stepNextSvg = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5L10.5 8 6 12.5"/></svg>`;
+  const stormSvg = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.2 1.8L3.8 9h4.1l-1.1 5.2L12.2 7H8.1l1.1-5.2z"/></svg>`;
+  const metarSvg = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="1.6" fill="currentColor" stroke="none"/></svg>`;
+  const cloudyCtaHtml = isCloudy
+    ? `<button id="vActionBtn" class="hero-cta" type="button"><span class="cta-txt"><span>${en ? 'Drive E Skibotn · 84% clear' : '往東 Skibotn · 晴空 84%'}</span><span class="cta-sub">${en ? '~1h 50m · 118 km · Clear sky radar' : '約 1h 50m · 118 km · 查看周邊晴空'}</span></span>${chevSvg}</button>`
+    : '';
+
   return `<!DOCTYPE html><html lang="${en ? 'en' : 'zh-Hant'}" style="font-size:${rootPx}px !important;"><head><meta charset="UTF-8"/><meta name="viewport" content="width=${width},initial-scale=1"/>
 <style>
 ${emulatedCss}
@@ -149,14 +158,15 @@ html { font-size: ${rootPx}px !important; }
       <button class="hdr-loc-btn" type="button">
         <span class="hdr-loc-row">
           <svg class="loc-arrow" viewBox="0 0 24 24"><path d="M21 3 3 10.53v.98l6.84 2.65L12.48 21h.98z" fill="currentColor"/></svg>
-          <span class="hdr-loc-name">${en ? 'Norway · Tromsø' : '挪威 · Tromsø'}</span><span class="chev">▾</span>
+          <span class="hdr-loc-name">${en ? 'Norway · Tromsø' : '挪威 · Tromsø'}</span>
+          <svg class="chev-ico" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 6.2L8 10l3.8-3.8"/></svg>
         </span>
         <span class="hdr-loc-meta"><span>21:05</span> <span>·</span> <span>${en ? 'Just now' : '剛剛更新'}</span></span>
       </button>
       <div class="hdr-tools">
-        <button class="icon-btn ${redMode ? 'red-on' : ''}" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
-        <button class="icon-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
-        <button class="icon-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="19" cy="12" r="1.4" fill="currentColor"/></svg></button>
+        <button class="icon-btn ${redMode ? 'red-on' : ''}" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg></button>
+        <button class="icon-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8.5a6 6 0 0 0-12 0c0 6.5-2.5 8.5-2.5 8.5h17S18 15 18 8.5"/><path d="M13.7 20.5a2 2 0 0 1-3.4 0"/></svg></button>
+        <button class="icon-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5.5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="18.5" cy="12" r="1.2" fill="currentColor"/></svg></button>
       </div>
     </header>
 
@@ -164,51 +174,42 @@ html { font-size: ${rootPx}px !important; }
       <section class="sky-hero">
         <div class="sky-stage">
           <button class="hero-score-btn ring-btn" type="button">
-            <div class="ring-sub sr-only">${en ? 'Score' : '觀測指數'}</div>
+            <div id="ringSubLbl" class="ring-sub">${en ? 'VIEWING SCORE' : '觀測指數'}</div>
             <div class="ring-num">${isCloudy ? '1' : '84'}</div>
             <div class="ring-grade" style="color:${isCloudy ? 'var(--muted)' : 'var(--green)'};">${isCloudy ? (en ? 'Cloudy' : '雲層過厚') : (en ? 'Excellent' : '極佳')}</div>
           </button>
           <div class="sky-text">
             <h1 class="sky-title">${isCloudy ? (en ? 'Rest for now — conditions improve after 21:00' : '先休息，預計 21:00 後有望轉佳') : (en ? 'Go out now — look overhead and north' : '現在適合出門，朝頭頂與北方觀察')}</h1>
+            ${cloudyCtaHtml}
           </div>
         </div>
 
         <div class="sky-body">
           <div class="factors">
             <div class="f-box">
-              <div class="f-head">
-                <div class="f-lbl-row"><span class="f-ico">${fSkyIco}</span><span class="f-lbl">${en ? 'Clear sky' : '晴空率'}</span></div>
-                <span class="f-val" style="color:${isCloudy ? 'var(--muted)' : 'var(--green)'};">${isCloudy ? '24%' : '92%'}</span>
-              </div>
-              <div class="f-track"><div class="f-fill" style="width:${isCloudy ? '24%' : '92%'};background:${isCloudy ? 'var(--muted)' : 'var(--green)'};"></div></div>
-              <div class="f-sub"><span class="nowrap">-5°C</span> · <span class="nowrap">${en ? 'Feels -9°C' : '體感 -9°C'}</span></div>
+              <div class="f-lbl-row"><span class="f-ico">${fSkyIco}</span><span class="f-lbl">${en ? 'Clear sky' : '晴空率'}</span></div>
+              <div class="f-val" style="color:${isCloudy ? 'var(--muted)' : 'var(--text)'};">${isCloudy ? '24' : '92'}<span class="f-unit">%</span></div>
+              <div class="f-sub"><span class="nowrap">-5°C</span><span class="sub-dot">·</span><span class="nowrap">${en ? 'Feels -9°C' : '體感 -9°C'}</span></div>
             </div>
             <div class="f-box">
-              <div class="f-head">
-                <div class="f-lbl-row"><span class="f-ico">${fAurIco}</span><span class="f-lbl">${en ? 'Aurora' : '極光活動'}</span></div>
-                <span class="f-val" style="color:${isCloudy ? 'var(--muted)' : 'var(--green)'};">${isCloudy ? '3' : '86'}</span>
-              </div>
-              <div class="f-track"><div class="f-fill" style="width:${isCloudy ? '8%' : '86%'};background:${isCloudy ? 'var(--muted)' : 'var(--green)'};"></div></div>
+              <div class="f-lbl-row"><span class="f-ico">${fAurIco}</span><span class="f-lbl">${en ? 'Aurora' : '極光活動'}</span></div>
+              <div class="f-val" style="color:${isCloudy ? 'var(--muted)' : 'var(--text)'};">${isCloudy ? (en ? 'Quiet' : '偏弱') : (en ? 'Very high' : '極強')}</div>
               <div class="f-sub"><span class="nowrap">${isCloudy ? 'Kp 0.3' : 'Kp 5.0'}</span></div>
             </div>
             <div class="f-box">
-              <div class="f-head">
-                <div class="f-lbl-row"><span class="f-ico">${fDarkIco}</span><span class="f-lbl">${en ? 'Darkness' : '夜空暗度'}</span></div>
-                <span class="f-val" style="color:${isCloudy ? 'var(--amber)' : 'var(--green)'};">${isCloudy ? '74%' : '100%'}</span>
-              </div>
-              <div class="f-track"><div class="f-fill" style="width:${isCloudy ? '74%' : '100%'};background:${isCloudy ? 'var(--amber)' : 'var(--green)'};"></div></div>
-              <div class="f-sub">${isCloudy ? (en ? 'Light 09:10' : '09:10 天亮') : (en ? 'Full dark' : '全暗')}</div>
+              <div class="f-lbl-row"><span class="f-ico">${fDarkIco}</span><span class="f-lbl">${en ? 'Darkness' : '夜空暗度'}</span></div>
+              <div class="f-val" style="color:${isCloudy ? 'var(--amber)' : 'var(--text)'};">${isCloudy ? '74' : '100'}<span class="f-unit">%</span></div>
+              <div class="f-sub">${isCloudy ? (en ? 'Bright · 09:10' : '偏亮 · 09:10 亮') : (en ? 'Full dark' : '全暗')}</div>
             </div>
           </div>
 
-          <div class="hero-tags">
-            <button type="button" class="hero-tag t-amber hero-tag-btn">⚡ ${en ? 'G1 storm active ›' : 'G1 地磁暴進行中 ›'}</button>
-            <span class="hero-tag t-blue">◎ ${en ? 'ENTC obs' : 'ENTC 實測'}</span>
-          </div>
-
-          <div class="fc-strip">
-            <span>${isCloudy ? (en ? 'By 16:24: Score <strong>2</strong>, steady' : '16:24 前：指數 <strong>2</strong>，變化不大') : (en ? 'By 21:47: Score <strong style="color:var(--green);">88</strong>, steady' : '21:47 前：指數 <strong style="color:var(--green);">88</strong>，變化不大')}</span>
-            <button class="fc-conf-btn" type="button">${en ? 'Details ›' : '說明 ›'}</button>
+          <div class="cond-foot">
+            <div class="hero-tags">
+              <button type="button" class="meta-item meta-btn t-amber">${stormSvg}<span>${en ? 'G1 storm active' : '地磁暴進行中'}</span></button>
+              <span class="meta-sep" aria-hidden="true"></span>
+              <span class="meta-item t-muted">${metarSvg}<span>${en ? 'Airport calibrated' : '機場實測校正'}</span></span>
+            </div>
+            <button class="fc-conf-btn" type="button"><span>${en ? 'Details' : '說明'}</span>${chevSvg}</button>
           </div>
         </div>
       </section>
@@ -216,20 +217,26 @@ html { font-size: ${rootPx}px !important; }
       <section class="card" id="waveCard">
         <h2 class="wave-h2">
           <span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 4.8V8l2.2 1.4"/></svg><span>${en ? 'Hourly trend' : '逐時趨勢'}</span></span>
-          <span class="wave-range">${en ? '24h · Scrub' : '24 小時 · 滑動查看'}</span>
+          <span class="wave-range">${en ? '24h · Scrub or tap' : '24 小時 · 滑動或點選'}</span>
         </h2>
         <div class="wave-peak">${en ? 'Best <strong>19:00–04:00</strong> · peaks <strong>21:00</strong>' : '今晚 <strong>19:00–04:00</strong> 極佳 · <strong>21:00</strong> 最強'}</div>
-        <div class="chart-box"><svg class="chart-svg" viewBox="0 0 420 154">${waveSvg}</svg></div>
-        <div class="hr-detail">
-          <span class="hr-det-main"><strong>21:00</strong> <strong style="color:var(--green);">84</strong> <span style="color:var(--green);">${en ? 'Excellent' : '極佳'}</span></span>
-          <span class="hr-det-meta">${en ? '94% clear · Full dark · -5°C · Kp 5.0' : '晴 94% · 全暗 · -5°C · Kp 5.0'}</span>
+        <div class="chart-box"><svg class="chart-svg" viewBox="0 0 420 156">${waveSvg}</svg></div>
+        <div class="scrub-bar">
+          <div class="hr-detail">
+            <div class="sb-top"><strong>21:00</strong><strong style="color:var(--green);">84</strong><span style="color:var(--green);">${en ? 'Excellent' : '極佳'}</span></div>
+            <div class="sb-bot">${en ? '94% clear · Full dark · -5°C · Kp 5.0' : '晴空 94% · 全暗 · -5°C · Kp 5.0'}</div>
+          </div>
+          <div class="steppers">
+            <button class="step-btn" type="button" aria-label="prev">${stepPrevSvg}</button>
+            <button class="step-btn" type="button" aria-label="next">${stepNextSvg}</button>
+          </div>
         </div>
       </section>
 
       <section class="card" id="outlookCard">
         <h2 class="h2-with-info">
           <span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1.8v2.4M11 1.8v2.4M2 6.8h12"/></svg><span>${en ? 'Next 3 nights' : '未來三晚'}</span></span>
-          <button class="info-btn" type="button">ⓘ</button>
+          <button class="info-btn" type="button"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.6"/><circle cx="8" cy="5.1" r="0.7" fill="currentColor" stroke="none"/></svg></button>
         </h2>
         <div class="outlook-grid">${outlookHtml}</div>
         <p class="od-note">${en ? 'Clouds & Kp shift — recheck 3h before going out.' : '明後天雲量與 Kp 變動較大，出發前 3 小時請再確認。'}</p>
@@ -238,7 +245,7 @@ html { font-size: ${rootPx}px !important; }
       <section class="card card-sw ${swExpanded ? 'sw-expanded' : ''}" id="solarWindCard">
         <h2>
           <span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.2 1.8L3.8 9h4.1l-1.1 5.2L12.2 7H8.1l1.1-5.2z"/></svg><span>${en ? 'Aurora early warning' : '極光即時預警'}</span></span>
-          <span class="sw-badge ${swExpanded ? 'sw-warn' : (isCloudy ? '' : 'sw-good')}">${swExpanded ? (en ? '~48m · Building' : '提前 48 分鐘 · 能量累積') : (isCloudy ? (en ? '~52m · Quiet' : '提前 52 分鐘 · 維持平靜') : (en ? '~40m · May brighten' : '提前 40 分鐘 · 可能變亮'))}</span>
+          <span class="sw-badge ${swExpanded ? 'sw-warn' : (isCloudy ? '' : 'sw-good')}">${swExpanded ? (en ? '~48m · Building' : '約 48 分後 · 能量累積') : (isCloudy ? (en ? '~52m · Quiet' : '約 52 分後 · 維持平靜') : (en ? '~40m · May brighten' : '約 40 分後 · 可能變亮'))}</span>
         </h2>
         <div class="sw-summary ${swExpanded ? 'sw-sum-warn' : (isCloudy ? '' : 'sw-sum-good')}">${swExpanded
           ? (en ? 'Solar wind energy is building — aurora may strengthen within ~48 min.' : '極光能量正在累積，未來 48 分鐘內有機會轉強。')
@@ -247,13 +254,20 @@ html { font-size: ${rootPx}px !important; }
               : (en ? 'Incoming solar wind is strong — aurora may brighten in ~40 min.' : '上游衛星測得強極光能量，約 40 分鐘內可能變亮，建議留意天空。'))}</div>
         <div class="sw-meter">${swMeterHtml}</div>
         <button class="sw-toggle-btn" type="button"><span>${swExpanded
-          ? (en ? 'Hide 2h satellite chart · Scrub to inspect' : '收起 2 小時衛星曲線 · 滑動查看數值')
-          : (isCloudy ? (en ? '2h satellite chart (Bz +2.8 · 365 km/s)' : '2 小時衛星曲線（Bz +2.8 · 365 km/s）') : (en ? '2h satellite chart (Bz -6.8 · 540 km/s)' : '2 小時衛星曲線（Bz -6.8 · 540 km/s）'))}</span><span class="sw-chev">▾</span></button>
+          ? (en ? 'Hide 2h energy chart · Scrub or tap' : '收起 2 小時能量曲線 · 滑動或點選')
+          : (en ? 'View 2h energy chart' : '查看 2 小時能量曲線')}</span><svg class="sw-chev" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 6.2L8 10l3.8-3.8"/></svg></button>
         ${swExpanded ? `<div class="sw-curve-panel">
-          <div class="chart-box" style="margin-top:9px;"><svg id="bzChart" class="chart-svg" viewBox="0 0 420 170">${bzSvg}</svg></div>
-          <div id="bzDetail" class="hr-detail">
-            <span class="hr-det-main"><strong>16:48</strong> <strong style="color:var(--amber);">46</strong> <span style="color:var(--amber);">${en ? 'Building' : '能量累積'}</span></span>
-            <span class="hr-det-meta">${en ? 'In ~28m · Bz -3.8 nT · 480 km/s' : '約 28 分後抵達 · Bz -3.8 nT · 480 km/s'}</span>
+          <div class="bz-html-head"><span>${en ? 'Upstream satellite energy' : '衛星即時太陽風能量'}</span><strong>${en ? 'Building · Bz -3.8 nT · 480 km/s' : '能量累積 · Bz -3.8 nT · 480 km/s'}</strong></div>
+          <div class="chart-box" style="margin-top:4px;"><svg id="bzChart" class="chart-svg" viewBox="0 0 420 156">${bzSvg}</svg></div>
+          <div class="scrub-bar">
+            <div id="bzDetail" class="hr-detail">
+              <div class="sb-top"><strong>16:48</strong><strong style="color:var(--amber);">46</strong><span style="color:var(--amber);">${en ? 'Building' : '能量累積'}</span></div>
+              <div class="sb-bot">${en ? 'In ~28m · Bz -3.8 nT · 480 km/s' : '約 28 分後抵達 · Bz -3.8 nT · 480 km/s'}</div>
+            </div>
+            <div class="steppers">
+              <button class="step-btn" type="button" aria-label="prev">${stepPrevSvg}</button>
+              <button class="step-btn" type="button" aria-label="next">${stepNextSvg}</button>
+            </div>
           </div>
           <div class="hr-legend"><span>${en ? 'Right of dashed line = arriving by 17:07' : '虛線右側＝已測得太陽風，預估於 17:07 前陸續到達'}</span></div>
         </div>` : ''}
@@ -263,9 +277,9 @@ html { font-size: ${rootPx}px !important; }
 
   <nav class="bottom-nav">
     <div class="bottom-inner">
-      <button class="nav-btn on" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3m0 12v3M4.93 4.93l2.12 2.12m9.9 9.9 2.12 2.12M3 12h3m14 0h3M4.93 19.07l2.12-2.12m9.9-9.9 2.12-2.12"/><circle cx="12" cy="12" r="4"/></svg><span>${en ? 'Overview' : '總覽'}</span></button>
-      <button class="nav-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg><span>${en ? 'Clear skies' : '找晴空'}</span></button>
-      <button class="nav-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg><span>${en ? 'Live map' : '實拍雲圖'}</span></button>
+      <button class="nav-btn on" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2L12 3z"/></svg><span>${en ? 'Overview' : '總覽'}</span></button>
+      <button class="nav-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg><span>${en ? 'Clear skies' : '找晴空'}</span></button>
+      <button class="nav-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg><span>${en ? 'Live map' : '實拍雲圖'}</span></button>
     </div>
   </nav>
 
@@ -275,7 +289,7 @@ html { font-size: ${rootPx}px !important; }
       const vw = Math.min(window.innerWidth, document.documentElement.clientWidth || window.innerWidth);
       const vh = window.innerHeight;
       const effEm = vw / rootPx;
-      document.body.classList.toggle('a11y-large', effEm <= 17.8);
+      document.body.classList.toggle('a11y-large', effEm <= 19.6);
       document.body.classList.toggle('a11y-xlarge', effEm <= 15.2);
       if (${scrollY} > 0) {
         window.scrollTo({ top: ${scrollY}, behavior: 'instant' });
@@ -288,7 +302,7 @@ html { font-size: ${rootPx}px !important; }
       }
 
       // 1. Element right/left clip & text truncation checks
-      const checkSel = '.hdr-loc-name, .hdr-loc-meta, .hdr-tools, .ring-num, .ring-grade, .sky-title, .f-box, .f-lbl, .f-val, .f-sub, .hero-tag, .fc-strip, .wave-peak, .hr-detail, .outlook-row, .od-day, .od-score, .od-badge, .od-stat, .sw-summary, .sw-meter, .sw-meter-axis, .bottom-nav, .nav-btn';
+      const checkSel = '.hdr-loc-name, .hdr-loc-meta, .hdr-tools, .ring-sub, .ring-num, .ring-grade, .sky-title, .hero-cta, .f-box, .f-lbl, .f-val, .f-sub, .cond-foot, .meta-item, .wave-peak, .scrub-bar, .hr-detail, .steppers, .outlook-row, .od-day, .od-score, .od-badge, .od-stat, .sw-summary, .sw-meter, .sw-meter-axis, .bz-html-head, .bottom-nav, .nav-btn';
       for (const el of document.querySelectorAll(checkSel)) {
         const r = el.getBoundingClientRect();
         if (r.width === 0 || r.height === 0) continue;
@@ -300,8 +314,8 @@ html { font-size: ${rootPx}px !important; }
         }
       }
 
-      // 2. Sibling overlap detection
-      const pairGroups = ['.hdr', '.factors', '.f-head', '.od-row-top', '.od-row-sub', '.sw-meter-axis', '.bottom-inner'];
+      // 2. Sibling overlap detection (including header 44px glove hit-zone gap verification)
+      const pairGroups = ['.hdr', '.hdr-tools', '.factors', '.cond-foot', '.scrub-bar', '.steppers', '.od-row-top', '.od-row-sub', '.sw-meter-axis', '.bottom-inner'];
       for (const gSel of pairGroups) {
         for (const grp of document.querySelectorAll(gSel)) {
           const kids = Array.from(grp.children).filter(c => {
@@ -320,6 +334,12 @@ html { font-size: ${rootPx}px !important; }
             }
           }
         }
+      }
+      // Header icon hit-zone check: 38px + inset:-3px requires >=6px visual gap
+      const hdrBtns = Array.from(document.querySelectorAll('.hdr-tools .icon-btn'));
+      for (let i = 0; i + 1 < hdrBtns.length; i++) {
+        const gap = hdrBtns[i + 1].getBoundingClientRect().left - hdrBtns[i].getBoundingClientRect().right;
+        if (gap < 6) issues.push('HDR_HIT_ZONE_OVERLAP: gap=' + gap.toFixed(1) + 'px < 6px');
       }
 
       // 3. EN zero-CJK-leak audit (including SVG text nodes!)
@@ -361,7 +381,15 @@ html { font-size: ${rootPx}px !important; }
       const chartRect = document.querySelector('#waveCard .chart-svg').getBoundingClientRect();
       const navRect = document.querySelector('.bottom-nav').getBoundingClientRect();
       if (${height} === 844 && ${scrollY} === 0 && ${rootPx} <= 19) {
-        if (chartRect.bottom > navRect.top + 8) {
+        if (${JSON.stringify(isCloudy)}) {
+          const cta = document.getElementById('vActionBtn');
+          if (!cta || cta.getBoundingClientRect().height < 46) {
+            issues.push('CLOUDY_CTA_TOO_SMALL');
+          }
+          if (waveRect.top > navRect.top - 48) {
+            issues.push('ABOVE_THE_FOLD_CLOUDY_WAVE_HIDDEN: waveTop=' + waveRect.top.toFixed(1));
+          }
+        } else if (chartRect.bottom > navRect.top + 8) {
           issues.push('ABOVE_THE_FOLD_CUT: chart bottom=' + chartRect.bottom.toFixed(1) + ' > bottomNav top=' + navRect.top.toFixed(1));
         }
       }
@@ -394,16 +422,16 @@ const cases = [
   { id: 'ios15_17_red', label: 'iPhone 15 17px Red Scrolled', rootPx: 17, width: 390, height: 844, safeTop: 59, safeBottom: 34, scrollY: 260, redMode: true },
   { id: 'ios15_19_bz_scrub', label: 'iPhone 15 19px 2h Curve Scrub', rootPx: 19, width: 390, height: 844, safeTop: 59, safeBottom: 34, scrollY: 820, swExpanded: true },
   // Full-page multi-font-size stress matrix (14px -> 28px at exact 360px / 390px!)
-  { id: 'f14_360', label: '14px Compact (360px)', rootPx: 14, width: 360, height: 1120 },
-  { id: 'f16_360', label: '16px Android (360px)', rootPx: 16, width: 360, height: 1160 },
-  { id: 'f17_390', label: '17px iPhone Default (390px)', rootPx: 17, width: 390, height: 1180 },
-  { id: 'f19_390', label: '19px iOS Large (390px)', rootPx: 19, width: 390, height: 1250 },
-  { id: 'f21_390', label: '21px iOS XL (390px)', rootPx: 21, width: 390, height: 1340 },
-  { id: 'f24_390', label: '24px iOS AX1 Reflow (390px)', rootPx: 24, width: 390, height: 1780 },
-  { id: 'f28_390', label: '28px iOS AX3 Stress (390px)', rootPx: 28, width: 390, height: 2120 },
-  { id: 'f17_390_cloudy', label: '17px Cloudy + 78% Moon', rootPx: 17, width: 390, height: 1180, mode: 'cloudy' },
-  { id: 'f17_390_red', label: '17px Red-Mode Full', rootPx: 17, width: 390, height: 1180, redMode: true },
-  { id: 'f17_390_en', label: '17px EN Full', rootPx: 17, width: 390, height: 1180, lang: 'en' }
+  { id: 'f14_360', label: '14px Compact (360px)', rootPx: 14, width: 360, height: 1160 },
+  { id: 'f16_360', label: '16px Android (360px)', rootPx: 16, width: 360, height: 1230 },
+  { id: 'f17_390', label: '17px iPhone Default (390px)', rootPx: 17, width: 390, height: 1265 },
+  { id: 'f19_390', label: '19px iOS Large (390px)', rootPx: 19, width: 390, height: 1380 },
+  { id: 'f21_390', label: '21px iOS XL Reflow (390px)', rootPx: 21, width: 390, height: 1580 },
+  { id: 'f24_390', label: '24px iOS AX1 Reflow (390px)', rootPx: 24, width: 390, height: 1790 },
+  { id: 'f28_390', label: '28px iOS AX3 Stress (390px)', rootPx: 28, width: 390, height: 2200 },
+  { id: 'f17_390_cloudy', label: '17px Cloudy + 48px CTA', rootPx: 17, width: 390, height: 1340, mode: 'cloudy' },
+  { id: 'f17_390_red', label: '17px Red-Mode AA Full', rootPx: 17, width: 390, height: 1265, redMode: true },
+  { id: 'f17_390_en', label: '17px EN Full', rootPx: 17, width: 390, height: 1280, lang: 'en' }
 ];
 
 for (const c of cases) {
@@ -451,11 +479,11 @@ const iosHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>
   p { margin: 0 0 22px; color: #9ab0cc; font-size: 14px; }
   .grid { display: flex; gap: 22px; align-items: flex-start; }
   .col { flex-shrink: 0; }
-  .lbl { font-size: 15px; font-weight: 600; margin-bottom: 10px; color: #48d8a2; }
-  iframe { border: 2px solid rgba(255,255,255,0.22); border-radius: 42px; display: block; background: #070d18; }
+  .lbl { font-size: 15px; font-weight: 600; margin-bottom: 10px; color: #58dba4; }
+  iframe { border: 2px solid rgba(255,255,255,0.22); border-radius: 42px; display: block; background: #08101c; }
 </style></head><body>
-  <h1>v35 Real iPhone 15 (390×844) Safe-Area, Scroll-Bleed &amp; Interactive 2h Scrub QA</h1>
-  <p>Simulated iOS status bar (59px) + home indicator (34px) · Top, Mid-Scroll &amp; Expanded 2h Scrub · 17px &amp; 19px · EN &amp; Red-Mode</p>
+  <h1>v36 Direction B (Nordic Atmospheric 1P) — Real iPhone 15 (390×844) QA</h1>
+  <p>Simulated iOS status bar (59px) + home indicator (34px) · Top, Mid-Scroll, Cloudy 48px CTA &amp; Expanded 2h Scrub · 17px &amp; 19px · EN &amp; WCAG AA Red-Mode</p>
   <div class="grid">
     ${iosIds.map(id => {
       const c = cases.find(x => x.id === id);
@@ -479,11 +507,11 @@ const fontHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>
   p { margin: 0 0 22px; color: #9ab0cc; font-size: 15px; }
   .grid { display: flex; gap: 22px; align-items: flex-start; }
   .col { flex-shrink: 0; }
-  .lbl { font-size: 16px; font-weight: 600; margin-bottom: 10px; color: #48d8a2; }
-  iframe { border: 1.5px solid rgba(255,255,255,0.18); border-radius: 26px; display: block; background: #070d18; }
+  .lbl { font-size: 16px; font-weight: 600; margin-bottom: 10px; color: #58dba4; }
+  iframe { border: 1.5px solid rgba(255,255,255,0.18); border-radius: 26px; display: block; background: #08101c; }
 </style></head><body>
-  <h1>v34 Compact Apple 1P — Full-Page Multi-Font Stress Matrix (14px → 28px)</h1>
-  <p>14px–21px stays compact 3-col (~1,080px total height, -37% vs v33) · Automatic AX reflow at ≥24px · Horizontal 3-Night rows &amp; flat Early-Warning card</p>
+  <h1>v36 Direction B (Nordic Atmospheric 1P) — Multi-Font Stress Matrix (14px → 28px)</h1>
+  <p>14px–19px compact 3-col · Clean AX-L reflow at ≥21px (zero orphan wrap) · 44px glove steppers · Honest 25/37/38 solar-wind scale</p>
   <div class="grid">
     ${fontIds.map(id => {
       const c = cases.find(x => x.id === id);
@@ -494,22 +522,22 @@ const fontHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>
 fs.writeFileSync(path.join(OUT, 'v34_font_matrix.html'), fontHtml);
 execFileSync(chrome, [
   '--headless=new', '--no-sandbox', '--disable-gpu', '--allow-file-access-from-files',
-  '--window-size=2880,2260', '--force-device-scale-factor=1',
+  '--window-size=2880,2360', '--force-device-scale-factor=1',
   `--screenshot=${path.join(OUT, 'v34_font_matrix.png')}`,
   `file://${path.join(OUT, 'v34_font_matrix.html')}`
 ], { stdio: 'pipe' });
 
-// Render Sheet 3: Full-Page 4-State Visual Showcase (Prime · Cloudy+Moon · Red-Mode · EN)
+// Render Sheet 3: Full-Page 4-State Visual Showcase (Prime · Cloudy+CTA · WCAG AA Red-Mode · EN)
 const stateIds = ['f17_390', 'f17_390_cloudy', 'f17_390_red', 'f17_390_en'];
 const stateHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>
   body { margin: 0; padding: 28px; background: #040812; color: #f4f7fc; font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; }
   h1 { margin: 0 0 20px; font-size: 26px; font-weight: 700; }
   .grid { display: flex; gap: 22px; align-items: flex-start; }
   .col { flex-shrink: 0; }
-  .lbl { font-size: 16px; font-weight: 600; margin-bottom: 10px; color: #70b9ff; }
-  iframe { border: 1.5px solid rgba(255,255,255,0.18); border-radius: 26px; display: block; background: #070d18; }
+  .lbl { font-size: 16px; font-weight: 600; margin-bottom: 10px; color: #7cc0f0; }
+  iframe { border: 1.5px solid rgba(255,255,255,0.18); border-radius: 26px; display: block; background: #08101c; }
 </style></head><body>
-  <h1>v34 Visual States QA (Prime · Cloudy+78% Moon · Zero-Leak Red · EN)</h1>
+  <h1>v36 Direction B Visual States QA (Prime · Cloudy+48px CTA · WCAG AA Red · EN)</h1>
   <div class="grid">
     ${stateIds.map(id => {
       const c = cases.find(x => x.id === id);
@@ -520,7 +548,7 @@ const stateHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>
 fs.writeFileSync(path.join(OUT, 'v34_visual_states.html'), stateHtml);
 execFileSync(chrome, [
   '--headless=new', '--no-sandbox', '--disable-gpu', '--allow-file-access-from-files',
-  '--window-size=1700,1300', '--force-device-scale-factor=1',
+  '--window-size=1700,1460', '--force-device-scale-factor=1',
   `--screenshot=${path.join(OUT, 'v34_visual_states.png')}`,
   `file://${path.join(OUT, 'v34_visual_states.html')}`
 ], { stdio: 'pipe' });

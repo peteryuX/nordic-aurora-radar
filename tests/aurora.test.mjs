@@ -321,7 +321,7 @@ test('12. All SVG builders produce clean markup with strictly uniform X-axis int
   const bal = api.computeBallisticCoupling(series, 400);
   const bzSvg = api.buildBzChartSVG(series, 'Europe/Oslo', 400, bal, 'zh');
   assert.ok(bzSvg.includes('<polyline') && !bzSvg.includes('NaN') && !bzSvg.includes('undefined'));
-  const bzTicks = [...bzSvg.matchAll(/<text[^>]*y="163"[^>]*>(\d{2}:\d{2})<\/text>/g)].map(m => m[1]);
+  const bzTicks = [...bzSvg.matchAll(/<text[^>]*y="150"[^>]*>(\d{2}:\d{2})<\/text>/g)].map(m => m[1]);
   assert.deepEqual(bzTicks, ['22:30', '23:00', '23:30'], `Expected uniform 30-min ticks, got ${JSON.stringify(bzTicks)}`);
   assert.equal(api.utcTagToLocalHM('2026-11-23T20:59:00', 'Europe/Oslo', 60), '22:59');
 
@@ -332,7 +332,7 @@ test('12. All SVG builders produce clean markup with strictly uniform X-axis int
   }));
   const waveSvg = api.buildSkyWaveSVG(hrs, hrs[3], 5, 'zh');
   assert.ok(waveSvg.includes('class="sc-bar"') && !waveSvg.includes('<polyline') && !waveSvg.includes('NaN') && !waveSvg.includes('undefined'));
-  const waveTicks = [...waveSvg.matchAll(/<text[^>]*y="146"[^>]*>(\d{2}:\d{2})<\/text>/g)].map(m => m[1]);
+  const waveTicks = [...waveSvg.matchAll(/<text[^>]*y="148"[^>]*>(\d{2}:\d{2})<\/text>/g)].map(m => m[1]);
   assert.deepEqual(waveTicks, ['22:00', '00:00', '02:00', '04:00', '06:00', '08:00']);
 
   const dirs = [
@@ -1437,7 +1437,7 @@ test('40. Dark-window countdown, distance km, Chinese search, cross-tab action s
 
   const svgZh = api.buildCompassRadarSVG(dirs, { lat: 69.6492, lon: 18.9553 }, 'zh');
   const svgEn = api.buildCompassRadarSVG(dirs, { lat: 69.6492, lon: 18.9553 }, 'en');
-  assert.ok(svgZh.includes('✓ 80%') && svgZh.includes('晴 15%'), 'ZH radar SVG should show Clear Sky % with status glyph');
+  assert.ok(svgZh.includes('✓ 80%') && svgZh.includes('晴空 15%') && svgZh.includes('data-dir-key="E"'), 'ZH radar SVG should show unified Clear Sky % with status glyph and clickable data-dir-key');
   assert.ok(svgEn.includes('✓ 80%') && !cjkRe.test(svgEn), 'EN radar SVG should show Clear Sky % with status glyph and zero CJK');
 
   // 5. Cross-tab synthesizeTonightAction (DRIVE, GO, WAIT, SLEEP, DAYLIGHT)
@@ -1780,16 +1780,16 @@ test('44. Overcast CME shock verdict never contradicts score with fake rising co
   assert.ok(/雲層偏厚|厚雲|多雲/.test(actZh.lead) && actZh.ctaView === 'dir', 'Overcast shock must warn about clouds and link to Clear-Sky Radar');
   assert.ok(!actEn.title.toLowerCase().includes('rising') && actEn.ctaView === 'dir', `EN overcast shock must not claim rising: ${actEn.title}`);
 
-  // Chart 2: ★ HH:MM Best badge must stay anchored over far-left best hour (x=56), never shifted to middle daytime!
+  // Chart 2: Frameless HH:MM Best callout must stay anchored over far-left best hour (x=56), never shifted to middle daytime!
   const hrsLeftBest = Array.from({ length: 12 }, (_, i) => ({
     time: `${String((6 + i) % 24).padStart(2, '0')}:00`,
     clear: i === 0 ? 63 : 30, block: i === 0 ? 37 : 70, score: i === 0 ? 18 : 0, temp: 2,
     isDay: i >= 3 && i <= 8
   }));
   const svgLeft = api.buildSkyWaveSVG(hrsLeftBest, hrsLeftBest[0], 0, 'zh');
-  assert.ok(svgLeft.includes('★ 06:00 最佳'), 'Best badge must include exact best hour 06:00');
+  assert.ok(svgLeft.includes('>06:00 最佳<'), 'Best callout must include exact best hour 06:00');
   assert.ok(svgLeft.includes('x1="56.0" y1="18"'), 'Best vertical pointer stem must anchor directly to 06:00 (x=56)');
-  assert.ok(svgLeft.includes('x="56.0" y="1"'), 'Best pill must sit at left edge above 06:00, not shifted to x=224');
+  assert.ok(svgLeft.includes('x="92.0" y="13.5"'), 'Best callout must stay clamped near left edge above 06:00, not shifted to x=224');
   assert.ok(svgLeft.includes('天色過亮'), 'Contiguous daylight band must be clearly labeled');
 });
 
@@ -2299,6 +2299,36 @@ test('50. Bilingual copy, localization & single-metric chart clarity lint gate (
   const bzNoScrubSvg = api.buildBzChartSVG(bzSeries, 'Europe/Oslo', 480, api.computeBallisticCoupling(bzSeries, 480), 'zh', -1);
   assert.ok(bzScrubSvg.includes('data-role="scrubber"') && bzScrubSvg.includes('data-role="scrubber-dot"'), 'buildBzChartSVG must render interactive vertical scrubber hairline and active point dot when selectedIdx is set');
   assert.ok(!bzNoScrubSvg.includes('data-role="scrubber"'), 'buildBzChartSVG must omit scrubber elements when selectedIdx is -1');
+
+  // 13. v36 Direction B (Nordic Atmospheric 1P) & 5-expert cross-generational P0 contracts
+  assert.ok(!cssSrc.includes('body.red-mode .hero-tag'), 'v36 must remove legacy sepia filter hack on .hero-tag in red-mode');
+  assert.ok(cssSrc.includes('grid-template-columns: 25fr 37fr 38fr;'), 'Solar-wind meter axis must align honestly to real 25%/62% thresholds');
+  assert.ok(cssSrc.includes('minmax(4.2em, auto) 20px 1fr auto'), 'a11y-large 3-night outlook must keep EN/ZH day labels aligned');
+  assert.ok(cssSrc.includes('body.red-mode .dir.hazard'), 'red-mode must distinguish hazard cards structurally (dashed border)');
+  assert.ok(html.includes('id="hrPrevBtn"') && html.includes('id="hrNextBtn"') && html.includes('id="bzPrevBtn"') && html.includes('id="bzNextBtn"'), 'Both interactive charts must provide glove-friendly 44px stepper buttons');
+  assert.ok(html.includes('id="ringSubLbl" class="ring-sub"') && !html.includes('id="ringSubLbl" class="sr-only"'), 'Hero score label (觀測指數) must be visible above the score');
+  assert.ok(!html.includes('class="f-track"'), '3-condition strip must drop shouting mini progress bars');
+  assert.ok(appSrc.includes('fmtWinterDrive') && appSrc.includes('auroraStrengthWord') && appSrc.includes('仍要導航'), 'app.js must expose winter drive time, plain aurora strength word, and honest hazard navigation CTA');
+  assert.ok(appSrc.includes('420 - 56 - 10'), 'bindWaveScrubbing plotW must match buildSkyWaveSVG padR=10 with zero touch drift');
+  // Verify WCAG AA (>=4.5:1) contrast of all red-mode text tokens against red-mode --surface (#0e0101)
+  const relLum = hex => {
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contrast = (h1, h2) => {
+    const l1 = relLum(h1), l2 = relLum(h2);
+    return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+  };
+  const redBlock = cssSrc.match(/body\.red-mode\s*\{([^}]+)\}/)?.[1] || '';
+  const redTok = name => redBlock.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})`))?.[1];
+  const redSurf = redTok('surface');
+  assert.ok(redSurf, 'body.red-mode must define hex --surface');
+  for (const tok of ['text', 'text-soft', 'muted', 'green', 'amber', 'blue', 'red']) {
+    const hex = redTok(tok);
+    assert.ok(hex, `body.red-mode must define hex --${tok}`);
+    const ratio = contrast(hex, redSurf);
+    assert.ok(ratio >= 4.5, `body.red-mode --${tok} (${hex}) vs --surface (${redSurf}) contrast ${ratio.toFixed(2)}:1 < 4.5:1 WCAG AA`);
+  }
 });
 
 

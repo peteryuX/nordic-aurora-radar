@@ -89,23 +89,23 @@
         <span class="hdr-loc-row">
           <svg id="gpsDot" class="loc-arrow" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M21 3 3 10.53v.98l6.84 2.65L12.48 21h.98z" fill="currentColor"/></svg>
           <span id="locName" class="hdr-loc-name">挪威 · Alta</span>
-          <span class="chev">▾</span>
+          <svg class="chev-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.2 6.2L8 10l3.8-3.8"/></svg>
         </span>
         <span id="locMeta" class="hdr-loc-meta">
           <span id="clkLbl">當地</span> <span id="clk">--:--</span>
-          <span aria-hidden="true">·</span>
+          <span id="clkDot" aria-hidden="true">·</span>
           <span id="syncTime">同步中</span>
         </span>
       </button>
       <div class="hdr-tools">
         <button id="redBtn" class="icon-btn" type="button" aria-pressed="false" title="紅光夜視模式" aria-label="紅光夜視模式">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg>
         </button>
         <button id="alertBtn" class="icon-btn" type="button" aria-pressed="false" title="螢幕常亮監測提醒" aria-label="螢幕常亮監測提醒">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8.5a6 6 0 0 0-12 0c0 6.5-2.5 8.5-2.5 8.5h17S18 15 18 8.5"/><path d="M13.7 20.5a2 2 0 0 1-3.4 0"/></svg>
         </button>
         <button id="trustBtn" class="icon-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet" title="更多設定與指數說明" aria-label="更多設定與指數說明">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="19" cy="12" r="1.4" fill="currentColor"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5.5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="18.5" cy="12" r="1.2" fill="currentColor"/></svg>
         </button>
       </div>
       <div id="syncBar" class="sync-bar" aria-hidden="true"></div>
@@ -123,16 +123,18 @@
       <a id="stormBanner" class="storm-banner" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/alerts-watches-and-warnings"></a>
       <div id="lineTip" class="line-tip">
         <span id="lineTipTxt">若在 App 內建瀏覽器無法使用 GPS，請改用 Safari / Chrome 開啟，或點上方地名切換。</span>
-        <button id="lineTipClose" class="tip-close" type="button" aria-label="關閉">✕</button>
+        <button id="lineTipClose" class="tip-close" type="button" aria-label="關閉">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+        </button>
       </div>
     </div>
 
-    <!-- VIEW 1: OVERVIEW (Compact iOS 18 Atmospheric Hero -> 3-Metric Glass -> 24h Trend -> 3-Night Rows -> Aurora Early Warning) -->
+    <!-- VIEW 1: OVERVIEW (Direction B: Nordic Atmospheric 1P -> Universal 3-Condition Strip -> 24h Trend -> 3-Night Rows -> Early Warning) -->
     <main id="v-home" class="view on">
       <section class="sky-hero">
         <div class="sky-stage">
           <button id="ringBtn" class="hero-score-btn ring-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet" aria-label="查看指數算法與可信度">
-            <div id="ringSubLbl" class="ring-sub sr-only">觀測指數</div>
+            <div id="ringSubLbl" class="ring-sub">觀測指數</div>
             <div id="ringNum" class="ring-num">--</div>
             <div id="ringGrade" class="ring-grade">計算中</div>
           </button>
@@ -144,61 +146,56 @@
         </div>
 
         <div class="sky-body">
-          <!-- Unified 3-Column Frosted Glass Metrics (Visual Micro-Icons + Compact Single-Line Sub-Labels) -->
+          <!-- Universal 3-Condition Strip (Plain language: Clear Sky % · Aurora Strength · Darkness %) -->
           <div class="factors">
             <div class="f-box">
-              <div class="f-head">
-                <div class="f-lbl-row"><span id="fSkyIco" class="f-ico" aria-hidden="true"></span><span id="fSkyLbl" class="f-lbl">晴空率</span></div>
-                <span id="fSkyVal" class="f-val skel-val">--</span>
-              </div>
-              <div class="f-track"><div id="fSkyBar" class="f-fill"></div></div>
+              <div class="f-lbl-row"><span id="fSkyIco" class="f-ico" aria-hidden="true"></span><span id="fSkyLbl" class="f-lbl">晴空率</span></div>
+              <div id="fSkyVal" class="f-val skel-val">--</div>
               <div id="fSkySub" class="f-sub skel-sub">讀取中…</div>
             </div>
             <div class="f-box">
-              <div class="f-head">
-                <div class="f-lbl-row"><span id="fAurIco" class="f-ico" aria-hidden="true"></span><span id="fAurLbl" class="f-lbl">極光活動</span></div>
-                <span id="fAurVal" class="f-val skel-val">--</span>
-              </div>
-              <div class="f-track"><div id="fAurBar" class="f-fill"></div></div>
+              <div class="f-lbl-row"><span id="fAurIco" class="f-ico" aria-hidden="true"></span><span id="fAurLbl" class="f-lbl">極光活動</span></div>
+              <div id="fAurVal" class="f-val skel-val">--</div>
               <div id="fAurSub" class="f-sub skel-sub">讀取中…</div>
             </div>
             <div class="f-box">
-              <div class="f-head">
-                <div class="f-lbl-row"><span id="fDarkIco" class="f-ico" aria-hidden="true"></span><span id="fDarkLbl" class="f-lbl">夜空暗度</span></div>
-                <span id="fDarkVal" class="f-val skel-val">--</span>
-              </div>
-              <div class="f-track"><div id="fDarkBar" class="f-fill"></div></div>
+              <div class="f-lbl-row"><span id="fDarkIco" class="f-ico" aria-hidden="true"></span><span id="fDarkLbl" class="f-lbl">夜空暗度</span></div>
+              <div id="fDarkVal" class="f-val skel-val">--</div>
               <div id="fDarkSub" class="f-sub skel-sub">讀取中…</div>
             </div>
           </div>
 
-          <div id="heroTags" class="hero-tags"></div>
-
-          <div id="fcStrip" class="fc-strip">
-            <span id="fcNextTxt">未來 1 小時：計算中…</span>
-            <button id="fcConfBtn" class="fc-conf-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet">說明 ›</button>
+          <div id="fcStrip" class="cond-foot">
+            <div id="heroTags" class="hero-tags"></div>
+            <button id="fcConfBtn" class="fc-conf-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet"><span>說明</span><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg></button>
           </div>
         </div>
       </section>
 
-      <!-- Card 2 (Fully Above the Fold on iPhone 15): Compact 24h Clear-Sky & Score Trend -->
+      <!-- Card 2: Compact 24h Viewing-Score Trend + Glove-Friendly Stepper Buttons -->
       <section class="card" id="waveCard">
         <h2 class="wave-h2">
           <span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.8V8l2.2 1.4"/></svg><span id="h2Wave">逐時趨勢</span></span>
-          <span id="waveRange" class="wave-range">24 小時 · 滑動查看</span>
+          <span id="waveRange" class="wave-range">24 小時 · 滑動或點選</span>
         </h2>
         <div id="homeBest" class="wave-peak skel-bar">載入中…</div>
         <div class="chart-box">
-          <svg id="skyWaveChart" class="chart-svg" viewBox="0 0 420 154"></svg>
+          <svg id="skyWaveChart" class="chart-svg" viewBox="0 0 420 156"></svg>
         </div>
-        <div id="hourDetail" class="hr-detail"><span>滑動或點擊任一時段查看晴空率、體感溫度與夜空暗度</span></div>
+        <div class="scrub-bar">
+          <div id="hourDetail" class="hr-detail"><span>滑動或點選任一時段查看晴空率、體感溫度與夜空暗度</span></div>
+          <div class="steppers" aria-label="時段微調">
+            <button id="hrPrevBtn" class="step-btn" type="button" aria-label="上一小時"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.5L5.5 8l4.5 4.5"/></svg></button>
+            <button id="hrNextBtn" class="step-btn" type="button" aria-label="下一小時"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5L10.5 8 6 12.5"/></svg></button>
+          </div>
+        </div>
       </section>
 
-      <!-- Card 3: Apple Weather 10-Day Style Compact 3-Night Horizontal Rows -->
+      <!-- Card 3: Compact Horizontal 3-Night Outlook -->
       <section class="card" id="outlookCard">
         <h2 class="h2-with-info">
           <span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1.8v2.4M11 1.8v2.4M2 6.8h12"/></svg><span id="h2Outlook">未來三晚</span></span>
-          <button id="outlookInfoBtn" class="info-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet" aria-label="指數說明">ⓘ</button>
+          <button id="outlookInfoBtn" class="info-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet" aria-label="指數說明"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.6"/><circle cx="8" cy="5.1" r="0.7" fill="currentColor" stroke="none"/></svg></button>
         </h2>
         <div id="outlookGrid" class="outlook-grid">
           <div class="outlook-row skel-day"><div class="od-day">今晚</div><div class="od-score">00</div></div>
@@ -208,7 +205,7 @@
         <p id="outlookNote" class="od-note">明後天雲量與 Kp 變動較大，出發前 3 小時請再確認。</p>
       </section>
 
-      <!-- Card 4: Humanized Aurora Early Warning (30-60 min Upstream L1 Satellite Radar, Zero Nested Boxes) -->
+      <!-- Card 4: Humanized Aurora Early Warning (30-60 min Upstream L1 Satellite Radar) -->
       <section class="card card-sw" id="solarWindCard">
         <h2>
           <span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.2 1.8L3.8 9h4.1l-1.1 5.2L12.2 7H8.1l1.1-5.2z"/></svg><span id="h2Energy">極光即時預警</span></span>
@@ -217,13 +214,21 @@
         <div id="energyBanner" class="sw-summary">正在讀取即時衛星預警…</div>
         <div id="swMeter" class="sw-meter" style="display:none;"></div>
         <button id="swToggleBtn" class="sw-toggle-btn" type="button" aria-expanded="false" aria-controls="swCurvePanel">
-          <span id="swToggleTxt">查看衛星資料與 2 小時曲線</span><span class="sw-chev">▾</span>
+          <span id="swToggleTxt">查看 2 小時能量曲線</span>
+          <svg class="sw-chev" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.2 6.2L8 10l3.8-3.8"/></svg>
         </button>
         <div id="swCurvePanel" class="sw-curve-panel" aria-hidden="true">
-          <div class="chart-box" style="margin-top:9px;">
-            <svg id="bzChart" class="chart-svg" viewBox="0 0 420 170"></svg>
+          <div id="bzHtmlHead" class="bz-html-head"></div>
+          <div class="chart-box" style="margin-top:4px;">
+            <svg id="bzChart" class="chart-svg" viewBox="0 0 420 156"></svg>
           </div>
-          <div id="bzDetail" class="hr-detail"><span>滑動或點擊曲線查看各時段精確數值</span></div>
+          <div class="scrub-bar">
+            <div id="bzDetail" class="hr-detail"><span>滑動或點選曲線查看各時段精確數值</span></div>
+            <div class="steppers" aria-label="曲線時段微調">
+              <button id="bzPrevBtn" class="step-btn" type="button" aria-label="前 5 分鐘"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.5L5.5 8l4.5 4.5"/></svg></button>
+              <button id="bzNextBtn" class="step-btn" type="button" aria-label="後 5 分鐘"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5L10.5 8 6 12.5"/></svg></button>
+            </div>
+          </div>
           <div id="bzFootnote" class="hr-legend">
             <span id="etaHint">時間軸已換算為到達地球的當地時間</span>
           </div>
@@ -256,7 +261,7 @@
     <!-- VIEW 2: 360° CLEAR-SKY DRIVING RADAR -->
     <section id="v-dir" class="view">
       <div class="card">
-        <h2 id="h2Radar">周邊晴空</h2>
+        <h2><span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><polygon points="10.6 5.4 9.2 9.2 5.4 10.6 6.8 6.8 10.6 5.4"/></svg><span id="h2Radar">周邊晴空</span></span></h2>
         <div id="compassSummary" class="callout warn">正在掃描周邊晴空…</div>
         <div class="radar-wrap">
           <svg id="radarSvg" class="radar-svg" viewBox="0 0 320 320"></svg>
@@ -276,7 +281,7 @@
     <!-- VIEW 3: LIVE CLOUD MAP, ALL-SKY CAMS & OVATION -->
     <section id="v-sat" class="view">
       <div class="card" id="skyCamCard">
-        <h2 id="h2Cam">天文台即時全天空實拍</h2>
+        <h2><span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2"/></svg><span id="h2Cam">天文台即時全天空實拍</span></span></h2>
         <p id="subCam" class="card-sub">約每分鐘實拍，請留意畫面內建 UTC 時間戳記確認是否即時：</p>
         <div class="chips" id="camChips" style="margin-bottom:10px;">
           <button id="camBtnUit" class="chip on" type="button" data-cam="uit" data-region="nordic">Tromsø 近郊</button>
@@ -296,7 +301,7 @@
       </div>
 
       <div class="card">
-        <h2><span id="h2Windy">即時動態雲圖</span><a id="windyExtLink" class="tpill tpill-link windy-ext" target="_blank" rel="noopener noreferrer" href="https://www.windy.com/">Windy ↗</a></h2>
+        <h2><span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.6 12.2H5.2a3.4 3.4 0 1 1 3.2-4.6h1a2.4 2.4 0 1 1 2.2 4.6Z"/></svg><span id="h2Windy">即時動態雲圖</span></span><a id="windyExtLink" class="tpill tpill-link windy-ext" target="_blank" rel="noopener noreferrer" href="https://www.windy.com/">Windy ↗</a></h2>
         <p id="subWindy" class="card-sub">已自動對準目前位置，按左下角 ▶ 可播放接下來幾小時雲層移動趨勢：</p>
         <div class="sat-img-wrap" style="height: 330px;">
           <iframe id="windyFrame" title="Windy Live Cloud Map" referrerpolicy="no-referrer" style="width:100%;height:100%;border:0;" loading="lazy"></iframe>
@@ -304,7 +309,7 @@
       </div>
 
       <div class="card">
-        <h2 id="ovHeading">NOAA 北半球即時極光橢圓圖</h2>
+        <h2><span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><ellipse cx="8" cy="6.2" rx="4" ry="1.8"/></svg><span id="ovHeading">NOAA 北半球即時極光橢圓圖</span></span></h2>
         <p id="subOv" class="card-sub">查看綠色／黃色極光帶目前是否覆蓋所在區域（每 5 分鐘自動更新）：</p>
         <div class="sat-img-wrap">
           <img id="ovationImg" class="sat-img" alt="NOAA Live OVATION Aurora Oval" loading="lazy" />
@@ -318,15 +323,15 @@
   <nav class="bottom-nav" aria-label="Main Navigation">
     <div class="bottom-inner">
       <button class="nav-btn on" type="button" data-view="home">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3m0 12v3M4.93 4.93l2.12 2.12m9.9 9.9 2.12 2.12M3 12h3m12 0h3M4.93 19.07l2.12-2.12m9.9-9.9 2.12-2.12"/><circle cx="12" cy="12" r="4"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6-5.6-1.9 5.6-1.9L12 3z"/><path d="M18.5 3.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7.7-2z" opacity="0.65"/></svg>
         <span id="navHome">總覽</span>
       </button>
       <button class="nav-btn" type="button" data-view="dir">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><polygon points="15.8 8.2 13.8 13.8 8.2 15.8 10.2 10.2 15.8 8.2"/></svg>
         <span id="navDir">找晴空</span>
       </button>
       <button class="nav-btn" type="button" data-view="sat">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 18.5H8.8a5.8 5.8 0 1 1 5.4-7.9h1.6a4 4 0 1 1 1.7 7.9Z"/></svg>
         <span id="navSat">實拍雲圖</span>
       </button>
     </div>
