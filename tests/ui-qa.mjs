@@ -327,8 +327,15 @@ html { font-size: ${rootPx}px !important; }
             return r.width > 0 && r.height > 0 && getComputedStyle(c).position !== 'absolute';
           });
           for (let i = 0; i < kids.length; i++) {
+            const a = kids[i].getBoundingClientRect();
+            // Catch flex-shrunk container spillover (e.g., nowrap child spilling outside min-width:0 .hero-tags onto sibling!)
+            if (kids[i].scrollWidth > kids[i].clientWidth + 2) {
+              const innerSpill = Array.from(kids[i].querySelectorAll('*')).some(ch => ch.getBoundingClientRect().right > a.right + 2);
+              if (innerSpill) {
+                issues.push('FLEX_SPILLOVER in ' + gSel + ': ' + kids[i].className + ' sw=' + kids[i].scrollWidth + ' > cw=' + kids[i].clientWidth);
+              }
+            }
             for (let j = i + 1; j < kids.length; j++) {
-              const a = kids[i].getBoundingClientRect();
               const b = kids[j].getBoundingClientRect();
               const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
               const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
@@ -354,9 +361,9 @@ html { font-size: ${rootPx}px !important; }
         }
       }
 
-      // 4. Vocabulary consistency check: ZERO "月光" or "月亮已落下" in Overview UI
-      if (/月光|月亮已落下/.test(document.body.innerText)) {
-        issues.push('VOCAB_DRIFT: Found 月光/月亮已落下 in Overview UI instead of unified 夜空暗度/暗度/全暗');
+      // 4. Vocabulary consistency check: ZERO "月光", "月亮已落下", or cryptic "機場" in Overview UI
+      if (/月光|月亮已落下|機場/.test(document.body.innerText)) {
+        issues.push('VOCAB_DRIFT: Found 月光/月亮已落下/機場 in Overview UI instead of unified consumer copy');
       }
 
       // 5. Real iPhone safe-area bleed + 1P 120fps scroll-architecture checks

@@ -227,6 +227,11 @@ export function isInNordicMetBox(lat, lon) {
   return mainland || svalbard;
 }
 
+/** Mainland Nordic Doppler radar footprint for MET Norway Nowcast 2.0 (5-min live rain/snow; Svalbard returns 422) */
+export function isInNordicRadarBox(lat, lon) {
+  return Number.isFinite(lat) && Number.isFinite(lon) && lat >= 55.0 && lat <= 71.5 && lon >= 4.0 && lon <= 32.0;
+}
+
 export function computeCompassPoints(lat, lon, distKm = 60) {
   const here = { key: 'here', label: '📍 目前位置', lat: +lat.toFixed(4), lon: +lon.toFixed(4), isOcean: false };
   for (const c of CHASE_CORRIDORS) {
@@ -2738,6 +2743,160 @@ export function assimilateMetarNowcast(hereHrs, metarObs, distKm) {
     rawNwpCloud0,
     fusedCloud0: hours[0].block,
     discrepancyFlag: Math.abs(delta0) >= 30
+  };
+}
+
+/**
+ * Parse MET Norway Nowcast 2.0 (5-minute live Nordic Doppler radar precipitation + live surface temp/wind).
+ * Returns null if radar_coverage !== 'ok' or feed is stale (>30 min).
+ */
+export function parseMetNorwayNowcast(json, nowMs = Date.now()) {
+  const meta = json?.properties?.meta;
+  const series = json?.properties?.timeseries;
+  if (!meta || meta.radar_coverage !== 'ok' || !Array.isArray(series) || !series.length) return null;
+  const updatedMs = parseUtcMs(meta.updated_at);
+  if (!Number.isFinite(updatedMs)) return null;
+  const ageMin = Math.round((nowMs - updatedMs) / 60000);
+  if (ageMin > 30 || ageMin < -15) return null;
+
+  const d0 = series[0]?.data?.instant?.details || {};
+  const precipRate = Math.max(0, toFinite(d0.precipitation_rate) ?? 0);
+  const temp = toFinite(d0.air_temperature);
+  const windMs = toFinite(d0.wind_speed);
+  let peakPrecip30m = precipRate;
+  for (let i = 1; i < Math.min(7, series.length); i++) {
+    const r = toFinite(series[i]?.data?.instant?.details?.precipitation_rate);
+    if (r !== null && r > peakPrecip30m) peakPrecip30m = r;
+  }
+  return {
+    precipRate: +precipRate.toFixed(2),
+    peakPrecip30m: +peakPrecip30m.toFixed(2),
+    temp,
+    windMs: windMs !== null ? Math.max(0, windMs) : null,
+    ageMin: Math.max(0, ageMin),
+    updatedMs
+  };
+}
+
+/**
+ * Parse Open-Meteo 15-minute `current` GPS block (global cloud cover, temp, wind, precip, WMO fog/precip).
+ * Returns null if missing or stale (>45 min).
+ */
+export function parseOpenMeteoCurrent(omObj, nowMs = Date.now()) {
+  const c = omObj?.current;
+  if (!c || typeof c !== 'object') return null;
+  const obsMs = parseUtcMs(c.time);
+  if (!Number.isFinite(obsMs)) return null;
+  const ageMin = Math.round((nowMs - obsMs) / 60000);
+  if (ageMin > 45 || ageMin < -20) return null;
+
+  const pickNum = (...keys) => {
+    for (const k of keys) {
+      const v = toFinite(c[k]);
+      if (v !== null) return v;
+    }
+    return null;
+  };
+  const cloudRaw = pickNum('cloud_cover', 'cloud_cover_best_match', 'cloud_cover_ecmwf_ifs025', 'cloud_cover_icon_seamless');
+  const temp = pickNum('temperature_2m', 'temperature_2m_best_match', 'temperature_2m_ecmwf_ifs025');
+  const windKmh = pickNum('wind_speed_10m', 'wind_speed_10m_best_match', 'wind_speed_10m_ecmwf_ifs025');
+  const precip = Math.max(0, pickNum('precipitation', 'precipitation_best_match', 'precipitation_ecmwf_ifs025') ?? 0);
+  const weatherCode = pickNum('weather_code', 'weather_code_best_match', 'weather_code_ecmwf_ifs025');
+  if (cloudRaw === null && temp === null && precip === 0) return null;
+
+  const cloud = cloudRaw !== null ? Math.max(0, Math.min(100, Math.round(cloudRaw))) : null;
+  const isFog = weatherCode === 45 || weatherCode === 48;
+  const precipFloor = precip >= 0.5 ? 90 : (precip >= 0.1 ? 78 : 0);
+  const effCloud = cloud !== null
+    ? Math.max(cloud, isFog ? 85 : 0, precipFloor)
+    : (isFog ? 85 : (precipFloor > 0 ? precipFloor : null));
+
+  return {
+    cloud,
+    effCloud,
+    temp,
+    windMs: windKmh !== null ? +(Math.max(0, windKmh) / 3.6).toFixed(2) : null,
+    precip: +precip.toFixed(2),
+    weatherCode,
+    isFog,
+    ageMin: Math.max(0, ageMin),
+    obsMs
+  };
+}
+
+/**
+ * Strictly causal live GPS nowcast refinement on hour[0]:
+ * 1. Nordic 5-min Doppler radar: refreshes surface temp/wind and immediately suppresses false clear skies during live rain/snow squalls.
+ * 2. Global 15-min Open-Meteo current: refines current hour for remote GPS points outside fresh local weather-station (METAR) range.
+ */
+export function assimilateLiveGpsNowcast(hereHrs, { radarNowcast = null, omCurrent = null, hasFreshMetar = false, usedMet = false } = {}) {
+  if (!Array.isArray(hereHrs) || !hereHrs.length) return { hours: hereHrs || [], applied: false, radarActive: false, source: null };
+  const h0 = hereHrs[0];
+  if (!h0 || !Number.isFinite(h0.block)) return { hours: hereHrs, applied: false, radarActive: false, source: null };
+
+  let block = h0.block;
+  let temp = h0.temp;
+  let windMs = h0.windMs;
+  let precip = Number(h0.precip || 0);
+  let applied = false;
+  let radarActive = false;
+  let source = null;
+
+  // Priority 1: MET Norway 5-min live Doppler radar & surface telemetry
+  if (radarNowcast) {
+    if (Number.isFinite(radarNowcast.temp)) { temp = radarNowcast.temp; applied = true; }
+    if (Number.isFinite(radarNowcast.windMs)) { windMs = radarNowcast.windMs; applied = true; }
+    const activePrecip = Math.max(radarNowcast.precipRate || 0, (radarNowcast.peakPrecip30m || 0) >= 0.5 ? radarNowcast.peakPrecip30m : 0);
+    if (activePrecip >= 0.2) {
+      precip = Math.max(precip, activePrecip);
+      const occFloor = activePrecip >= 0.5 ? 90 : 80;
+      if (block < occFloor) block = occFloor;
+      radarActive = true;
+      applied = true;
+      source = 'radar-5m';
+    } else if (applied) {
+      source = 'radar-5m';
+    }
+  }
+
+  // Priority 2: Global 15-min Open-Meteo `current` (never overrides real local METAR laser ceilometer <=25km)
+  if (omCurrent && !hasFreshMetar) {
+    if (!radarNowcast) {
+      if (Number.isFinite(omCurrent.temp) && !usedMet) { temp = omCurrent.temp; applied = true; }
+      if (Number.isFinite(omCurrent.windMs) && !usedMet) { windMs = omCurrent.windMs; applied = true; }
+    }
+    if (omCurrent.precip >= 0.2 && precip < omCurrent.precip) {
+      precip = omCurrent.precip;
+      applied = true;
+    }
+    if (Number.isFinite(omCurrent.effCloud)) {
+      if (!usedMet) {
+        const w = (omCurrent.isFog || omCurrent.precip >= 0.2) ? 0.45 : 0.35;
+        block = Math.max(0, Math.min(100, Math.round((1 - w) * block + w * omCurrent.effCloud)));
+        applied = true;
+        if (!source) source = 'gps-15m';
+      } else if ((omCurrent.isFog || omCurrent.precip >= 0.2) && omCurrent.effCloud > block) {
+        // Inside Nordics without radar/METAR: only nudge upward when 15m GPS flags active fog/precip
+        block = Math.max(block, Math.round(0.65 * block + 0.35 * omCurrent.effCloud));
+        applied = true;
+        if (!source) source = 'gps-15m';
+      }
+    }
+  }
+
+  if (!applied) return { hours: hereHrs, applied: false, radarActive: false, source: null };
+  const clear = 100 - block;
+  const windChill = (Number.isFinite(temp) && Number.isFinite(windMs)) ? computeWindChill(temp, windMs) : h0.windChill;
+  let txt = h0.txt;
+  if (!h0.isDay && txt !== undefined) {
+    txt = precip >= 0.1 ? (temp <= 0 ? '❄️ 雪' : '🌧️ 雨雪') : (block <= 25 ? '🌟 晴' : block <= 65 ? '⛅ 縫' : '☁️ 陰');
+  }
+  const updated0 = { ...h0, block, clear, temp, windMs, windChill, precip, txt };
+  return {
+    hours: [updated0, ...hereHrs.slice(1)],
+    applied: true,
+    radarActive,
+    source
   };
 }
 

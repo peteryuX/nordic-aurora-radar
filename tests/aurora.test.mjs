@@ -2486,6 +2486,115 @@ test('51. Norway live weather & Kp audit: Svalbard AROME Arctic, 45m 0Z bin guar
   assert.equal(api.traditionalRegionName('NO', 'Norway'), '挪威', 'English city search in zh-TW must localize country code NO -> 挪威');
 });
 
+test('52. Live GPS nowcast (5m Nordic radar + 15m Open-Meteo current) & anti-loophole property fuzzing (300 nights, 360 UT bins, all IEM null shapes)', () => {
+  // (a) Nordic radar box excludes Svalbard (HTTP 422) while covering mainland Norway/Sweden/Finland
+  assert.equal(api.isInNordicRadarBox(69.6492, 18.9553), true, 'Tromsø inside Nordic radar box');
+  assert.equal(api.isInNordicRadarBox(68.3495, 18.8312), true, 'Abisko inside Nordic radar box');
+  assert.equal(api.isInNordicRadarBox(66.5039, 25.7294), true, 'Rovaniemi inside Nordic radar box');
+  assert.equal(api.isInNordicRadarBox(78.2232, 15.6267), false, 'Svalbard outside Nordic radar box (422)');
+
+  // (b) 5-min MET Norway Nowcast parser + snow squall occlusion + stale guard
+  const nowMs = Date.UTC(2026, 10, 25, 19, 10, 0);
+  const squallJson = {
+    properties: {
+      meta: { updated_at: '2026-11-25T19:05:00Z', radar_coverage: 'ok' },
+      timeseries: [
+        { time: '2026-11-25T19:05:00Z', data: { instant: { details: { air_temperature: -1.8, wind_speed: 6.2, precipitation_rate: 0.7 } } } },
+        { time: '2026-11-25T19:10:00Z', data: { instant: { details: { precipitation_rate: 1.1 } } } }
+      ]
+    }
+  };
+  const rad = api.parseMetNorwayNowcast(squallJson, nowMs);
+  assert.ok(rad && rad.precipRate === 0.7 && rad.peakPrecip30m === 1.1 && rad.ageMin === 5);
+  assert.equal(api.parseMetNorwayNowcast({ properties: { meta: { updated_at: '2026-11-25T18:00:00Z', radar_coverage: 'ok' }, timeseries: [{}] } }, nowMs), null, 'Stale >30m radar must be rejected');
+  assert.equal(api.parseMetNorwayNowcast({ properties: { meta: { updated_at: '2026-11-25T19:05:00Z', radar_coverage: 'no coverage' }, timeseries: [{}] } }, nowMs), null, 'No radar coverage must return null');
+
+  // (c) 15-min Open-Meteo current parser + assimilation precedence (radar overrides false clear; METAR beats 15m NWP)
+  const omCur = api.parseOpenMeteoCurrent({
+    current: { time: Math.floor((nowMs - 10 * 60000) / 1000), cloud_cover: 82, temperature_2m: -14.2, wind_speed_10m: 18, precipitation: 0, weather_code: 3 }
+  }, nowMs);
+  assert.ok(omCur && omCur.cloud === 82 && omCur.effCloud === 82 && omCur.windMs === 5);
+
+  const clearHrs = [{ dtMs: nowMs, time: '20:00', block: 20, clear: 80, temp: -1, windMs: 2, windChill: -4, precip: 0, isDay: false, txt: '🌟 晴' }];
+  const fusedRadar = api.assimilateLiveGpsNowcast(clearHrs, { radarNowcast: rad, omCurrent: omCur, hasFreshMetar: true, usedMet: true });
+  assert.equal(fusedRadar.radarActive, true);
+  assert.ok(fusedRadar.hours[0].block >= 90 && fusedRadar.hours[0].clear <= 10, `Active 5m radar snow squall must suppress false clear sky, got clear=${fusedRadar.hours[0].clear}%`);
+  assert.equal(fusedRadar.hours[0].txt, '❄️ 雪');
+
+  const remoteFused = api.assimilateLiveGpsNowcast(clearHrs, { radarNowcast: null, omCurrent: omCur, hasFreshMetar: false, usedMet: false });
+  assert.equal(remoteFused.source, 'gps-15m');
+  assert.ok(remoteFused.hours[0].block > 20 && remoteFused.hours[0].block < 82, 'Remote GPS 15m current must blend smoothly without snapping');
+
+  const metarGuarded = api.assimilateLiveGpsNowcast(clearHrs, { radarNowcast: null, omCurrent: omCur, hasFreshMetar: true, usedMet: false });
+  assert.equal(metarGuarded.applied, false, '15m Open-Meteo NWP must NEVER override a fresh local ground weather-station METAR');
+
+  // (d) Exhaustive 8×45 = 360 UT boundary rollover minute sweep: parseLatestKp must NEVER collapse from Kp>=0.67 to 0 during all-zero startup
+  for (let h = 0; h < 24; h += 3) {
+    const prevH = (h + 23) % 24;
+    const prevDay = h === 0 ? 24 : 25;
+    for (let m = 0; m < 45; m++) {
+      const rows = [
+        { time_tag: `2026-11-${String(prevDay).padStart(2, '0')}T${String(prevH).padStart(2, '0')}:59:00`, estimated_kp: 1.33, kp_index: 1 },
+        ...Array.from({ length: m + 1 }, (_, k) => ({
+          time_tag: `2026-11-25T${String(h).padStart(2, '0')}:${String(k).padStart(2, '0')}:00`, estimated_kp: 0, kp_index: 0
+        }))
+      ];
+      assert.equal(api.parseLatestKp(rows)?.kp, 1.33, `UT rollover ${h}:${m} collapsed to 0`);
+    }
+  }
+
+  // (e) All IEM null-column raw METAR fallback sky codes
+  const iemCases = [
+    ['CAVOK', 0, 'CLR'], ['NCD', 0, 'CLR'], ['NSC', 0, 'CLR'],
+    ['FEW015', 19, 'FEW'], ['SCT020', 44, 'SCT'], ['BKN012', 75, 'BKN'], ['OVC008', 100, 'OVC']
+  ];
+  for (const [tok, expCloud, expCode] of iemCases) {
+    const parsed = api.parseIemMetarCurrent({
+      data: [{
+        station: 'TEST', utc_valid: '2026-11-25T19:00:00Z',
+        skyc1: null, skyc2: null, skyc3: null, skyc4: null,
+        skyl1: null, skyl2: null, skyl3: null, skyl4: null,
+        wxcodes: null, raw: `TEST 251900Z AUTO 01005KT ${tok} M02/M05 Q1020`
+      }]
+    }, nowMs);
+    assert.ok(parsed && parsed.effCloud === expCloud && parsed.skyCode === expCode, `IEM null-array fallback failed for ${tok}: got ${JSON.stringify(parsed)}`);
+  }
+
+  // (f) Property-based 3-Night contradiction fuzzing across 200 seeded randomized scenarios
+  let seed = 424242;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  for (let i = 0; i < 200; i++) {
+    const lat = 58 + rnd() * 14;
+    const lon = 10 + rnd() * 18;
+    const base = Date.UTC(2026, 10, 26, 16, 30, 0);
+    const earlyClear = Math.round(rnd() * 100);
+    const lateClear = Math.round(rnd() * 100);
+    const earlyKp = +(1 + rnd() * 2.2).toFixed(2);
+    const lateKp = +(3.3 + rnd() * 3.2).toFixed(2);
+    const pts = Array.from({ length: 12 }, (_, h) => {
+      const clr = h < 4 ? earlyClear : lateClear;
+      return { dtMs: base + h * 3600000, clear: clr, block: 100 - clr, sunAlt: -25, isDay: false, stepHrs: 1 };
+    });
+    const kfc = [
+      { ts: Date.UTC(2026, 10, 26, 15, 0, 0), kp: earlyKp },
+      { ts: Date.UTC(2026, 10, 26, 18, 0, 0), kp: earlyKp },
+      { ts: Date.UTC(2026, 10, 26, 21, 0, 0), kp: lateKp },
+      { ts: Date.UTC(2026, 10, 27, 0, 0, 0), kp: lateKp },
+      { ts: Date.UTC(2026, 10, 27, 3, 0, 0), kp: lateKp }
+    ];
+    const n3 = api.summarize3NightOutlook({
+      cloudPoints: pts, kpForecast: kfc, currentKp: 1,
+      lat, lon, timeZone: 'Europe/Oslo', nowDate: new Date('2026-11-25T19:00:00Z'), lang: 'zh'
+    });
+    const d1 = n3[1];
+    if (d1.scoreAvailable && d1.bestNightScore < 18 && d1.bestClear >= 45 && d1.maxKp >= 3.0 && d1.kpPeakClear !== null && d1.kpPeakClear < 30 && (d1.bestClear - d1.kpPeakClear) >= 25) {
+      assert.equal(d1.peakCloudMismatch, true, `Fuzz #${i} missed peakCloudMismatch: ${JSON.stringify(d1)}`);
+      assert.equal(d1.badge, '強極光時雲厚', `Fuzz #${i} badge mismatch: ${d1.badge}`);
+    }
+  }
+});
+
+
 
 
 

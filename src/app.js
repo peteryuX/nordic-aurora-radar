@@ -1409,7 +1409,7 @@ function renderFromState(st) {
   const en = isEn();
   const {
     pos: stPos, magSeries, chartSeries, speed, bz, kp, ovation, hpiGw, goesSub, noaaScales, noaaAlert, kyotoDst, enlilForecast, predKp1h, bal,
-    noaaOk, noaaLagMin, hereHrs, dirResults, weatherSourceLabel, usedMet, cloudConsensus, metarObs, metarFusion,
+    noaaOk, noaaLagMin, hereHrs, dirResults, weatherSourceLabel, usedMet, cloudConsensus, metarObs, metarFusion, nowcastObs,
     sunAltNow, mltNow, moon, sc, scNext, bestDark, nights3, multiDayPts, kpForecast, fetchedAt
   } = st;
   const pos = stPos || state.pos;
@@ -1464,6 +1464,11 @@ function renderFromState(st) {
   if (metarObs && metarFusion?.applied) {
     const ceilStr = metarObs.ceilingM ? ` ${metarObs.ceilingM}m` : '';
     rawParts.push(`METAR ${metarObs.icao} ${metarObs.skyCode}${ceilStr} (${metarObs.ageMin}m)`);
+  }
+  if (nowcastObs?.source === 'radar-5m') {
+    rawParts.push(nowcastObs.radarActive ? `Radar 5m (${nowcastObs.precipRate}mm/h)` : 'Radar 5m');
+  } else if (nowcastObs?.source === 'gps-15m') {
+    rawParts.push('GPS 15m');
   }
   const showMetarNote = Boolean(metarObs && metarFusion?.applied && (metarFusion.discrepancyFlag || cloudConsensus?.level === 'low'));
   const stLabel = metarObs?.name ? `${metarObs.name} · ${metarObs.icao}` : (metarObs?.icao || '');
