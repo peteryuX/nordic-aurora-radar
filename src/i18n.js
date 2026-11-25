@@ -91,9 +91,9 @@ export const STATIC_TEXT_MAP = {
   fAurLbl: pair(TERMS.aurora),
   fDarkLbl: pair(TERMS.darkness),
   h2Wave: pair(TERMS.nav.hourlyTrend),
-  hrLegRight: ['滑動查看各時段', 'Drag to explore'],
+  waveRange: pair(TERMS.nav.range24h),
   h2Energy: pair(TERMS.solarWind.title),
-  swToggleTxt: ['顯示太陽風曲線', 'Show solar wind chart'],
+  swToggleTxt: ['查看衛星資料與 2 小時曲線', 'Satellite data & 2h chart'],
   h2Outlook: pair(TERMS.nav.next3Nights),
   outlookNote: ['明後天雲量與 Kp 變動較大，出發前 3 小時請再確認。', 'Clouds & Kp shift — recheck 3h before going out.'],
   seoFootLbl: ['熱門極光地點攻略', 'Aurora destination guides'],
@@ -219,13 +219,6 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
   const ci = $('cityInput');
   if (ci) ci.placeholder = en ? 'Search city (e.g. Akureyri, Fairbanks)' : '輸入地名（例：冰島、特羅姆瑟、黃刀）';
 
-  const hrl = $('hrLegLeft');
-  if (hrl) {
-    hrl.innerHTML = en
-      ? `<span class="leg-dot" style="background:var(--green);"></span>Bars = ${term(TERMS.scoreShort, true).toLowerCase()} (0–99)<span class="leg-strip"></span>Strip = ${term(TERMS.clearSky, true).toLowerCase()}`
-      : `<span class="leg-dot" style="background:var(--green);"></span>柱＝${term(TERMS.scoreShort, false)}（0–99）<span class="leg-strip"></span>灰條＝${term(TERMS.clearSky, false)}`;
-  }
-
   const rl = $('radarLeg');
   if (rl) {
     rl.innerHTML = en
@@ -259,8 +252,8 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
     const hd = $('hourDetail');
     if (hd) {
       hd.innerHTML = en
-        ? '<span>Slide or tap any hour on the chart for clear sky %, feels-like &amp; moon</span>'
-        : '<span>在圖表上滑動或點擊任一時段查看晴空率、體感溫度與月光</span>';
+        ? '<span>Slide or tap any hour on the chart for clear sky %, temp &amp; darkness</span>'
+        : '<span>滑動或點擊任一時段查看晴空率、體感溫度與夜空暗度</span>';
     }
     const tlt = $('tsLiveTitle');
     if (tlt) {

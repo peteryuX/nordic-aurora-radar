@@ -2823,7 +2823,7 @@ export function scoreHourlyForecast12(hrs, {
       mlt: mltH, effMoonPct: moonH.effMoonPct
     });
     return {
-      ...h, isDay: isDayH, sunAlt: sunAltH, score: scH.total, kpFc: +Number(kpFc).toFixed(2),
+      ...h, isDay: isDayH, sunAlt: sunAltH, score: scH.total, darkScore: scH.darkScore, kpFc: +Number(kpFc).toFixed(2),
       moonUp: moonH.up, moonPct: moonH.pct, moonAlt: moonH.altDeg,
       mlt: +mltH.toFixed(1), outOfZone: scH.outOfZone
     };

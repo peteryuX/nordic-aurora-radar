@@ -191,16 +191,16 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
       if (tx < padL + 12 || tx > W - padR - 12) continue;
       const z = getZoneParts(new Date(t), timeZone);
       xTicksSvg += `
-        <line x1="${tx.toFixed(1)}" y1="${padT}" x2="${tx.toFixed(1)}" y2="${baseY}" stroke="rgba(255,255,255,0.08)" stroke-dasharray="2 4"/>
-        <text x="${tx.toFixed(1)}" y="${H - 7}" text-anchor="middle" fill="var(--muted)" font-size="12.5" font-weight="700">${escSvg(z.hourStr)}:${escSvg(z.minStr)}</text>`;
+        <line x1="${tx.toFixed(1)}" y1="${padT}" x2="${tx.toFixed(1)}" y2="${baseY}" stroke="var(--chart-grid)" stroke-dasharray="2 4"/>
+        <text x="${tx.toFixed(1)}" y="${H - 7}" text-anchor="middle" fill="var(--muted)" font-size="11.5" font-weight="600">${escSvg(z.hourStr)}:${escSvg(z.minStr)}</text>`;
     }
   }
   if (!xTicksSvg) {
     const tStart = escSvg(utcTagToLocalHM(series[0]?.time_tag, timeZone, etaMin));
     const tEnd = escSvg(utcTagToLocalHM(series[series.length - 1]?.time_tag, timeZone, etaMin));
     xTicksSvg = `
-      <text x="${padL}" y="${H - 7}" fill="var(--muted)" font-size="12.5" font-weight="700">${tStart}</text>
-      <text x="${W - padR}" y="${H - 7}" text-anchor="end" fill="var(--text)" font-size="12.5" font-weight="800">${tEnd}</text>`;
+      <text x="${padL}" y="${H - 7}" fill="var(--muted)" font-size="11.5" font-weight="600">${tStart}</text>
+      <text x="${W - padR}" y="${H - 7}" text-anchor="end" fill="var(--text)" font-size="11.5" font-weight="600">${tEnd}</text>`;
   }
 
   let arriveSvg = '';
@@ -214,7 +214,7 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
     arriveSvg = `
       <line x1="${ax.toFixed(1)}" y1="${padT}" x2="${ax.toFixed(1)}" y2="${baseY}" stroke="var(--text)" stroke-dasharray="3 3" stroke-width="1.3" opacity="0.72"/>
       <circle cx="${ax.toFixed(1)}" cy="${yOf(energies[balOpt.arrivingIdx]).toFixed(1)}" r="3.6" fill="var(--text)" stroke="var(--bg)" stroke-width="1.5"/>
-      <text x="${lxClamped.toFixed(1)}" y="17" text-anchor="middle" fill="var(--text)" font-size="11.5" font-weight="800">${en ? `Now ${tNowEarth}` : `現在 ${tNowEarth}`}</text>`;
+      <text x="${lxClamped.toFixed(1)}" y="17" text-anchor="middle" fill="var(--text)" font-size="11" font-weight="600">${en ? `Now ${tNowEarth}` : `現在 ${tNowEarth}`}</text>`;
   }
 
   return `
@@ -224,15 +224,14 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
         <stop offset="100%" stop-color="var(--text)" stop-opacity="0.01"/>
       </linearGradient>
     </defs>
-    <text x="${padL}" y="17" data-role="y-title" fill="var(--muted)" font-size="11" font-weight="700">${term(TERMS.solarWind.axisTitle, en)}</text>
+    <text x="${padL}" y="17" data-role="y-title" fill="var(--muted)" font-size="10.5" font-weight="600">${term(TERMS.solarWind.axisTitle, en)}</text>
     <rect x="${padL}" y="${padT}" width="${plotW}" height="${(yBurst - padT).toFixed(1)}" fill="var(--green)" fill-opacity="0.06"/>
     <rect x="${padL}" y="${yBurst.toFixed(1)}" width="${plotW}" height="${(yWarm - yBurst).toFixed(1)}" fill="var(--amber)" fill-opacity="0.04"/>
     ${futureBandSvg}
     ${xTicksSvg}
-    <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${baseY}" stroke="rgba(255,255,255,0.12)"/>
     <line x1="${padL}" y1="${yBurst.toFixed(1)}" x2="${W - padR}" y2="${yBurst.toFixed(1)}" stroke="var(--green)" stroke-dasharray="4 4" stroke-width="1.1" opacity="0.55"/>
-    <line x1="${padL}" y1="${yWarm.toFixed(1)}" x2="${W - padR}" y2="${yWarm.toFixed(1)}" stroke="rgba(255,255,255,0.14)" stroke-dasharray="3 4" stroke-width="1"/>
-    <line x1="${padL}" y1="${baseY}" x2="${W - padR}" y2="${baseY}" stroke="rgba(255,255,255,0.16)"/>
+    <line x1="${padL}" y1="${yWarm.toFixed(1)}" x2="${W - padR}" y2="${yWarm.toFixed(1)}" stroke="var(--chart-axis)" stroke-dasharray="3 4" stroke-width="1"/>
+    <line x1="${padL}" y1="${baseY}" x2="${W - padR}" y2="${baseY}" stroke="var(--chart-axis)"/>
     <text x="${padL - 8}" y="${(padT + (yBurst - padT) / 2 + 4).toFixed(1)}" text-anchor="end" fill="var(--green)" font-size="12.5" font-weight="800">${term(TERMS.solarWind.active, en)}</text>
     <text x="${padL - 8}" y="${(yBurst + (yWarm - yBurst) / 2 + 4).toFixed(1)}" text-anchor="end" fill="var(--amber)" font-size="12.5" font-weight="700">${term(TERMS.solarWind.building, en)}</text>
     <text x="${padL - 8}" y="${(yWarm + (padT + plotH - yWarm) / 2 + 4).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="12.5" font-weight="700">${term(TERMS.solarWind.low, en)}</text>
@@ -246,18 +245,18 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
   `;
 }
 
-/** 24h Single-Metric Viewing-Score Bar Chart + Separated Clear-Sky Context Strip (zero dual-axis ambiguity) */
+/** 24h Single-Metric Viewing-Score Bar Chart + Separated Clear-Sky Context Strip (Compact iOS 18 Geometry) */
 export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
   const en = isEn(lang);
   if (!Array.isArray(hrs) || hrs.length < 2) {
-    return `<text x="210" y="95" text-anchor="middle" fill="var(--muted)" font-size="13">${en ? 'Loading hourly forecast…' : '讀取逐時預報中…'}</text>`;
+    return `<text x="210" y="78" text-anchor="middle" fill="var(--muted)" font-size="12.5">${en ? 'Loading hourly forecast…' : '讀取逐時預報中…'}</text>`;
   }
   const is24 = hrs.length > 14;
   const tickStep = is24 ? 4 : 2;
-  const W = 420, H = 194, padL = 56, padR = 14, padT = 28;
-  const plotH = 112; // Score bars: y=28..140; Clear-sky strip: y=148..160; X-axis labels: y=184
+  const W = 420, H = 154, padL = 56, padR = 10, padT = 22;
+  const plotH = 86; // Score bars: y=22..108; Clear-sky strip: y=114..122; X-axis labels: y=144
   const plotW = W - padL - padR;
-  const stripY = 148, stripH = 12;
+  const stripY = 114, stripH = 8;
   const xOf = i => padL + (i / (hrs.length - 1)) * plotW;
   const yOf = sc => padT + ((100 - clampNum(sc, 0, 100, 0)) / 100) * plotH;
   const stepW = plotW / (hrs.length - 1);
@@ -286,14 +285,14 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
   if (bestRun) {
     const dx1 = Math.max(padL, xOf(bestRun[0]) - stepW / 2);
     const dx2 = Math.min(W - padR, xOf(bestRun[1]) + stepW / 2);
-    if (dx2 - dx1 >= 46) {
+    if (dx2 - dx1 >= 44) {
       dayLabelX = (dx1 + dx2) / 2;
-      dayLabelSvg = `<text x="${dayLabelX.toFixed(1)}" y="${padT + 15}" text-anchor="middle" fill="var(--blue)" fill-opacity="0.72" font-size="10.5" font-weight="700">${term(TERMS.status.tooBright, en)}</text>`;
+      dayLabelSvg = `<text x="${dayLabelX.toFixed(1)}" y="${padT + 13}" text-anchor="middle" fill="var(--blue)" fill-opacity="0.78" font-size="10" font-weight="600">${term(TERMS.status.tooBright, en)}</text>`;
     }
   }
 
   const vGrid = hrs.map((_, i) => i % tickStep === 0
-    ? `<line x1="${xOf(i).toFixed(1)}" y1="${padT}" x2="${xOf(i).toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="2 4"/>`
+    ? `<line x1="${xOf(i).toFixed(1)}" y1="${padT}" x2="${xOf(i).toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="var(--chart-grid)" stroke-dasharray="2 4"/>`
     : '').join('');
 
   const bestIdx = (!allOutOfZone && bestDark && ((bestDark.clear ?? 0) >= 25 || (bestDark.score ?? 0) >= 18))
@@ -303,8 +302,8 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
   const titleOnRight = bestIdx >= 0 && bestX < 210;
   const titleTxt = en ? `${term(TERMS.score, true)} (0–99)` : `${term(TERMS.score, false)}（0–99）`;
   const titleSvg = titleOnRight
-    ? `<text x="${W - padR}" y="16" data-role="y-title" text-anchor="end" fill="var(--muted)" font-size="11" font-weight="700">${titleTxt}</text>`
-    : `<text x="${padL}" y="16" data-role="y-title" fill="var(--muted)" font-size="11" font-weight="700">${titleTxt}</text>`;
+    ? `<text x="${W - padR}" y="13.5" data-role="y-title" text-anchor="end" fill="var(--muted)" font-size="10" font-weight="600">${titleTxt}</text>`
+    : `<text x="${padL}" y="13.5" data-role="y-title" fill="var(--muted)" font-size="10" font-weight="600">${titleTxt}</text>`;
 
   // Midnight boundary hairline (00:xx when 0 < i < len - 1)
   let midnightSvg = '';
@@ -314,19 +313,19 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     const tooCloseToBest = bestX >= 0 && Math.abs(mx - bestX) < 48;
     const tooCloseToDay = Math.abs(mx - dayLabelX) < 38;
     const midLbl = (!tooCloseToBest && !tooCloseToDay)
-      ? `<text x="${Math.min(W - padR - 14, mx + 4).toFixed(1)}" y="${padT + 12}" text-anchor="start" fill="rgba(255,255,255,0.45)" font-size="10" font-weight="700">${term(TERMS.tomorrow, en)}</text>`
+      ? `<text x="${Math.min(W - padR - 14, mx + 4).toFixed(1)}" y="${padT + 11}" text-anchor="start" fill="var(--muted)" fill-opacity="0.72" font-size="9.5" font-weight="600">${term(TERMS.tomorrow, en)}</text>`
       : '';
-    midnightSvg = `<line x1="${mx.toFixed(1)}" y1="${padT}" x2="${mx.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(255,255,255,0.22)" stroke-dasharray="3 3" stroke-width="1"/>${midLbl}`;
+    midnightSvg = `<line x1="${mx.toFixed(1)}" y1="${padT}" x2="${mx.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="var(--chart-axis)" stroke-dasharray="3 3" stroke-width="1"/>${midLbl}`;
   }
 
   // Tier guide lines at 65 (Excellent), 40 (Good), 18 (Fair)
   const y65 = yOf(65), y40 = yOf(40), y18 = yOf(18), baseY = padT + plotH;
-  const barW = is24 ? 9.2 : Math.max(10, Math.min(20, stepW * 0.48));
-  const barRx = 2.5;
-  const tileW = Math.max(4, stepW - 2.2);
+  const barW = is24 ? 8.8 : Math.max(10, Math.min(18, stepW * 0.46));
+  const barRx = 3;
+  const tileW = Math.max(4, stepW - 2.4);
 
   const scoreBars = allOutOfZone
-    ? `<text x="${(padL + plotW / 2).toFixed(1)}" y="${(padT + plotH / 2 + 4).toFixed(1)}" text-anchor="middle" fill="var(--muted)" font-size="12" font-weight="700">${term(TERMS.status.outOfZoneLong, en)}</text>`
+    ? `<text x="${(padL + plotW / 2).toFixed(1)}" y="${(padT + plotH / 2 + 4).toFixed(1)}" text-anchor="middle" fill="var(--muted)" font-size="11.5" font-weight="600">${term(TERMS.status.outOfZoneLong, en)}</text>`
     : hrs.map((h, i) => {
         if (!h || h.isDay) return '';
         const scVal = clampNum(h?.score, 0, 100, 0);
@@ -334,14 +333,14 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
         const isSel = i === selectedIdx;
         const isBest = i === bestIdx;
         if (scVal <= 0) {
-          return `<rect class="sc-bar" data-bar-idx="${i}" x="${x.toFixed(1)}" y="${(baseY - 2.5).toFixed(1)}" width="${barW.toFixed(1)}" height="2.5" rx="1" fill="var(--muted)" fill-opacity="${isSel ? '0.95' : '0.45'}"/>`;
+          return `<rect class="sc-bar" data-bar-idx="${i}" x="${x.toFixed(1)}" y="${(baseY - 2.5).toFixed(1)}" width="${barW.toFixed(1)}" height="2.5" rx="1" fill="var(--muted)" fill-opacity="${isSel ? '0.95' : '0.42'}"/>`;
         }
         const y = yOf(scVal);
         const bh = Math.max(3, baseY - y);
         const fill = tierFill(scVal);
-        const op = isSel ? '1' : (isBest ? '0.92' : '0.72');
-        const strokeAttr = isSel ? 'stroke="var(--text)" stroke-width="1.2"' : 'stroke="none"';
-        return `<rect class="sc-bar" data-bar-idx="${i}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="${barRx}" fill="${fill}" fill-opacity="${op}" ${strokeAttr}/>`;
+        const op = isSel ? '1' : (isBest ? '0.90' : '0.68');
+        const capDot = isSel ? `<circle cx="${xOf(i).toFixed(1)}" cy="${Math.max(padT + 2, y - 3.5).toFixed(1)}" r="2.2" fill="var(--text)"/>` : '';
+        return `<rect class="sc-bar" data-bar-idx="${i}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="${barRx}" fill="${fill}" fill-opacity="${op}"/>${capDot}`;
       }).join('');
 
   // Separated Clear-Sky Context Strip (pure luminance — zero competing hue, zero shared Y-axis)
@@ -350,9 +349,9 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     const x = xOf(i) - tileW / 2;
     const tx = Math.max(padL, x);
     const tw = Math.max(2, Math.min(tileW, W - padR - tx));
-    const op = (0.08 + 0.72 * (clearVal / 100)).toFixed(2);
+    const op = (0.09 + 0.72 * (clearVal / 100)).toFixed(2);
     const isSel = i === selectedIdx;
-    return `<rect x="${tx.toFixed(1)}" y="${stripY}" width="${tw.toFixed(1)}" height="${stripH}" rx="2" fill="var(--text)" fill-opacity="${op}"${isSel ? ' stroke="var(--text)" stroke-width="1"' : ''}/>`;
+    return `<rect x="${tx.toFixed(1)}" y="${stripY}" width="${tw.toFixed(1)}" height="${stripH}" rx="2.5" fill="var(--text)" fill-opacity="${op}"${isSel ? ' stroke="var(--text)" stroke-width="0.9"' : ''}/>`;
   }).join('');
 
   const overlays = hrs.map((h, i) => {
@@ -364,22 +363,22 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     const hhmm = escSvg(rawTime.length >= 5 ? rawTime.slice(0, 5) : (rawTime.length >= 2 ? `${rawTime.slice(0, 2)}:00` : '--:--'));
     const bestCol = isBest ? tierFill(clampNum(h?.score, 0, 100, 0)) : 'var(--green)';
     const lbl = showTick
-      ? `<text x="${x.toFixed(1)}" y="${H - 10}" text-anchor="middle" fill="${isSel ? 'var(--text)' : (isBest ? bestCol : 'var(--muted)')}" font-size="12" font-weight="${isBest || isSel ? '800' : '700'}">${hhmm}</text>`
+      ? `<text x="${x.toFixed(1)}" y="${H - 8}" text-anchor="middle" fill="${isSel ? 'var(--text)' : (isBest ? bestCol : 'var(--muted)')}" font-size="10.5" font-weight="${isBest || isSel ? '600' : '500'}">${hhmm}</text>`
       : '';
     let bestSvg = '';
     if (isBest) {
       const starTxt = `★ ${hhmm} ${term(TERMS.best, en)}`;
-      const pillW = en ? 88 : 86;
+      const pillW = en ? 82 : 78;
       const pillX = Math.max(padL, Math.min(W - padR - pillW, x - pillW / 2));
       const pillCx = pillX + pillW / 2;
       const barTopY = h && !h.isDay && clampNum(h.score, 0, 100, 0) > 0 ? yOf(h.score) : baseY;
       bestSvg =
-        `<line x1="${x.toFixed(1)}" y1="22" x2="${x.toFixed(1)}" y2="${barTopY.toFixed(1)}" stroke="${bestCol}" stroke-dasharray="2.5 3" stroke-width="1.3" opacity="0.72"/>` +
-        `<rect x="${pillX.toFixed(1)}" y="2" width="${pillW}" height="19" rx="9.5" fill="var(--surface-2)" stroke="${bestCol}" stroke-opacity="0.55" stroke-width="1"/>` +
-        `<text x="${pillCx.toFixed(1)}" y="15.2" text-anchor="middle" fill="${bestCol}" font-size="11.5" font-weight="800">${starTxt}</text>`;
+        `<line x1="${x.toFixed(1)}" y1="18" x2="${x.toFixed(1)}" y2="${barTopY.toFixed(1)}" stroke="${bestCol}" stroke-dasharray="2.5 3" stroke-width="1.1" opacity="0.68"/>` +
+        `<rect x="${pillX.toFixed(1)}" y="1" width="${pillW}" height="16.5" rx="8.25" fill="var(--surface-2)" stroke="${bestCol}" stroke-opacity="0.52" stroke-width="0.9"/>` +
+        `<text x="${pillCx.toFixed(1)}" y="12.6" text-anchor="middle" fill="${bestCol}" font-size="10" font-weight="600">${starTxt}</text>`;
     }
     const selLine = isSel && !isBest
-      ? `<line x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${baseY.toFixed(1)}" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>`
+      ? `<line x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${baseY.toFixed(1)}" stroke="var(--chart-mid)" stroke-width="1"/>`
       : '';
     const hitRect = `<rect class="hr-hit" data-hour-idx="${i}" x="${(x - stepW / 2).toFixed(1)}" y="${padT}" width="${stepW.toFixed(1)}" height="${H - padT}" fill="transparent" style="cursor:pointer;"/>`;
     return `${selLine}${bestSvg}${lbl}${hitRect}`;
@@ -391,15 +390,14 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     ${dayLabelSvg}
     ${vGrid}
     ${midnightSvg}
-    <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${baseY.toFixed(1)}" stroke="rgba(255,255,255,0.12)"/>
-    <line x1="${padL}" y1="${y65.toFixed(1)}" x2="${W - padR}" y2="${y65.toFixed(1)}" stroke="var(--green)" stroke-opacity="0.24" stroke-dasharray="3 4"/>
-    <line x1="${padL}" y1="${y40.toFixed(1)}" x2="${W - padR}" y2="${y40.toFixed(1)}" stroke="var(--good)" stroke-opacity="0.22" stroke-dasharray="3 4"/>
-    <line x1="${padL}" y1="${y18.toFixed(1)}" x2="${W - padR}" y2="${y18.toFixed(1)}" stroke="rgba(255,255,255,0.08)" stroke-dasharray="2 4"/>
-    <line x1="${padL}" y1="${baseY.toFixed(1)}" x2="${W - padR}" y2="${baseY.toFixed(1)}" stroke="rgba(255,255,255,0.16)"/>
-    <text x="${padL - 7}" y="${(y65 + 3.5).toFixed(1)}" text-anchor="end" fill="var(--green)" font-size="10.5" font-weight="700">${term(TERMS.tier.excellent, en)}</text>
-    <text x="${padL - 7}" y="${(y40 + 3.5).toFixed(1)}" text-anchor="end" fill="var(--good)" font-size="10.5" font-weight="700">${term(TERMS.tier.goodShort, en)}</text>
-    <text x="${padL - 7}" y="${(y18 + 3.5).toFixed(1)}" text-anchor="end" fill="var(--amber)" font-size="10.5" font-weight="700">${term(TERMS.tier.fair, en)}</text>
-    <text x="${padL - 7}" y="${(stripY + 9.5).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="10.5" font-weight="700">${term(TERMS.clearShort, en)}</text>
+    <line x1="${padL}" y1="${y65.toFixed(1)}" x2="${W - padR}" y2="${y65.toFixed(1)}" stroke="var(--green)" stroke-opacity="0.22" stroke-dasharray="3 4"/>
+    <line x1="${padL}" y1="${y40.toFixed(1)}" x2="${W - padR}" y2="${y40.toFixed(1)}" stroke="var(--good)" stroke-opacity="0.20" stroke-dasharray="3 4"/>
+    <line x1="${padL}" y1="${y18.toFixed(1)}" x2="${W - padR}" y2="${y18.toFixed(1)}" stroke="var(--chart-grid)" stroke-dasharray="2 4"/>
+    <line x1="${padL}" y1="${baseY.toFixed(1)}" x2="${W - padR}" y2="${baseY.toFixed(1)}" stroke="var(--chart-axis)"/>
+    <text x="${padL - 7}" y="${(y65 + 3.2).toFixed(1)}" text-anchor="end" fill="var(--green)" font-size="10" font-weight="600">${term(TERMS.tier.excellent, en)}</text>
+    <text x="${padL - 7}" y="${(y40 + 3.2).toFixed(1)}" text-anchor="end" fill="var(--good)" font-size="10" font-weight="600">${term(TERMS.tier.goodShort, en)}</text>
+    <text x="${padL - 7}" y="${(y18 + 3.2).toFixed(1)}" text-anchor="end" fill="var(--amber)" font-size="10" font-weight="600">${term(TERMS.tier.fair, en)}</text>
+    <text x="${padL - 7}" y="${(stripY + 7.2).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="10" font-weight="600">${term(TERMS.clearShort, en)}</text>
     ${scoreBars}
     ${clearStrip}
     ${overlays}
@@ -498,7 +496,7 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
   // Subtle radial spokes (8 compass bearings)
   const radialGuides = [0, 45, 90, 135].map(a => {
     const r1 = toRad(a - 90), r2 = toRad(a + 90);
-    return `<line x1="${(CX + R_OUTER * Math.cos(r1)).toFixed(1)}" y1="${(CY + R_OUTER * Math.sin(r1)).toFixed(1)}" x2="${(CX + R_OUTER * Math.cos(r2)).toFixed(1)}" y2="${(CY + R_OUTER * Math.sin(r2)).toFixed(1)}" stroke="rgba(255,255,255,0.055)" stroke-width="1"/>`;
+    return `<line x1="${(CX + R_OUTER * Math.cos(r1)).toFixed(1)}" y1="${(CY + R_OUTER * Math.sin(r1)).toFixed(1)}" x2="${(CX + R_OUTER * Math.cos(r2)).toFixed(1)}" y2="${(CY + R_OUTER * Math.sin(r2)).toFixed(1)}" stroke="var(--chart-grid)" stroke-width="1"/>`;
   }).join('');
 
   // Missing cardinal winter-closed safety marker (e.g., Akureyri closed F26 south)
@@ -540,25 +538,25 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
   const rMid = R_MIN + 0.5 * (R_MAX - R_MIN);
 
   return `
-    <circle cx="${CX}" cy="${CY}" r="${R_OUTER}" fill="var(--surface-recessed)" stroke="rgba(255,255,255,0.10)" stroke-width="1.1"/>
-    <circle cx="${CX}" cy="${CY}" r="${R_MAX}" fill="none" stroke="rgba(255,255,255,0.065)" stroke-dasharray="2 4"/>
-    <circle cx="${CX}" cy="${CY}" r="${rMid.toFixed(1)}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-dasharray="3 4"/>
+    <circle cx="${CX}" cy="${CY}" r="${R_OUTER}" fill="var(--surface-recessed)" stroke="var(--chart-axis)" stroke-width="1.1"/>
+    <circle cx="${CX}" cy="${CY}" r="${R_MAX}" fill="none" stroke="var(--chart-grid)" stroke-dasharray="2 4"/>
+    <circle cx="${CX}" cy="${CY}" r="${rMid.toFixed(1)}" fill="none" stroke="var(--chart-grid)" stroke-dasharray="3 4"/>
     ${radialGuides}
-    <text x="${CX}" y="22" text-anchor="middle" fill="var(--muted)" font-size="10.5" font-weight="800">${en ? 'N' : '北'}</text>
-    <text x="298" y="${CY + 4}" text-anchor="middle" fill="var(--muted)" font-size="10.5" font-weight="800">${en ? 'E' : '東'}</text>
-    <text x="${CX}" y="305" text-anchor="middle" fill="var(--muted)" font-size="10.5" font-weight="800">${en ? 'S' : '南'}</text>
-    <text x="22" y="${CY + 4}" text-anchor="middle" fill="var(--muted)" font-size="10.5" font-weight="800">${en ? 'W' : '西'}</text>
-    <text x="${(CX + rMid * 0.707 + 3).toFixed(1)}" y="${(CY - rMid * 0.707 + 3).toFixed(1)}" fill="var(--muted)" fill-opacity="0.58" font-size="8.5" font-weight="700">${midRingKm}km</text>
-    <text x="${(CX + R_MAX * 0.707 + 2).toFixed(1)}" y="${(CY - R_MAX * 0.707 + 3).toFixed(1)}" fill="var(--muted)" fill-opacity="0.58" font-size="8.5" font-weight="700">${scaleMaxKm}km</text>
+    <text x="${CX}" y="22" text-anchor="middle" fill="var(--muted)" font-size="10.5" font-weight="600">${en ? 'N' : '北'}</text>
+    <text x="298" y="${CY + 4}" text-anchor="middle" fill="var(--muted)" font-size="10.5" font-weight="600">${en ? 'E' : '東'}</text>
+    <text x="${CX}" y="305" text-anchor="middle" fill="var(--muted)" font-size="10.5" font-weight="600">${en ? 'S' : '南'}</text>
+    <text x="22" y="${CY + 4}" text-anchor="middle" fill="var(--muted)" font-size="10.5" font-weight="600">${en ? 'W' : '西'}</text>
+    <text x="${(CX + rMid * 0.707 + 3).toFixed(1)}" y="${(CY - rMid * 0.707 + 3).toFixed(1)}" fill="var(--muted)" fill-opacity="0.62" font-size="8.5" font-weight="600">${midRingKm}km</text>
+    <text x="${(CX + R_MAX * 0.707 + 2).toFixed(1)}" y="${(CY - R_MAX * 0.707 + 3).toFixed(1)}" fill="var(--muted)" fill-opacity="0.62" font-size="8.5" font-weight="600">${scaleMaxKm}km</text>
     ${closedMarks}
     ${beaconsSvg}
     <circle cx="${CX}" cy="${CY}" r="36" fill="var(--bg)" stroke="${hCol}" stroke-width="2.2"/>
-    <text x="${CX}" y="${CY - 6}" text-anchor="middle" fill="var(--muted)" font-size="10" font-weight="700">${en ? 'Here (3h)' : '目前 3h'}</text>
-    <text x="${CX}" y="${CY + 14}" text-anchor="middle" fill="${hCol}" font-size="15.5" font-weight="900">${hTxt}</text>
+    <text x="${CX}" y="${CY - 6}" text-anchor="middle" fill="var(--muted)" font-size="10" font-weight="600">${en ? 'Here (3h)' : '目前 3h'}</text>
+    <text x="${CX}" y="${CY + 14}" text-anchor="middle" fill="${hCol}" font-size="15.5" font-weight="700">${hTxt}</text>
   `;
 }
 
-// ====== Visual-First Micro-Icons & Solar Wind Magnetic Gate Meter ======
+// ====== Visual-First Micro-Icons & Aurora Early-Warning Signal Bar ======
 
 /**
  * Crisp 16x16 clear-sky / cloud status icon for the 3-column metrics card.
@@ -572,9 +570,9 @@ export function buildSkyFactorIcon(clearPct = 0, isTooBright = false) {
     return `<svg viewBox="0 0 16 16" fill="none"><path d="M8.5 2.2l1.15 3.45L13.1 6.8l-3.45 1.15L8.5 11.4 7.35 7.95 3.9 6.8l3.45-1.15L8.5 2.2z" fill="var(--green)"/><circle cx="3.2" cy="11.8" r="1.05" fill="var(--green)" opacity="0.72"/><circle cx="13.2" cy="12.2" r="0.85" fill="var(--green)" opacity="0.58"/></svg>`;
   }
   if (c >= 35) {
-    return `<svg viewBox="0 0 16 16" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M11.4 2.4l.55 1.65 1.65.55-1.65.55-.55 1.65-.55-1.65-1.65-.55 1.65-.55.55-1.65z" fill="var(--amber)"/><path d="M4.8 13h6.4a2.3 2.3 0 0 0 .3-4.58A3.2 3.2 0 0 0 5.3 7.5a2.7 2.7 0 0 0-.5 5.5z" fill="rgba(255,255,255,0.10)" stroke="var(--amber)" stroke-width="1.35"/></svg>`;
+    return `<svg viewBox="0 0 16 16" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M11.4 2.4l.55 1.65 1.65.55-1.65.55-.55 1.65-.55-1.65-1.65-.55 1.65-.55.55-1.65z" fill="var(--amber)"/><path d="M4.8 13h6.4a2.3 2.3 0 0 0 .3-4.58A3.2 3.2 0 0 0 5.3 7.5a2.7 2.7 0 0 0-.5 5.5z" fill="var(--svg-cloud-fill)" stroke="var(--amber)" stroke-width="1.35"/></svg>`;
   }
-  return `<svg viewBox="0 0 16 16" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.6h7a2.5 2.5 0 0 0 .35-4.97 3.55 3.55 0 0 0-6.8-1.05A2.85 2.85 0 0 0 4.5 12.6z" fill="rgba(255,255,255,0.12)" stroke="var(--muted)" stroke-width="1.4"/></svg>`;
+  return `<svg viewBox="0 0 16 16" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.6h7a2.5 2.5 0 0 0 .35-4.97 3.55 3.55 0 0 0-6.8-1.05A2.85 2.85 0 0 0 4.5 12.6z" fill="var(--svg-cloud-fill)" stroke="var(--muted)" stroke-width="1.4"/></svg>`;
 }
 
 /**
@@ -610,7 +608,7 @@ export function buildMoonPhaseIcon({ pct = 0, up = false, waxing = true, isTooBr
   const topY = (cy - r).toFixed(2);
   const botY = (cy + r).toFixed(2);
   if (f <= 0.04) {
-    return `<svg viewBox="0 0 16 16" fill="none"><circle cx="${cx}" cy="${cy}" r="${r}" fill="rgba(255,255,255,0.06)" stroke="var(--muted)" stroke-width="1.3"/></svg>`;
+    return `<svg viewBox="0 0 16 16" fill="none"><circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--svg-cloud-fill)" stroke="var(--muted)" stroke-width="1.3"/></svg>`;
   }
   if (f >= 0.96) {
     return `<svg viewBox="0 0 16 16" fill="none"><circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--moon-fill)" stroke="var(--moon-fill)" stroke-opacity="0.35" stroke-width="1"/></svg>`;
@@ -619,11 +617,11 @@ export function buildMoonPhaseIcon({ pct = 0, up = false, waxing = true, isTooBr
   const outerSweep = waxing ? 1 : 0;
   const innerSweep = waxing ? (f < 0.5 ? 0 : 1) : (f < 0.5 ? 1 : 0);
   const litPath = `M ${cx} ${topY} A ${r} ${r} 0 0 ${outerSweep} ${cx} ${botY} A ${rx} ${r} 0 0 ${innerSweep} ${cx} ${topY} Z`;
-  return `<svg viewBox="0 0 16 16" fill="none"><circle cx="${cx}" cy="${cy}" r="${r}" fill="rgba(255,255,255,0.07)" stroke="var(--muted)" stroke-opacity="0.55" stroke-width="1.15"/><path d="${litPath}" fill="var(--moon-fill)"/></svg>`;
+  return `<svg viewBox="0 0 16 16" fill="none"><circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--svg-cloud-fill)" stroke="var(--muted)" stroke-opacity="0.55" stroke-width="1.15"/><path d="${litPath}" fill="var(--moon-fill)"/></svg>`;
 }
 
 /**
- * Crisp 22x22 visual weather/aurora icon for each night in the 3-Night Outlook card.
+ * Crisp 20x20 visual weather/aurora icon for each night in the 3-Night Outlook card.
  */
 export function buildOutlookSkyIcon({ score = 0, clearPct = null, scoreAvailable = true } = {}) {
   if (!scoreAvailable) {
@@ -638,47 +636,40 @@ export function buildOutlookSkyIcon({ score = 0, clearPct = null, scoreAvailable
     return `<svg viewBox="0 0 22 22" fill="none" stroke-linecap="round"><path d="M3 14.8c2.7-3.8 5.3-3.8 8-1.4s5.3 2.3 8-2.7" stroke="var(--good)" stroke-width="1.85"/><circle cx="7" cy="6.6" r="1.2" fill="var(--good)"/><circle cx="15.8" cy="6.2" r="1" fill="var(--good)" opacity="0.72"/></svg>`;
   }
   if (c >= 45) {
-    return `<svg viewBox="0 0 22 22" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14.8 4.2l.55 1.55 1.55.55-1.55.55-.55 1.55-.55-1.55-1.55-.55 1.55-.55.55-1.55z" fill="var(--amber)"/><path d="M6.4 17.2h8.6a3 3 0 0 0 .4-5.97 4.2 4.2 0 0 0-8.1-1.2 3.4 3.4 0 0 0-.9 7.17z" fill="rgba(255,255,255,0.09)" stroke="var(--amber)" stroke-width="1.5"/></svg>`;
+    return `<svg viewBox="0 0 22 22" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14.8 4.2l.55 1.55 1.55.55-1.55.55-.55 1.55-.55-1.55-1.55-.55 1.55-.55.55-1.55z" fill="var(--amber)"/><path d="M6.4 17.2h8.6a3 3 0 0 0 .4-5.97 4.2 4.2 0 0 0-8.1-1.2 3.4 3.4 0 0 0-.9 7.17z" fill="var(--svg-cloud-fill)" stroke="var(--amber)" stroke-width="1.5"/></svg>`;
   }
-  return `<svg viewBox="0 0 22 22" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17h9.8a3.2 3.2 0 0 0 .45-6.37 4.6 4.6 0 0 0-8.85-1.35A3.65 3.65 0 0 0 6 17z" fill="rgba(255,255,255,0.11)" stroke="var(--muted)" stroke-width="1.6"/></svg>`;
+  return `<svg viewBox="0 0 22 22" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17h9.8a3.2 3.2 0 0 0 .45-6.37 4.6 4.6 0 0 0-8.85-1.35A3.65 3.65 0 0 0 6 17z" fill="var(--svg-cloud-fill)" stroke="var(--muted)" stroke-width="1.6"/></svg>`;
 }
 
 /**
- * Visual "Magnetic Gate" diverging meter for Solar Wind Card (#swMeter).
- * Maps live Bz (-15..+15 nT) onto left=South/Open (green) vs right=North/Closed (muted).
+ * Plain-language Aurora Early-Warning Signal Bar (#swMeter).
+ * Translates upstream L1 solar wind (Bz + speed) into an intuitive 0-100% burst-signal meter
+ * (Quiet -> Building -> Burst likely) with zero space-physics jargon on the main surface.
  */
 export function buildSolarWindMeterHtml({ bz = null, speed = null, en = false } = {}) {
   if (bz === null || !Number.isFinite(Number(bz))) return '';
   const bzVal = Number(bz);
-  const spdVal = Number.isFinite(Number(speed)) ? Math.round(Number(speed)) : null;
-  const clamped = Math.max(-15, Math.min(15, bzVal));
-  // Left (0%) = -15 nT (Strong South / Gate Open); Center (50%) = 0 nT; Right (100%) = +15 nT (North / Gate Closed)
-  const posPct = Math.max(5, Math.min(95, 50 + (clamped / 15) * 45));
-  const isSouthStrong = bzVal <= -4;
-  const isSouth = bzVal < -0.5;
-  const dotCol = isSouthStrong ? 'var(--green)' : (isSouth ? 'var(--amber)' : 'var(--muted)');
-  const fillLeft = Math.min(50, posPct);
-  const fillWidth = Math.abs(posPct - 50);
-  const bzSign = bzVal > 0 ? `+${bzVal.toFixed(1)}` : bzVal.toFixed(1);
-  const readout = `Bz ${bzSign} nT${spdVal !== null ? ` · ${spdVal} km/s` : ''}`;
-  const lbl = en ? 'Magnetic Gate' : '地磁閘門（Bz）';
-  const leftLbl = en ? '← South · Open' : '← 朝南開啟';
-  const rightLbl = en ? 'North · Closed →' : '朝北關閉 →';
+  const spdVal = Number.isFinite(Number(speed)) ? Number(speed) : 420;
+  const energy = bzToEnergy(bzVal, spdVal); // 0..100 normalized incoming aurora coupling
+  const posPct = Math.max(5, Math.min(95, Math.round(energy)));
+  const isStrong = energy >= 52;
+  const isBuild = energy >= 26;
+  const dotCol = isStrong ? 'var(--green)' : (isBuild ? 'var(--amber)' : 'var(--muted)');
+  const l1 = en ? 'Quiet' : '平靜';
+  const l2 = en ? 'Building' : '增強';
+  const l3 = en ? 'Burst likely' : '可能爆發';
+  const aria = en ? `Aurora burst signal ${posPct}%` : `極光爆發訊號強度 ${posPct}%`;
   return `
-    <div class="sw-meter-head">
-      <span class="sw-meter-lbl">${escSvg(lbl)}</span>
-      <span class="sw-meter-val" style="color:${dotCol};">${escSvg(readout)}</span>
-    </div>
-    <div class="sw-meter-track" role="img" aria-label="${escSvg(`${lbl} ${readout}`)}">
-      <div class="sw-meter-south-zone"></div>
-      <div class="sw-meter-fill" style="left:${fillLeft.toFixed(1)}%;width:${Math.max(1.5, fillWidth).toFixed(1)}%;background:${dotCol};"></div>
-      <div class="sw-meter-zero"></div>
-      <div class="sw-meter-dot" style="left:${posPct.toFixed(1)}%;background:${dotCol};"></div>
+    <div class="sw-meter-track" role="img" aria-label="${escSvg(aria)}">
+      <div class="sw-meter-grad"></div>
+      <div class="sw-meter-fill" style="width:${posPct}%;background:${dotCol};"></div>
+      <div class="sw-meter-dot" style="left:${posPct}%;background:${dotCol};"></div>
     </div>
     <div class="sw-meter-axis">
-      <span class="${isSouth ? 'sw-axis-on' : ''}">${escSvg(leftLbl)}</span>
-      <span>0</span>
-      <span class="${!isSouth ? 'sw-axis-on' : ''}">${escSvg(rightLbl)}</span>
+      <span class="${!isBuild ? 'sw-axis-on' : ''}">${escSvg(l1)}</span>
+      <span class="${isBuild && !isStrong ? 'sw-axis-on' : ''}">${escSvg(l2)}</span>
+      <span class="${isStrong ? 'sw-axis-on' : ''}">${escSvg(l3)}</span>
     </div>`;
 }
+
 

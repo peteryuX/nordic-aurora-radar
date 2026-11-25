@@ -127,12 +127,12 @@
       </div>
     </div>
 
-    <!-- VIEW 1: OVERVIEW (iOS Atmospheric Hero -> Frosted 3-Metric Summary -> 24h Trend -> 3-Night Outlook -> Solar Wind) -->
+    <!-- VIEW 1: OVERVIEW (Compact iOS 18 Atmospheric Hero -> 3-Metric Glass -> 24h Trend -> 3-Night Rows -> Aurora Early Warning) -->
     <main id="v-home" class="view on">
       <section class="sky-hero">
         <div class="sky-stage">
           <button id="ringBtn" class="hero-score-btn ring-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet" aria-label="查看指數算法與可信度">
-            <div id="ringSubLbl" class="ring-sub">觀測指數</div>
+            <div id="ringSubLbl" class="ring-sub sr-only">觀測指數</div>
             <div id="ringNum" class="ring-num">--</div>
             <div id="ringGrade" class="ring-grade">計算中</div>
           </button>
@@ -144,7 +144,7 @@
         </div>
 
         <div class="sky-body">
-          <!-- Unified 3-Column Frosted Glass Metrics (Visual Micro-Icons + Adaptive Accessibility Layout) -->
+          <!-- Unified 3-Column Frosted Glass Metrics (Visual Micro-Icons + Compact Single-Line Sub-Labels) -->
           <div class="factors">
             <div class="f-box">
               <div class="f-head">
@@ -181,41 +181,43 @@
         </div>
       </section>
 
-      <!-- Card 2 (Above-the-Fold Peek): fixed 24h Combined Clear-Sky & Score Trend -->
+      <!-- Card 2 (Fully Above the Fold on iPhone 15): Compact 24h Clear-Sky & Score Trend -->
       <section class="card" id="waveCard">
         <h2 class="wave-h2">
-          <span id="h2Wave">逐時趨勢</span>
-          <span id="waveRange" class="wave-range">24 小時</span>
+          <span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.8V8l2.2 1.4"/></svg><span id="h2Wave">逐時趨勢</span></span>
+          <span id="waveRange" class="wave-range">24 小時 · 滑動查看</span>
         </h2>
         <div id="homeBest" class="wave-peak skel-bar">載入中…</div>
-        <div class="hr-legend hr-legend-top">
-          <span id="hrLegLeft"><span class="leg-dot" style="background:var(--green);"></span>柱＝指數（0–99）<span class="leg-strip"></span>灰條＝晴空率</span>
-          <span id="hrLegRight">滑動查看各時段</span>
-        </div>
         <div class="chart-box">
-          <svg id="skyWaveChart" class="chart-svg" viewBox="0 0 420 194"></svg>
+          <svg id="skyWaveChart" class="chart-svg" viewBox="0 0 420 154"></svg>
         </div>
-        <div id="hourDetail" class="hr-detail"><span>在圖表上滑動或點擊任一時段查看晴空率、體感溫度與月光</span></div>
+        <div id="hourDetail" class="hr-detail"><span>滑動或點擊任一時段查看晴空率、體感溫度與夜空暗度</span></div>
       </section>
 
-      <!-- Card 3: 3-Night Aurora & Clear-Sky Outlook (Clean, Zero-Jargon Decision Order) -->
+      <!-- Card 3: Apple Weather 10-Day Style Compact 3-Night Horizontal Rows -->
       <section class="card" id="outlookCard">
-        <h2 class="h2-with-info"><span id="h2Outlook">未來三晚</span><button id="outlookInfoBtn" class="info-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet" aria-label="指數說明">ⓘ</button></h2>
+        <h2 class="h2-with-info">
+          <span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1.8v2.4M11 1.8v2.4M2 6.8h12"/></svg><span id="h2Outlook">未來三晚</span></span>
+          <button id="outlookInfoBtn" class="info-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet" aria-label="指數說明">ⓘ</button>
+        </h2>
         <div id="outlookGrid" class="outlook-grid">
-          <div class="outlook-day skel-day"><div class="od-day">今晚</div><div class="od-date">--/--</div><div class="od-score">00</div><div class="od-badge">----</div><div class="od-stat">晴空率 00%<br/>Kp 0.0</div></div>
-          <div class="outlook-day skel-day"><div class="od-day">週四</div><div class="od-date">--/--</div><div class="od-score">00</div><div class="od-badge">----</div><div class="od-stat">晴空率 00%<br/>Kp 0.0</div></div>
-          <div class="outlook-day skel-day"><div class="od-day">週五</div><div class="od-date">--/--</div><div class="od-score">00</div><div class="od-badge">----</div><div class="od-stat">晴空率 00%<br/>Kp 0.0</div></div>
+          <div class="outlook-row skel-day"><div class="od-day">今晚</div><div class="od-score">00</div></div>
+          <div class="outlook-row skel-day"><div class="od-day">週四</div><div class="od-score">00</div></div>
+          <div class="outlook-row skel-day"><div class="od-day">週五</div><div class="od-score">00</div></div>
         </div>
         <p id="outlookNote" class="od-note">明後天雲量與 Kp 變動較大，出發前 3 小時請再確認。</p>
       </section>
 
-      <!-- Card 4: Humanized Solar Wind Status (Visual Magnetic Gate + Progressive Disclosure Curve) -->
+      <!-- Card 4: Humanized Aurora Early Warning (30-60 min Upstream L1 Satellite Radar, Zero Nested Boxes) -->
       <section class="card card-sw" id="solarWindCard">
-        <h2><span id="h2Energy">太陽風</span><span id="bzBadge" class="sw-badge"></span></h2>
+        <h2>
+          <span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.2 1.8L3.8 9h4.1l-1.1 5.2L12.2 7H8.1l1.1-5.2z"/></svg><span id="h2Energy">極光即時預警</span></span>
+          <span id="bzBadge" class="sw-badge"></span>
+        </h2>
+        <div id="energyBanner" class="sw-summary">正在讀取即時衛星預警…</div>
         <div id="swMeter" class="sw-meter" style="display:none;"></div>
-        <div id="energyBanner" class="callout">正在讀取即時太陽風…</div>
         <button id="swToggleBtn" class="sw-toggle-btn" type="button" aria-expanded="false" aria-controls="swCurvePanel">
-          <span id="swToggleTxt">顯示太陽風曲線</span><span class="sw-chev">▾</span>
+          <span id="swToggleTxt">查看衛星資料與 2 小時曲線</span><span class="sw-chev">▾</span>
         </button>
         <div id="swCurvePanel" class="sw-curve-panel" aria-hidden="true">
           <div class="chart-box" style="margin-top:9px;">

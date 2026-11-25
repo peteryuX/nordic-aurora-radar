@@ -332,7 +332,7 @@ test('12. All SVG builders produce clean markup with strictly uniform X-axis int
   }));
   const waveSvg = api.buildSkyWaveSVG(hrs, hrs[3], 5, 'zh');
   assert.ok(waveSvg.includes('class="sc-bar"') && !waveSvg.includes('<polyline') && !waveSvg.includes('NaN') && !waveSvg.includes('undefined'));
-  const waveTicks = [...waveSvg.matchAll(/<text[^>]*y="184"[^>]*>(\d{2}:\d{2})<\/text>/g)].map(m => m[1]);
+  const waveTicks = [...waveSvg.matchAll(/<text[^>]*y="146"[^>]*>(\d{2}:\d{2})<\/text>/g)].map(m => m[1]);
   assert.deepEqual(waveTicks, ['22:00', '00:00', '02:00', '04:00', '06:00', '08:00']);
 
   const dirs = [
@@ -1788,8 +1788,8 @@ test('44. Overcast CME shock verdict never contradicts score with fake rising co
   }));
   const svgLeft = api.buildSkyWaveSVG(hrsLeftBest, hrsLeftBest[0], 0, 'zh');
   assert.ok(svgLeft.includes('★ 06:00 最佳'), 'Best badge must include exact best hour 06:00');
-  assert.ok(svgLeft.includes('x1="56.0" y1="22"'), 'Best vertical pointer stem must anchor directly to 06:00 (x=56)');
-  assert.ok(svgLeft.includes('x="56.0" y="2"'), 'Best pill must sit at left edge above 06:00, not shifted to x=224');
+  assert.ok(svgLeft.includes('x1="56.0" y1="18"'), 'Best vertical pointer stem must anchor directly to 06:00 (x=56)');
+  assert.ok(svgLeft.includes('x="56.0" y="1"'), 'Best pill must sit at left edge above 06:00, not shifted to x=224');
   assert.ok(svgLeft.includes('天色過亮'), 'Contiguous daylight band must be clearly labeled');
 });
 
@@ -2264,11 +2264,15 @@ test('50. Bilingual copy, localization & single-metric chart clarity lint gate (
   assert.ok(appSrc.includes('chartHours: state.renderState.scoredHours'), 'Background ENLIL re-render must preserve chartHours parity');
   assert.ok(html.includes('id="tsConfDetail"') && !html.includes('id="outlookNote" class="od-note" hidden'), 'Trust Sheet must include #tsConfDetail and #outlookNote must be visible by default');
 
-  // 11. v33 Dynamic Type accessibility reflow & visual-first components (zero-leak CSS vars)
+  // 11. v34 Dynamic Type, zero-bleed scrim, unified 夜空暗度 vocabulary, zero SVG white-RGBA leaks & Early Warning meter
   const cssSrc = fs.readFileSync(path.join(ROOT, 'styles.css'), 'utf8');
+  const chartsSrc = fs.readFileSync(path.join(ROOT, 'src/charts.js'), 'utf8');
   assert.ok(cssSrc.includes('-apple-system-body') && !cssSrc.includes('html { font-size: 16px;'), 'CSS must support iOS Dynamic Type instead of locking html to fixed 16px');
   assert.ok(cssSrc.includes('body.a11y-large .factors') && cssSrc.includes('body.a11y-large .outlook-grid'), 'CSS must provide Dynamic Type reflow for 3-col metrics and 3-night outlook');
+  assert.ok(cssSrc.includes('body::after') && cssSrc.includes('body.red-mode::after'), 'CSS must render a fixed bottom edge scrim beneath floating nav to prevent iOS home-indicator text bleed');
   assert.ok(appSrc.includes('syncFontScaleClass') && appSrc.includes("'a11y-large'"), 'app.js must compute live root font-size scale for real iOS Dynamic Type reflow');
+  assert.ok(!html.includes('與月光') && !appSrc.includes('月光 ${') && !appSrc.includes('月亮已落下'), 'Overview UI must unify darkness terminology to 夜空暗度/暗度/全暗 (zero 月光 vocabulary drift)');
+  assert.ok(!chartsSrc.includes('rgba(255,255,255'), 'src/charts.js must use CSS custom properties (--chart-grid/--chart-axis/--svg-cloud-fill) with zero hardcoded white RGBA red-mode leaks');
   const mFull = api.getMoonState(new Date('2026-11-24T14:53:00Z'), 69.97, 23.27);
   assert.equal(typeof mFull.waxing, 'boolean', 'getMoonState must expose boolean waxing phase');
   const moonCrescentSvg = api.buildMoonPhaseIcon({ pct: 28, up: true, waxing: true, isTooBright: false });
@@ -2276,11 +2280,11 @@ test('50. Bilingual copy, localization & single-metric chart clarity lint gate (
   const skyIcoSvg = api.buildSkyFactorIcon(90, false);
   const aurIcoSvg = api.buildAuroraFactorIcon(82);
   const odIcoSvg = api.buildOutlookSkyIcon({ score: 84, clearPct: 94, scoreAvailable: true });
-  assert.ok(skyIcoSvg.includes('<svg') && aurIcoSvg.includes('<svg') && odIcoSvg.includes('<svg'), 'All v33 visual micro-icons must render valid SVGs');
+  assert.ok(skyIcoSvg.includes('<svg') && aurIcoSvg.includes('<svg') && odIcoSvg.includes('<svg'), 'All visual micro-icons must render valid SVGs');
   const swMeterOpen = api.buildSolarWindMeterHtml({ bz: -6.8, speed: 540, en: false });
   const swMeterNull = api.buildSolarWindMeterHtml({ bz: null, speed: null, en: false });
-  assert.ok(swMeterOpen.includes('sw-meter-dot') && swMeterOpen.includes('Bz -6.8 nT · 540 km/s'), 'Solar wind gate meter must render Bz + speed readout and indicator dot');
-  assert.equal(swMeterNull, '', 'Solar wind gate meter must hide cleanly when Bz is unavailable');
+  assert.ok(swMeterOpen.includes('sw-meter-dot') && swMeterOpen.includes('可能爆發'), 'Early-warning signal bar must render human-readable burst signal meter');
+  assert.equal(swMeterNull, '', 'Early-warning signal bar must hide cleanly when Bz is unavailable');
 });
 
 

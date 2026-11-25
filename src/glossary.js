@@ -12,6 +12,8 @@ export const TERMS = Object.freeze({
   clearShort:    Object.freeze({ zh: '晴空',     en: 'Clear' }),
   aurora:        Object.freeze({ zh: '極光活動', en: 'Aurora' }),
   darkness:      Object.freeze({ zh: '夜空暗度', en: 'Darkness' }),
+  darkShort:     Object.freeze({ zh: '暗度',     en: 'Dark' }),
+  darkFull:      Object.freeze({ zh: '全暗',     en: 'Full dark' }),
 
   // Unified 4 Score Tiers (65 / 40 / 18)
   tier: Object.freeze({
@@ -46,20 +48,20 @@ export const TERMS = Object.freeze({
     cloudy:       Object.freeze({ zh: '陰天', en: 'Cloudy' })
   }),
 
-  // Moon & Darkness Timing
+  // Moon & Darkness Timing (kept for diagnostic details; Overview uses unified darkness/darkShort/darkFull)
   moon: Object.freeze({
-    label: Object.freeze({ zh: '月光',       en: 'Moon' }),
-    down:  Object.freeze({ zh: '月亮已落下', en: 'Moon down' })
+    label: Object.freeze({ zh: '夜空暗度', en: 'Darkness' }),
+    down:  Object.freeze({ zh: '全暗',     en: 'Full dark' })
   }),
 
-  // Solar Wind States
+  // Solar Wind Early-Warning States (30-60 min L1 upstream radar)
   solarWind: Object.freeze({
-    title:      Object.freeze({ zh: '太陽風',             en: 'Solar wind' }),
+    title:      Object.freeze({ zh: '極光即時預警',       en: 'Aurora early warning' }),
     axisTitle:  Object.freeze({ zh: '太陽風能量（相對）', en: 'Solar wind energy (rel.)' }),
-    strong:     Object.freeze({ zh: '強烈',               en: 'Strong' }),
-    active:     Object.freeze({ zh: '活躍',               en: 'Active' }),
-    building:   Object.freeze({ zh: '增強中',             en: 'Building' }),
-    low:        Object.freeze({ zh: '偏弱',               en: 'Low' })
+    strong:     Object.freeze({ zh: '可能爆發',           en: 'Burst likely' }),
+    active:     Object.freeze({ zh: '可能變亮',           en: 'May brighten' }),
+    building:   Object.freeze({ zh: '能量累積',           en: 'Building' }),
+    low:        Object.freeze({ zh: '維持平靜',           en: 'Quiet' })
   }),
 
   // Feature & Navigation Titles
@@ -71,7 +73,7 @@ export const TERMS = Object.freeze({
     liveMap:        Object.freeze({ zh: '實拍雲圖', en: 'Live map' }),
     hourlyTrend:    Object.freeze({ zh: '逐時趨勢', en: 'Hourly trend' }),
     next3Nights:    Object.freeze({ zh: '未來三晚', en: 'Next 3 nights' }),
-    range24h:       Object.freeze({ zh: '24 小時',  en: '24 hours' })
+    range24h:       Object.freeze({ zh: '24 小時 · 滑動查看', en: '24h · Scrub' })
   }),
 
   // Location Source & Freshness
@@ -80,7 +82,7 @@ export const TERMS = Object.freeze({
     useMyLoc:   Object.freeze({ zh: '使用目前位置', en: 'Use my location' }),
     local:      Object.freeze({ zh: '當地',         en: 'Local' }),
     failed:     Object.freeze({ zh: '⚠ 定位失敗',  en: '⚠ Location failed' }),
-    justNow:    Object.freeze({ zh: '剛剛更新',     en: 'Updated just now' })
+    justNow:    Object.freeze({ zh: '剛剛更新',     en: 'Just now' })
   }),
 
   // Outlook & Chart Accents
