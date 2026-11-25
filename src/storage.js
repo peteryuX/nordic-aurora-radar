@@ -203,7 +203,7 @@ export function hydrateOfflineState(cached, pos, nowMs = Date.now()) {
       : null
   });
   const selectedHourIdx = cached.bestDark
-    ? Math.max(0, cachedScored.hours.findIndex(h => h.time === cached.bestDark.time))
+    ? Math.max(0, cachedScored.hours.findIndex(h => (Number.isFinite(cached.bestDark.dtMs) && Number.isFinite(h.dtMs)) ? h.dtMs === cached.bestDark.dtMs : h.time === cached.bestDark.time))
     : 0;
   return {
     scoredHours: cachedScored.hours,

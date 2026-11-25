@@ -1902,5 +1902,129 @@ test('46. Gate 1 1P UX regressions: honest Cloudy <30% 3-Night verdict & consume
   assert.ok(appSrc.includes('syncBannerBudget'), 'App must enforce Banner Budget = 1 arbitration');
 });
 
+test('47. 24-hour forecast physics & UX guardrails (24h parsing, 6h-step guard, +3h Kp leak guard, bestTonight, dtMs & midnight SVG)', () => {
+  const now = new Date('2026-11-24T20:00:00Z'); // 21:00 CET in Tromsø
+  const nowMs = now.getTime();
+
+  // 1. MET Norway 24h parser stops cleanly if feed switches to 6h steps early
+  const metSeries = [];
+  for (let i = 0; i < 20; i++) {
+    metSeries.push({
+      time: new Date(nowMs + i * 3600000).toISOString(),
+      data: { instant: { details: { cloud_area_fraction: 15, air_temperature: -5, wind_speed: 3 } } }
+    });
+  }
+  // Inject 6h jump after hour 19
+  metSeries.push({
+    time: new Date(nowMs + 25 * 3600000).toISOString(),
+    data: { instant: { details: { cloud_area_fraction: 10, air_temperature: -6, wind_speed: 2 } } }
+  });
+  const parsedMet = api.parseMetNorwayHourly12({ properties: { timeseries: metSeries } }, 69.65, 18.96, 'Europe/Oslo', now, 24);
+  assert.equal(parsedMet.length, 20, `6h-step guard must stop cleanly at 20 hourly steps, got ${parsedMet.length}`);
+  assert.ok(parsedMet[0].nightKey && parsedMet[0].localDate, 'Parsed hours must include astronomical nightKey & localDate');
+
+  // 2. Open-Meteo 24h parser returns 24 hours when requested, while default remains 12 (backwards compatibility)
+  const omTimes = Array.from({ length: 36 }, (_, i) => Math.floor((nowMs + i * 3600000) / 1000));
+  const omHourly = {
+    time: omTimes,
+    cloud_cover: omTimes.map(() => 20),
+    cloud_cover_low: omTimes.map(() => 10),
+    cloud_cover_mid: omTimes.map(() => 10),
+    cloud_cover_high: omTimes.map(() => 0),
+    temperature_2m: omTimes.map(() => -4),
+    wind_speed_10m: omTimes.map(() => 12),
+    precipitation: omTimes.map(() => 0)
+  };
+  assert.equal(api.parseOpenMeteoHourly12(omHourly, 69.65, 18.96, 'Europe/Oslo', now).length, 12);
+  const om24 = api.parseOpenMeteoHourly12(omHourly, 69.65, 18.96, 'Europe/Oslo', now, null, 24);
+  assert.equal(om24.length, 24, 'Open-Meteo 24h horizon must return 24 hourly rows');
+
+  // 3. +3h Kp storm-leakage guardrail: missing kpForecast must NEVER clone live Kp 7.5 onto +12h..+23h
+  const scoredLeak = api.scoreHourlyForecast12(om24, {
+    lat: 69.65, lon: 18.96, kpForecast: [], fallbackKp: 7.5, bz: -18, speed: 680
+  });
+  assert.equal(scoredLeak.hours[0].kpFc, 7.5, 'Hour 0 keeps live Kp 7.5');
+  assert.ok(scoredLeak.hours[12].kpFc <= 2.5, `Hour +12 without kpForecast must damp fallback Kp <= 2.5, got ${scoredLeak.hours[12].kpFc}`);
+
+  // 4. bestTonight isolates tonight's nightKey even when tomorrow evening (+22h) has higher Kp
+  const kpTomorrowStorm = [
+    { ts: nowMs, kp: 2.0 },
+    { ts: nowMs + 3 * 3600000, kp: 2.0 },
+    { ts: nowMs + 6 * 3600000, kp: 2.0 },
+    { ts: nowMs + 21 * 3600000, kp: 6.5 }
+  ];
+  const scoredSplit = api.scoreHourlyForecast12(om24, {
+    lat: 69.65, lon: 18.96, kpForecast: kpTomorrowStorm, fallbackKp: 2.0
+  });
+  assert.equal(scoredSplit.bestTonight.nightKey, scoredSplit.activeNightKey, 'bestTonight must stay within tonight nightKey');
+  assert.notEqual(scoredSplit.bestAurora.nightKey, scoredSplit.activeNightKey, 'bestAurora across 24h picks tomorrow storm');
+
+  // 5. 24h SVG renders cleanly with midnight boundary, 4h X-ticks (<=6 ticks), and zero NaN
+  const svg24Zh = api.buildSkyWaveSVG(scoredSplit.hours, scoredSplit.bestAurora, 2, 'zh');
+  const svg24En = api.buildSkyWaveSVG(scoredSplit.hours, scoredSplit.bestAurora, 2, 'en');
+  assert.ok(!svg24Zh.includes('NaN') && !svg24En.includes('NaN'), '24h SVG must contain zero NaN');
+  assert.ok(svg24Zh.includes('stroke-dasharray="3 3"'), '24h SVG must draw midnight boundary hairline');
+  assert.ok(!/[\u3400-\u9fff]/.test(svg24En), 'EN 24h SVG must contain zero CJK characters');
+});
+
+test('48. Morning-hour 3-Night rollover & VLM QA regressions (Lofoten 09:03 winter, Reykjavik 08:22 activeNightKey, overcast daylight)', () => {
+  // 1. Reproduces user iPhone screenshot: Lofoten 09:03 AM CET on Nov 25 (winter, dark at 15:00!)
+  //    MUST show 今晚 11/25 (NOT 今晚 11/24 天色偏亮 無暗空!)
+  const lofotenMorning = new Date('2026-11-25T08:03:00Z'); // 09:03 CET
+  const lofotenPts = [
+    { dtMs: Date.parse('2026-11-25T08:30:00Z'), clear: 15, isDay: true },  // 09:30 CET daytime
+    { dtMs: Date.parse('2026-11-25T10:30:00Z'), clear: 25, isDay: true },  // 11:30 CET daytime
+    { dtMs: Date.parse('2026-11-25T16:30:00Z'), clear: 68, isDay: false }, // 17:30 CET TONIGHT dark!
+    { dtMs: Date.parse('2026-11-25T17:30:00Z'), clear: 64, isDay: false },
+    { dtMs: Date.parse('2026-11-25T18:30:00Z'), clear: 66, isDay: false },
+    { dtMs: Date.parse('2026-11-26T18:30:00Z'), clear: 74, isDay: false },
+    { dtMs: Date.parse('2026-11-26T19:30:00Z'), clear: 72, isDay: false }
+  ];
+  const lofotenNights = api.summarize3NightOutlook({
+    cloudPoints: lofotenPts,
+    kpForecast: [
+      { ts: Date.parse('2026-11-25T18:00:00Z'), kp: 3.7 },
+      { ts: Date.parse('2026-11-26T18:00:00Z'), kp: 5.0 }
+    ],
+    currentKp: 2.7, lat: 68.23, lon: 14.56, timeZone: 'Europe/Oslo', nowDate: lofotenMorning, lang: 'zh'
+  });
+  assert.equal(lofotenNights[0].label, '今晚 11/25', `At 09:03 AM on 11/25, Night 0 must be 今晚 11/25, got ${lofotenNights[0].label}`);
+  assert.notEqual(lofotenNights[0].badge, '天色偏亮', `Winter Lofoten 09:03 AM must NEVER show 天色偏亮 / 無暗空, got ${lofotenNights[0].badge}`);
+  assert.ok(lofotenNights[0].bestClear >= 60, `Expected tonight clear sky >=60%, got ${lofotenNights[0].bestClear}%`);
+
+  // 2. Late-night 02:00 AM with remaining dark hours still stays on tonight's active session (11/24)
+  const lateNight = new Date('2026-11-25T01:00:00Z'); // 02:00 CET
+  const latePts = [
+    { dtMs: Date.parse('2026-11-25T01:30:00Z'), clear: 80, isDay: false },
+    { dtMs: Date.parse('2026-11-25T02:30:00Z'), clear: 82, isDay: false }
+  ];
+  const lateNights = api.summarize3NightOutlook({
+    cloudPoints: latePts, kpForecast: [{ ts: Date.parse('2026-11-25T00:00:00Z'), kp: 4.0 }],
+    currentKp: 4.0, lat: 68.23, lon: 14.56, timeZone: 'Europe/Oslo', nowDate: lateNight, lang: 'zh'
+  });
+  assert.equal(lateNights[0].label, '今晚 11/24', 'At 02:00 AM with dark hours remaining, Night 0 stays on ongoing 11/24 night');
+
+  // 3. Reykjavik 08:22 AM (pre-sunrise dark) must set activeNightKey to TODAY (2026-11-25) so tonight 02:00 is not Tomorrow
+  const rvkNow = new Date('2026-11-25T08:00:00Z');
+  const rvkTimes = Array.from({ length: 24 }, (_, i) => Math.floor((rvkNow.getTime() + i * 3600000) / 1000));
+  const rvk24 = api.parseOpenMeteoHourly12({
+    time: rvkTimes, cloud_cover: rvkTimes.map(() => 20), temperature_2m: rvkTimes.map(() => 2),
+    wind_speed_10m: rvkTimes.map(() => 10), precipitation: rvkTimes.map(() => 0)
+  }, 64.15, -21.94, 'Atlantic/Reykjavik', rvkNow, 0, 24);
+  const rvkScored = api.scoreHourlyForecast12(rvk24, { lat: 64.15, lon: -21.94, fallbackKp: 3.0 });
+  assert.equal(rvkScored.activeNightKey, '2026-11-25', '08:00 AM pre-sunrise activeNightKey must be today (2026-11-25)');
+
+  // 4. Overcast daylight wait (<25% clear) must not call 5% clear "Best window / 今晚最晴時段"
+  const qtAct = api.synthesizeTonightAction({
+    lat: -45.03, lon: 168.66,
+    sc: { total: 0, skyScore: 7, auroraScore: 2, darkScore: 0, isTooBright: true, outOfZone: null },
+    bestDark: { time: '05:00', clear: 5, score: 0 },
+    darkWin: { state: 'twilight-wait', nextDarkHM: '21:28', darkInMin: 6 },
+    kp: 1.0, lang: 'zh'
+  });
+  assert.ok(!qtAct.lead.includes('最晴時段'), `5% clear overcast must not say 最晴時段: ${qtAct.lead}`);
+  assert.ok(qtAct.lead.includes('厚雲'), `5% clear overcast must honestly mention 厚雲: ${qtAct.lead}`);
+});
+
 
 

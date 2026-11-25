@@ -28,7 +28,7 @@ Zero build tools, zero npm runtime dependencies (native ES modules):
 - `src/aurora-engine.js` — Pure physics (IGRF-14 Apex-110, JPL DE441 solar/lunar, Newell coupling, layered clouds, METAR Optimal Interpolation) & 15+ upstream parsers
 - `src/charts.js` — Pure SVG visualizations (live sky, solar wind, 12h wave, 360° radar)
 - `src/data-client.js` / `src/storage.js` / `src/i18n.js` / `src/app.js` — Live transport (NOAA, MET Norway, Dual-Model Open-Meteo, METAR ceilometers), offline SWR cache, bilingual UI & controller
-- `tests/` — `46` automated tests (`45` unit + `1` optional live in `aurora.test.mjs`), `72` curated scenario regression guardrails & `22` JPL DE441 checkpoints (`benchmark.mjs`), and live public-data audit (`realworld-validation.mjs`)
+- `tests/` — `48` automated tests (`47` unit + `1` optional live in `aurora.test.mjs`), `72` curated scenario regression guardrails & `22` JPL DE441 checkpoints (`benchmark.mjs`), and live public-data audit (`realworld-validation.mjs`)
 
 ## Independent Zero-Fitting Validation & Known Caveats｜零擬合盲測驗證與限制
 

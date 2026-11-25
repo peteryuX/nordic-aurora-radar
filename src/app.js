@@ -74,6 +74,8 @@ const state = {
   sheetHistoryPushed: false,
   toastTimer: null,
   swExpanded: false,
+  waveHorizon: 12,
+  waveHorizonLocked: false,
   displayedScore: null,
   scoreAnimFrame: 0,
   bannerState: { offline: false, stormSevere: false, stormMinorTag: '', lineTip: false }
@@ -638,9 +640,9 @@ function updateClockAndPhoto() {
 const barColor = (score) => (score >= 65 ? 'var(--green)' : score >= 35 ? 'var(--amber)' : 'var(--red)');
 const tierColor = (score) => (score >= 40 ? 'var(--green)' : score >= 18 ? 'var(--amber)' : 'var(--red)');
 function scoreCssColor(hex) {
-  if (hex === '#34f0b0') return 'var(--green)';
-  if (hex === '#ffcf5c') return 'var(--amber)';
-  if (hex === '#66bdff') return 'var(--blue)';
+  if (hex === '#34f0b0' || hex === '#2ed39e') return 'var(--green)';
+  if (hex === '#ffcf5c' || hex === '#f4c350') return 'var(--amber)';
+  if (hex === '#66bdff' || hex === '#64b2ff') return 'var(--blue)';
   return 'var(--red)';
 }
 const fmtTempC = (t) => {
@@ -679,12 +681,124 @@ function renderGauge(sc, details) {
   setFactor('fDarkVal', 'fDarkBar', 'fDarkSub', sc.darkScore, details.isTooBright ? (en ? 'Bright' : '尚亮') : `${sc.darkScore}%`, details.darkSubHtml ?? escapeHtml(details.darkSub || ''), details.isTooBright ? 'var(--blue)' : null);
 }
 
+function getVisibleHours() {
+  if (!state.scoredHours.length) return [];
+  return state.scoredHours.length > 12 ? state.scoredHours.slice(0, state.waveHorizon) : state.scoredHours;
+}
+
+function pickBestInSlice(slice) {
+  let best = null;
+  for (const h of slice) {
+    if (!h || h.isDay) continue;
+    if (!best || h.score > best.score || (h.score === best.score && h.block < best.block)) best = h;
+  }
+  return best;
+}
+
+function isNextNightHour(h) {
+  if (!h || !state.scoredHours.length) return false;
+  const firstHrNum = parseInt(String(state.scoredHours[0]?.time || '12'), 10);
+  const activeNightKey = (Number.isFinite(firstHrNum) && firstHrNum >= 6 && state.scoredHours[0]?.localDate)
+    ? state.scoredHours[0].localDate
+    : (state.scoredHours.find(x => x && !x.isDay)?.nightKey || state.scoredHours[0]?.nightKey || null);
+  return Boolean(h.nightKey && activeNightKey && h.nightKey > activeNightKey);
+}
+
+function isNextCalendarDayHour(h) {
+  const firstDate = state.scoredHours[0]?.localDate;
+  return Boolean(firstDate && h?.localDate && h.localDate !== firstDate);
+}
+
+function formatHourLabel(h, en) {
+  const t = escapeHtml(h?.time || '');
+  if (!h) return t;
+  if (!h.isDay && isNextNightHour(h)) return en ? `Tomorrow ${t}` : `明晚 ${t}`;
+  if (h.isDay && isNextCalendarDayHour(h)) return en ? `Tomorrow ${t}` : `明日 ${t}`;
+  return t;
+}
+
+function syncHorizonSegUI() {
+  const seg = $('horizonSeg');
+  const b12 = $('hz12Btn');
+  const b24 = $('hz24Btn');
+  const has24 = state.scoredHours.length > 12;
+  if (seg) seg.style.display = has24 ? 'inline-flex' : 'none';
+  if (b12) {
+    b12.classList.toggle('on', state.waveHorizon === 12);
+    b12.setAttribute('aria-selected', String(state.waveHorizon === 12));
+  }
+  if (b24) {
+    b24.classList.toggle('on', state.waveHorizon === 24);
+    b24.setAttribute('aria-selected', String(state.waveHorizon === 24));
+  }
+}
+
+function renderWaveCard(focusBest = false) {
+  const en = isEn();
+  syncHorizonSegUI();
+  const vis = getVisibleHours();
+  if (!vis.length) return;
+  const outZoneKind = state.lastScore?.outOfZone || null;
+  const isOutOfZone = Boolean(outZoneKind) && vis.every(h => !h || h.isDay || h.outOfZone || h.score === 0);
+  const bestInVis = isOutOfZone ? null : pickBestInSlice(vis);
+  const hz = vis.length > 14 ? 24 : 12;
+  const bestTimeLbl = bestInVis ? formatHourLabel(bestInVis, en) : '';
+  const bestIsNextNight = bestInVis ? isNextNightHour(bestInVis) : false;
+  const bestText = isOutOfZone
+    ? (outZoneKind === 'needs-storm'
+        ? (en
+            ? `Activity too weak for this latitude — needs a stronger geomagnetic storm over the next ${hz}h.`
+            : `目前活動偏弱，此緯度需強地磁風暴（未來 ${hz} 小時觀測指數皆為 <strong>0 分</strong>）。`)
+        : (en
+            ? `Outside the auroral zone — viewing score stays <strong>0</strong> over the next ${hz}h (tap location above to switch).`
+            : `此地緯度低於極光帶，未來 ${hz} 小時觀測指數皆為 <strong>0 分</strong>（點上方地名可切換極光熱點）。`))
+    : (bestInVis
+        ? (bestInVis.score >= 35
+            ? (en
+                ? `${bestIsNextNight ? 'Best window (24h)' : 'Best window tonight'}: <strong>${bestTimeLbl}</strong> (Score <strong>${bestInVis.score}</strong> · Clear ${bestInVis.clear}% · Kp ${Number(bestInVis.kpFc ?? 0).toFixed(2)})`
+                : `${bestIsNextNight ? '未來 24h 最佳時段' : '今晚最佳時段'}：<strong>${bestTimeLbl}</strong>（指數 <strong>${bestInVis.score} 分</strong>｜晴空 ${bestInVis.clear}% · Kp ${Number(bestInVis.kpFc ?? 0).toFixed(2)}）`)
+            : (bestInVis.block <= 40
+                ? (en ? `Clearest dark window: <strong>${bestTimeLbl}</strong> (${bestInVis.clear}% clear, Score ${bestInVis.score})` : `天黑後最晴時段：<strong>${bestTimeLbl}</strong>（晴空 <strong>${bestInVis.clear}%</strong>，指數 ${bestInVis.score} 分）`)
+                : (bestInVis.clear >= 25 || bestInVis.score >= 18
+                    ? (en ? `Clouds may thin around <strong>${bestTimeLbl}</strong> (${bestInVis.clear}% clear, Score ${bestInVis.score}).` : `預計 <strong>${bestTimeLbl}</strong> 雲層較有機會變薄（晴空 <strong>${bestInVis.clear}%</strong>，指數 ${bestInVis.score} 分）。`)
+                    : (en ? `Overcast for the next ${hz}h (max <strong>${bestInVis.clear}%</strong> clear) — rest or check Clear Sky radar.` : `未來 ${hz} 小時皆偏厚雲（最高僅 <strong>${bestInVis.clear}%</strong> 晴空），建議先休息或點「找晴空」。`))))
+        : (en ? `Sky stays bright over the next ${hz}h — check back after dusk.` : `未來 ${hz} 小時天色偏亮，請於日落後再查看。`));
+  const hb = $('homeBest');
+  if (hb) {
+    hb.className = 'callout ' + (!isOutOfZone && bestInVis && (bestInVis.score >= 35 || bestInVis.block <= 40) ? 'good' : 'warn');
+    hb.innerHTML = bestText;
+  }
+  let targetIdx = state.selectedHourIdx;
+  if (focusBest || targetIdx < 0 || targetIdx >= vis.length) {
+    const bIdx = bestInVis
+      ? vis.findIndex(h => (Number.isFinite(bestInVis.dtMs) && Number.isFinite(h.dtMs)) ? h.dtMs === bestInVis.dtMs : h.time === bestInVis.time)
+      : 0;
+    targetIdx = bIdx >= 0 ? bIdx : 0;
+  }
+  selectForecastHour(targetIdx);
+}
+
+function setWaveHorizon(hz, userInitiated = false) {
+  const next = hz === 24 ? 24 : 12;
+  if (userInitiated) state.waveHorizonLocked = true;
+  if (state.waveHorizon === next && !userInitiated) {
+    syncHorizonSegUI();
+    return;
+  }
+  state.waveHorizon = next;
+  renderWaveCard(true);
+  if (userInitiated) haptic(6);
+}
+
 function selectForecastHour(idx) {
-  if (!state.scoredHours.length || idx < 0 || idx >= state.scoredHours.length) return;
+  const vis = getVisibleHours();
+  if (!vis.length || idx < 0 || idx >= vis.length) return;
   state.selectedHourIdx = idx;
   const en = isEn();
-  const h = state.scoredHours[idx];
-  setHtml('skyWaveChart', buildSkyWaveSVG(state.scoredHours, state.bestAurora, idx));
+  const h = vis[idx];
+  const isOutOfZone = Boolean(state.lastScore?.outOfZone) && vis.every(x => !x || x.isDay || x.outOfZone || x.score === 0);
+  const bestInVis = isOutOfZone ? null : pickBestInSlice(vis);
+  setHtml('skyWaveChart', buildSkyWaveSVG(vis, bestInVis, idx));
   const hasTemp = Number.isFinite(Number(h.temp));
   const tInt = hasTemp ? (Math.round(Number(h.temp)) || 0) : null;
   const wcInt = hasTemp ? (Math.round(Number(h.windChill ?? h.temp)) || 0) : null;
@@ -693,7 +807,7 @@ function selectForecastHour(idx) {
     ? (en ? 'Too bright' : '天色過亮')
     : (h.moonUp ? (en ? `Moon ${h.moonPct}%` : `月相 ${h.moonPct}%`) : (en ? 'Moon down' : '月亮落下'));
   const kpStr = Number.isFinite(h.kpFc) ? h.kpFc.toFixed(2) : escapeHtml(h.kpFc);
-  const tStr = escapeHtml(h.time);
+  const tStr = formatHourLabel(h, en);
   const rawSkyZh = String(h.txt || '').replace(/^[^\p{L}\p{N}]+\s*/u, '');
   const skyZh = rawSkyZh === '縫' ? '雲縫' : (rawSkyZh === '晴' ? '晴朗' : (rawSkyZh === '陰' ? '厚雲' : rawSkyZh));
   const skyLabel = escapeHtml(en ? tSky(h.txt, 'en') : skyZh);
@@ -809,10 +923,10 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales,
     if (goesSub?.active || bal?.shockActive) {
       bzBadge.textContent = en ? 'Surging' : '能量強勁';
       bzBadge.className = 'sw-badge sw-good';
-    } else if (liveBz !== null && liveBz <= -4) {
+    } else if (enSum.good) {
       bzBadge.textContent = en ? 'Active' : '能量活躍';
       bzBadge.className = 'sw-badge sw-good';
-    } else if ((liveBz !== null && liveBz < 0) || enSum.good) {
+    } else if ((liveBz !== null && liveBz <= -2.5) || (enSum.raw && enSum.raw.includes('增強'))) {
       bzBadge.textContent = en ? 'Rising' : '能量上升';
       bzBadge.className = 'sw-badge sw-warn';
     } else if (enSum.raw) {
@@ -1130,24 +1244,14 @@ function renderFromState(st) {
     }
   }
 
-  const bestTimeSafe = escapeHtml(bestDark?.time || '');
-  const bestText = bestDark
-    ? (bestDark.score >= 35
-        ? (en ? `Best window tonight: <strong>${bestTimeSafe}</strong> (Score <strong>${bestDark.score}</strong> · Clear ${bestDark.clear}% · Kp ${bestDark.kpFc.toFixed(2)})` : `今晚最佳時段：<strong>${bestTimeSafe}</strong>（指數 <strong>${bestDark.score} 分</strong>｜晴空 ${bestDark.clear}% · Kp ${bestDark.kpFc.toFixed(2)}）`)
-        : (bestDark.block <= 40
-            ? (en ? `Clearest dark window: <strong>${bestTimeSafe}</strong> (${bestDark.clear}% clear, Score ${bestDark.score})` : `天黑後最晴時段：<strong>${bestTimeSafe}</strong>（晴空 <strong>${bestDark.clear}%</strong>，指數 ${bestDark.score} 分）`)
-            : (bestDark.clear >= 25 || bestDark.score >= 18
-                ? (en ? `Clouds may thin around <strong>${bestTimeSafe}</strong> (${bestDark.clear}% clear, Score ${bestDark.score}).` : `預計 <strong>${bestTimeSafe}</strong> 雲層較有機會變薄（晴空 <strong>${bestDark.clear}%</strong>，指數 ${bestDark.score} 分）。`)
-                : (en ? `Overcast for the next 12h (max <strong>${bestDark.clear}%</strong> clear) — rest or check Clear Sky radar.` : `未來 12 小時皆偏厚雲（最高僅 <strong>${bestDark.clear}%</strong> 晴空），建議先休息或點「找晴空」。`))))
-    : (en ? 'Sky stays bright over the next 12h — check back after dusk.' : '未來 12 小時天色偏亮，請於日落後再查看。');
-  const hb = $('homeBest');
-  if (hb) {
-    hb.className = 'callout ' + (bestDark && (bestDark.score >= 35 || bestDark.block <= 40) ? 'good' : 'warn');
-    hb.innerHTML = bestText;
-  }
-
   if (Array.isArray(st.scoredHours) && st.scoredHours.length) state.scoredHours = st.scoredHours;
-  selectForecastHour(state.selectedHourIdx >= 0 && state.selectedHourIdx < state.scoredHours.length ? state.selectedHourIdx : 0);
+  if (!state.waveHorizonLocked && state.scoredHours.length > 12) {
+    const firstDarkIdx = state.scoredHours.findIndex(h => h && !h.isDay);
+    state.waveHorizon = (sc.isTooBright || firstDarkIdx >= 6 || firstDarkIdx < 0) ? 24 : 12;
+  } else if (state.scoredHours.length <= 12) {
+    state.waveHorizon = 12;
+  }
+  renderWaveCard(false);
   render3NightOutlook(localizedNights3);
   renderCompassPanel(dirResults, pos, en);
 
@@ -1333,7 +1437,7 @@ function handleOfflineFallback(pos) {
 // ====== User Actions ======
 function pickPreset(nameZh, nameEn, lat, lon, btn) {
   state.locationSeq++;
-  state.camUserPicked = false;
+  state.camUserPicked = false; state.waveHorizonLocked = false;
   document.querySelectorAll('#presetChips .chip').forEach(c => c.classList.remove('on'));
   btn?.classList.add('on');
   const tz = btn?.dataset?.tz || matchKnownCity(lat, lon)?.tz || 'auto';
@@ -1359,7 +1463,7 @@ function useGPS() {
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       if (myLocSeq !== state.locationSeq) { stopSpin(); return; }
-      state.camUserPicked = false;
+      state.camUserPicked = false; state.waveHorizonLocked = false;
       const { latitude: lat, longitude: lon, accuracy } = pos.coords;
       document.querySelectorAll('#presetChips .chip').forEach(c => c.classList.remove('on'));
       const matched = matchKnownCity(lat, lon);
@@ -1409,7 +1513,7 @@ async function searchCity(e) {
     const found = await geocodeCityQuery(rawQ);
     if (myLocSeq !== state.locationSeq) return;
     if (found) {
-      state.camUserPicked = false;
+      state.camUserPicked = false; state.waveHorizonLocked = false;
       document.querySelectorAll('#presetChips .chip').forEach(c => c.classList.remove('on'));
       state.pos = found;
       renderLocationHeader(); syncBrowserUrl();
@@ -1547,6 +1651,7 @@ window.__AURORA_APP__ = {
   closeTrustSheet,
   toast,
   syncBannerBudget,
+  setHorizon: (hz) => setWaveHorizon(hz, true),
   toggleSolarWind: (force) => {
     state.swExpanded = typeof force === 'boolean' ? force : !state.swExpanded;
     syncSwToggleUI();
@@ -1603,13 +1708,14 @@ function bindWaveScrubbing() {
   if (!svg) return;
   let tracking = false, scrubbing = false, startX = 0, startY = 0, activePointerId = null;
   const pickFromClientX = (clientX) => {
-    if (!state.scoredHours.length) return;
+    const vis = getVisibleHours();
+    if (vis.length < 2) return;
     const rect = svg.getBoundingClientRect();
     if (!rect.width) return;
     const svgX = ((clientX - rect.left) / rect.width) * 420;
     const padL = 56, plotW = 420 - 56 - 14;
     const ratio = Math.max(0, Math.min(1, (svgX - padL) / plotW));
-    const idx = Math.round(ratio * (state.scoredHours.length - 1));
+    const idx = Math.round(ratio * (vis.length - 1));
     if (idx !== state.selectedHourIdx) {
       selectForecastHour(idx);
       haptic(5);
@@ -1729,6 +1835,9 @@ function bindEvents() {
   $('vActionBtn')?.addEventListener('click', (e) => switchView(e.currentTarget?.dataset?.targetView || 'dir'));
   $('trustCloseBtn')?.addEventListener('click', () => closeTrustSheet());
   $('trustSheet')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closeTrustSheet(); });
+
+  $('hz12Btn')?.addEventListener('click', () => setWaveHorizon(12, true));
+  $('hz24Btn')?.addEventListener('click', () => setWaveHorizon(24, true));
 
   $('swToggleBtn')?.addEventListener('click', () => {
     state.swExpanded = !state.swExpanded;

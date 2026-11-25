@@ -2177,22 +2177,27 @@ export function parseEnlilForecast(rows, nowMs = Date.now()) {
   };
 }
 
-/** MET Norway Locationforecast 2.0 12h parser (with total-cloud cap, fog & precipitation occlusion) */
-export function parseMetNorwayHourly12(metJson, lat, lon, timeZone, nowDate) {
+/** MET Norway Locationforecast 2.0 hourly parser (default 12h, supports 24h with 6h-step guard & astronomical nightKey) */
+export function parseMetNorwayHourly12(metJson, lat, lon, timeZone, nowDate, horizonHours = 12) {
   const series = metJson?.properties?.timeseries;
   if (!Array.isArray(series) || !series.length) return [];
   const safeNow = (nowDate instanceof Date && Number.isFinite(nowDate.getTime())) ? nowDate : new Date();
   const nowMs = safeNow.getTime();
+  const maxLen = Math.max(1, Math.min(48, Math.round(Number(horizonHours) || 12)));
   let idx = series.findIndex(item => {
     const ts = Date.parse(item?.time);
     return Number.isFinite(ts) && ts > nowMs - 3600000;
   });
   if (idx < 0) idx = 0;
   const out = [];
-  for (let i = idx; i < series.length && out.length < 12; i++) {
+  let prevTs = null;
+  for (let i = idx; i < series.length && out.length < maxLen; i++) {
     const item = series[i];
     const ts = Date.parse(item?.time);
     if (!Number.isFinite(ts)) continue;
+    // Stop cleanly if a truncated/stale MET Norway feed switches from 1h steps to 6h steps
+    if (prevTs !== null && (ts - prevTs) > 5400000) break;
+    prevTs = ts;
     const det = item?.data?.instant?.details || {};
     const dt = new Date(ts);
     const midDt = new Date(ts + 1800000);
@@ -2213,10 +2218,14 @@ export function parseMetNorwayHourly12(metJson, lat, lon, timeZone, nowDate) {
     const windMs = Math.max(0, toFinite(det.wind_speed) ?? 0);
     const windChill = computeWindChill(tp, windMs);
     const z = getZoneParts(dt, timeZone);
+    const nightKey = getZoneParts(new Date(ts - 12 * 3600000), timeZone).dateStr;
     const txt = isTooBright
       ? (sunAlt >= 0 ? '☀️ 白天' : '🌅 晨昏光')
       : (pr >= 0.1 ? (tp <= 0 ? '❄️ 雪' : '🌧️ 雨雪') : (effCloud <= 25 ? '🌟 晴' : effCloud <= 65 ? '⛅ 縫' : '☁️ 陰'));
-    out.push({ time: `${z.hourStr}:${z.minStr}`, dtMs: midDt.getTime(), block: effCloud, clear: 100 - effCloud, txt, temp: tp, precip: pr, windMs, windChill, isDay: isTooBright, sunAlt });
+    out.push({
+      time: `${z.hourStr}:${z.minStr}`, dtMs: midDt.getTime(), localDate: z.dateStr, nightKey,
+      block: effCloud, clear: 100 - effCloud, txt, temp: tp, precip: pr, windMs, windChill, isDay: isTooBright, sunAlt
+    });
   }
   return out;
 }
@@ -2269,13 +2278,14 @@ function inferOpenMeteoFog(hourly, i) {
 }
 
 /**
- * Open-Meteo 12h parser supporting BOTH DST-proof Unix timestamps (timeformat=unixtime)
+ * Open-Meteo hourly parser (default 12h, supports 24h) supporting BOTH DST-proof Unix timestamps (timeformat=unixtime)
  * AND ISO local strings with utc_offset_seconds, with null-layer fallback, WMO fog & precip occlusion.
  */
-export function parseOpenMeteoHourly12(hourly, lat, lon, timeZone, nowDate, utcOffsetSec = null) {
+export function parseOpenMeteoHourly12(hourly, lat, lon, timeZone, nowDate, utcOffsetSec = null, horizonHours = 12) {
   if (!hourly || !Array.isArray(hourly.time) || !hourly.time.length) return [];
   const safeNow = (nowDate instanceof Date && Number.isFinite(nowDate.getTime())) ? nowDate : new Date();
   const nowMs = safeNow.getTime();
+  const maxLen = Math.max(1, Math.min(48, Math.round(Number(horizonHours) || 12)));
   const firstValid = hourly.time.find(t => t !== null && t !== undefined && (typeof t === 'number' ? Number.isFinite(t) : typeof t === 'string' && t.length >= 10));
   if (firstValid === undefined) return [];
   const isUnix = typeof firstValid === 'number';
@@ -2289,7 +2299,7 @@ export function parseOpenMeteoHourly12(hourly, lat, lon, timeZone, nowDate, utcO
   if (idx < 0) idx = 0;
 
   const out = [];
-  for (let i = idx; i < hourly.time.length && out.length < 12; i++) {
+  for (let i = idx; i < hourly.time.length && out.length < maxLen; i++) {
     const rawT = hourly.time[i];
     let startMs;
     if (isUnix) {
@@ -2328,11 +2338,15 @@ export function parseOpenMeteoHourly12(hourly, lat, lon, timeZone, nowDate, utcO
     const sunAlt = computeSolarElevation(midUtc, lat, lon);
     const isTooBright = sunAlt >= -4;
     const z = getZoneParts(new Date(startMs), timeZone);
+    const nightKey = getZoneParts(new Date(startMs - 12 * 3600000), timeZone).dateStr;
     const timeStr = isUnix ? `${z.hourStr}:${z.minStr}` : String(rawT).slice(11, 16);
     const txt = isTooBright
       ? (sunAlt >= 0 ? '☀️ 白天' : '🌅 晨昏光')
       : (pr >= 0.1 ? (tp <= 0 ? '❄️ 雪' : '🌧️ 雨雪') : (effCloud <= 25 ? '🌟 晴' : effCloud <= 65 ? '⛅ 縫' : '☁️ 陰'));
-    out.push({ time: timeStr, dtMs: midUtc.getTime(), block: effCloud, clear: 100 - effCloud, txt, temp: tp, precip: pr, windMs, windChill, isDay: isTooBright, sunAlt });
+    out.push({
+      time: timeStr, dtMs: midUtc.getTime(), localDate: z.dateStr, nightKey,
+      block: effCloud, clear: 100 - effCloud, txt, temp: tp, precip: pr, windMs, windChill, isDay: isTooBright, sunAlt
+    });
   }
   return out;
 }
@@ -2753,7 +2767,9 @@ export function scoreHourlyForecast12(hrs, {
     const mltH = (useNow && Number.isFinite(nowOverride.mlt)) ? nowOverride.mlt : computeMLT(dt, lat, lon);
     const sunAltH = (useNow && Number.isFinite(nowOverride.sunAlt)) ? nowOverride.sunAlt : h.sunAlt;
     const isDayH = useNow ? (sunAltH >= -4) : h.isDay;
-    const baseKpFc = i === 0 && Number.isFinite(fallbackKp) ? fallbackKp : lookupForecastKp(kpForecast, dt, fallbackKp);
+    // Prevent a live geomagnetic storm (e.g. Kp 7) from leaking onto +3h..+23h if NOAA 3-day Kp forecast is missing/truncated
+    const fbKpH = (i >= 3 && Number.isFinite(fallbackKp)) ? Math.min(fallbackKp, 2.5) : fallbackKp;
+    const baseKpFc = i === 0 && Number.isFinite(fallbackKp) ? fallbackKp : lookupForecastKp(kpForecast, dt, fbKpH);
     const effNextShock = Number.isFinite(nextShockJumpNpa) ? nextShockJumpNpa : shockJumpNpa;
     const effNextPdyn = Number.isFinite(nextPdyn) ? nextPdyn : pdyn;
     // Hour +1 integrates NOAA Geospace 1h MHD predicted Kp symmetrically (max only on active shock / southward surge)
@@ -2799,13 +2815,21 @@ export function scoreHourlyForecast12(hrs, {
     };
   });
   const dark = hours.filter(h => !h.isDay);
-  let bestAurora = null;
-  for (const h of dark) {
-    if (!bestAurora || h.score > bestAurora.score || (h.score === bestAurora.score && h.block < bestAurora.block)) {
-      bestAurora = h;
+  const pickBest = (list) => {
+    let best = null;
+    for (const h of list) {
+      if (!best || h.score > best.score || (h.score === best.score && h.block < best.block)) best = h;
     }
-  }
-  return { hours, bestAurora };
+    return best;
+  };
+  const bestAurora = pickBest(dark);
+  const firstHrNum = parseInt(String(hours[0]?.time || '12'), 10);
+  const activeNightKey = (Number.isFinite(firstHrNum) && firstHrNum >= 6 && hours[0]?.localDate)
+    ? hours[0].localDate
+    : (dark[0]?.nightKey || hours[0]?.nightKey || null);
+  const tonightDark = activeNightKey ? dark.filter(h => !h.nightKey || h.nightKey === activeNightKey) : dark;
+  const bestTonight = pickBest(tonightDark) || bestAurora;
+  return { hours, bestAurora, bestTonight, activeNightKey };
 }
 
 export function findBestDarkWindow(hrs) {
@@ -2831,14 +2855,18 @@ export function summarize3NightOutlook({
   const nowMs = safeNow.getTime();
   const zNow = getZoneParts(safeNow, timeZone);
   const nowHour = parseInt(zNow.hourStr, 10) || 0;
-  const startNightIso = nowHour < 12
-    ? getZoneParts(new Date(nowMs - 12 * 3600000), timeZone).dateStr
-    : zNow.dateStr;
+  const nightKeyOf = (ms) => getZoneParts(new Date(ms - 12 * 3600000), timeZone).dateStr;
+  const yestIso = getZoneParts(new Date(nowMs - 12 * 3600000), timeZone).dateStr;
+  // Before 06:00 local, stay on the ongoing overnight session ONLY if dark hours still remain;
+  // from 06:00 onward (morning), "Tonight" always means today's upcoming night (prevents 09:00 AM winter "No dark sky" bug).
+  const yestHasDark = (Array.isArray(cloudPoints) ? cloudPoints : []).some(
+    p => p && Number.isFinite(p.dtMs) && !p.isDay && nightKeyOf(p.dtMs) === yestIso
+  );
+  const startNightIso = (nowHour < 6 && yestHasDark) ? yestIso : zNow.dateStr;
   const addDays = (iso, d) => {
     const [y, m, day] = iso.split('-').map(Number);
     return new Date(Date.UTC(y, m - 1, day + d)).toISOString().slice(0, 10);
   };
-  const nightKeyOf = (ms) => getZoneParts(new Date(ms - 12 * 3600000), timeZone).dateStr;
   const absMag = Math.abs(computeGeomagneticLat(lat, lon));
   const neededKpMidnight = requiredKpForMagLat(absMag + 2.0);
   const labelsZh = ['今晚', '明晚', '後晚'];
@@ -3073,7 +3101,9 @@ export function synthesizeTonightAction({
     } else if (darkWin?.state === 'twilight-wait' && darkWin.nextDarkHM) {
       const inTxt = fmtDur(darkWin.darkInMin);
       const bestPart = bestDark
-        ? (en ? ` Best window: ${bestDark.time} (${bestDark.clear}% clear).` : ` 今晚最晴時段約 ${bestDark.time}（晴空 ${bestDark.clear}%）。`)
+        ? (bestDark.clear >= 25
+            ? (en ? ` Best window: ${bestDark.time} (${bestDark.clear}% clear).` : ` 今晚最晴時段約 ${bestDark.time}（晴空 ${bestDark.clear}%）。`)
+            : (en ? ` Mostly overcast tonight (max ${bestDark.clear}% clear).` : ` 今晚普遍偏厚雲（最高晴空僅 ${bestDark.clear}%）。`))
         : '';
       lead = en
         ? `Dark enough at ${darkWin.nextDarkHM} (in ~${inTxt}).${bestPart}`

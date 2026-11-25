@@ -194,47 +194,49 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
     futureBandSvg = `<rect x="${ax.toFixed(1)}" y="${padT}" width="${futureW.toFixed(1)}" height="${plotH}" fill="rgba(34,211,238,0.06)"/>`;
     arriveSvg = `
       <line x1="${ax.toFixed(1)}" y1="${padT}" x2="${ax.toFixed(1)}" y2="${baseY}" stroke="#22d3ee" stroke-dasharray="3 3" stroke-width="1.5" opacity="0.88"/>
-      <circle cx="${ax.toFixed(1)}" cy="${yOf(energies[balOpt.arrivingIdx]).toFixed(1)}" r="3.8" fill="#22d3ee" stroke="#040912" stroke-width="1.5"/>
-      <text x="${lxClamped.toFixed(1)}" y="17" text-anchor="middle" fill="#66e8ff" font-size="11.5" font-weight="800">${en ? `Now ${tNowEarth}` : `現在 ${tNowEarth}`}</text>`;
+      <circle cx="${ax.toFixed(1)}" cy="${yOf(energies[balOpt.arrivingIdx]).toFixed(1)}" r="3.8" fill="#22d3ee" stroke="#08090c" stroke-width="1.5"/>
+      <text x="${lxClamped.toFixed(1)}" y="17" text-anchor="middle" fill="#64b2ff" font-size="11.5" font-weight="800">${en ? `Now ${tNowEarth}` : `現在 ${tNowEarth}`}</text>`;
   }
 
   return `
     <defs>
       <linearGradient id="enGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#34f0b0" stop-opacity="0.46"/>
-        <stop offset="55%" stop-color="#ffcf5c" stop-opacity="0.18"/>
-        <stop offset="100%" stop-color="#66bdff" stop-opacity="0.03"/>
+        <stop offset="0%" stop-color="#2ed39e" stop-opacity="0.42"/>
+        <stop offset="55%" stop-color="#f4c350" stop-opacity="0.16"/>
+        <stop offset="100%" stop-color="#64b2ff" stop-opacity="0.03"/>
       </linearGradient>
     </defs>
-    <text x="${padL}" y="17" fill="#9fb5d0" font-size="11.5" font-weight="700">${en ? '↑ Stronger' : '↑ 越高越強'}</text>
-    <rect x="${padL}" y="${padT}" width="${plotW}" height="${(yBurst - padT).toFixed(1)}" fill="rgba(52,240,176,0.09)"/>
-    <rect x="${padL}" y="${yBurst.toFixed(1)}" width="${plotW}" height="${(yWarm - yBurst).toFixed(1)}" fill="rgba(255,207,92,0.05)"/>
-    <rect x="${padL}" y="${yWarm.toFixed(1)}" width="${plotW}" height="${(padT + plotH - yWarm).toFixed(1)}" fill="rgba(102,189,255,0.04)"/>
+    <text x="${padL}" y="17" fill="#8b94a5" font-size="11.5" font-weight="700">${en ? '↑ Stronger' : '↑ 越高越強'}</text>
+    <rect x="${padL}" y="${padT}" width="${plotW}" height="${(yBurst - padT).toFixed(1)}" fill="rgba(46,211,158,0.08)"/>
+    <rect x="${padL}" y="${yBurst.toFixed(1)}" width="${plotW}" height="${(yWarm - yBurst).toFixed(1)}" fill="rgba(244,195,80,0.05)"/>
+    <rect x="${padL}" y="${yWarm.toFixed(1)}" width="${plotW}" height="${(padT + plotH - yWarm).toFixed(1)}" fill="rgba(100,178,255,0.04)"/>
     ${futureBandSvg}
     ${xTicksSvg}
-    <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${baseY}" stroke="rgba(255,255,255,0.14)"/>
-    <line x1="${padL}" y1="${yBurst.toFixed(1)}" x2="${W - padR}" y2="${yBurst.toFixed(1)}" stroke="#34f0b0" stroke-dasharray="4 4" stroke-width="1.1" opacity="0.68"/>
-    <line x1="${padL}" y1="${yWarm.toFixed(1)}" x2="${W - padR}" y2="${yWarm.toFixed(1)}" stroke="rgba(255,255,255,0.16)" stroke-dasharray="3 4" stroke-width="1"/>
-    <line x1="${padL}" y1="${baseY}" x2="${W - padR}" y2="${baseY}" stroke="rgba(255,255,255,0.18)"/>
-    <text x="${padL - 8}" y="${(padT + (yBurst - padT) / 2 + 4).toFixed(1)}" text-anchor="end" fill="#34f0b0" font-size="13" font-weight="800">${en ? 'Active' : '活躍'}</text>
-    <text x="${padL - 8}" y="${(yBurst + (yWarm - yBurst) / 2 + 4).toFixed(1)}" text-anchor="end" fill="#ffcf5c" font-size="13" font-weight="700">${en ? 'Rising' : '增強'}</text>
-    <text x="${padL - 8}" y="${(yWarm + (padT + plotH - yWarm) / 2 + 4).toFixed(1)}" text-anchor="end" fill="#9fb5d0" font-size="13" font-weight="700">${en ? 'Quiet' : '平靜'}</text>
+    <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${baseY}" stroke="rgba(255,255,255,0.12)"/>
+    <line x1="${padL}" y1="${yBurst.toFixed(1)}" x2="${W - padR}" y2="${yBurst.toFixed(1)}" stroke="#2ed39e" stroke-dasharray="4 4" stroke-width="1.1" opacity="0.62"/>
+    <line x1="${padL}" y1="${yWarm.toFixed(1)}" x2="${W - padR}" y2="${yWarm.toFixed(1)}" stroke="rgba(255,255,255,0.14)" stroke-dasharray="3 4" stroke-width="1"/>
+    <line x1="${padL}" y1="${baseY}" x2="${W - padR}" y2="${baseY}" stroke="rgba(255,255,255,0.16)"/>
+    <text x="${padL - 8}" y="${(padT + (yBurst - padT) / 2 + 4).toFixed(1)}" text-anchor="end" fill="#2ed39e" font-size="13" font-weight="800">${en ? 'Active' : '活躍'}</text>
+    <text x="${padL - 8}" y="${(yBurst + (yWarm - yBurst) / 2 + 4).toFixed(1)}" text-anchor="end" fill="#f4c350" font-size="13" font-weight="700">${en ? 'Rising' : '增強'}</text>
+    <text x="${padL - 8}" y="${(yWarm + (padT + plotH - yWarm) / 2 + 4).toFixed(1)}" text-anchor="end" fill="#8b94a5" font-size="13" font-weight="700">${en ? 'Quiet' : '平靜'}</text>
     ${areaSvg}
     ${gapSvg}
     ${lineSvg}
     ${arriveSvg}
-    <circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="4.8" fill="${col}" stroke="#040912" stroke-width="2"/>
-    <rect x="${W - 110}" y="2" width="96" height="21" rx="10.5" fill="rgba(4,9,18,0.88)" stroke="${col}" stroke-width="1"/>
+    <circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="4.8" fill="${col}" stroke="#08090c" stroke-width="2"/>
+    <rect x="${W - 110}" y="2" width="96" height="21" rx="10.5" fill="rgba(8,9,12,0.88)" stroke="${col}" stroke-width="1"/>
     <text x="${W - 62}" y="16.5" text-anchor="middle" fill="${col}" font-size="12" font-weight="800">${en ? `Next · ${stateWord}` : `預告 · ${stateWord}`}</text>
   `;
 }
 
-/** 12-Hour Combined Clear-Sky & Viewing-Score Chart (aligned with Chart 1 X/Y geometry) */
+/** 12h / 24h Combined Clear-Sky & Viewing-Score Chart (single-viewport Apple Weather geometry) */
 export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
   const en = isEn(lang);
   if (!Array.isArray(hrs) || hrs.length < 2) {
-    return `<text x="210" y="95" text-anchor="middle" fill="#8ea6c4" font-size="13">${en ? 'Loading 12h forecast...' : '讀取 12 小時晴空曲線中...'}</text>`;
+    return `<text x="210" y="95" text-anchor="middle" fill="#8b94a5" font-size="13">${en ? 'Loading hourly forecast...' : '讀取逐時晴空曲線中...'}</text>`;
   }
+  const is24 = hrs.length > 14;
+  const tickStep = is24 ? 4 : 2;
   const W = 420, H = 194, padL = 56, padR = 14, padT = 28, padB = 44;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const xOf = i => padL + (i / (hrs.length - 1)) * plotW;
@@ -242,11 +244,12 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
   const stepW = plotW / (hrs.length - 1);
 
   const dayBands = hrs.map((h, i) => h?.isDay
-    ? `<rect x="${Math.max(padL, xOf(i) - stepW / 2).toFixed(1)}" y="${padT}" width="${Math.max(0, Math.min(stepW, W - padR - Math.max(padL, xOf(i) - stepW / 2))).toFixed(1)}" height="${plotH}" fill="rgba(102,189,255,0.10)"/>`
+    ? `<rect x="${Math.max(padL, xOf(i) - stepW / 2).toFixed(1)}" y="${padT}" width="${Math.max(0, Math.min(stepW, W - padR - Math.max(padL, xOf(i) - stepW / 2))).toFixed(1)}" height="${plotH}" fill="rgba(100,178,255,0.08)"/>`
     : '').join('');
 
   // Label the widest contiguous daylight band (if >= 44px wide) so users instantly see why daytime has no score bars
   let dayLabelSvg = '';
+  let dayLabelX = -999;
   let bestRun = null, curRun = null;
   hrs.forEach((h, i) => {
     if (h?.isDay) {
@@ -261,16 +264,17 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     const dx1 = Math.max(padL, xOf(bestRun[0]) - stepW / 2);
     const dx2 = Math.min(W - padR, xOf(bestRun[1]) + stepW / 2);
     if (dx2 - dx1 >= 46) {
-      const dMid = (dx1 + dx2) / 2;
-      dayLabelSvg = `<text x="${dMid.toFixed(1)}" y="${padT + 15}" text-anchor="middle" fill="rgba(147,208,255,0.68)" font-size="10.5" font-weight="700">${en ? 'Daylight' : '白天過亮'}</text>`;
+      dayLabelX = (dx1 + dx2) / 2;
+      dayLabelSvg = `<text x="${dayLabelX.toFixed(1)}" y="${padT + 15}" text-anchor="middle" fill="rgba(147,197,253,0.62)" font-size="10.5" font-weight="700">${en ? 'Daylight' : '白天過亮'}</text>`;
     }
   }
 
-  const vGrid = hrs.map((_, i) => i % 2 === 0
-    ? `<line x1="${xOf(i).toFixed(1)}" y1="${padT}" x2="${xOf(i).toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(255,255,255,0.08)" stroke-dasharray="2 4"/>`
+  const vGrid = hrs.map((_, i) => i % tickStep === 0
+    ? `<line x1="${xOf(i).toFixed(1)}" y1="${padT}" x2="${xOf(i).toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(255,255,255,0.065)" stroke-dasharray="2 4"/>`
     : '').join('');
 
-  const barW = Math.max(8, Math.min(18, stepW * 0.44));
+  const barW = is24 ? 7.5 : Math.max(8, Math.min(18, stepW * 0.44));
+  const barRx = is24 ? 2.5 : 3;
   const scoreBars = hrs.map((h, i) => {
     const scVal = clampNum(h?.score, 0, 100, NaN);
     if (!Number.isFinite(scVal) || scVal <= 0) return '';
@@ -278,33 +282,46 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     const y = yOf(scVal);
     const bh = Math.max(3, padT + plotH - y);
     const isSel = i === selectedIdx;
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="3" fill="${isSel ? 'rgba(168,85,247,0.78)' : 'rgba(168,85,247,0.34)'}" stroke="${isSel ? '#d8b4fe' : 'rgba(192,132,252,0.5)'}" stroke-width="1"/>`;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="${barRx}" fill="${isSel ? 'rgba(129,140,248,0.74)' : 'rgba(129,140,248,0.28)'}" ${isSel ? 'stroke="#c7d2fe" stroke-width="1"' : 'stroke="none"'}/>`;
   }).join('');
 
   const linePts = hrs.map((h, i) => `${xOf(i).toFixed(1)},${yOf(h?.clear).toFixed(1)}`).join(' ');
   const areaPts = `${padL},${padT + plotH} ${linePts} ${W - padR},${padT + plotH}`;
   const bestIdx = (bestDark && ((bestDark.clear ?? 0) >= 25 || (bestDark.score ?? 0) >= 18))
-    ? hrs.findIndex(h => h && h.time === bestDark.time && !h.isDay)
+    ? hrs.findIndex(h => h && !h.isDay && ((Number.isFinite(bestDark.dtMs) && Number.isFinite(h.dtMs)) ? h.dtMs === bestDark.dtMs : h.time === bestDark.time))
     : -1;
   const bestX = bestIdx >= 0 ? xOf(bestIdx) : -1;
   const hintOnRight = bestIdx >= 0 && bestX < 230;
   const hintTxt = en ? '↑ Higher = better' : '↑ 越高越好';
   const hintSvg = hintOnRight
-    ? `<text x="${W - padR}" y="16" text-anchor="end" fill="#9fb5d0" font-size="11.5" font-weight="700">${hintTxt}</text>`
-    : `<text x="${padL}" y="16" fill="#9fb5d0" font-size="11.5" font-weight="700">${hintTxt}</text>`;
+    ? `<text x="${W - padR}" y="16" text-anchor="end" fill="#8b94a5" font-size="11.5" font-weight="700">${hintTxt}</text>`
+    : `<text x="${padL}" y="16" fill="#8b94a5" font-size="11.5" font-weight="700">${hintTxt}</text>`;
+
+  // Midnight boundary hairline (00:xx when 0 < i < len - 1) so 24h cross-day transitions are immediately legible
+  let midnightSvg = '';
+  const midIdx = hrs.findIndex((h, i) => i > 0 && i < hrs.length - 1 && typeof h?.time === 'string' && h.time.startsWith('00:'));
+  if (midIdx > 0) {
+    const mx = xOf(midIdx);
+    const tooCloseToBest = bestX >= 0 && Math.abs(mx - bestX) < 48;
+    const tooCloseToDay = Math.abs(mx - dayLabelX) < 38;
+    const midLbl = (!tooCloseToBest && !tooCloseToDay)
+      ? `<text x="${Math.min(W - padR - 14, mx + 4).toFixed(1)}" y="${padT + 12}" text-anchor="start" fill="rgba(255,255,255,0.42)" font-size="10" font-weight="700">${en ? 'Next' : '明日'}</text>`
+      : '';
+    midnightSvg = `<line x1="${mx.toFixed(1)}" y1="${padT}" x2="${mx.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(255,255,255,0.20)" stroke-dasharray="3 3" stroke-width="1"/>${midLbl}`;
+  }
 
   const dots = hrs.map((h, i) => {
     const clearVal = clampNum(h?.clear, 0, 100, 0);
     const x = xOf(i), y = yOf(clearVal);
     const isBest = i === bestIdx;
     const isSel = i === selectedIdx;
-    const showTick = (i % 2 === 0);
-    const c = h?.isDay ? '#66bdff' : (clearVal >= 65 ? '#34f0b0' : clearVal >= 35 ? '#ffcf5c' : '#ff6b7b');
+    const showTick = (i % tickStep === 0);
+    const c = h?.isDay ? '#64b2ff' : (clearVal >= 65 ? '#2ed39e' : clearVal >= 35 ? '#f4c350' : '#f26877');
     const tInt = Math.round(clampNum(h?.temp, -90, 65, 0)) || 0;
     const rawTime = typeof h?.time === 'string' ? h.time : '';
     const hhmm = escSvg(rawTime.length >= 5 ? rawTime.slice(0, 5) : (rawTime.length >= 2 ? `${rawTime.slice(0, 2)}:00` : '--:--'));
-    const lbl = showTick ? `<text x="${x.toFixed(1)}" y="${H - 24}" text-anchor="middle" fill="${isSel ? '#ffffff' : (isBest ? '#34f0b0' : '#a9c0da')}" font-size="12.5" font-weight="${isBest || isSel ? '800' : '700'}">${hhmm}</text>` : '';
-    const tempLbl = showTick ? `<text x="${x.toFixed(1)}" y="${H - 7}" text-anchor="middle" fill="#92abc7" font-size="11.5" font-weight="600">${tInt > 0 ? '+' : ''}${tInt}°</text>` : '';
+    const lbl = showTick ? `<text x="${x.toFixed(1)}" y="${H - 24}" text-anchor="middle" fill="${isSel ? '#ffffff' : (isBest ? '#2ed39e' : '#8b94a5')}" font-size="12" font-weight="${isBest || isSel ? '800' : '700'}">${hhmm}</text>` : '';
+    const tempLbl = showTick ? `<text x="${x.toFixed(1)}" y="${H - 7}" text-anchor="middle" fill="#6f7889" font-size="11" font-weight="600">${tInt > 0 ? '+' : ''}${tInt}°</text>` : '';
     let bestSvg = '';
     if (isBest) {
       const starTxt = en ? `★ ${hhmm} Best` : `★ ${hhmm} 最佳`;
@@ -312,38 +329,41 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
       const pillX = Math.max(padL, Math.min(W - padR - pillW, x - pillW / 2));
       const pillCx = pillX + pillW / 2;
       bestSvg =
-        `<line x1="${x.toFixed(1)}" y1="22" x2="${x.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="#34f0b0" stroke-dasharray="2.5 3" stroke-width="1.35" opacity="0.68"/>` +
-        `<rect x="${pillX.toFixed(1)}" y="2" width="${pillW}" height="19" rx="9.5" fill="rgba(52,240,176,0.14)" stroke="rgba(52,240,176,0.58)" stroke-width="1"/>` +
-        `<text x="${pillCx.toFixed(1)}" y="15.2" text-anchor="middle" fill="#34f0b0" font-size="11.5" font-weight="800">${starTxt}</text>` +
-        (!isSel ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7.5" fill="none" stroke="#34f0b0" stroke-width="1.4" opacity="0.82"/>` : '');
+        `<line x1="${x.toFixed(1)}" y1="22" x2="${x.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="#2ed39e" stroke-dasharray="2.5 3" stroke-width="1.3" opacity="0.65"/>` +
+        `<rect x="${pillX.toFixed(1)}" y="2" width="${pillW}" height="19" rx="9.5" fill="rgba(46,211,158,0.12)" stroke="rgba(46,211,158,0.48)" stroke-width="1"/>` +
+        `<text x="${pillCx.toFixed(1)}" y="15.2" text-anchor="middle" fill="#2ed39e" font-size="11.5" font-weight="800">${starTxt}</text>` +
+        (!isSel ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7.2" fill="none" stroke="#2ed39e" stroke-width="1.4" opacity="0.80"/>` : '');
     }
-    const selLine = isSel && !isBest ? `<line x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(255,255,255,0.34)" stroke-dasharray="2 3" stroke-width="1.2"/>` : '';
-    const selRing = isSel ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7.5" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.9"/>` : '';
+    const selLine = isSel && !isBest ? `<line x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(255,255,255,0.42)" stroke-width="1.1"/>` : '';
+    const selRing = isSel ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7.2" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.92"/>` : '';
+    const showDot = !is24 || isBest || isSel;
+    const dotSvg = showDot ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${isBest || isSel ? 4.8 : 3.4}" fill="${c}" stroke="#08090c" stroke-width="1.5"/>` : '';
     const hitRect = `<rect class="hr-hit" data-hour-idx="${i}" x="${(x - stepW / 2).toFixed(1)}" y="${padT}" width="${stepW.toFixed(1)}" height="${plotH + 34}" fill="transparent" style="cursor:pointer;"/>`;
-    return `${selLine}${bestSvg}${selRing}<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${isBest || isSel ? 5 : 3.6}" fill="${c}" stroke="#040912" stroke-width="1.5"/>${lbl}${tempLbl}${hitRect}`;
+    return `${selLine}${bestSvg}${selRing}${dotSvg}${lbl}${tempLbl}${hitRect}`;
   }).join('');
 
   return `
     <defs>
       <linearGradient id="waveG" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#34f0b0" stop-opacity="0.26"/>
-        <stop offset="100%" stop-color="#34f0b0" stop-opacity="0.02"/>
+        <stop offset="0%" stop-color="#2ed39e" stop-opacity="0.22"/>
+        <stop offset="100%" stop-color="#2ed39e" stop-opacity="0.01"/>
       </linearGradient>
     </defs>
     ${hintSvg}
     ${dayBands}
     ${dayLabelSvg}
     ${vGrid}
-    <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(255,255,255,0.14)"/>
-    <line x1="${padL}" y1="${padT}" x2="${W - padR}" y2="${padT}" stroke="rgba(255,255,255,0.10)" stroke-dasharray="3 4"/>
-    <line x1="${padL}" y1="${padT + plotH / 2}" x2="${W - padR}" y2="${padT + plotH / 2}" stroke="rgba(255,255,255,0.12)" stroke-dasharray="3 4"/>
-    <line x1="${padL}" y1="${padT + plotH}" x2="${W - padR}" y2="${padT + plotH}" stroke="rgba(255,255,255,0.18)"/>
-    <text x="${padL - 8}" y="${padT + 4}" text-anchor="end" fill="#34f0b0" font-size="13" font-weight="700">100</text>
-    <text x="${padL - 8}" y="${padT + plotH / 2 + 4}" text-anchor="end" fill="#ffcf5c" font-size="13" font-weight="700">50</text>
-    <text x="${padL - 8}" y="${padT + plotH + 4}" text-anchor="end" fill="#9fb5d0" font-size="13" font-weight="700">0</text>
+    ${midnightSvg}
+    <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(255,255,255,0.12)"/>
+    <line x1="${padL}" y1="${padT}" x2="${W - padR}" y2="${padT}" stroke="rgba(255,255,255,0.08)" stroke-dasharray="3 4"/>
+    <line x1="${padL}" y1="${padT + plotH / 2}" x2="${W - padR}" y2="${padT + plotH / 2}" stroke="rgba(255,255,255,0.10)" stroke-dasharray="3 4"/>
+    <line x1="${padL}" y1="${padT + plotH}" x2="${W - padR}" y2="${padT + plotH}" stroke="rgba(255,255,255,0.16)"/>
+    <text x="${padL - 8}" y="${padT + 4}" text-anchor="end" fill="#2ed39e" font-size="12.5" font-weight="700">100</text>
+    <text x="${padL - 8}" y="${padT + plotH / 2 + 4}" text-anchor="end" fill="#f4c350" font-size="12.5" font-weight="700">50</text>
+    <text x="${padL - 8}" y="${padT + plotH + 4}" text-anchor="end" fill="#8b94a5" font-size="12.5" font-weight="700">0</text>
     ${scoreBars}
     <polygon points="${areaPts}" fill="url(#waveG)"/>
-    <polyline fill="none" stroke="#34f0b0" stroke-width="2.4" stroke-linejoin="round" points="${linePts}"/>
+    <polyline fill="none" stroke="#2ed39e" stroke-width="${is24 ? '2.1' : '2.3'}" stroke-linejoin="round" points="${linePts}"/>
     ${dots}
   `;
 }
@@ -360,8 +380,8 @@ export function buildCompassRadarSVG(dirResults, _originPos, lang) {
   const validCardinals = ['N', 'E', 'S', 'W'].filter(k => byKey[k]);
   if (validCardinals.length < 2) return '';
 
-  const colOf = (clearPct, sea, unavail, hazard) => unavail ? '#8ea6c4' : (sea ? '#66bdff' : (hazard ? '#ff8a96' : (clearPct >= 65 ? '#34f0b0' : clearPct >= 35 ? '#ffcf5c' : '#ff6b7b')));
-  const fillOf = (clearPct, sea, unavail, hazard) => unavail ? 'rgba(142,166,196,0.10)' : (sea ? 'rgba(102,189,255,0.12)' : (hazard ? 'rgba(255,107,123,0.18)' : (clearPct >= 65 ? 'rgba(52,240,176,0.22)' : clearPct >= 35 ? 'rgba(255,207,92,0.20)' : 'rgba(255,107,123,0.19)')));
+  const colOf = (clearPct, sea, unavail, hazard) => unavail ? '#8b94a5' : (sea ? '#64b2ff' : (hazard ? '#f78895' : (clearPct >= 65 ? '#2ed39e' : clearPct >= 35 ? '#f4c350' : '#f26877')));
+  const fillOf = (clearPct, sea, unavail, hazard) => unavail ? 'rgba(139,148,165,0.08)' : (sea ? 'rgba(100,178,255,0.10)' : (hazard ? 'rgba(242,104,119,0.16)' : (clearPct >= 65 ? 'rgba(46,211,158,0.18)' : clearPct >= 35 ? 'rgba(244,195,80,0.15)' : 'rgba(242,104,119,0.15)')));
   const glyphOf = (clearPct, sea, unavail, hazard) => unavail ? '' : (sea ? '' : (hazard ? '⚠ ' : (clearPct >= 65 ? '✓ ' : clearPct >= 35 ? '~ ' : '✕ ')));
 
   const sectorPath = (a1Deg, a2Deg, rIn, rOut) => {
@@ -385,8 +405,8 @@ export function buildCompassRadarSVG(dirResults, _originPos, lang) {
     if (!d) {
       return `
         <g class="radar-sector radar-closed">
-          <path d="${sectorPath(s.a1, s.a2, 52, 146)}" fill="rgba(142,166,196,0.05)" stroke="rgba(142,166,196,0.22)" stroke-width="1.2" stroke-dasharray="4 4"/>
-          <text x="${s.tx}" y="${s.ty + 4}" text-anchor="middle" fill="#6f87a5" font-size="10.5" font-weight="700">${en ? 'No Winter Rd' : '無冬季路'}</text>
+          <path d="${sectorPath(s.a1, s.a2, 52, 146)}" fill="rgba(139,148,165,0.05)" stroke="rgba(139,148,165,0.18)" stroke-width="1" stroke-dasharray="4 4"/>
+          <text x="${s.tx}" y="${s.ty + 4}" text-anchor="middle" fill="#6f7889" font-size="10.5" font-weight="700">${en ? 'No Winter Rd' : '無冬季路'}</text>
         </g>`;
     }
     const unavail = Boolean(d.unavailable) || !Number.isFinite(Number(d.avg3h));
@@ -405,8 +425,8 @@ export function buildCompassRadarSVG(dirResults, _originPos, lang) {
     const valTxt = unavail ? '--' : `${glyph}${clearPct}%`;
     return `
       <g class="radar-sector">
-        <path d="${sectorPath(s.a1, s.a2, 52, 146)}" fill="${fillOf(clearPct, d.isOcean, unavail, hazard)}" stroke="${col}" stroke-width="1.8" ${(d.isOcean || unavail || hazard) ? 'stroke-dasharray="5 4"' : ''}/>
-        <text x="${s.tx}" y="${s.ty - 5}" text-anchor="middle" fill="#f2f7ff" font-size="11.5" font-weight="800">${d.isOcean ? (en ? 'Sea' : '海面') : shortLbl}</text>
+        <path d="${sectorPath(s.a1, s.a2, 52, 146)}" fill="${fillOf(clearPct, d.isOcean, unavail, hazard)}" stroke="${col}" stroke-opacity="0.62" stroke-width="1.2" ${(d.isOcean || unavail || hazard) ? 'stroke-dasharray="5 4"' : ''}/>
+        <text x="${s.tx}" y="${s.ty - 5}" text-anchor="middle" fill="#f3f5f8" font-size="11.5" font-weight="800">${d.isOcean ? (en ? 'Sea' : '海面') : shortLbl}</text>
         <text x="${s.tx}" y="${s.ty + 15}" text-anchor="middle" fill="${col}" font-size="15" font-weight="900">${valTxt}</text>
       </g>`;
   }).join('');
@@ -417,11 +437,11 @@ export function buildCompassRadarSVG(dirResults, _originPos, lang) {
   const hCol = colOf(hClear, false, hUnavail, false);
   const hTxt = hUnavail ? '--' : `${en ? '' : '晴 '}${hClear}%`;
   return `
-    <circle cx="160" cy="160" r="148" fill="rgba(4,9,18,0.72)" stroke="rgba(255,255,255,0.12)" stroke-width="1.4"/>
-    <circle cx="160" cy="160" r="98" fill="none" stroke="rgba(255,255,255,0.10)" stroke-dasharray="4 4"/>
+    <circle cx="160" cy="160" r="148" fill="rgba(8,9,12,0.72)" stroke="rgba(255,255,255,0.08)" stroke-width="1.1"/>
+    <circle cx="160" cy="160" r="98" fill="none" stroke="rgba(255,255,255,0.08)" stroke-dasharray="4 4"/>
     ${wedges}
-    <circle cx="160" cy="160" r="48" fill="#060e1c" stroke="${hCol}" stroke-width="2.6"/>
-    <text x="160" y="153" text-anchor="middle" fill="#9fb5d0" font-size="11" font-weight="700">${en ? 'Here (3h)' : '目前 3h 均'}</text>
+    <circle cx="160" cy="160" r="48" fill="#0c0e13" stroke="${hCol}" stroke-width="2.2"/>
+    <text x="160" y="153" text-anchor="middle" fill="#8b94a5" font-size="11" font-weight="700">${en ? 'Here (3h)' : '目前 3h 均'}</text>
     <text x="160" y="176" text-anchor="middle" fill="${hCol}" font-size="17" font-weight="900">${hTxt}</text>
   `;
 }

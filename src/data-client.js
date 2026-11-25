@@ -268,13 +268,13 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
       out.resolvedTz = (pos.lon >= 20.6 && pos.lat < 69.15 && pos.lat >= 59.5) ? 'Europe/Helsinki' : 'Europe/Oslo';
     }
 
-    const parseOmPoint = (omObj, lat, lon, ptTz) => {
+    const parseOmPoint = (omObj, lat, lon, ptTz, horizon = 12) => {
       if (!omObj?.hourly) return { hrs: [], multiDay: [], hrs1: [], hrs2: [] };
       if (dualModels) {
         const h1 = extractOpenMeteoModelHourly(omObj.hourly, dualModels[0]);
         const h2 = extractOpenMeteoModelHourly(omObj.hourly, dualModels[1]);
-        const hrs1 = h1 ? parseOpenMeteoHourly12(h1, lat, lon, ptTz, now, omObj.utc_offset_seconds) : [];
-        const hrs2 = h2 ? parseOpenMeteoHourly12(h2, lat, lon, ptTz, now, omObj.utc_offset_seconds) : [];
+        const hrs1 = h1 ? parseOpenMeteoHourly12(h1, lat, lon, ptTz, now, omObj.utc_offset_seconds, horizon) : [];
+        const hrs2 = h2 ? parseOpenMeteoHourly12(h2, lat, lon, ptTz, now, omObj.utc_offset_seconds, horizon) : [];
         if (hrs1.length || hrs2.length) {
           const md1 = h1 ? parseOpenMeteoMultiDay(h1, lat, lon, ptTz, now, omObj.utc_offset_seconds) : [];
           const md2 = h2 ? parseOpenMeteoMultiDay(h2, lat, lon, ptTz, now, omObj.utc_offset_seconds) : [];
@@ -285,7 +285,7 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
           };
         }
       }
-      const hrs = parseOpenMeteoHourly12(omObj.hourly, lat, lon, ptTz, now, omObj.utc_offset_seconds);
+      const hrs = parseOpenMeteoHourly12(omObj.hourly, lat, lon, ptTz, now, omObj.utc_offset_seconds, horizon);
       const multiDay = parseOpenMeteoMultiDay(omObj.hourly, lat, lon, ptTz, now, omObj.utc_offset_seconds);
       return { hrs, multiDay, hrs1: hrs, hrs2: [] };
     };
@@ -296,17 +296,18 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
         return { ...pt, distKm, unavailable: true, nowC: null, avg3h: null, min12: null, temp: null, maxPrecip3h: 0, maxWind3h: 0 };
       }
       const first3 = hrs.slice(0, 3);
+      const first12 = hrs.slice(0, 12);
       const avg3h = Math.round(first3.reduce((s, h) => s + h.block, 0) / first3.length);
       const maxPrecip3h = Math.max(...first3.map(h => Number(h.precip || 0)));
       const maxWind3h = Math.max(...first3.map(h => Number(h.windMs || 0)));
       return {
         ...pt, distKm, unavailable: false, nowC: hrs[0].block, avg3h,
-        min12: Math.min(...hrs.map(h => h.block)), temp: hrs[0].temp, maxPrecip3h, maxWind3h
+        min12: Math.min(...first12.map(h => h.block)), temp: hrs[0].temp, maxPrecip3h, maxWind3h
       };
     };
 
     const dirHrsList = [];
-    const metHereHrs = metList?.[0] ? parseMetNorwayHourly12(metList[0], pos.lat, pos.lon, out.resolvedTz, now) : [];
+    const metHereHrs = metList?.[0] ? parseMetNorwayHourly12(metList[0], pos.lat, pos.lon, out.resolvedTz, now, 24) : [];
     if (metHereHrs.length) {
       out.usedMet = true; out.metOk = true; out.weatherSourceLabel = 'Yr.no 官方';
       out.hereHrs = metHereHrs;
@@ -314,20 +315,20 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
       pts.forEach((pt, i) => {
         let hrs = i === 0
           ? metHereHrs
-          : (metList[i] ? parseMetNorwayHourly12(metList[i], pt.lat, pt.lon, out.resolvedTz, now) : []);
+          : (metList[i] ? parseMetNorwayHourly12(metList[i], pt.lat, pt.lon, out.resolvedTz, now, 12) : []);
         if (!hrs.length && omList[i]?.hourly) {
           const ptTz = omList[i].timezone || out.resolvedTz;
-          hrs = parseOmPoint(omList[i], pt.lat, pt.lon, ptTz).hrs;
+          hrs = parseOmPoint(omList[i], pt.lat, pt.lon, ptTz, 12).hrs;
         }
         dirHrsList.push(hrs);
         out.dirResults.push(summarizePoint(pt, hrs));
       });
       if (omList[0]?.hourly) {
-        const omHereHrs = parseOmPoint(omList[0], pos.lat, pos.lon, out.resolvedTz).hrs;
-        out.cloudConsensus = evaluateCloudConsensus(metHereHrs, omHereHrs);
+        const omHereHrs = parseOmPoint(omList[0], pos.lat, pos.lon, out.resolvedTz, 12).hrs;
+        out.cloudConsensus = evaluateCloudConsensus(metHereHrs.slice(0, 12), omHereHrs);
       }
     } else if (omList[0]?.hourly) {
-      const p0 = parseOmPoint(omList[0], pos.lat, pos.lon, out.resolvedTz);
+      const p0 = parseOmPoint(omList[0], pos.lat, pos.lon, out.resolvedTz, 24);
       if (p0.hrs.length) {
         out.metOk = true;
         out.weatherSourceLabel = p0.hrs1.length && p0.hrs2.length
@@ -336,11 +337,11 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
         out.hereHrs = p0.hrs;
         out.multiDayPts = p0.multiDay;
         if (p0.hrs1.length && p0.hrs2.length) {
-          out.cloudConsensus = evaluateCloudConsensus(p0.hrs1, p0.hrs2);
+          out.cloudConsensus = evaluateCloudConsensus(p0.hrs1.slice(0, 12), p0.hrs2.slice(0, 12));
         }
         pts.forEach((pt, i) => {
           const ptTz = omList[i]?.timezone || out.resolvedTz;
-          const hrs = i === 0 ? p0.hrs : parseOmPoint(omList[i], pt.lat, pt.lon, ptTz).hrs;
+          const hrs = i === 0 ? p0.hrs : parseOmPoint(omList[i], pt.lat, pt.lon, ptTz, 12).hrs;
           dirHrsList.push(hrs);
           out.dirResults.push(summarizePoint(pt, hrs));
         });
@@ -408,8 +409,10 @@ export function computeLiveSnapshot({ pos, now, noaa, wx, moon }) {
     dst: dstVal,
     nowOverride: { sunAlt: sunAltNow, moon, mlt: mltNow }
   });
-  const bestDark = scored12.bestAurora || findBestDarkWindow(hereHrs);
-  const selectedHourIdx = bestDark ? Math.max(0, scored12.hours.findIndex(h => h.time === bestDark.time)) : 0;
+  const bestDark = scored12.bestTonight || scored12.bestAurora || findBestDarkWindow(hereHrs);
+  const selectedHourIdx = bestDark
+    ? Math.max(0, scored12.hours.findIndex(h => (Number.isFinite(bestDark.dtMs) && Number.isFinite(h.dtMs)) ? h.dtMs === bestDark.dtMs : h.time === bestDark.time))
+    : 0;
 
   // NOW score uses Earth-arriving window (nowBz, nowNewell, nowPdyn) + Kyoto Dst ring current
   const sc = computeAuroraScore({

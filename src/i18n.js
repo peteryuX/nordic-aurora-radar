@@ -86,8 +86,8 @@ export const STATIC_TEXT_MAP = {
   fSkyLbl: ['晴空率', 'Clear Sky'],
   fAurLbl: ['極光活動', 'Aurora'],
   fDarkLbl: ['夜空暗度', 'Darkness'],
-  h2Wave: ['未來 12 小時逐時趨勢', '12-Hour Trend'],
-  hrLegRight: ['滑動或點擊查單小時', 'Slide or tap hour'],
+  h2Wave: ['逐時趨勢', 'Hourly Trend'],
+  hrLegRight: ['滑動查單小時', 'Slide for hour'],
   h2Energy: ['太陽風即時動態', 'Solar Wind Status'],
   swToggleTxt: ['展開太陽風到達地球曲線', 'Show solar wind timeline'],
   h2Outlook: ['未來 3 晚極光與晴空展望', '3-Night Outlook'],
@@ -172,7 +172,8 @@ const ARIA_LABELS = {
   ringBtn: ['查看指數說明與資料來源', 'View score details and sources', false],
   trustCloseBtn: ['關閉', 'Close', false],
   pickerCloseBtn: ['關閉', 'Close', false],
-  lineTipClose: ['關閉提示', 'Dismiss tip', false]
+  lineTipClose: ['關閉提示', 'Dismiss tip', false],
+  horizonSeg: ['預報時間範圍', 'Forecast range', false]
 };
 
 export function renderSkyCamCaption($, key, en) {
@@ -209,8 +210,8 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
   const hrl = $('hrLegLeft');
   if (hrl) {
     hrl.innerHTML = en
-      ? `<span class="leg-dot" style="background:var(--green);"></span>Clear Sky % ｜ <span class="leg-dot" style="background:var(--purple);"></span>Top Score`
-      : `<span class="leg-dot" style="background:var(--green);"></span>綠線＝晴空｜<span class="leg-dot" style="background:var(--purple);"></span>紫柱＝上方指數`;
+      ? `<span class="leg-dot" style="background:var(--green);"></span>Clear Sky <span class="leg-dot" style="background:var(--purple);margin-left:8px;"></span>Score`
+      : `<span class="leg-dot" style="background:var(--green);"></span>晴空 <span class="leg-dot" style="background:var(--purple);margin-left:8px;"></span>指數`;
   }
 
   const rl = $('radarLeg');

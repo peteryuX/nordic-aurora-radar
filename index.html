@@ -178,13 +178,19 @@
         </div>
       </section>
 
-      <!-- Card 2 (Above-the-Fold Peek): 12-Hour Combined Clear-Sky & Score Trend -->
+      <!-- Card 2 (Above-the-Fold Peek): 12h / 24h Combined Clear-Sky & Score Trend -->
       <section class="card" id="waveCard">
-        <h2><span id="h2Wave">未來 12 小時逐時趨勢</span></h2>
+        <h2 class="wave-h2">
+          <span id="h2Wave">逐時趨勢</span>
+          <div id="horizonSeg" class="seg-ctrl" role="tablist" aria-label="預報時間範圍">
+            <button id="hz12Btn" class="seg-btn on" type="button" role="tab" aria-selected="true" data-hz="12">12h</button>
+            <button id="hz24Btn" class="seg-btn" type="button" role="tab" aria-selected="false" data-hz="24">24h</button>
+          </div>
+        </h2>
         <div id="homeBest" class="callout skel-bar">載入中...</div>
         <div class="hr-legend hr-legend-top">
-          <span id="hrLegLeft"><span class="leg-dot" style="background:var(--green);"></span>綠線＝晴空｜<span class="leg-dot" style="background:var(--purple);"></span>紫柱＝上方指數</span>
-          <span id="hrLegRight">滑動或點擊查單小時</span>
+          <span id="hrLegLeft"><span class="leg-dot" style="background:var(--green);"></span>晴空 <span class="leg-dot" style="background:var(--purple);margin-left:8px;"></span>指數</span>
+          <span id="hrLegRight">滑動查單小時</span>
         </div>
         <div class="chart-box">
           <svg id="skyWaveChart" class="chart-svg" viewBox="0 0 420 194"></svg>
