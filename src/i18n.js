@@ -66,8 +66,7 @@ export const SKY_CAMS = {
 
 /** Declarative [zh, en] text map for every static element ID in index.html */
 export const STATIC_TEXT_MAP = {
-  brandTxt: ['極光即時雷達', 'Aurora Radar'],
-  langBtn: ['EN', '中'],
+  langBtn: ['English', '繁體中文'],
   ptrText: ['下拉更新', 'Pull to refresh'],
   lineTipTxt: [
     '若在 App 內建瀏覽器無法使用 GPS，請改用 Safari / Chrome 開啟，或點上方地名切換。',
@@ -76,6 +75,9 @@ export const STATIC_TEXT_MAP = {
   offlineRetryBtn: ['重試', 'Retry'],
   clkLbl: ['當地', 'Local'],
   pickerSheetTitle: ['切換觀測地點', 'Choose Location'],
+  gpsBtnTxt: ['使用目前 GPS 定位', 'Use Current GPS Location'],
+  refBtnTxt: ['立即同步', 'Sync Now'],
+  shareBtnTxt: ['分享預報', 'Share'],
   pickerGrpNordic: ['北歐極光帶', 'Nordic Belt'],
   pickerGrpNa: ['北美＆冰島', 'N. America & Iceland'],
   pickerGrpSouth: ['南半球極光', 'Southern Hemisphere'],
@@ -86,7 +88,8 @@ export const STATIC_TEXT_MAP = {
   fDarkLbl: ['夜空暗度', 'Darkness'],
   h2Wave: ['未來 12 小時逐時趨勢', '12-Hour Trend'],
   hrLegRight: ['滑動或點擊查單小時', 'Slide or tap hour'],
-  h2Energy: ['太陽風能量', 'Solar Wind Arrival'],
+  h2Energy: ['太陽風即時動態', 'Solar Wind Status'],
+  swToggleTxt: ['展開太陽風到達地球曲線', 'Show solar wind timeline'],
   h2Outlook: ['未來 3 晚極光與晴空展望', '3-Night Outlook'],
   h2Radar: ['周邊 360° 找晴空', '360° Clear-Sky Radar'],
   roadLbl: ['冬季即時路況／封路查詢：', 'Winter road & closure status:'],
@@ -113,7 +116,7 @@ export const STATIC_TEXT_MAP = {
   navHome: ['即時總覽', 'Overview'],
   navDir: ['找晴空', 'Clear Sky'],
   navSat: ['實拍雲圖', 'Live Map'],
-  trustSheetTitle: ['指數說明與資料來源', 'Score & Data Sources'],
+  trustSheetTitle: ['指數說明與設定', 'Score & Settings'],
   tsLblSky: ['晴空度', 'Clear Sky'],
   tsLblAur: ['極光活動', 'Aurora'],
   tsLblDark: ['夜空暗度', 'Darkness'],
@@ -162,9 +165,9 @@ export const LOADING_PLACEHOLDER_MAP = {
 const ARIA_LABELS = {
   redBtn: ['紅光夜視模式', 'Red-light night vision', true],
   alertBtn: ['螢幕常亮監測提醒', 'Screen-on aurora monitor', true],
-  trustBtn: ['指數說明與資料來源', 'Score & data sources', true],
+  trustBtn: ['更多設定與指數說明', 'More settings & score guide', true],
   refBtn: ['立即更新', 'Sync now', true],
-  gpsBtn: ['GPS 定位', 'Use GPS location', true],
+  gpsBtn: ['使用目前 GPS 定位', 'Use current GPS location', true],
   shareBtn: ['分享預報連結', 'Share forecast link', true],
   ringBtn: ['查看指數說明與資料來源', 'View score details and sources', false],
   trustCloseBtn: ['關閉', 'Close', false],

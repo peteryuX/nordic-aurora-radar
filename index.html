@@ -77,11 +77,22 @@
   }
   </script>
 </head>
-<body>
-  <div class="wrap">
-    <!-- Top Header: Sticky Frosted Native Bar + Glove-Friendly 44px Controls -->
+<body class="is-loading">
+  <div class="wrap" id="appWrap">
+    <!-- Top Header: Unified 54px 1P Sticky Header (Transparent on Hero, Frosted Glass on Scroll) -->
     <header class="hdr" id="topHdr">
-      <div class="brand"><span class="brand-dot"></span><span id="brandTxt">極光即時雷達</span></div>
+      <button id="pickBtn" class="hdr-loc-btn" type="button" aria-haspopup="dialog" aria-controls="picker" aria-expanded="false">
+        <span class="hdr-loc-row">
+          <span id="gpsDot" class="gps-dot manual"></span>
+          <span id="locName" class="hdr-loc-name">挪威・Alta</span>
+          <span class="chev">▾</span>
+        </span>
+        <span id="locMeta" class="hdr-loc-meta">
+          <span id="clkLbl">當地</span> <span id="clk">--:--</span>
+          <span aria-hidden="true">·</span>
+          <span id="syncTime">同步中</span>
+        </span>
+      </button>
       <div class="hdr-tools">
         <button id="redBtn" class="icon-btn" type="button" aria-pressed="false" title="紅光夜視模式" aria-label="紅光夜視模式">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -89,61 +100,38 @@
         <button id="alertBtn" class="icon-btn" type="button" aria-pressed="false" title="螢幕常亮監測提醒" aria-label="螢幕常亮監測提醒">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         </button>
-        <button id="trustBtn" class="icon-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet" title="指數說明與資料來源" aria-label="指數說明與資料來源">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        <button id="trustBtn" class="icon-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet" title="更多設定與指數說明" aria-label="更多設定與指數說明">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="19" cy="12" r="1.4" fill="currentColor"/></svg>
         </button>
-        <button id="langBtn" class="icon-btn" type="button" title="Switch Language" aria-label="Switch Language">EN</button>
       </div>
       <div id="syncBar" class="sync-bar" aria-hidden="true"></div>
     </header>
 
     <div id="ptrIndicator" class="ptr-indicator" aria-hidden="true"><span class="ptr-icon">↓</span><span id="ptrText">下拉更新</span></div>
 
-    <!-- Slim Location Header -->
-    <section class="loc-card">
-      <div class="loc-top">
-        <button id="pickBtn" class="loc-name-btn" type="button" aria-haspopup="dialog" aria-controls="picker" aria-expanded="false">
-          <span id="locName">挪威・Alta</span><span class="chev">▾</span>
-        </button>
-        <div class="loc-actions">
-          <button id="gpsBtn" class="icon-btn loc-icon-btn" type="button" title="GPS 定位" aria-label="GPS 定位">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>
-          </button>
-          <button id="shareBtn" class="icon-btn loc-icon-btn" type="button" title="分享預報連結" aria-label="分享預報連結">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-          </button>
-        </div>
-      </div>
-      <div id="locMeta" class="loc-meta">
-        <span id="gpsDot" class="gps-dot manual"></span>
-        <span id="clkLbl">當地</span> <span id="clk">--:--</span>
-        <span aria-hidden="true">·</span>
-        <span id="syncTime">同步中</span>
-        <button id="refBtn" class="meta-ref-btn" type="button" title="立即更新" aria-label="立即更新">↻</button>
-      </div>
+    <!-- Single Priority Banner Slot (Strict Banner Budget = 1: P0 Alert > P1 Offline > P2 Severe Storm > P3 Monitor) -->
+    <div id="bannerSlot" class="banner-slot">
       <div id="monitorBar" class="monitor-bar" role="status" aria-live="polite"></div>
-    </section>
-
-    <div id="lineTip" class="line-tip">
-      <span id="lineTipTxt">若在 App 內建瀏覽器無法使用 GPS，請改用 Safari / Chrome 開啟，或點上方地名切換。</span>
-      <button id="lineTipClose" class="tip-close" type="button" aria-label="關閉">✕</button>
-    </div>
-    <div id="offlineBanner" class="offline-tip">
-      <span id="offlineTxt"></span>
-      <button id="offlineRetryBtn" class="tip-action" type="button">重試</button>
-    </div>
-
-    <!-- VIEW 1: OVERVIEW (3-Second Decision First) -->
-    <main id="v-home" class="view on">
+      <div id="offlineBanner" class="offline-tip">
+        <span id="offlineTxt"></span>
+        <button id="offlineRetryBtn" class="tip-action" type="button">重試</button>
+      </div>
       <a id="stormBanner" class="storm-banner" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/noaa-scales-explanation"></a>
+      <div id="lineTip" class="line-tip">
+        <span id="lineTipTxt">若在 App 內建瀏覽器無法使用 GPS，請改用 Safari / Chrome 開啟，或點上方地名切換。</span>
+        <button id="lineTipClose" class="tip-close" type="button" aria-label="關閉">✕</button>
+      </div>
+    </div>
 
+    <!-- VIEW 1: OVERVIEW (3-Second Decision First -> 12h Trend -> 3-Night Outlook -> Collapsible Solar Wind) -->
+    <main id="v-home" class="view on">
       <section class="sky-hero">
         <div class="sky-stage">
           <svg id="skySvg" class="sky-svg" viewBox="0 0 640 225" preserveAspectRatio="xMidYMid slice"></svg>
           <div class="sky-overlay">
             <div class="sky-text">
-              <h1 id="vTitle" class="sky-title">連線同步最新天空實況...</h1>
-              <p id="vLead" class="sky-lead">結合官方分層晴空預報、NOAA 即時衛星與天文暗空倒數。</p>
+              <h1 id="vTitle" class="sky-title skel-txt">連線同步最新天空實況...</h1>
+              <p id="vLead" class="sky-lead skel-txt">結合官方分層晴空預報、NOAA 即時衛星與天文暗空倒數。</p>
               <button id="vActionBtn" class="hero-cta" type="button" style="display:none;"></button>
             </div>
             <button id="ringBtn" class="ring-wrap ring-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet" aria-label="查看指數算法與可信度">
@@ -162,22 +150,22 @@
         </div>
 
         <div class="sky-body">
-          <!-- Unified 3-Column Bento Metrics (De-Jargonized) -->
+          <!-- Unified 3-Column Bento Metrics (Single-Line Atomic Sub-Labels) -->
           <div class="factors">
             <div class="f-box">
-              <div class="f-head"><span id="fSkyLbl" class="f-lbl">晴空率</span><span id="fSkyVal" class="f-val">--</span></div>
+              <div class="f-head"><span id="fSkyLbl" class="f-lbl">晴空率</span><span id="fSkyVal" class="f-val skel-val">--</span></div>
               <div class="f-track"><div id="fSkyBar" class="f-fill"></div></div>
-              <div id="fSkySub" class="f-sub">讀取中...</div>
+              <div id="fSkySub" class="f-sub skel-sub">讀取中...</div>
             </div>
             <div class="f-box">
-              <div class="f-head"><span id="fAurLbl" class="f-lbl">極光活動</span><span id="fAurVal" class="f-val">--</span></div>
+              <div class="f-head"><span id="fAurLbl" class="f-lbl">極光活動</span><span id="fAurVal" class="f-val skel-val">--</span></div>
               <div class="f-track"><div id="fAurBar" class="f-fill"></div></div>
-              <div id="fAurSub" class="f-sub">讀取中...</div>
+              <div id="fAurSub" class="f-sub skel-sub">讀取中...</div>
             </div>
             <div class="f-box">
-              <div class="f-head"><span id="fDarkLbl" class="f-lbl">夜空暗度</span><span id="fDarkVal" class="f-val">--</span></div>
+              <div class="f-head"><span id="fDarkLbl" class="f-lbl">夜空暗度</span><span id="fDarkVal" class="f-val skel-val">--</span></div>
               <div class="f-track"><div id="fDarkBar" class="f-fill"></div></div>
-              <div id="fDarkSub" class="f-sub">讀取中...</div>
+              <div id="fDarkSub" class="f-sub skel-sub">讀取中...</div>
             </div>
           </div>
 
@@ -190,10 +178,10 @@
         </div>
       </section>
 
-      <!-- Card 2 (Elevated): 12-Hour Combined Clear-Sky & Score Trend -->
+      <!-- Card 2 (Above-the-Fold Peek): 12-Hour Combined Clear-Sky & Score Trend -->
       <section class="card" id="waveCard">
         <h2><span id="h2Wave">未來 12 小時逐時趨勢</span></h2>
-        <div id="homeBest" class="callout">載入中...</div>
+        <div id="homeBest" class="callout skel-bar">載入中...</div>
         <div class="hr-legend hr-legend-top">
           <span id="hrLegLeft"><span class="leg-dot" style="background:var(--green);"></span>綠線＝晴空｜<span class="leg-dot" style="background:var(--purple);"></span>紫柱＝上方指數</span>
           <span id="hrLegRight">滑動或點擊查單小時</span>
@@ -204,22 +192,31 @@
         <div id="hourDetail" class="hr-detail"><span>在圖表上滑動或點擊任一時段查看晴空率、體感溫度與月光</span></div>
       </section>
 
-      <!-- Card 3: Solar Wind Energy & Earth-Arrival Timeline -->
-      <section class="card">
-        <h2><span id="h2Energy">太陽風能量</span><span id="bzBadge" class="sw-badge"></span></h2>
-        <div id="energyBanner" class="callout">讀取衛星即時太陽風中...</div>
-        <div class="chart-box">
-          <svg id="bzChart" class="chart-svg" viewBox="0 0 420 170"></svg>
-        </div>
-        <div id="bzFootnote" class="hr-legend">
-          <span id="etaHint">時間軸已換算為到達地球的當地時間</span>
+      <!-- Card 3: 3-Night Aurora & Clear-Sky Outlook (Clean, Zero-Jargon Decision Order) -->
+      <section class="card" id="outlookCard">
+        <h2><span id="h2Outlook">未來 3 晚極光與晴空展望</span></h2>
+        <div id="outlookGrid" class="outlook-grid">
+          <div class="outlook-day skel-day"><div class="od-date">今晚</div><div class="od-badge">--</div><div class="od-stat">--</div></div>
+          <div class="outlook-day skel-day"><div class="od-date">明晚</div><div class="od-badge">--</div><div class="od-stat">--</div></div>
+          <div class="outlook-day skel-day"><div class="od-date">後晚</div><div class="od-badge">--</div><div class="od-stat">--</div></div>
         </div>
       </section>
 
-      <!-- Card 4: 3-Night Aurora & Clear-Sky Outlook -->
-      <section class="card" id="outlookCard">
-        <h2><span id="h2Outlook">未來 3 晚極光與晴空展望</span></h2>
-        <div id="outlookGrid" class="outlook-grid"></div>
+      <!-- Card 4: Humanized Solar Wind Status (Progressive Disclosure Curve) -->
+      <section class="card card-sw" id="solarWindCard">
+        <h2><span id="h2Energy">太陽風即時動態</span><span id="bzBadge" class="sw-badge"></span></h2>
+        <div id="energyBanner" class="callout">讀取衛星即時太陽風中...</div>
+        <button id="swToggleBtn" class="sw-toggle-btn" type="button" aria-expanded="false" aria-controls="swCurvePanel">
+          <span id="swToggleTxt">展開太陽風到達地球曲線</span><span class="sw-chev">▾</span>
+        </button>
+        <div id="swCurvePanel" class="sw-curve-panel" aria-hidden="true">
+          <div class="chart-box" style="margin-top:9px;">
+            <svg id="bzChart" class="chart-svg" viewBox="0 0 420 170"></svg>
+          </div>
+          <div id="bzFootnote" class="hr-legend">
+            <span id="etaHint">時間軸已換算為到達地球的當地時間</span>
+          </div>
+        </div>
       </section>
     </main>
 
@@ -302,7 +299,7 @@
     </div>
   </nav>
 
-  <!-- Native Bottom-Sheet City Picker (18 Global Aurora Hubs + Worldwide Search) -->
+  <!-- Native Bottom-Sheet City Picker (Glove-Friendly GPS + 18 Global Hubs + Search) -->
   <div id="picker" class="sheet-backdrop picker-sheet" role="dialog" aria-modal="true" aria-labelledby="pickerSheetTitle" aria-hidden="true">
     <div class="sheet-panel">
       <div class="sheet-hdr">
@@ -313,6 +310,10 @@
         </div>
       </div>
       <div class="sheet-body">
+        <button id="gpsBtn" class="btn btn-gps-primary" type="button" title="使用目前 GPS 定位" aria-label="使用目前 GPS 定位">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>
+          <span id="gpsBtnTxt">使用目前 GPS 定位</span>
+        </button>
         <form id="cityForm" class="search-row">
           <input id="cityInput" type="text" placeholder="輸入地名（例：冰島、特羅姆瑟、黃刀）" />
           <button id="searchBtn" class="btn btn-blue" type="submit">搜尋</button>
@@ -356,18 +357,30 @@
     </div>
   </div>
 
-  <!-- Concise Score Breakdown & Official Data Sources Bottom-Sheet -->
+  <!-- Unified More, Settings, Score Breakdown & Official Sources Bottom-Sheet -->
   <div id="trustSheet" class="sheet-backdrop" role="dialog" aria-modal="true" aria-labelledby="trustSheetTitle" aria-hidden="true">
     <div class="sheet-panel">
       <div class="sheet-hdr">
         <div class="sheet-handle" aria-hidden="true"></div>
         <div class="sheet-hdr-row">
-          <h2 id="trustSheetTitle" class="sheet-title">指數說明與資料來源</h2>
+          <h2 id="trustSheetTitle" class="sheet-title">指數說明與設定</h2>
           <button id="trustCloseBtn" class="sheet-close" type="button" aria-label="關閉">✕</button>
         </div>
       </div>
 
       <div class="sheet-body">
+        <!-- 0. GLOVE-FRIENDLY QUICK ACTIONS (Sync / Share / Language) -->
+        <div class="sheet-quick-actions">
+          <button id="refBtn" class="qa-btn" type="button" title="立即更新" aria-label="立即更新">
+            <span class="qa-ico">↻</span><span id="refBtnTxt">立即同步</span>
+          </button>
+          <button id="shareBtn" class="qa-btn" type="button" title="分享預報連結" aria-label="分享預報連結">
+            <svg class="qa-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+            <span id="shareBtnTxt">分享預報</span>
+          </button>
+          <button id="langBtn" class="qa-btn" type="button" title="Switch Language" aria-label="Switch Language">EN</button>
+        </div>
+
         <!-- 1. LIVE SCORE BREAKDOWN (CONCISE) -->
         <section class="ts-sec ts-live" aria-label="Live Score Breakdown">
           <div class="ts-sec-hd">

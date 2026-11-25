@@ -2925,6 +2925,8 @@ export function summarize3NightOutlook({
       }
       if ((bestNightScore >= 42 && bestClear >= 45) || (gScale >= 1 && bestColocatedClear >= 50)) {
         tone = 'good'; badge = en ? 'Promising' : '條件佳'; badgeColor = '#34f0b0';
+      } else if (bestClear < 30 && gScale < 2) {
+        badge = en ? 'Cloudy' : '雲偏厚'; badgeColor = '#ff8a96';
       } else if (bestNightScore >= 18 || bestClear >= 60) {
         tone = 'warn'; badge = en ? 'Watch' : '可留意'; badgeColor = '#ffcf5c';
       } else if (bestClear < 35) {

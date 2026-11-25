@@ -1868,5 +1868,39 @@ test('45. Gate 0B parity & edge-case regressions (hour[0] Hero match, BR mist, C
   assert.ok(abE?.label.includes('Torneträsk') && abS?.label.includes('Kiruna'), 'Abisko E must be Torneträsk and S must be Kiruna');
 });
 
+test('46. Gate 1 1P UX regressions: honest Cloudy <30% 3-Night verdict & consumer Overview zero-jargon contract', () => {
+  // 1. Reproduces real-device screenshot case (20% clear sky, Kp 2.7, no G2+ storm):
+  //    must honestly classify as Cloudy / 雲偏厚 instead of misleading Watchable / 可留意
+  const nowDate = new Date('2026-11-24T18:00:00Z');
+  const cloudyPts = [
+    { dtMs: Date.parse('2026-11-24T20:00:00Z'), clear: 20, isDay: false },
+    { dtMs: Date.parse('2026-11-24T21:00:00Z'), clear: 20, isDay: false },
+    { dtMs: Date.parse('2026-11-24T22:00:00Z'), clear: 18, isDay: false },
+    { dtMs: Date.parse('2026-11-25T21:00:00Z'), clear: 82, isDay: false },
+    { dtMs: Date.parse('2026-11-25T22:00:00Z'), clear: 85, isDay: false }
+  ];
+  const kpF = [
+    { ts: Date.parse('2026-11-24T21:00:00Z'), kp: 2.7 },
+    { ts: Date.parse('2026-11-25T21:00:00Z'), kp: 3.3 }
+  ];
+  const zhNights = api.summarize3NightOutlook({
+    cloudPoints: cloudyPts, kpForecast: kpF, currentKp: 2.7,
+    lat: 69.97, lon: 23.27, timeZone: 'Europe/Oslo', nowDate, lang: 'zh'
+  });
+  const enNights = api.summarize3NightOutlook({
+    cloudPoints: cloudyPts, kpForecast: kpF, currentKp: 2.7,
+    lat: 69.97, lon: 23.27, timeZone: 'Europe/Oslo', nowDate, lang: 'en'
+  });
+  assert.equal(zhNights[0].badge, '雲偏厚', `20% clear / Kp 2.7 must classify as 雲偏厚, got ${zhNights[0].badge}`);
+  assert.equal(zhNights[0].tone, '', `20% clear / Kp 2.7 must not get warm/good tone, got ${zhNights[0].tone}`);
+  assert.equal(enNights[0].badge, 'Cloudy', `20% clear / Kp 2.7 must classify as Cloudy, got ${enNights[0].badge}`);
+  assert.equal(zhNights[1].tone, 'good', 'Clear 82%+ night must stay good');
+
+  // 2. Consumer UI (src/app.js) must NOT render od-enlil (CME ~489km/s) jargon onto 3-Night Outlook cards
+  const appSrc = fs.readFileSync(path.join(ROOT, 'src/app.js'), 'utf8');
+  assert.ok(!appSrc.includes('od-enlil'), 'Consumer 3-Night Outlook cards must not render od-enlil CME speed jargon');
+  assert.ok(appSrc.includes('syncBannerBudget'), 'App must enforce Banner Budget = 1 arbitration');
+});
+
 
 
