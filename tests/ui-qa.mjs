@@ -305,15 +305,13 @@ html { font-size: ${rootPx}px !important; }
       if (${scrollY} > 0) {
         window.scrollTo({ top: ${scrollY}, behavior: 'instant' });
         document.body.classList.toggle('is-scrolled', window.scrollY > 4);
-        const stg = document.querySelector('.sky-stage');
-        if (stg) {
-          const y = window.scrollY || 0;
-          const fade = y <= 10 ? 1 : (y >= 95 ? 0 : Math.round((1 - (y - 10) / 85) * 100) / 100);
-          if (fade < 1) stg.style.opacity = String(fade);
-        }
       }
 
       const issues = [];
+      const stgCheck = document.querySelector('.sky-stage');
+      if (stgCheck && parseFloat(getComputedStyle(stgCheck).opacity) < 0.99) {
+        issues.push('HERO_GHOST_FADE: .sky-stage opacity=' + getComputedStyle(stgCheck).opacity);
+      }
       if (document.documentElement.scrollWidth > vw + 1) {
         issues.push('HORIZONTAL_OVERFLOW: sw=' + document.documentElement.scrollWidth + ' > vw=' + vw);
       }

@@ -633,10 +633,6 @@ function switchView(name, btn) {
   haptic(6);
   const targetY = state.tabScrollY[name] || 0;
   window.scrollTo({ top: targetY, behavior: 'auto' });
-  if (name === 'home') {
-    const stg = document.querySelector('.sky-stage');
-    if (stg) stg.style.opacity = targetY <= 10 ? '' : (targetY >= 95 ? '0' : String(Math.round((1 - (targetY - 10) / 85) * 100) / 100));
-  }
   syncAnimBatteryGuard();
 }
 
@@ -2537,11 +2533,9 @@ function bindEvents() {
     haptic(6);
   });
 
-  // Scroll-reactive frosted glass sticky header + Apple Weather 1P Hero dissolve + off-screen Hero battery guard
+  // Scroll-reactive frosted glass sticky header + off-screen Hero battery guard
   let wasScrolled = null;
   let wasPastHero = false;
-  let lastHeroFade = -1;
-  const skyStageEl = document.querySelector('.sky-stage');
   const syncScrollHdr = () => {
     const y = window.scrollY || 0;
     const scrolled = y > 4;
@@ -2549,14 +2543,7 @@ function bindEvents() {
       wasScrolled = scrolled;
       document.body.classList.toggle('is-scrolled', scrolled);
     }
-    if (skyStageEl && state.activeView === 'home') {
-      const fade = y <= 10 ? 1 : (y >= 95 ? 0 : Math.round((1 - (y - 10) / 85) * 100) / 100);
-      if (fade !== lastHeroFade) {
-        lastHeroFade = fade;
-        skyStageEl.style.opacity = fade === 1 ? '' : String(fade);
-      }
-    }
-    const pastHero = y > 220;
+    const pastHero = y > 260;
     if (pastHero !== wasPastHero) {
       wasPastHero = pastHero;
       syncAnimBatteryGuard();

@@ -366,6 +366,13 @@ function buildInterceptorScript(sc) {
       }
       if (document.documentElement.scrollWidth > vw + 1) issues.push('H_OVERFLOW_TREND:' + document.documentElement.scrollWidth);
     }
+    window.scrollTo(0, 95);
+    window.dispatchEvent(new Event('scroll'));
+    const stgEl = document.querySelector('.sky-stage');
+    if (stgEl && parseFloat(getComputedStyle(stgEl).opacity) < 0.99) {
+      issues.push('HERO_GHOST_FADE_ON_SCROLL: opacity=' + getComputedStyle(stgEl).opacity);
+    }
+    window.scrollTo(0, 0);
     const out = {
       locName: document.getElementById('locName')?.textContent?.trim() || '',
       vTitle: document.getElementById('vTitle')?.textContent?.trim() || '',
