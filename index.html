@@ -79,6 +79,9 @@
   </script>
 </head>
 <body class="is-loading">
+  <div class="sky-backdrop" aria-hidden="true">
+    <svg id="skySvg" class="sky-svg" viewBox="0 0 640 225" preserveAspectRatio="xMidYMid slice"></svg>
+  </div>
   <div class="wrap" id="appWrap">
     <!-- Top Header: Unified 54px 1P Sticky Header (Transparent on Hero, Frosted Glass on Scroll) -->
     <header class="hdr" id="topHdr">
@@ -124,34 +127,28 @@
       </div>
     </div>
 
-    <!-- VIEW 1: OVERVIEW (3-Second Decision First -> 12h Trend -> 3-Night Outlook -> Collapsible Solar Wind) -->
+    <!-- VIEW 1: OVERVIEW (iOS Atmospheric Hero -> Frosted 3-Metric Summary -> 24h Trend -> 3-Night Outlook -> Solar Wind) -->
     <main id="v-home" class="view on">
       <section class="sky-hero">
         <div class="sky-stage">
-          <svg id="skySvg" class="sky-svg" viewBox="0 0 640 225" preserveAspectRatio="xMidYMid slice"></svg>
-          <div class="sky-overlay">
-            <div class="sky-text">
-              <h1 id="vTitle" class="sky-title skel-txt">正在同步最新天空狀況…</h1>
-              <p id="vLead" class="sky-lead skel-txt">結合官方分層晴空預報、NOAA 即時衛星與天文暗空倒數。</p>
-              <button id="vActionBtn" class="hero-cta" type="button" style="display:none;"></button>
-            </div>
-            <button id="ringBtn" class="ring-wrap ring-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet" aria-label="查看指數算法與可信度">
-              <svg class="ring-svg" viewBox="0 0 126 126">
-                <circle class="ring-bg-disc" cx="63" cy="63" r="56"></circle>
-                <circle class="ring-track" cx="63" cy="63" r="52"></circle>
-                <circle id="ringProg" class="ring-prog" cx="63" cy="63" r="52"></circle>
-              </svg>
-              <div class="ring-center">
-                <div id="ringNum" class="ring-num">--</div>
-                <div id="ringSubLbl" class="ring-sub">觀測指數</div>
+          <button id="ringBtn" class="hero-score-btn ring-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet" aria-label="查看指數算法與可信度">
+            <div class="hero-score-row">
+              <div id="ringNum" class="ring-num">--</div>
+              <div class="hero-score-meta">
                 <div id="ringGrade" class="ring-grade">計算中</div>
+                <div id="ringSubLbl" class="ring-sub">觀測指數</div>
               </div>
-            </button>
+            </div>
+          </button>
+          <div class="sky-text">
+            <h1 id="vTitle" class="sky-title skel-txt">正在同步最新天空狀況…</h1>
+            <p id="vLead" class="sky-lead skel-txt">結合官方分層晴空預報、NOAA 即時衛星與天文暗空倒數。</p>
+            <button id="vActionBtn" class="hero-cta" type="button" style="display:none;"></button>
           </div>
         </div>
 
         <div class="sky-body">
-          <!-- Unified 3-Column Bento Metrics (Single-Line Atomic Sub-Labels) -->
+          <!-- Unified 3-Column Frosted Glass Metrics (Single-Line Atomic Sub-Labels) -->
           <div class="factors">
             <div class="f-box">
               <div class="f-head"><span id="fSkyLbl" class="f-lbl">晴空率</span><span id="fSkyVal" class="f-val skel-val">--</span></div>
@@ -185,7 +182,7 @@
           <span id="h2Wave">逐時趨勢</span>
           <span id="waveRange" class="wave-range">24 小時</span>
         </h2>
-        <div id="homeBest" class="callout skel-bar">載入中…</div>
+        <div id="homeBest" class="wave-peak skel-bar">載入中…</div>
         <div class="hr-legend hr-legend-top">
           <span id="hrLegLeft"><span class="leg-dot" style="background:var(--green);"></span>柱＝指數（0–99）<span class="leg-strip"></span>灰條＝晴空率</span>
           <span id="hrLegRight">滑動查看各時段</span>

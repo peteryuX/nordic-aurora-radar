@@ -3181,14 +3181,16 @@ export function synthesizeTonightAction({
         : '目前處於極晝期間，24 小時天色皆過亮，暫無法觀測極光。';
     } else if (darkWin?.state === 'twilight-wait' && darkWin.nextDarkHM) {
       const inTxt = fmtDur(darkWin.darkInMin);
-      const bestPart = bestDark
-        ? (bestDark.clear >= 25
-            ? (en ? ` Best window: ${bestDark.time} (${bestDark.clear}% clear).` : ` 今晚最晴時段約 ${bestDark.time}（晴空率 ${bestDark.clear}%）。`)
-            : (en ? ` Mostly overcast tonight (max ${bestDark.clear}% clear).` : ` 今晚普遍多雲（晴空率最高 ${bestDark.clear}%）。`))
-        : '';
+      const hasClearAhead = bestDark && (bestDark.clear >= 50 || (bestDark.score ?? 0) >= 35);
+      const cueZh = hasClearAhead
+        ? '今晚有望見晴'
+        : (bestDark && bestDark.clear < 25 ? '今晚普遍多雲' : '入夜後再看雲況');
+      const cueEn = hasClearAhead
+        ? 'clearer skies tonight'
+        : (bestDark && bestDark.clear < 25 ? 'mostly cloudy tonight' : 'check clouds after dusk');
       lead = en
-        ? `Dark enough at ${darkWin.nextDarkHM} (in about ${inTxt}).${bestPart}`
-        : `預計 ${darkWin.nextDarkHM} 開始夠暗（約 ${inTxt} 後）。${bestPart}`;
+        ? `Dark at ${darkWin.nextDarkHM}${inTxt ? ` (in ${inTxt})` : ''} · ${cueEn}.`
+        : `${darkWin.nextDarkHM} 天黑${inTxt ? `（約 ${inTxt} 後）` : ''}，${cueZh}。`;
     }
     return { ...base, lead, actionType: 'daylight', ctaView: null, ctaLabel: '' };
   }

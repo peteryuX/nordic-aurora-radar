@@ -739,7 +739,7 @@ function renderGauge(sc, details) {
     prog.style.filter = visPct > 0 ? `drop-shadow(0 0 8px color-mix(in srgb, ${ringCol} 50%, transparent))` : 'none';
   }
   const numEl = $('ringNum');
-  if (numEl) { animateScoreNumber(sc.total, numEl); numEl.style.color = ringCol; }
+  if (numEl) { animateScoreNumber(sc.total, numEl); numEl.style.color = 'var(--text)'; }
   const grEl = $('ringGrade');
   if (grEl) { grEl.textContent = tGrade(sc.grade).replace(/^[^\p{L}\p{N}]+\s*/u, ''); grEl.style.color = ringCol; }
 
@@ -804,26 +804,28 @@ function renderWaveCard(focusBest = false) {
   const bestText = isOutOfZone
     ? (outZoneKind === 'need-storm'
         ? (en
-            ? `Activity too weak for this latitude — needs a stronger geomagnetic storm (score <strong>0</strong> for the next ${hz} hours).`
-            : `目前活動偏弱，此緯度需要更強的地磁暴（未來 ${hz} 小時指數皆為 <strong>0</strong>）。`)
+            ? `Needs a stronger storm · score <strong>0</strong> next ${hz}h`
+            : `活動偏弱，需更強地磁暴 · 未來 ${hz}h 指數 <strong>0</strong>`)
         : (en
-            ? `Outside the auroral zone — score stays <strong>0</strong> for the next ${hz} hours (tap the location above to switch).`
-            : `此地不在極光帶，未來 ${hz} 小時指數皆為 <strong>0</strong>（點上方地名可切換極光熱點）。`))
+            ? `Outside auroral zone · tap location above to switch`
+            : `不在極光帶 · 點上方地名切換極光熱點`))
     : (bestInVis
         ? (bestInVis.score >= 35
             ? (en
-                ? `${bestIsNextNight ? 'Best window' : 'Best window tonight'}: <strong>${bestTimeLbl}</strong> (score <strong>${bestInVis.score}</strong> · ${bestInVis.clear}% clear · Kp ${Number(bestInVis.kpFc ?? 0).toFixed(1)})`
-                : `${bestIsNextNight ? '最佳時段' : '今晚最佳時段'}：<strong>${bestTimeLbl}</strong>（指數 <strong>${bestInVis.score}</strong> · 晴空率 ${bestInVis.clear}% · Kp ${Number(bestInVis.kpFc ?? 0).toFixed(1)}）`)
+                ? `${bestIsNextNight ? 'Peak' : 'Peak tonight'} <strong>${bestTimeLbl}</strong> · Score <strong>${bestInVis.score}</strong> · ${bestInVis.clear}% clear`
+                : `${bestIsNextNight ? '最看好' : '今晚最看好'} <strong>${bestTimeLbl}</strong> · 指數 <strong>${bestInVis.score}</strong> · 晴空 ${bestInVis.clear}%`)
             : (bestInVis.block <= 40
-                ? (en ? `Clearest dark window: <strong>${bestTimeLbl}</strong> (${bestInVis.clear}% clear · score ${bestInVis.score})` : `天黑後最晴時段：<strong>${bestTimeLbl}</strong>（晴空率 <strong>${bestInVis.clear}%</strong> · 指數 ${bestInVis.score}）`)
+                ? (en ? `Clearest at <strong>${bestTimeLbl}</strong> · <strong>${bestInVis.clear}%</strong> clear · Score ${bestInVis.score}` : `最晴時段 <strong>${bestTimeLbl}</strong> · 晴空 <strong>${bestInVis.clear}%</strong> · 指數 ${bestInVis.score}`)
                 : (bestInVis.clear >= 25 || bestInVis.score >= 18
-                    ? (en ? `Clouds may thin around <strong>${bestTimeLbl}</strong> (${bestInVis.clear}% clear · score ${bestInVis.score}).` : `預計 <strong>${bestTimeLbl}</strong> 雲層較有機會變薄（晴空率 <strong>${bestInVis.clear}%</strong> · 指數 ${bestInVis.score}）。`)
-                    : (en ? `Cloudy for the next ${hz} hours (max <strong>${bestInVis.clear}%</strong> clear) — rest or try Find clear skies.` : `未來 ${hz} 小時都偏多雲（晴空率最高 <strong>${bestInVis.clear}%</strong>），建議先休息或點「找晴空」。`))))
-        : (en ? `Sky stays bright for the next ${hz} hours — check back after dark.` : `未來 ${hz} 小時天色偏亮，天黑後再查看。`));
+                    ? (en ? `Clouds thin at <strong>${bestTimeLbl}</strong> · <strong>${bestInVis.clear}%</strong> clear` : `<strong>${bestTimeLbl}</strong> 雲層稍散 · 晴空 <strong>${bestInVis.clear}%</strong>`)
+                    : (en ? `Cloudy next ${hz}h (max <strong>${bestInVis.clear}%</strong>) · try Find clear skies` : `未來 ${hz}h 偏多雲（最高 <strong>${bestInVis.clear}%</strong>）· 可看找晴空`))))
+        : (en ? `Too bright for the next ${hz}h · check back after dark` : `未來 ${hz}h 天色偏亮 · 天黑後再查看`));
   const hb = $('homeBest');
   if (hb) {
-    hb.className = 'callout ' + (!isOutOfZone && bestInVis && (bestInVis.score >= 35 || bestInVis.block <= 40) ? 'good' : 'warn');
-    hb.innerHTML = bestText;
+    const isGood = !isOutOfZone && bestInVis && (bestInVis.score >= 35 || bestInVis.block <= 40);
+    const dotCol = isOutOfZone ? 'var(--muted)' : (isGood ? (bestInVis.score >= 65 ? 'var(--green)' : 'var(--good)') : 'var(--amber)');
+    hb.className = 'wave-peak';
+    hb.innerHTML = `<span class="wp-dot" style="background:${dotCol};" aria-hidden="true"></span><span class="wp-txt">${bestText}</span>`;
   }
   let targetIdx = state.selectedHourIdx;
   if (focusBest || targetIdx < 0 || targetIdx >= vis.length) {
