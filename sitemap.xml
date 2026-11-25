@@ -7,12 +7,6 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://peteryux.github.io/nordic-aurora-radar/?lang=en</loc>
-    <lastmod>2026-11-25</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.95</priority>
-  </url>
-  <url>
     <loc>https://peteryux.github.io/nordic-aurora-radar/spots/tromso/</loc>
     <lastmod>2026-11-25</lastmod>
     <changefreq>weekly</changefreq>

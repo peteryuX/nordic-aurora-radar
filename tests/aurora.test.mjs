@@ -2215,9 +2215,10 @@ test('50. Bilingual copy, localization & single-metric chart clarity lint gate (
   assert.ok(html.includes('id="unitBtn"') && appSrc.includes('detectTempUnit') && !appSrc.includes('fmtTempC'), 'App must support °C/°F via detectTempUnit + fmtTemp + #unitBtn');
   assert.ok(!appSrc.includes('${sc.color}88'), 'Ring drop-shadow must use CSS var color-mix (zero hex leak in red-mode)');
 
-  // 7. SEO & AI-Search (GEO) integrity: hreflang, sitemap, AI crawlers in robots.txt, llms-full.txt & 10 valid spot pages
-  assert.ok(html.includes('hreflang="zh-Hant"') && html.includes('hreflang="en"') && html.includes('hreflang="x-default"'), 'index.html must declare zh-Hant/en/x-default hreflang links');
+  // 7. SEO & AI-Search (GEO) integrity: clean canonical (no conflicting ?lang=en hreflang/sitemap), sitemap, robots.txt, llms-full.txt & 10 valid spot pages
+  assert.ok(html.includes('rel="canonical"') && !html.includes('hreflang="en"'), 'index.html must keep clean self-canonical without conflicting ?lang=en hreflang');
   const sitemap = fs.readFileSync(path.join(ROOT, 'sitemap.xml'), 'utf8');
+  assert.ok(!sitemap.includes('?lang=en'), 'sitemap.xml must only list canonical URLs (no ?lang=en duplicate)');
   const robots = fs.readFileSync(path.join(ROOT, 'robots.txt'), 'utf8');
   const llmsFull = fs.readFileSync(path.join(ROOT, 'llms-full.txt'), 'utf8');
   assert.ok(robots.includes('OAI-SearchBot') && robots.includes('PerplexityBot') && robots.includes('Sitemap:'), 'robots.txt must welcome AI search crawlers and point to sitemap.xml');

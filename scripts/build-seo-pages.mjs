@@ -395,7 +395,6 @@ for (const s of spotRecords) {
 // 2. Write sitemap.xml
 const urls = [
   { loc: `${BASE_URL}/`, freq: 'daily', prio: '1.0' },
-  { loc: `${BASE_URL}/?lang=en`, freq: 'daily', prio: '0.95' },
   ...spotRecords.map(s => ({ loc: `${BASE_URL}/spots/${s.slug}/`, freq: 'weekly', prio: '0.85' })),
   { loc: `${BASE_URL}/llms.txt`, freq: 'weekly', prio: '0.6' },
   { loc: `${BASE_URL}/llms-full.txt`, freq: 'weekly', prio: '0.6' }
