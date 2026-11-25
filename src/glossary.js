@@ -57,7 +57,7 @@ export const TERMS = Object.freeze({
   // Solar Wind Early-Warning States (30-60 min L1 upstream radar)
   solarWind: Object.freeze({
     title:      Object.freeze({ zh: '極光即時預警',       en: 'Aurora early warning' }),
-    axisTitle:  Object.freeze({ zh: '太陽風能量（相對）', en: 'Solar wind energy (rel.)' }),
+    axisTitle:  Object.freeze({ zh: '太陽風能量',         en: 'Solar wind energy' }),
     strong:     Object.freeze({ zh: '可能爆發',           en: 'Burst likely' }),
     active:     Object.freeze({ zh: '可能變亮',           en: 'May brighten' }),
     building:   Object.freeze({ zh: '能量累積',           en: 'Building' }),

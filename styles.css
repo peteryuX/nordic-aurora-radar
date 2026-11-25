@@ -581,7 +581,7 @@ body.is-loading .skel-day .od-stat {
   touch-action: pan-y;
 }
 .chart-svg { width: 100%; height: auto; display: block; }
-#skyWaveChart { cursor: ew-resize; }
+#skyWaveChart, #bzChart { cursor: ew-resize; }
 
 .hr-detail {
   margin-top: 6px; padding: 8px 0 0; border-radius: 0;

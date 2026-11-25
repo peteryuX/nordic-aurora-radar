@@ -255,6 +255,12 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
         ? '<span>Slide or tap any hour on the chart for clear sky %, temp &amp; darkness</span>'
         : '<span>滑動或點擊任一時段查看晴空率、體感溫度與夜空暗度</span>';
     }
+    const bd = $('bzDetail');
+    if (bd) {
+      bd.innerHTML = en
+        ? '<span>Slide or tap the curve to inspect exact values for any timestamp</span>'
+        : '<span>滑動或點擊曲線查看各時段精確數值</span>';
+    }
     const tlt = $('tsLiveTitle');
     if (tlt) {
       tlt.innerHTML = en

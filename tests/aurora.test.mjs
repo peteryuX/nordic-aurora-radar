@@ -2282,9 +2282,23 @@ test('50. Bilingual copy, localization & single-metric chart clarity lint gate (
   const odIcoSvg = api.buildOutlookSkyIcon({ score: 84, clearPct: 94, scoreAvailable: true });
   assert.ok(skyIcoSvg.includes('<svg') && aurIcoSvg.includes('<svg') && odIcoSvg.includes('<svg'), 'All visual micro-icons must render valid SVGs');
   const swMeterOpen = api.buildSolarWindMeterHtml({ bz: -6.8, speed: 540, en: false });
+  const swMeterBuild = api.buildSolarWindMeterHtml({ bz: -2.0, speed: 500, energy: 34, en: false });
   const swMeterNull = api.buildSolarWindMeterHtml({ bz: null, speed: null, en: false });
   assert.ok(swMeterOpen.includes('sw-meter-dot') && swMeterOpen.includes('可能爆發'), 'Early-warning signal bar must render human-readable burst signal meter');
+  assert.ok(swMeterBuild.includes('var(--amber)') && swMeterBuild.includes('sw-axis-on">增強'), 'Early-warning meter must match curve/badge unified building threshold (>=25)');
   assert.equal(swMeterNull, '', 'Early-warning signal bar must hide cleanly when Bz is unavailable');
+
+  // 12. v35 interactive 2h satellite curve scrubbing (#bzChart + #bzDetail)
+  assert.ok(html.includes('id="bzDetail"') && appSrc.includes('bindBzScrubbing') && appSrc.includes('selectBzPoint'), '2h satellite chart must wire interactive scrubbing and #bzDetail readout');
+  const bzSeries = Array.from({ length: 24 }, (_, i) => ({
+    time_tag: new Date(Date.UTC(2026, 10, 25, 14, i * 5, 0)).toISOString().replace('T', ' ').slice(0, 19),
+    bz: i < 12 ? 0.8 : -4.2,
+    bt: 6.5
+  }));
+  const bzScrubSvg = api.buildBzChartSVG(bzSeries, 'Europe/Oslo', 480, api.computeBallisticCoupling(bzSeries, 480), 'zh', 14);
+  const bzNoScrubSvg = api.buildBzChartSVG(bzSeries, 'Europe/Oslo', 480, api.computeBallisticCoupling(bzSeries, 480), 'zh', -1);
+  assert.ok(bzScrubSvg.includes('data-role="scrubber"') && bzScrubSvg.includes('data-role="scrubber-dot"'), 'buildBzChartSVG must render interactive vertical scrubber hairline and active point dot when selectedIdx is set');
+  assert.ok(!bzNoScrubSvg.includes('data-role="scrubber"'), 'buildBzChartSVG must omit scrubber elements when selectedIdx is -1');
 });
 
 

@@ -106,7 +106,7 @@ export function buildSkySceneSVG({ cloudPct, auroraScore, moonUp, moonPct, isToo
  * Solar Wind Energy & Earth-Arrival Chart (uniform 30-min :00/:30 local arrival ticks,
  * L1 telemetry dropout splitting when consecutive gaps exceed 5 minutes).
  */
-export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
+export function buildBzChartSVG(series, timeZone, speed, balOpt, lang, selectedIdx = -1) {
   const en = isEn(lang);
   if (!Array.isArray(series) || series.length < 2) {
     return `<text x="210" y="90" text-anchor="middle" fill="var(--muted)" font-size="13" font-weight="700">${en ? 'No live satellite energy data' : '暫無衛星即時太陽風曲線'}</text>`;
@@ -152,9 +152,11 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
   if (curSeg.length) segments.push(curSeg);
 
   const baseY = (padT + plotH).toFixed(1);
-  const lastE = energies[energies.length - 1];
-  const lx = xOf(energies.length - 1), ly = yOf(lastE);
-  const col = lastE >= 62 ? 'var(--green)' : lastE >= 25 ? 'var(--amber)' : 'var(--muted)';
+  const lastIdx = energies.length - 1;
+  const lastE = energies[lastIdx];
+  const lx = xOf(lastIdx), ly = yOf(lastE);
+  const colOf = e => (e >= 62 ? 'var(--green)' : e >= 25 ? 'var(--amber)' : 'var(--muted)');
+  const col = colOf(lastE);
   const stateWord = lastE >= 62 ? term(TERMS.solarWind.active, en) : lastE >= 25 ? term(TERMS.solarWind.building, en) : term(TERMS.solarWind.low, en);
 
   const areaSvg = segments.filter(seg => seg.length >= 2).map(seg => {
@@ -197,7 +199,7 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
   }
   if (!xTicksSvg) {
     const tStart = escSvg(utcTagToLocalHM(series[0]?.time_tag, timeZone, etaMin));
-    const tEnd = escSvg(utcTagToLocalHM(series[series.length - 1]?.time_tag, timeZone, etaMin));
+    const tEnd = escSvg(utcTagToLocalHM(series[lastIdx]?.time_tag, timeZone, etaMin));
     xTicksSvg = `
       <text x="${padL}" y="${H - 7}" fill="var(--muted)" font-size="11.5" font-weight="600">${tStart}</text>
       <text x="${W - padR}" y="${H - 7}" text-anchor="end" fill="var(--text)" font-size="11.5" font-weight="600">${tEnd}</text>`;
@@ -208,14 +210,28 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
   if (balOpt && Number.isInteger(balOpt.arrivingIdx) && balOpt.arrivingIdx > 4 && balOpt.arrivingIdx < series.length - 4) {
     const ax = xOf(balOpt.arrivingIdx);
     const tNowEarth = escSvg(utcTagToLocalHM(series[balOpt.arrivingIdx]?.time_tag, timeZone, etaMin));
-    const lxClamped = Math.max(padL + 68, Math.min(W - 144, ax));
+    const lxClamped = Math.max(padL + 92, Math.min(W - 156, ax));
     const futureW = Math.max(0, W - padR - ax);
     futureBandSvg = `<rect x="${ax.toFixed(1)}" y="${padT}" width="${futureW.toFixed(1)}" height="${plotH}" fill="var(--text)" fill-opacity="0.04"/>`;
     arriveSvg = `
       <line x1="${ax.toFixed(1)}" y1="${padT}" x2="${ax.toFixed(1)}" y2="${baseY}" stroke="var(--text)" stroke-dasharray="3 3" stroke-width="1.3" opacity="0.72"/>
-      <circle cx="${ax.toFixed(1)}" cy="${yOf(energies[balOpt.arrivingIdx]).toFixed(1)}" r="3.6" fill="var(--text)" stroke="var(--bg)" stroke-width="1.5"/>
+      <circle cx="${ax.toFixed(1)}" cy="${yOf(energies[balOpt.arrivingIdx]).toFixed(1)}" r="3.4" fill="var(--text)" stroke="var(--bg)" stroke-width="1.5"/>
       <text x="${lxClamped.toFixed(1)}" y="17" text-anchor="middle" fill="var(--text)" font-size="11" font-weight="600">${en ? `Now ${tNowEarth}` : `現在 ${tNowEarth}`}</text>`;
   }
+
+  const hasSel = Number.isInteger(selectedIdx) && selectedIdx >= 0 && selectedIdx < energies.length;
+  let scrubSvg = '';
+  if (hasSel) {
+    const sx = xOf(selectedIdx), sy = yOf(energies[selectedIdx]);
+    const sCol = colOf(energies[selectedIdx]);
+    scrubSvg = `
+      <line data-role="scrubber" x1="${sx.toFixed(1)}" y1="${padT}" x2="${sx.toFixed(1)}" y2="${baseY}" stroke="var(--text)" stroke-opacity="0.58" stroke-width="1.2"/>
+      <circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="7.5" fill="${sCol}" fill-opacity="0.22"/>
+      <circle data-role="scrubber-dot" cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="4.6" fill="${sCol}" stroke="var(--bg)" stroke-width="1.8"/>`;
+  }
+  const endDotSvg = (!hasSel || selectedIdx !== lastIdx)
+    ? `<circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="${hasSel ? '3.2' : '4.8'}" fill="${col}" stroke="var(--bg)" stroke-width="${hasSel ? '1.4' : '2'}"/>`
+    : '';
 
   return `
     <defs>
@@ -239,7 +255,8 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
     ${gapSvg}
     ${lineSvg}
     ${arriveSvg}
-    <circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="4.8" fill="${col}" stroke="var(--bg)" stroke-width="2"/>
+    ${endDotSvg}
+    ${scrubSvg}
     <rect x="${W - 110}" y="2" width="96" height="21" rx="10.5" fill="rgba(8,9,12,0.88)" stroke="${col}" stroke-width="1"/>
     <text x="${W - 62}" y="16.5" text-anchor="middle" fill="${col}" font-size="12" font-weight="800">${en ? `Next · ${stateWord}` : `預告 · ${stateWord}`}</text>
   `;
@@ -646,14 +663,15 @@ export function buildOutlookSkyIcon({ score = 0, clearPct = null, scoreAvailable
  * Translates upstream L1 solar wind (Bz + speed) into an intuitive 0-100% burst-signal meter
  * (Quiet -> Building -> Burst likely) with zero space-physics jargon on the main surface.
  */
-export function buildSolarWindMeterHtml({ bz = null, speed = null, en = false } = {}) {
-  if (bz === null || !Number.isFinite(Number(bz))) return '';
-  const bzVal = Number(bz);
+export function buildSolarWindMeterHtml({ bz = null, speed = null, energy = null, en = false } = {}) {
+  const hasE = energy !== null && Number.isFinite(Number(energy));
+  const hasBz = bz !== null && Number.isFinite(Number(bz));
+  if (!hasE && !hasBz) return '';
   const spdVal = Number.isFinite(Number(speed)) ? Number(speed) : 420;
-  const energy = bzToEnergy(bzVal, spdVal); // 0..100 normalized incoming aurora coupling
-  const posPct = Math.max(5, Math.min(95, Math.round(energy)));
-  const isStrong = energy >= 52;
-  const isBuild = energy >= 26;
+  const rawE = hasE ? clampNum(energy, 0, 100, 4) : bzToEnergy(Number(bz), spdVal); // 0..100 normalized incoming aurora coupling
+  const posPct = Math.max(5, Math.min(95, Math.round(rawE)));
+  const isStrong = rawE >= 62;
+  const isBuild = rawE >= 25;
   const dotCol = isStrong ? 'var(--green)' : (isBuild ? 'var(--amber)' : 'var(--muted)');
   const l1 = en ? 'Quiet' : '平靜';
   const l2 = en ? 'Building' : '增強';

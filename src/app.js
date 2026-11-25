@@ -79,6 +79,9 @@ const state = {
   sheetHistoryPushed: false,
   toastTimer: null,
   swExpanded: false,
+  swTelemetryTag: '',
+  bzChartState: null,
+  selectedBzIdx: -1,
   tempUnit: 'C',
   displayedScore: null,
   scoreAnimFrame: 0,
@@ -124,9 +127,14 @@ function syncSwToggleUI() {
   card.classList.toggle('sw-expanded', state.swExpanded);
   btn.setAttribute('aria-expanded', String(state.swExpanded));
   panel.setAttribute('aria-hidden', String(!state.swExpanded));
-  setText('swToggleTxt', state.swExpanded
-    ? (en ? 'Hide solar wind timeline' : '收起太陽風到達地球曲線')
-    : (en ? 'Show solar wind timeline' : '展開太陽風到達地球曲線'));
+  const tele = state.swTelemetryTag;
+  const collapsedTxt = tele
+    ? (en ? `2h satellite chart (${tele})` : `2 小時衛星曲線（${tele}）`)
+    : (en ? 'Satellite data & 2h chart' : '查看衛星資料與 2 小時曲線');
+  const expandedTxt = en
+    ? 'Hide 2h satellite chart · Scrub to inspect'
+    : '收起 2 小時衛星曲線 · 滑動查看數值';
+  setText('swToggleTxt', state.swExpanded ? expandedTxt : collapsedTxt);
 }
 
 function animateScoreNumber(targetVal, numEl) {
@@ -1066,6 +1074,49 @@ function render3NightOutlook(nights) {
   }).join('');
 }
 
+function selectBzPoint(idx) {
+  const st = state.bzChartState;
+  if (!st || !Array.isArray(st.series) || st.series.length < 2) return;
+  const clampedIdx = Math.max(0, Math.min(st.series.length - 1, idx));
+  state.selectedBzIdx = clampedIdx;
+  const { series, tz, speed, bal } = st;
+  const en = isEn();
+  setHtml('bzChart', buildBzChartSVG(series, tz, speed, bal, getLang(), clampedIdx));
+
+  const pt = series[clampedIdx];
+  const etaMin = Number.isFinite(bal?.etaMin) ? Math.round(bal.etaMin) : Engine.computeL1EtaMin(speed);
+  const tStr = utcTagToLocalHM(pt?.time_tag, tz, etaMin);
+  const rawE = (bal && Array.isArray(bal.energy120) && bal.energy120.length === series.length)
+    ? bal.energy120[clampedIdx]
+    : Engine.bzToEnergy(pt?.bz, speed);
+  const eVal = Math.max(0, Math.min(100, Math.round(Number.isFinite(rawE) ? rawE : 4)));
+  const eCol = eVal >= 62 ? 'var(--green)' : eVal >= 25 ? 'var(--amber)' : 'var(--muted)';
+  const eWord = eVal >= 62 ? term(TERMS.solarWind.active, en) : eVal >= 25 ? term(TERMS.solarWind.building, en) : term(TERMS.solarWind.low, en);
+
+  const ptMs = Engine.parseUtcMs(pt?.time_tag);
+  const ptArrMs = Number.isFinite(ptMs) ? ptMs + etaMin * 60000 : NaN;
+  let refArrMs = Date.now();
+  if (bal && Number.isInteger(bal.arrivingIdx) && bal.arrivingIdx >= 0 && bal.arrivingIdx < series.length) {
+    const aMs = Engine.parseUtcMs(series[bal.arrivingIdx]?.time_tag);
+    if (Number.isFinite(aMs)) refArrMs = aMs + etaMin * 60000;
+  }
+  const diffMin = Number.isFinite(ptArrMs) && Number.isFinite(refArrMs) ? Math.round((ptArrMs - refArrMs) / 60000) : null;
+  let phaseTxt = '';
+  if (diffMin !== null) {
+    if (diffMin > 2) phaseTxt = en ? `In ~${diffMin}m` : `約 ${diffMin} 分後抵達`;
+    else if (diffMin >= -2) phaseTxt = en ? 'Arriving now' : '正抵達地球';
+    else phaseTxt = en ? 'Arrived' : '已抵達';
+  }
+  const bzVal = Number(pt?.bz);
+  const bzTxt = Number.isFinite(bzVal) ? `Bz ${bzVal > 0 ? `+${bzVal.toFixed(1)}` : bzVal.toFixed(1)} nT` : '';
+  const spdInt = Number.isFinite(Number(speed)) ? Math.round(Number(speed)) : null;
+  const spdTxt = spdInt !== null ? `${spdInt} km/s` : '';
+  const metaTxt = [phaseTxt, bzTxt, spdTxt].filter(Boolean).join(' · ');
+
+  setHtml('bzDetail',
+    `<span class="hr-det-main"><strong>${escapeHtml(tStr)}</strong> <strong style="color:${eCol}">${eVal}</strong> <span style="color:${eCol}">${escapeHtml(eWord)}</span></span><span class="hr-det-meta">${escapeHtml(metaTxt)}</span>`);
+}
+
 function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales, noaaAlert, bal, noaaOk, noaaLagMin, pos }) {
   const en = isEn();
   const tz = pos?.tz || state.pos.tz;
@@ -1078,9 +1129,14 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales,
   const etaMin = Number.isFinite(bal?.etaMin) ? Math.round(bal.etaMin) : 45;
   const spdInt = Number.isFinite(Number(speed)) ? Math.round(Number(speed)) : null;
 
+  // Single source of truth for incoming aurora coupling energy (0..100) across badge, summary, meter & 2h curve
+  const latestEnergy = (bal && Array.isArray(bal.energy120) && bal.energy120.length)
+    ? bal.energy120[bal.energy120.length - 1]
+    : (liveBz !== null ? Engine.bzToEnergy(liveBz, speed) : null);
+
   const isBurst = Boolean(goesSub?.active || bal?.shockActive);
-  const isBrighten = Boolean(enSum.good);
-  const isBuilding = Boolean((liveBz !== null && liveBz <= -2.5) || (enSum.raw && enSum.raw.includes('增強')));
+  const isBrighten = Boolean(enSum.good || (latestEnergy !== null && latestEnergy >= 62));
+  const isBuilding = Boolean(!isBrighten && ((latestEnergy !== null && latestEnergy >= 25) || (enSum.raw && enSum.raw.includes('增強'))));
 
   const bzBadge = $('bzBadge');
   if (bzBadge) {
@@ -1131,19 +1187,14 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales,
   }
   const swMeter = $('swMeter');
   if (swMeter) {
-    const meterHtml = buildSolarWindMeterHtml({ bz: liveBz, speed, en });
+    const meterHtml = buildSolarWindMeterHtml({ bz: liveBz, speed, energy: latestEnergy, en });
     swMeter.innerHTML = meterHtml;
     swMeter.style.display = meterHtml ? '' : 'none';
   }
-  const swToggleTxt = $('swToggleTxt');
-  if (swToggleTxt) {
-    const bzStr = liveBz !== null ? `Bz ${liveBz > 0 ? `+${liveBz.toFixed(1)}` : liveBz.toFixed(1)}` : '';
-    const spdStr = spdInt !== null ? `${spdInt} km/s` : '';
-    const tele = [bzStr, spdStr].filter(Boolean).join(' · ');
-    swToggleTxt.textContent = tele
-      ? (en ? `2h satellite chart (${tele})` : `2 小時衛星曲線（${tele}）`)
-      : (en ? 'Satellite data & 2h chart' : '查看衛星資料與 2 小時曲線');
-  }
+  const bzStr = liveBz !== null ? `Bz ${liveBz > 0 ? `+${liveBz.toFixed(1)}` : liveBz.toFixed(1)}` : '';
+  const spdStr = spdInt !== null ? `${spdInt} km/s` : '';
+  state.swTelemetryTag = [bzStr, spdStr].filter(Boolean).join(' · ');
+  syncSwToggleUI();
 
   const lastM = magSeries.length ? magSeries[magSeries.length - 1] : null;
   const lastArrMs = lastM ? Engine.parseUtcMs(lastM.time_tag) + etaMin * 60000 : NaN;
@@ -1157,7 +1208,21 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales,
     : (hasDashedLine && etaClock
         ? `虛線右側＝已測得太陽風，預估於 ${etaClock} 前陸續到達`
         : (etaClock ? `時間軸為到達地球當地時間（已測得太陽風約 ${etaClock} 前抵達）` : '時間軸已換算為到達地球的當地時間')));
-  setHtml('bzChart', buildBzChartSVG(chartSeries, tz, speed, bal, getLang()));
+
+  if (Array.isArray(chartSeries) && chartSeries.length >= 2) {
+    state.bzChartState = { series: chartSeries, tz, speed, bal };
+    const defaultIdx = (state.selectedBzIdx >= 0 && state.selectedBzIdx < chartSeries.length)
+      ? state.selectedBzIdx
+      : chartSeries.length - 1;
+    selectBzPoint(defaultIdx);
+  } else {
+    state.bzChartState = null;
+    state.selectedBzIdx = -1;
+    setHtml('bzChart', buildBzChartSVG(chartSeries, tz, speed, bal, getLang()));
+    setHtml('bzDetail', en
+      ? '<span>No live satellite samples available</span>'
+      : '<span>暫無即時衛星數值</span>');
+  }
 
   const pNoaa = $('pNoaa');
   if (pNoaa) {
@@ -2054,6 +2119,81 @@ function bindWaveScrubbing() {
   svg.addEventListener('pointercancel', reset);
 }
 
+function bindBzScrubbing() {
+  const svg = $('bzChart');
+  if (!svg) return;
+  let tracking = false, scrubbing = false, startX = 0, startY = 0, activePointerId = null;
+  const pickFromClientX = (clientX) => {
+    const st = state.bzChartState;
+    if (!st || !Array.isArray(st.series) || st.series.length < 2) return;
+    const rect = svg.getBoundingClientRect();
+    if (!rect.width) return;
+    const svgX = ((clientX - rect.left) / rect.width) * 420;
+    const padL = 56, plotW = 420 - 56 - 14;
+    const ratio = Math.max(0, Math.min(1, (svgX - padL) / plotW));
+    const { series } = st;
+    const t0 = Engine.parseUtcMs(series[0]?.time_tag);
+    const t1 = Engine.parseUtcMs(series[series.length - 1]?.time_tag);
+    let bestIdx = Math.round(ratio * (series.length - 1));
+    if (Number.isFinite(t0) && Number.isFinite(t1) && t1 > t0 && (t1 - t0) <= 24 * 3600000) {
+      const targetMs = t0 + ratio * (t1 - t0);
+      let bestDiff = Infinity;
+      for (let i = 0; i < series.length; i++) {
+        const ms = Engine.parseUtcMs(series[i]?.time_tag);
+        if (!Number.isFinite(ms)) continue;
+        const d = Math.abs(ms - targetMs);
+        if (d < bestDiff) { bestDiff = d; bestIdx = i; }
+      }
+    }
+    if (bestIdx !== state.selectedBzIdx) {
+      selectBzPoint(bestIdx);
+      haptic(4);
+    }
+  };
+  const reset = () => {
+    if (scrubbing && activePointerId !== null) {
+      try { svg.releasePointerCapture(activePointerId); } catch {}
+    }
+    tracking = false;
+    scrubbing = false;
+    activePointerId = null;
+  };
+  svg.addEventListener('pointerdown', (e) => {
+    if (e.button && e.button !== 0) return;
+    if (e.isPrimary === false) return;
+    tracking = true;
+    scrubbing = false;
+    startX = e.clientX;
+    startY = e.clientY;
+    activePointerId = e.pointerId;
+  });
+  svg.addEventListener('pointermove', (e) => {
+    if (!tracking || e.pointerId !== activePointerId) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (!scrubbing) {
+      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) {
+        reset();
+        return;
+      }
+      if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+        scrubbing = true;
+        try { svg.setPointerCapture(e.pointerId); } catch {}
+        pickFromClientX(e.clientX);
+      }
+      return;
+    }
+    pickFromClientX(e.clientX);
+  });
+  svg.addEventListener('pointerup', (e) => {
+    if (!tracking || e.pointerId !== activePointerId) return;
+    const isCleanTap = !scrubbing && Math.hypot(e.clientX - startX, e.clientY - startY) <= 10;
+    reset();
+    if (isCleanTap) pickFromClientX(e.clientX);
+  });
+  svg.addEventListener('pointercancel', reset);
+}
+
 function bindPullToRefresh() {
   const ptr = $('ptrIndicator');
   const txt = $('ptrText');
@@ -2202,6 +2342,7 @@ function bindEvents() {
   bindSheetSwipe('trustSheet', () => closeTrustSheet());
   bindSheetSwipe('picker', () => togglePicker(true));
   bindWaveScrubbing();
+  bindBzScrubbing();
   bindPullToRefresh();
 
   document.querySelectorAll('#presetChips .chip').forEach(btn => {

@@ -14,6 +14,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
   buildSkySceneSVG,
+  buildBzChartSVG,
   buildSkyWaveSVG,
   buildSkyFactorIcon,
   buildAuroraFactorIcon,
@@ -21,6 +22,7 @@ import {
   buildOutlookSkyIcon,
   buildSolarWindMeterHtml
 } from '../src/charts.js';
+import { computeBallisticCoupling } from '../src/aurora-engine.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -51,9 +53,16 @@ const hrs24 = Array.from({ length: 24 }, (_, i) => {
   };
 });
 
+const bzSeriesSample = Array.from({ length: 120 }, (_, i) => ({
+  time_tag: new Date(Date.UTC(2026, 10, 25, 13, 20 + i, 0)).toISOString().replace('T', ' ').slice(0, 19),
+  bz: i < 75 ? 0.4 : (i < 95 ? -2.4 : -3.8),
+  bt: 6.2
+}));
+const bzBalSample = computeBallisticCoupling(bzSeriesSample, 480);
+
 function buildPageHtml({
   rootPx = 17, width = 390, height = 844, scrollY = 0,
-  safeTop = 0, safeBottom = 0, mode = 'prime', redMode = false, lang = 'zh'
+  safeTop = 0, safeBottom = 0, mode = 'prime', redMode = false, lang = 'zh', swExpanded = false
 }) {
   const en = lang === 'en';
   const isCloudy = mode === 'cloudy';
@@ -61,15 +70,18 @@ function buildPageHtml({
     ? buildSkySceneSVG({ cloudPct: 86, auroraScore: 20, moonUp: true, moonPct: 78, isTooBright: false })
     : buildSkySceneSVG({ cloudPct: 8, auroraScore: 86, moonUp: false, moonPct: 14, isTooBright: false });
   const waveSvg = buildSkyWaveSVG(hrs24, hrs24[2], 2, lang);
+  const bzSvg = swExpanded ? buildBzChartSVG(bzSeriesSample, 'Europe/Oslo', 480, bzBalSample, lang, 100) : '';
 
   const fSkyIco = buildSkyFactorIcon(isCloudy ? 24 : 92, false);
   const fAurIco = buildAuroraFactorIcon(isCloudy ? 12 : 86);
   const fDarkIco = isCloudy
     ? buildMoonPhaseIcon({ pct: 78, up: true, waxing: true, isTooBright: false })
     : buildMoonPhaseIcon({ pct: 14, up: false, waxing: true, isTooBright: false });
-  const swMeterHtml = isCloudy
-    ? buildSolarWindMeterHtml({ bz: 2.8, speed: 365, en })
-    : buildSolarWindMeterHtml({ bz: -6.8, speed: 540, en });
+  const swMeterHtml = swExpanded
+    ? buildSolarWindMeterHtml({ bz: -3.8, speed: 480, energy: bzBalSample.energy120[119], en })
+    : (isCloudy
+        ? buildSolarWindMeterHtml({ bz: 2.8, speed: 365, en })
+        : buildSolarWindMeterHtml({ bz: -6.8, speed: 540, en }));
 
   const nights = [
     {
@@ -223,16 +235,28 @@ html { font-size: ${rootPx}px !important; }
         <p class="od-note">${en ? 'Clouds & Kp shift — recheck 3h before going out.' : '明後天雲量與 Kp 變動較大，出發前 3 小時請再確認。'}</p>
       </section>
 
-      <section class="card card-sw" id="solarWindCard">
+      <section class="card card-sw ${swExpanded ? 'sw-expanded' : ''}" id="solarWindCard">
         <h2>
           <span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.2 1.8L3.8 9h4.1l-1.1 5.2L12.2 7H8.1l1.1-5.2z"/></svg><span>${en ? 'Aurora early warning' : '極光即時預警'}</span></span>
-          <span class="sw-badge ${isCloudy ? '' : 'sw-good'}">${isCloudy ? (en ? '~52m · Quiet' : '提前 52 分鐘 · 維持平靜') : (en ? '~40m · May brighten' : '提前 40 分鐘 · 可能變亮')}</span>
+          <span class="sw-badge ${swExpanded ? 'sw-warn' : (isCloudy ? '' : 'sw-good')}">${swExpanded ? (en ? '~48m · Building' : '提前 48 分鐘 · 能量累積') : (isCloudy ? (en ? '~52m · Quiet' : '提前 52 分鐘 · 維持平靜') : (en ? '~40m · May brighten' : '提前 40 分鐘 · 可能變亮'))}</span>
         </h2>
-        <div class="sw-summary ${isCloudy ? '' : 'sw-sum-good'}">${isCloudy
-          ? (en ? 'No burst signal from upstream satellites for the next ~52 min.' : '未來約 52 分鐘暫無極光爆發訊號，目前維持平靜。')
-          : (en ? 'Incoming solar wind is strong — aurora may brighten in ~40 min.' : '上游衛星測得強極光能量，約 40 分鐘內可能變亮，建議留意天空。')}</div>
+        <div class="sw-summary ${swExpanded ? 'sw-sum-warn' : (isCloudy ? '' : 'sw-sum-good')}">${swExpanded
+          ? (en ? 'Solar wind energy is building — aurora may strengthen within ~48 min.' : '極光能量正在累積，未來 48 分鐘內有機會轉強。')
+          : (isCloudy
+              ? (en ? 'No burst signal from upstream satellites for the next ~52 min.' : '未來約 52 分鐘暫無極光爆發訊號，目前維持平靜。')
+              : (en ? 'Incoming solar wind is strong — aurora may brighten in ~40 min.' : '上游衛星測得強極光能量，約 40 分鐘內可能變亮，建議留意天空。'))}</div>
         <div class="sw-meter">${swMeterHtml}</div>
-        <button class="sw-toggle-btn" type="button"><span>${isCloudy ? (en ? '2h satellite chart (Bz +2.8 · 365 km/s)' : '2 小時衛星曲線（Bz +2.8 · 365 km/s）') : (en ? '2h satellite chart (Bz -6.8 · 540 km/s)' : '2 小時衛星曲線（Bz -6.8 · 540 km/s）')}</span><span class="sw-chev">▾</span></button>
+        <button class="sw-toggle-btn" type="button"><span>${swExpanded
+          ? (en ? 'Hide 2h satellite chart · Scrub to inspect' : '收起 2 小時衛星曲線 · 滑動查看數值')
+          : (isCloudy ? (en ? '2h satellite chart (Bz +2.8 · 365 km/s)' : '2 小時衛星曲線（Bz +2.8 · 365 km/s）') : (en ? '2h satellite chart (Bz -6.8 · 540 km/s)' : '2 小時衛星曲線（Bz -6.8 · 540 km/s）'))}</span><span class="sw-chev">▾</span></button>
+        ${swExpanded ? `<div class="sw-curve-panel">
+          <div class="chart-box" style="margin-top:9px;"><svg id="bzChart" class="chart-svg" viewBox="0 0 420 170">${bzSvg}</svg></div>
+          <div id="bzDetail" class="hr-detail">
+            <span class="hr-det-main"><strong>16:48</strong> <strong style="color:var(--amber);">46</strong> <span style="color:var(--amber);">${en ? 'Building' : '能量累積'}</span></span>
+            <span class="hr-det-meta">${en ? 'In ~28m · Bz -3.8 nT · 480 km/s' : '約 28 分後抵達 · Bz -3.8 nT · 480 km/s'}</span>
+          </div>
+          <div class="hr-legend"><span>${en ? 'Right of dashed line = arriving by 17:07' : '虛線右側＝已測得太陽風，預估於 17:07 前陸續到達'}</span></div>
+        </div>` : ''}
       </section>
     </main>
   </div>
@@ -264,7 +288,7 @@ html { font-size: ${rootPx}px !important; }
       }
 
       // 1. Element right/left clip & text truncation checks
-      const checkSel = '.hdr-loc-name, .hdr-loc-meta, .hdr-tools, .ring-num, .ring-grade, .sky-title, .f-box, .f-lbl, .f-val, .f-sub, .hero-tag, .fc-strip, .wave-peak, .outlook-row, .od-day, .od-score, .od-badge, .od-stat, .sw-summary, .sw-meter, .sw-meter-axis, .bottom-nav, .nav-btn';
+      const checkSel = '.hdr-loc-name, .hdr-loc-meta, .hdr-tools, .ring-num, .ring-grade, .sky-title, .f-box, .f-lbl, .f-val, .f-sub, .hero-tag, .fc-strip, .wave-peak, .hr-detail, .outlook-row, .od-day, .od-score, .od-badge, .od-stat, .sw-summary, .sw-meter, .sw-meter-axis, .bottom-nav, .nav-btn';
       for (const el of document.querySelectorAll(checkSel)) {
         const r = el.getBoundingClientRect();
         if (r.width === 0 || r.height === 0) continue;
@@ -368,6 +392,7 @@ const cases = [
   { id: 'ios15_19_scroll', label: 'iPhone 15 19px Scrolled Bleed Check', rootPx: 19, width: 390, height: 844, safeTop: 59, safeBottom: 34, scrollY: 260, mode: 'cloudy' },
   { id: 'ios15_17_en', label: 'iPhone 15 17px EN Top (390×844)', rootPx: 17, width: 390, height: 844, safeTop: 59, safeBottom: 34, scrollY: 0, lang: 'en' },
   { id: 'ios15_17_red', label: 'iPhone 15 17px Red Scrolled', rootPx: 17, width: 390, height: 844, safeTop: 59, safeBottom: 34, scrollY: 260, redMode: true },
+  { id: 'ios15_19_bz_scrub', label: 'iPhone 15 19px 2h Curve Scrub', rootPx: 19, width: 390, height: 844, safeTop: 59, safeBottom: 34, scrollY: 820, swExpanded: true },
   // Full-page multi-font-size stress matrix (14px -> 28px at exact 360px / 390px!)
   { id: 'f14_360', label: '14px Compact (360px)', rootPx: 14, width: 360, height: 1120 },
   { id: 'f16_360', label: '16px Android (360px)', rootPx: 16, width: 360, height: 1160 },
@@ -419,7 +444,7 @@ for (const c of cases) {
 }
 
 // Render Sheet 1: Real iPhone 15 390x844 Viewport & Scroll-Bleed Verification
-const iosIds = ['ios15_17_top', 'ios15_17_scroll', 'ios15_19_cloudy', 'ios15_19_scroll', 'ios15_17_en', 'ios15_17_red'];
+const iosIds = ['ios15_17_top', 'ios15_17_scroll', 'ios15_19_cloudy', 'ios15_19_scroll', 'ios15_19_bz_scrub', 'ios15_17_en', 'ios15_17_red'];
 const iosHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>
   body { margin: 0; padding: 28px; background: #040812; color: #f4f7fc; font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; }
   h1 { margin: 0 0 6px; font-size: 26px; font-weight: 700; }
@@ -429,8 +454,8 @@ const iosHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>
   .lbl { font-size: 15px; font-weight: 600; margin-bottom: 10px; color: #48d8a2; }
   iframe { border: 2px solid rgba(255,255,255,0.22); border-radius: 42px; display: block; background: #070d18; }
 </style></head><body>
-  <h1>v34 Real iPhone 15 (390×844) Safe-Area, Scroll-Bleed &amp; Above-the-Fold QA</h1>
-  <p>Simulated iOS status bar (59px) + home indicator (34px) · Top &amp; Mid-Scroll · 17px &amp; 19px · EN &amp; Red-Mode</p>
+  <h1>v35 Real iPhone 15 (390×844) Safe-Area, Scroll-Bleed &amp; Interactive 2h Scrub QA</h1>
+  <p>Simulated iOS status bar (59px) + home indicator (34px) · Top, Mid-Scroll &amp; Expanded 2h Scrub · 17px &amp; 19px · EN &amp; Red-Mode</p>
   <div class="grid">
     ${iosIds.map(id => {
       const c = cases.find(x => x.id === id);
@@ -441,7 +466,7 @@ const iosHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>
 fs.writeFileSync(path.join(OUT, 'v34_ios15_qa.html'), iosHtml);
 execFileSync(chrome, [
   '--headless=new', '--no-sandbox', '--disable-gpu', '--allow-file-access-from-files',
-  '--window-size=2540,980', '--force-device-scale-factor=1',
+  '--window-size=2960,980', '--force-device-scale-factor=1',
   `--screenshot=${path.join(OUT, 'v34_ios15_qa.png')}`,
   `file://${path.join(OUT, 'v34_ios15_qa.html')}`
 ], { stdio: 'pipe' });

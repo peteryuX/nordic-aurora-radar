@@ -31,7 +31,7 @@ jobs:
         run: node --test tests/aurora.test.mjs
       - name: Run quantitative calibration (72 storms) & NASA JPL DE441 (22 checkpoints) benchmark
         run: node tests/benchmark.mjs
-      - name: Run 16-case real-iPhone viewport, scroll-bleed, multi-font (14px-28px), EN & red-mode UI QA gate
+      - name: Run 17-case real-iPhone viewport, scroll-bleed, 2h curve scrub, multi-font (14px-28px), EN & red-mode UI QA gate
         run: node tests/ui-qa.mjs
 
   live-api-health:
