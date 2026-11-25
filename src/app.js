@@ -259,6 +259,7 @@ function applyStaticI18n() {
     hasLiveState: Boolean(state.renderState),
     onUpdateCamDayNotice: updateSkyCamDayNotice
   });
+  syncNavSatLabel();
 }
 
 function toggleLang() {
@@ -565,7 +566,22 @@ function selectSkyCam(key, btn, isUser = false) {
   updateSkyCamDayNotice(key);
 }
 
+function getActiveSkyCamRegion(lat, lon) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < 0) return null;
+  const nearNordic = findNearestCamInRegion(lat, lon, 'nordic');
+  if (nearNordic.distKm <= 650) return { region: 'nordic', key: nearNordic.key };
+  const nearNa = findNearestCamInRegion(lat, lon, 'na');
+  if (nearNa.distKm <= 1800) return { region: 'na', key: nearNa.key };
+  return null;
+}
+
+function syncNavSatLabel() {
+  const hasCam = Boolean(getActiveSkyCamRegion(state.pos.lat, state.pos.lon));
+  setText('navSat', term(hasCam ? TERMS.nav.liveMap : TERMS.nav.cloudMap, isEn()));
+}
+
 function syncSatTab() {
+  syncNavSatLabel();
   const wf = $('windyFrame');
   if (!wf) return;
   const target = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&overlay=clouds&lat=${state.pos.lat.toFixed(3)}&lon=${state.pos.lon.toFixed(3)}&zoom=7`;
@@ -580,17 +596,9 @@ function syncSatTab() {
   if (ovImg) ovImg.src = `https://services.swpc.noaa.gov/images/animations/ovation/${hemi}/latest.jpg?t=${Date.now()}`;
 
   const camCard = $('skyCamCard');
-  const nearNordic = findNearestCamInRegion(state.pos.lat, state.pos.lon, 'nordic');
-  const nearNa = findNearestCamInRegion(state.pos.lat, state.pos.lon, 'na');
-  let activeRegion = null;
-  let nearestKey = null;
-  if (state.pos.lat >= 0 && nearNordic.distKm <= 1000) {
-    activeRegion = 'nordic';
-    nearestKey = nearNordic.key;
-  } else if (state.pos.lat >= 0 && nearNa.distKm <= 1800) {
-    activeRegion = 'na';
-    nearestKey = nearNa.key;
-  }
+  const activeCam = getActiveSkyCamRegion(state.pos.lat, state.pos.lon);
+  const activeRegion = activeCam?.region || null;
+  const nearestKey = activeCam?.key || null;
 
   if (camCard) camCard.style.display = activeRegion ? 'block' : 'none';
   if (activeRegion) {
@@ -658,6 +666,7 @@ function renderLocationHeader() {
   }
 
   syncPresetChipHighlight();
+  syncNavSatLabel();
   const windyUrl = `https://www.windy.com/${state.pos.lat.toFixed(3)}/${state.pos.lon.toFixed(3)}?clouds,${state.pos.lat.toFixed(3)},${state.pos.lon.toFixed(3)},8`;
   const yrUrl = `https://www.yr.no/en/forecast/daily-table/${state.pos.lat.toFixed(3)},${state.pos.lon.toFixed(3)}`;
   const we = $('windyExtLink');
@@ -1665,7 +1674,7 @@ function renderFromState(st) {
       actBtn.dataset.targetView = act.ctaView;
       actBtn.style.display = 'flex';
     } else if (isCloudyNight) {
-      const fallbackLbl = en ? 'Check 360° clear skies & live cams' : '查看 360° 周邊晴空與實拍';
+      const fallbackLbl = en ? 'Check 360° clear skies' : '查看 360° 周邊晴空';
       actBtn.innerHTML = `<span class="cta-txt"><strong>${fallbackLbl}</strong></span>${SVG_ICO_ARR_R}`;
       actBtn.dataset.targetView = 'dir';
       actBtn.style.display = 'flex';
@@ -2058,6 +2067,7 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
       const pr = exp.confidence.primaryReason;
       const cc = stLive?.cloudConsensus;
       const isMet = Boolean(stLive?.usedMet);
+      const hasCam = Boolean(getActiveSkyCamRegion(state.pos.lat, state.pos.lon));
       if ((pr === 'model-diverge' || pr === 'obs-calibrated' || pr === 'cloud-spread') && cc && Number.isFinite(cc.metAvg3h) && Number.isFinite(cc.omAvg3h)) {
         const c1 = Math.max(0, Math.min(100, Math.round(100 - cc.metAvg3h)));
         const c2 = Math.max(0, Math.min(100, Math.round(100 - cc.omAvg3h)));
@@ -2066,8 +2076,8 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
               ? `Models differed (${isMet ? 'MET Norway' : 'Primary'} ${c1}% vs ${isMet ? 'ECMWF' : 'Secondary'} ${c2}% clear) — short-term clouds adjusted using local live observations.`
               : `兩組預報晴空率有分歧（${isMet ? '挪威官方' : '主模型'} ${c1}%、${isMet ? 'ECMWF 全球模型' : '對照模型'} ${c2}%），已優先參照當地即時實測修正。`)
           : (en
-              ? `Clear-sky models disagree (${isMet ? 'MET Norway' : 'Primary'} ${c1}% vs ${isMet ? 'ECMWF' : 'Secondary'} ${c2}%) — check live cams.`
-              : `兩組晴空預報分歧（${isMet ? '挪威官方' : '主模型'} ${c1}%、${isMet ? 'ECMWF 全球模型' : '對照模型'} ${c2}%），建議看即時實拍確認。`);
+              ? `Clear-sky models disagree (${isMet ? 'MET Norway' : 'Primary'} ${c1}% vs ${isMet ? 'ECMWF' : 'Secondary'} ${c2}%) — ${hasCam ? 'check live cams or the sky.' : 'check the cloud map or sky.'}`
+              : `兩組晴空預報分歧（${isMet ? '挪威官方' : '主模型'} ${c1}%、${isMet ? 'ECMWF 全球模型' : '對照模型'} ${c2}%），${hasCam ? '建議查看天文台實拍或抬頭確認。' : '建議查看動態雲圖或抬頭確認。'}`);
       } else if (pr === 'fast-clouds') {
         detailTxt = en
           ? 'Fast-moving clouds over the next 3h — clear windows may shift.'
@@ -2083,8 +2093,8 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
           : 'NOAA 太空天氣暫時斷線，極光指數僅供參考。';
       } else if (pr === 'single-model') {
         detailTxt = en
-          ? 'Single weather model only — double-check the sky or live cams.'
-          : '目前僅有單一氣象模型，出發前建議抬頭或看實拍確認。';
+          ? (hasCam ? 'Single weather model only — double-check the sky or live cams.' : 'Single weather model only — double-check the cloud map or sky.')
+          : (hasCam ? '目前僅有單一氣象模型，出發前建議抬頭或看實拍確認。' : '目前僅有單一氣象模型，出發前建議抬頭或看動態雲圖確認。');
       }
     }
     if (detailTxt) {

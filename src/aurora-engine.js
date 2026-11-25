@@ -1596,8 +1596,8 @@ export function explainAuroraScore(params = {}) {
     }
     if (key === 'model-diverge') {
       return en
-        ? `${m1En} (${ccMet}% 3h avg cloud) and ${m2En} (${ccOm}%) diverge by ${ccDiff}% (≥ 35% threshold)${metarCalibrated ? ' — short-term clouds adjusted with nearby live weather-station observations.' : ' — check the sky or webcams.'}`
-        : `${m1Zh}（3h 均雲 ${ccMet}%）與${m2Zh}（${ccOm}%）分歧達 ${ccDiff}%（≥ 35% 門檻）${metarCalibrated ? '，短時雲量已參照鄰近氣象站即時實測修正。' : '，請以實際抬頭與天文台實拍為準。'}`;
+        ? `${m1En} (${ccMet}% 3h avg cloud) and ${m2En} (${ccOm}%) diverge by ${ccDiff}% (≥ 35% threshold)${metarCalibrated ? ' — short-term clouds adjusted with nearby live weather-station observations.' : ' — check the sky or cloud map.'}`
+        : `${m1Zh}（3h 均雲 ${ccMet}%）與${m2Zh}（${ccOm}%）分歧達 ${ccDiff}%（≥ 35% 門檻）${metarCalibrated ? '，短時雲量已參照鄰近氣象站即時實測修正。' : '，請以實際抬頭或動態雲圖為準。'}`;
     }
     if (key === 'noaa-offline') {
       return en
@@ -3412,7 +3412,7 @@ export function evaluateVerdict({ lat = 69.97, lon = 23.27, bestDark, kp, mlt = 
   if (scoreObj.auroraScore >= 55 && scoreObj.skyScore < 35) {
     return en
       ? { kicker: 'Active · cloudy', title: 'Strong aurora above, blocked by clouds', lead: 'Solar wind is active — try Find clear skies or the live cloud map for nearby clear skies.' }
-      : { kicker: '極光活躍 · 雲厚', title: '極光能量充足，但目前受厚雲遮蔽', lead: '太陽風活躍中，可點下方「找晴空」或「實拍雲圖」尋找周邊晴朗區域。' };
+      : { kicker: '極光活躍 · 雲厚', title: '極光能量充足，但目前受厚雲遮蔽', lead: '太陽風活躍中，可點下方「找晴空」或「動態雲圖」尋找周邊晴朗區域。' };
   }
   if (scoreObj.skyScore >= 55) {
     return en
@@ -3624,7 +3624,7 @@ export function summarizeCompass(dirResults, lang) {
   if (!landOthers.length) {
     return {
       bestKey: null, bestClear: null, hereClear, diff: 0, good: false,
-      text: en ? 'Surrounding points are open sea or unavailable. Stay local or check Live Map for inland roads.' : '周邊多為海面或暫無資料，建議留在當地或透過「實拍雲圖」查看內陸路線。'
+      text: en ? 'Surrounding points are open sea or unavailable. Stay local or check the Cloud Map for inland roads.' : '周邊多為海面或暫無資料，建議留在當地或透過「動態雲圖」查看內陸路線。'
     };
   }
   const safeOthers = landOthers.filter(d => !isCorridorHazard(d));

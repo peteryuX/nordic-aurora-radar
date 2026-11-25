@@ -376,6 +376,7 @@ function buildInterceptorScript(sc) {
       pMet: document.getElementById('pMet')?.textContent?.trim() || '',
       tsConfRow: document.getElementById('tsConfRow')?.textContent?.trim() || '',
       vActionBtn: document.getElementById('vActionBtn')?.textContent?.trim() || '',
+      navSat: document.getElementById('navSat')?.textContent?.trim() || '',
       outlookText: document.getElementById('outlookGrid')?.textContent?.replace(/\\s+/g, ' ').trim() || '',
       waveSvgHtml,
       homeBestText,
@@ -410,6 +411,8 @@ const SCENARIOS = [
       if (r.locName !== '挪威 · Tromsø') errs.push(`Expected 挪威 · Tromsø, got "${r.locName}"`);
       if (!r.fAurSub.includes('Kp 1.0')) errs.push(`Expected Kp 1.0 (not 0.0 during UT rollover), got "${r.fAurSub}"`);
       if (r.bodyText.includes('機場')) errs.push('Found forbidden cryptic word 機場 in real DOM');
+      if (r.vActionBtn.includes('與實拍')) errs.push(`Hero dir CTA must NOT claim 與實拍, got "${r.vActionBtn}"`);
+      if (r.navSat !== '實拍雲圖') errs.push(`Tromsø (inside Nordic cam range) navSat must be 實拍雲圖, got "${r.navSat}"`);
       if (!r.fcConfBtn.includes('已參照當地實測')) errs.push(`Expected 已參照當地實測 badge, got "${r.fcConfBtn}"`);
       if (!r.fDarkSub.includes('滿月')) errs.push(`Expected 滿月 in Darkness sub-label, got "${r.fDarkSub}"`);
       if (!r.tsConfRow.includes('Radar 5m')) errs.push(`Expected Radar 5m in Trust Sheet telemetry, got "${r.tsConfRow}"`);
@@ -427,7 +430,7 @@ const SCENARIOS = [
   },
   {
     id: 'oslo-search-mismatch',
-    label: 'Oslo 19px: English search -> 挪威 · Oslo + Thu 11/26 強極光時雲厚 mismatch',
+    label: 'Oslo 19px: English search -> 挪威 · Oslo + Thu 11/26 強極光時雲厚 + honest 動態雲圖 nav',
     query: '?lat=69.6492&lon=18.9553',
     runSearchQuery: 'Oslo',
     searchResultName: 'Oslo', searchResultCountry: 'Norway', searchResultCC: 'NO',
@@ -437,6 +440,7 @@ const SCENARIOS = [
     verify(r) {
       const errs = [];
       if (r.locName !== '挪威 · Oslo') errs.push(`English search "Oslo" must render 挪威 · Oslo, got "${r.locName}"`);
+      if (r.navSat !== '動態雲圖') errs.push(`Oslo (outside Arctic observatory cam range) navSat must be 動態雲圖, got "${r.navSat}"`);
       if (!r.outlookText.includes('強極光時雲厚')) errs.push(`Expected 強極光時雲厚 on Oslo Thu 11/26, got "${r.outlookText}"`);
       if (!r.outlookText.includes('強光時晴空 0%')) errs.push(`Expected 強光時晴空 0% on Oslo Thu 11/26, got "${r.outlookText}"`);
       if (r.issues.length) errs.push(...r.issues);
