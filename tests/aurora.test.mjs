@@ -2353,6 +2353,51 @@ test('50. Bilingual copy, localization & single-metric chart clarity lint gate (
   assert.ok(!cardBlk.includes('backdrop-filter') && !skyBodyBlk.includes('backdrop-filter'), 'Scrolling .card and .sky-body must omit backdrop-filter for 120fps iOS scroll');
   assert.ok(!appSrc.includes('ptr.style.height'), 'Pull-to-refresh must never mutate height in touchmove (zero full-page reflow)');
   assert.ok(appSrc.includes('cachedRect = svg.getBoundingClientRect()') && appSrc.includes('schedulePick('), 'Chart scrubbers must cache getBoundingClientRect on pointerdown and coalesce pointermove in rAF');
+
+  // 16. v39 Live-Verified Accuracy & Numerical Stability Guardrails
+  // (a) IEM CAVOK/NCD/NSC with null skyc1..4 (e.g. Rovaniemi EFRO) must parse cleanly as 0% cloud / 100% clear
+  const efroNow = Date.UTC(2026, 10, 25, 18, 5, 0);
+  const efroParsed = api.parseIemMetarCurrent({
+    data: [{
+      station: 'EFRO', utc_valid: '2026-11-25T17:50:00Z',
+      skyc1: null, skyc2: null, skyc3: null, skyc4: null,
+      skyl1: null, skyl2: null, skyl3: null, skyl4: null,
+      wxcodes: null, raw: 'EFRO 251750Z AUTO 01008KT 330V030 CAVOK M03/M06 Q1022'
+    }]
+  }, efroNow);
+  assert.ok(efroParsed && efroParsed.effCloud === 0 && efroParsed.clearPct === 100 && efroParsed.skyCode === 'CLR', `IEM CAVOK with null skyc1..4 must parse as 0% cloud, got ${JSON.stringify(efroParsed)}`);
+
+  // (b) NOAA 3h UT boundary provisional 0Z reset (00:00..00:14 / 18:00..18:14 UTC) must carry settled prior-bin Kp up to 14 min
+  const kpBoundaryRows = [
+    { time_tag: '2026-11-25T17:58:00', estimated_kp: 3.33, kp_index: 3 },
+    { time_tag: '2026-11-25T17:59:00', estimated_kp: 3.33, kp_index: 3 },
+    ...Array.from({ length: 11 }, (_, m) => ({
+      time_tag: `2026-11-25T18:${String(m).padStart(2, '0')}:00`, estimated_kp: 0, kp_index: 0
+    }))
+  ];
+  const kpSettled = api.parseLatestKp(kpBoundaryRows);
+  assert.equal(kpSettled?.kp, 3.33, 'parseLatestKp must not collapse to 0.0 during first 15 min of a 3h UT bin reset');
+
+  // (c) Smooth AR(1) Geospace 1h MHD decay over +1h..+3h eliminates +2h phantom Kp cliffs
+  const baseT = Date.UTC(2026, 10, 25, 18, 0, 0);
+  const hrsFlat = Array.from({ length: 6 }, (_, i) => ({
+    dtMs: baseT + i * 3600000, time: `${String(19 + i).padStart(2, '0')}:00`,
+    clear: 95, block: 5, sunAlt: -25, isDay: false, temp: -4
+  }));
+  const kfcJump = [
+    { ts: baseT, kp: 3.33 },
+    { ts: baseT + 3 * 3600000, kp: 4.0 }
+  ];
+  const scDecay = api.scoreHourlyForecast12(hrsFlat, {
+    lat: 66.50, lon: 25.73, kpForecast: kfcJump, fallbackKp: 0.67,
+    bz: 2.1, nextBz: 2.1, speed: 375, predKp1h: 0.67
+  });
+  assert.ok(scDecay.hours[2].kpFc < 2.8 && scDecay.hours[2].kpFc > scDecay.hours[1].kpFc, `Hour +2 kpFc (${scDecay.hours[2].kpFc}) must bridge smoothly between +1h (${scDecay.hours[1].kpFc}) and +4h (${scDecay.hours[4].kpFc})`);
+  assert.ok(scDecay.hours[3].kpFc > scDecay.hours[2].kpFc && scDecay.hours[3].kpFc < 4.0, `Hour +3 kpFc (${scDecay.hours[3].kpFc}) must ramp smoothly toward 4.0`);
+
+  // (d) METAR-verified ECMWF weighting & zero-flicker same-city SWR guard
+  assert.ok(dcSrc.includes('metarConfirmsEcmwf'), 'data-client.js must apply METAR-verified ECMWF weighting when Yr.no misses active cloud decks');
+  assert.ok(appSrc.includes('sameCityRendered') && appSrc.includes('!forceNoaa && !sameCityRendered'), 'refreshAll must not overwrite live same-city UI with stale SWR cache during 5-min auto-refresh');
 });
 
 

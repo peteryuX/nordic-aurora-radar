@@ -351,13 +351,22 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
         const omHere = parseOmPoint(omList[0], pos.lat, pos.lon, out.resolvedTz, 24);
         if (omHere.hrs.length) {
           out.cloudConsensus = evaluateCloudConsensus(metHereHrs.slice(0, 12), omHere.hrs.slice(0, 12));
-          // Preserve 2.5km MEPS fjord rain-shadow precision at +0..2h; apply gentle 75/25 ECMWF damping only at +3h+ when models strongly diverge
+          // Preserve 2.5km MEPS fjord rain-shadow precision at +0..2h normally;
+          // if live local airport METAR (<=25km) proves ECMWF is >=20 pts closer to actual sky than Yr.no, apply 50/50 damping over +0..5h before Daley OI
           if (out.cloudConsensus?.level === 'low') {
+            const metarConfirmsEcmwf = Boolean(
+              metarRaw && nearMetar && nearMetar.distKm <= 25 && (metarRaw.ageMin ?? 99) <= 60 &&
+              Number.isFinite(metarRaw.effCloud) &&
+              Number.isFinite(metHereHrs[0]?.block) && Number.isFinite(omHere.hrs[0]?.block) &&
+              (Math.abs(metarRaw.effCloud - metHereHrs[0].block) - Math.abs(metarRaw.effCloud - omHere.hrs[0].block)) >= 20
+            );
             out.hereHrs = metHereHrs.map((h, idx) => {
-              if (idx < 3 || !Number.isFinite(h?.dtMs) || !Number.isFinite(h?.block)) return h;
+              if (!metarConfirmsEcmwf && idx < 3) return h;
+              if (!Number.isFinite(h?.dtMs) || !Number.isFinite(h?.block)) return h;
               const omM = omHere.hrs.find(s => s && Number.isFinite(s.dtMs) && Math.abs(s.dtMs - h.dtMs) <= 15 * 60000);
               if (!omM || !Number.isFinite(omM.block)) return h;
-              const block = Math.max(0, Math.min(100, Math.round(0.75 * h.block + 0.25 * omM.block)));
+              const omW = (metarConfirmsEcmwf && idx <= 5) ? 0.50 : 0.25;
+              const block = Math.max(0, Math.min(100, Math.round((1 - omW) * h.block + omW * omM.block)));
               const clear = 100 - block;
               let txt = h.txt;
               if (!h.isDay && txt !== undefined) {

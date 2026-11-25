@@ -1774,14 +1774,32 @@ export function parseLatestKp(rows) {
   }
   if (!items.length) return null;
   items.sort((a, b) => a.ts - b.ts);
-  // NOAA 1-minute Kp appends 1-4 provisional 0Z rows before settling; only return 0.00 if 6+ consecutive minutes are 0
-  if (is1m && items.length >= 2 && items[items.length - 1].kp === 0) {
-    const lookback = items.slice(Math.max(0, items.length - 6), -1);
-    for (let i = lookback.length - 1; i >= 0; i--) {
-      if (lookback[i].kp > 0) return { kp: lookback[i].kp, time_tag: lookback[i].time_tag };
+  const last = items[items.length - 1];
+  // NOAA 1-minute Kp resets to provisional 0Z at the start of every 3h UT bin (00/03/06/09/12/15/18/21 UTC)
+  // for up to 10-15 min while the new bin accumulates, and also emits brief 1-5 min provisional 0Z rows.
+  if (is1m && items.length >= 2) {
+    const lastDt = new Date(last.ts);
+    const inBoundaryWindow = (lastDt.getUTCHours() % 3 === 0) && lastDt.getUTCMinutes() < 15;
+    if (inBoundaryWindow) {
+      const binStartMs = last.ts - (lastDt.getUTCMinutes() * 60000 + lastDt.getUTCSeconds() * 1000);
+      let prevBinSettled = null;
+      for (let i = items.length - 2; i >= 0; i--) {
+        if (items[i].ts < binStartMs && (binStartMs - items[i].ts) <= 20 * 60000 && items[i].kp > 0) {
+          prevBinSettled = items[i];
+          break;
+        }
+      }
+      if (prevBinSettled && (prevBinSettled.kp - last.kp) >= 0.67) {
+        return { kp: prevBinSettled.kp, time_tag: prevBinSettled.time_tag };
+      }
+    }
+    if (last.kp === 0) {
+      const lookback = items.slice(Math.max(0, items.length - 6), -1);
+      for (let i = lookback.length - 1; i >= 0; i--) {
+        if (lookback[i].kp > 0) return { kp: lookback[i].kp, time_tag: lookback[i].time_tag };
+      }
     }
   }
-  const last = items[items.length - 1];
   return { kp: last.kp, time_tag: last.time_tag };
 }
 
@@ -2570,7 +2588,7 @@ export function parseMetarSkyCover(skycArr = [], skylArr = [], wxStr = '', rawMe
       sc.push(m[1]);
       sl.push(m[2] === '///' ? null : parseInt(m[2], 10) * 100);
     }
-    if (!sc.length && /\b(CAVOK|NCD|NSC|SKC|CLR)\b/.test(obsRaw)) {
+    if (!sc.some(c => codeToFrac(c) !== null) && /\b(CAVOK|NCD|NSC|SKC|CLR)\b/.test(obsRaw)) {
       sc.push('CLR');
       sl.push(null);
     }
@@ -2786,11 +2804,17 @@ export function scoreHourlyForecast12(hrs, {
     const baseKpFc = i === 0 && Number.isFinite(fallbackKp) ? fallbackKp : lookupForecastKp(kpForecast, dt, fbKpH);
     const effNextShock = Number.isFinite(nextShockJumpNpa) ? nextShockJumpNpa : shockJumpNpa;
     const effNextPdyn = Number.isFinite(nextPdyn) ? nextPdyn : pdyn;
-    // Hour +1 integrates NOAA Geospace 1h MHD predicted Kp symmetrically (max only on active shock / southward surge)
+    // Hours +1..+3 blend NOAA Geospace 1h MHD predicted Kp with smooth AR(1) decay (0.70 -> 0.45 -> 0.20 -> 0)
+    // to eliminate discontinuous +2h cliffs when stale 3-day SWPC forecasts lag quiet real-time L1 telemetry.
     let kpFc = baseKpFc;
-    if (i === 1 && Number.isFinite(predKp1h)) {
+    if (i >= 1 && i <= 3 && Number.isFinite(predKp1h)) {
       const surge = (Number.isFinite(nextBz) && nextBz <= -5) || (Number.isFinite(effNextShock) && effNextShock >= 3);
-      kpFc = surge ? Math.max(baseKpFc, predKp1h) : +(0.70 * predKp1h + 0.30 * baseKpFc).toFixed(2);
+      if (i === 1 && surge) {
+        kpFc = Math.max(baseKpFc, predKp1h);
+      } else if (!surge || predKp1h > baseKpFc) {
+        const w = i === 1 ? 0.70 : (i === 2 ? 0.45 : 0.20);
+        kpFc = +(w * predKp1h + (1 - w) * baseKpFc).toFixed(2);
+      }
     }
     const liveW = i === 0 ? 1 : (i === 1 ? 0.85 : (i === 2 ? 0.25 : 0));
     const rawBz = (i >= 1 && Number.isFinite(nextBz)) ? nextBz : bz;

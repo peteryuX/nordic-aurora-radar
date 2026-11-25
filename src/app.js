@@ -1650,9 +1650,15 @@ async function refreshAll(manual, { forceNoaa = false } = {}) {
   const now = new Date();
   let moon = updateClockAndPhoto();
 
-  // Instant Stale-While-Revalidate (SWR) paint: if we have a recent (<20 min) cached snapshot for this city,
-  // render it immediately (<10ms) while syncing fresh data quietly in the background (1P Apple Weather feel).
-  if (!forceNoaa) {
+  // Instant Stale-While-Revalidate (SWR) paint: only hydrate offline cache on initial load or city switch,
+  // never overwrite live on-screen data during a 5-min background auto-refresh for the same location.
+  const prevPos = state.renderState?.pos;
+  const sameCityRendered = Boolean(
+    prevPos &&
+    Math.abs(prevPos.lat - pos.lat) < 0.02 &&
+    Math.abs(prevPos.lon - pos.lon) < 0.02
+  );
+  if (!forceNoaa && !sameCityRendered) {
     const swrHit = findMatchingOfflineCache(pos, nowMs);
     if (swrHit && (nowMs - swrHit.ts) < 20 * 60 * 1000) {
       const hydrated = hydrateOfflineState(swrHit, pos, nowMs);
