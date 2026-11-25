@@ -1054,10 +1054,10 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales,
     if (noaaOk) {
       const stale = noaaLagMin !== null && noaaLagMin > 45;
       pNoaa.textContent = stale
-        ? (en ? `NOAA delayed ${noaaLagMin} min ↗` : `NOAA 延遲 ${noaaLagMin} 分鐘 ↗`)
-        : `NOAA (${lastM ? utcTagToLocalHM(lastM.time_tag, tz) : (en ? 'Live' : '已同步')}) ↗`;
+        ? (en ? `NOAA Aurora Map (${noaaLagMin}m lag) ↗` : `NOAA 極光總覽（延遲 ${noaaLagMin}m）↗`)
+        : (en ? 'NOAA Aurora Map ↗' : 'NOAA 極光總覽 ↗');
     } else {
-      pNoaa.textContent = en ? 'NOAA offline ↗' : 'NOAA 離線 ↗';
+      pNoaa.textContent = en ? 'NOAA Aurora Map (offline) ↗' : 'NOAA 極光總覽（離線）↗';
     }
   }
   return etaClock;
@@ -1340,10 +1340,10 @@ function renderFromState(st) {
   const pMet = $('pMet');
   if (pMet) {
     const isYr = weatherSourceLabel === 'Yr.no 官方' || weatherSourceLabel === 'Yr.no官方';
-    const srcLbl = (isYr && en)
-      ? 'Yr.no Official'
-      : (isYr ? 'Yr.no 官方' : ((weatherSourceLabel === '氣象' && en) ? 'Weather' : weatherSourceLabel));
-    pMet.textContent = `${srcLbl} (${hereHrs[0].time}) ↗`;
+    const srcLbl = isYr
+      ? (en ? 'Yr.no Weather' : 'Yr.no 天氣')
+      : (en ? 'Open-Meteo' : 'Open-Meteo 天氣');
+    pMet.textContent = `${srcLbl} ↗`;
     pMet.href = usedMet
       ? `https://www.yr.no/en/forecast/daily-table/${pos.lat.toFixed(3)},${pos.lon.toFixed(3)}`
       : 'https://open-meteo.com/en/docs';
@@ -1372,8 +1372,6 @@ async function refreshAll(manual, { forceNoaa = false } = {}) {
   const en = isEn();
   const refBtn = $('refBtn');
   if (refBtn) { refBtn.disabled = true; refBtn.classList.add('spinning'); }
-  setText('pNoaa', 'NOAA...');
-  setText('pMet', en ? 'Weather...' : '氣象...');
 
   const now = new Date();
   let moon = updateClockAndPhoto();
@@ -1711,11 +1709,11 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
   const noaaStampHM = noaaStampRaw ? utcTagToLocalHM(noaaStampRaw, tzLive) : '';
   setText('tsNoaaSyncNote', noaaStampHM
     ? (en
-        ? `NOAA live rolling forecast (updated ${noaaStampHM} local) — refreshes every 3h, often reflecting revisions hours before apps using the twice-daily text bulletin.`
-        : `NOAA 官方即時滾動預報（更新 ${noaaStampHM} 當地時間）· 每 3 小時更新，有時比僅讀每日兩次文字報的主流 App 更早反映最新修正。`)
+        ? `Live 3h NOAA feed (updated ${noaaStampHM} local) — verify G1–G5 watches in "NOAA Storm Alerts" and tonight's oval in "NOAA Aurora Map".`
+        : `直連 NOAA 每 3 小時滾動更新（最新 ${noaaStampHM} 當地時間）— 核對警報請看「NOAA 風暴警報」，今晚極光範圍請看「NOAA 極光總覽」。`)
     : (en
-        ? 'Uses NOAA live rolling 3-hour JSON feeds, which can reflect revisions hours before apps reading the twice-daily text bulletin.'
-        : '直連 NOAA 即時滾動預報（每 3 小時更新），有時比僅讀每日兩次文字報的主流 App 更早反映最新修正。'));
+        ? 'Live 3h NOAA feed — verify G1–G5 watches in "NOAA Storm Alerts" and tonight\'s oval in "NOAA Aurora Map".'
+        : '直連 NOAA 每 3 小時滾動更新 — 核對警報請看「NOAA 風暴警報」，今晚極光範圍請看「NOAA 極光總覽」。'));
 }
 
 function openTrustSheet(triggerEl) {

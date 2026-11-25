@@ -2240,5 +2240,11 @@ test('50. Bilingual copy, localization & single-metric chart clarity lint gate (
     const modSrc = fs.readFileSync(path.join(ROOT, rel), 'utf8');
     assert.ok(modSrc.includes('./glossary.js'), `${rel} must import central TERMS from ./glossary.js`);
   }
+  // 9. Trust Sheet official verification links use canonical live visual pages (not stale 3-day text or raw JSON)
+  assert.ok(html.includes('https://www.spaceweather.gov/communities/aurora-dashboard-experimental'), 'index.html must link to NOAA Aurora Dashboard');
+  assert.ok(html.includes('https://www.spaceweather.gov/products/alerts-watches-and-warnings'), 'index.html must link to live NOAA Storm Alerts & Watches');
+  assert.ok(html.includes('https://www.spaceweather.gov/products/solar-wind') && html.includes('https://kp.gfz.de/en/hp30-hp60'), 'index.html must link to NOAA Solar Wind and GFZ Hp30');
+  assert.ok(!html.includes('swpc.noaa.gov/products/3-day-forecast') && !html.includes('spaceweather.gov/products/3-day-forecast'), 'Trust Sheet must not link to twice-daily stale 3-day-forecast text page');
 });
+
 

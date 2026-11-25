@@ -133,12 +133,13 @@ export const STATIC_TEXT_MAP = {
   tsT3: ['普通', 'Fair'],
   tsT4: ['偏低（雲層過厚、天色過亮或極光偏弱）', 'Low (cloudy, too bright or weak activity)'],
   tsSciTitle: ['官方資料來源與驗證', 'Official data & verification'],
-  linkNoaa3d: ['NOAA 3 天預報 ↗', 'NOAA 3-day forecast ↗'],
+  pNoaa: ['NOAA 極光總覽 ↗', 'NOAA Aurora Map ↗'],
+  linkNoaaAlerts: ['NOAA 風暴警報 ↗', 'NOAA Storm Alerts ↗'],
   linkSolarWind: ['NOAA 太陽風 ↗', 'NOAA Solar Wind ↗'],
-  linkGfz: ['GFZ 30m Hp30 ↗', 'GFZ 30m Hp30 ↗'],
+  linkGfz: ['GFZ 30分地磁 ↗', 'GFZ 30m Geomag ↗'],
   tsNoaaSyncNote: [
-    '直連 NOAA 即時滾動預報（每 3 小時更新），有時比僅讀每日兩次文字報的 App 更早反映最新修正。',
-    'Uses NOAA live rolling 3-hour JSON feeds, which can reflect revisions hours before apps reading the twice-daily text bulletin.'
+    '直連 NOAA 每 3 小時滾動更新 — 核對警報請看「NOAA 風暴警報」，今晚極光範圍請看「NOAA 極光總覽」。',
+    'Live 3h NOAA feed — verify G1–G5 watches in "NOAA Storm Alerts" and tonight\'s oval in "NOAA Aurora Map".'
   ],
   tsSealLink: ['GitHub 開源（MIT · 不追蹤）↗', 'Open source (MIT · no tracking) ↗'],
   tsValReportLink: ['完整驗證報告 ↗', 'Validation report ↗'],
@@ -162,7 +163,7 @@ export const LOADING_PLACEHOLDER_MAP = {
   fDarkSub: ['讀取中…', 'Loading…'],
   fcNextTxt: ['未來 1 小時：計算中…', 'Next hour: calculating…'],
   fcConfBtn: ['說明 ›', 'Why? ›'],
-  pMet: ['Yr.no 官方 ↗', 'Yr.no Official ↗'],
+  pMet: ['Yr.no 天氣 ↗', 'Yr.no Weather ↗'],
   syncTime: ['同步中', 'Syncing…'],
   energyBanner: ['正在讀取即時太陽風…', 'Loading live solar wind…'],
   etaHint: ['時間軸已換算為到達地球的當地時間', 'Time axis shows estimated Earth arrival'],
