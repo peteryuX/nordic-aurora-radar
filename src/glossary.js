@@ -86,10 +86,13 @@ export const TERMS = Object.freeze({
   }),
 
   // Outlook & Chart Accents
-  best:      Object.freeze({ zh: '最佳', en: 'Best' }),
-  tomorrow:  Object.freeze({ zh: '明天', en: 'Tomorrow' }),
-  peak:      Object.freeze({ zh: '約',   en: 'Peak' }),
-  confidence:Object.freeze({ zh: '可信度', en: 'Confidence' })
+  best:         Object.freeze({ zh: '最佳', en: 'Best' }),
+  tomorrow:     Object.freeze({ zh: '明天', en: 'Tomorrow' }),
+  peak:         Object.freeze({ zh: '約',   en: 'Peak' }),
+  confidence:   Object.freeze({ zh: '可信度', en: 'Confidence' }),
+  nowcastShort: Object.freeze({ zh: '即時', en: 'Live' }),
+  trendShort:   Object.freeze({ zh: '趨勢', en: 'Trend' }),
+  trendRef:     Object.freeze({ zh: '趨勢參考', en: 'Trend' })
 });
 
 /**

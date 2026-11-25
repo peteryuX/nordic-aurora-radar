@@ -2594,6 +2594,125 @@ test('52. Live GPS nowcast (5m Nordic radar + 15m Open-Meteo current) & anti-loo
   }
 });
 
+test('53. v43 Dual-Model +4..23h Ensemble, Honest RSS Uncertainty Range & Live/Trend SVG Split', () => {
+  const baseMs = Date.UTC(2026, 10, 25, 19, 0, 0);
+  const mkMet = (i, block) => ({
+    dtMs: baseMs + i * 3600000,
+    time: `${String((20 + i) % 24).padStart(2, '0')}:00`,
+    block, clear: 100 - block, temp: -4.2, windMs: 3.1, windChill: -9, precip: i === 5 ? 0.4 : 0,
+    isDay: i >= 14 && i <= 17, sunAlt: (i >= 14 && i <= 17) ? 2 : -22, txt: i === 5 ? '❄️ 雪' : '🌟 晴'
+  });
+  const mkOm = (i, block) => ({
+    dtMs: baseMs + i * 3600000,
+    time: `${String((20 + i) % 24).padStart(2, '0')}:00`,
+    block, clear: 100 - block, temp: 1.5, windMs: 9.0, precip: 0, isDay: false
+  });
+
+  // (a) Nordic horizon-aware blending: +0..2h pure MEPS, +3h 0.25 transition, +4..23h 50/50 ensemble
+  const metHrs = Array.from({ length: 24 }, (_, i) => mkMet(i, 20));
+  const omHrs = Array.from({ length: 24 }, (_, i) => mkOm(i, 80));
+  const blended = api.blendNordicHourlyForecasts(metHrs, omHrs, { metarConfirmsEcmwf: false });
+  assert.equal(blended[0].block, 20, '+0h preserves 2.5km MEPS');
+  assert.equal(blended[2].block, 20, '+2h preserves 2.5km MEPS');
+  assert.equal(blended[3].block, 35, '+3h applies 0.25 smooth transition (0.75*20 + 0.25*80 = 35)');
+  assert.equal(blended[4].block, 50, '+4h applies 50/50 ensemble (0.5*20 + 0.5*80 = 50)');
+  assert.equal(blended[23].block, 50, '+23h applies 50/50 ensemble');
+  for (let i = 0; i < 24; i++) {
+    assert.equal(blended[i].cloudSpread, 60, `hr ${i} raw cloudSpread must be 60`);
+    assert.equal(blended[i].clearLow, 20, `hr ${i} clearLow must be 20`);
+    assert.equal(blended[i].clearHigh, 80, `hr ${i} clearHigh must be 80`);
+    assert.equal(blended[i].temp, -4.2, `hr ${i} must preserve MEPS surface temp`);
+    assert.equal(blended[i].windMs, 3.1, `hr ${i} must preserve MEPS surface wind`);
+  }
+  assert.equal(blended[5].txt, '❄️ 雪', 'Precip >= 0.1 must preserve snow icon even when blended cloud drops');
+
+  // (b) When live METAR confirms ECMWF >=20 pts closer, +0..3h blends at 0.50
+  const confirmed = api.blendNordicHourlyForecasts(metHrs, omHrs, { metarConfirmsEcmwf: true });
+  assert.equal(confirmed[0].block, 50, 'METAR-confirmed ECMWF damps +0h at 0.50');
+  assert.equal(confirmed[3].block, 50, 'METAR-confirmed ECMWF damps +3h at 0.50');
+
+  // (c) Unmatched timestamps must emit null spread (never fake 0)
+  const partialOm = omHrs.slice(0, 6);
+  const partialBlend = api.blendNordicHourlyForecasts(metHrs, partialOm);
+  assert.equal(partialBlend[5].cloudSpread, 60);
+  assert.equal(partialBlend[6].cloudSpread, null);
+  assert.equal(partialBlend[6].clearLow, null);
+  assert.equal(partialBlend[6].clearHigh, null);
+
+  // (d) Global blendHourlyForecasts emits cloudSpread/clearLow/clearHigh on matched hours and null on unmatched
+  const gBlend = api.blendHourlyForecasts(metHrs.slice(0, 8), partialOm);
+  assert.equal(gBlend[0].block, 50);
+  assert.equal(gBlend[0].cloudSpread, 60);
+  assert.equal(gBlend[0].clearLow, 20);
+  assert.equal(gBlend[0].clearHigh, 80);
+  assert.equal(gBlend[7].cloudSpread, null);
+
+  // (e) scoreHourlyForecast12 RSS uncertainty invariants across 24h (Tromsø)
+  const kpFc = Array.from({ length: 10 }, (_, k) => ({ ts: baseMs + k * 3 * 3600000, kp: 3.0 }));
+  const scored = api.scoreHourlyForecast12(blended, {
+    lat: 69.65, lon: 18.96, kpForecast: kpFc, fallbackKp: 3.0, bz: -3, speed: 460
+  });
+  for (let i = 0; i < 24; i++) {
+    const h = scored.hours[i];
+    assert.ok(Number.isFinite(h.scoreLow) && Number.isFinite(h.scoreHigh), `hr ${i} finite score bounds`);
+    assert.ok(h.scoreLow >= 0 && h.scoreLow <= h.score && h.score <= h.scoreHigh && h.scoreHigh <= 99,
+      `hr ${i} invariant failed: ${h.scoreLow} <= ${h.score} <= ${h.scoreHigh}`);
+    if (i < 4) {
+      assert.equal(h.scoreLow, h.score, `hr ${i} live nowcast has zero uncertainty band`);
+      assert.equal(h.scoreHigh, h.score, `hr ${i} live nowcast has zero uncertainty band`);
+    } else if (h.isDay || h.outOfZone) {
+      assert.equal(h.scoreLow, 0, `gated hr ${i} scoreLow must be 0`);
+      assert.equal(h.scoreHigh, 0, `gated hr ${i} scoreHigh must be 0`);
+    } else {
+      assert.ok(h.scoreHigh > h.scoreLow, `ungated Trend hr ${i} with spread=60 must have non-zero band, got ${h.scoreLow}..${h.scoreHigh}`);
+    }
+  }
+
+  // (f) Both models agree on 100% overcast -> 0..0 even at +10h
+  const ovcHrs = Array.from({ length: 12 }, (_, i) => ({
+    ...mkMet(i, 100), cloudSpread: 0, clearLow: 0, clearHigh: 0, isDay: false, sunAlt: -25
+  }));
+  const ovcScored = api.scoreHourlyForecast12(ovcHrs, { lat: 69.65, lon: 18.96, kpForecast: kpFc, fallbackKp: 5.0 });
+  assert.equal(ovcScored.hours[8].score, 0);
+  assert.equal(ovcScored.hours[8].scoreLow, 0);
+  assert.equal(ovcScored.hours[8].scoreHigh, 0);
+
+  // (g) Wider cloudSpread yields strictly wider (or equal) uncertainty band than 0 cloudSpread
+  const agreeHrs = blended.map(h => ({ ...h, cloudSpread: 0, clearLow: h.clear, clearHigh: h.clear }));
+  const agreeScored = api.scoreHourlyForecast12(agreeHrs, { lat: 69.65, lon: 18.96, kpForecast: kpFc, fallbackKp: 3.0 });
+  assert.ok(
+    (scored.hours[6].scoreHigh - scored.hours[6].scoreLow) > (agreeScored.hours[6].scoreHigh - agreeScored.hours[6].scoreLow),
+    'Model cloud disagreement (spread=60) must widen score range vs model agreement (spread=0)'
+  );
+
+  // (h) Out-of-zone Taipei stays 0..0 on every hour
+  const taipeiScored = api.scoreHourlyForecast12(blended, { lat: 25.03, lon: 121.56, kpForecast: kpFc, fallbackKp: 5.0 });
+  for (const h of taipeiScored.hours) {
+    assert.equal(h.score, 0);
+    assert.equal(h.scoreLow, 0);
+    assert.equal(h.scoreHigh, 0);
+  }
+
+  // (i) buildSkyWaveSVG renders Live/Trend split, bilingual zone tags, conditional whiskers, and midnight collision guard
+  const svgZh = api.buildSkyWaveSVG(scored.hours, scored.bestAurora, 6, 'zh');
+  const svgEn = api.buildSkyWaveSVG(scored.hours, scored.bestAurora, 6, 'en');
+  assert.ok(svgZh.includes('data-role="horizon-split"'), 'ZH SVG includes Live/Trend divider');
+  assert.ok(svgZh.includes('>即時<') && svgZh.includes('>趨勢<'), 'ZH SVG includes 即時 / 趨勢 zone tags');
+  assert.ok(svgEn.includes('>Live<') && svgEn.includes('>Trend<'), 'EN SVG includes Live / Trend zone tags');
+  assert.ok(!/[\u4e00-\u9fff]/.test(svgEn), 'EN SVG must have zero CJK leakage');
+  assert.ok(!svgZh.includes('NaN') && !svgEn.includes('NaN'), 'SVG must contain zero NaN');
+  assert.ok(svgZh.includes('data-role="score-range"'), 'Wide-spread Trend bars render conditional score-range whiskers');
+
+  // Midnight at index 4 sits 7.7px right of the inter-bar Live/Trend split: both render cleanly without overlap
+  const midAt4 = scored.hours.map((h, i) => ({
+    ...h, time: `${String((20 + i) % 24).padStart(2, '0')}:00`
+  }));
+  const svgMid4 = api.buildSkyWaveSVG(midAt4, midAt4[10], 10, 'zh');
+  assert.ok(svgMid4.includes('data-role="horizon-split"') && svgMid4.includes('stroke-dasharray="3 3"'), 'Both Live/Trend split and midnight hairline render cleanly with 7.7px separation');
+  assert.ok(svgMid4.includes('>明天<'), 'Midnight label 明天 still renders cleanly');
+});
+
+
 
 
 

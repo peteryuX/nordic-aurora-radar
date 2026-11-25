@@ -862,11 +862,34 @@ function renderWaveCard(focusBest = false) {
       return { s, e, len: e - s + 1, range: (startLbl && endLbl) ? `${startLbl}–${endLbl}` : '' };
     };
     const dayPrefixZh = bestIsNextNight ? '明晚' : '今晚';
-    const dayPrefixEn = bestIsNextNight ? 'tomorrow night' : 'tonight';
+    const recheckNote = en
+      ? '<span class="wave-peak-note">· recheck 1–2h before</span>'
+      : '<span class="wave-peak-note">· 出發前 1–2 小時再確認</span>';
     if (bestInVis.score >= 40) {
       const win = findContiguous(h => h && !h.isDay && h.score >= 40);
+      const startIdx = win ? win.s : bIdx;
       const tierTagZh = bestInVis.score >= 65 ? '極佳' : '適合觀測';
-      if (win && win.len >= 2 && win.range) {
+      if (startIdx >= 4) {
+        if (win && win.len >= 2 && win.range) {
+          bestText = en
+            ? `Best trend <strong>${win.range}</strong> · around <strong>${bestTimeLbl}</strong> ${recheckNote}`
+            : `${dayPrefixZh} <strong>${win.range}</strong> 預估${tierTagZh} ${recheckNote}`;
+        } else {
+          bestText = en
+            ? `Possible window around <strong>${bestTimeLbl}</strong> ${recheckNote}`
+            : `${dayPrefixZh} <strong>${bestTimeLbl}</strong> 前後預估有空檔 ${recheckNote}`;
+        }
+      } else if (bIdx >= 4) {
+        if (win && win.len >= 2 && win.range) {
+          bestText = en
+            ? `Best <strong>${win.range}</strong> · may peak around <strong>${bestTimeLbl}</strong>`
+            : `${dayPrefixZh} <strong>${win.range}</strong> ${tierTagZh} · <strong>${bestTimeLbl}</strong> 前後有望最強`;
+        } else {
+          bestText = en
+            ? `Possible window around <strong>${bestTimeLbl}</strong>`
+            : `${dayPrefixZh} <strong>${bestTimeLbl}</strong> 前後有望出現空檔`;
+        }
+      } else if (win && win.len >= 2 && win.range) {
         bestText = en
           ? `Best <strong>${win.range}</strong> · peaks <strong>${bestTimeLbl}</strong>`
           : `${dayPrefixZh} <strong>${win.range}</strong> ${tierTagZh} · <strong>${bestTimeLbl}</strong> 最強`;
@@ -877,7 +900,18 @@ function renderWaveCard(focusBest = false) {
       }
     } else if (bestInVis.score >= 18) {
       const win = findContiguous(h => h && !h.isDay && h.score >= 18);
-      if (win && win.len >= 2 && win.range) {
+      const startIdx = win ? win.s : bIdx;
+      if (startIdx >= 4) {
+        if (win && win.len >= 2 && win.range) {
+          bestText = en
+            ? `Fair trend <strong>${win.range}</strong> · possible around <strong>${bestTimeLbl}</strong> ${recheckNote}`
+            : `${dayPrefixZh} <strong>${win.range}</strong> 預估可留意微弱極光 ${recheckNote}`;
+        } else {
+          bestText = en
+            ? `Possible break around <strong>${bestTimeLbl}</strong> ${recheckNote}`
+            : `<strong>${bestTimeLbl}</strong> 前後預估雲層稍薄 ${recheckNote}`;
+        }
+      } else if (win && win.len >= 2 && win.range) {
         bestText = en
           ? `Fair <strong>${win.range}</strong> · peaks <strong>${bestTimeLbl}</strong>`
           : `${dayPrefixZh} <strong>${win.range}</strong> 可留意微弱極光 · <strong>${bestTimeLbl}</strong> 最有機會`;
@@ -922,24 +956,39 @@ function selectForecastHour(idx) {
   setHtml('skyWaveChart', buildSkyWaveSVG(vis, bestInVis, idx, getLang()));
   const hasTemp = Number.isFinite(Number(h.temp));
   const tInt = hasTemp ? (Math.round(Number(h.temp)) || 0) : null;
+  const isTrend = idx >= 4;
+  const isGated = Boolean(h.isDay || h.outOfZone);
   const darkPct = Number.isFinite(h.darkScore) ? Math.round(h.darkScore) : (h.isDay ? 0 : (h.moonUp ? Math.max(20, 100 - Math.round((h.moonPct || 0) * 0.4)) : 100));
   const darkTxt = h.isDay
-    ? term(TERMS.status.tooBright, en)
+    ? ''
     : (darkPct >= 95 ? term(TERMS.darkFull, en) : `${term(TERMS.darkShort, en)} ${darkPct}%`);
   const kpVal = Number.isFinite(h.kpFc) ? h.kpFc : null;
   const kpBadge = kpVal === null
     ? `Kp ${escapeHtml(h.kpFc)}`
-    : (idx >= 3
+    : (isTrend
         ? (en ? `~Kp ${Math.round(kpVal)}` : `約 Kp ${Math.round(kpVal)}`)
         : `Kp ${kpVal.toFixed(1)}`);
   const tStr = formatHourLabel(h, en);
   const scCol = h.isDay ? 'var(--blue)' : tierColor(h.score);
   const scTier = scoreTierWord(h.score, h.isDay, en);
-  const clearPart = en ? `${h.clear}% clear` : `晴空 ${h.clear}%`;
+  const hasBand = isTrend && !isGated && Number.isFinite(h.scoreLow) && Number.isFinite(h.scoreHigh) && (h.scoreHigh - h.scoreLow) >= 6;
+  const scoreReadout = (!isTrend || isGated)
+    ? `${h.score} ${scTier}`
+    : (hasBand
+        ? (en ? `~${h.scoreLow}–${h.scoreHigh} ${scTier}` : `約 ${h.scoreLow}–${h.scoreHigh} ${scTier}`)
+        : (en ? `~${h.score} ${scTier}` : `約 ${h.score} ${scTier}`));
+  const trendTagHtml = (isTrend && !isGated)
+    ? ` <span class="sb-tag">${term(TERMS.trendRef, en)}</span>`
+    : '';
+  const showCloudRange = isTrend && Number.isFinite(h.cloudSpread) && h.cloudSpread >= 25
+    && Number.isFinite(h.clearLow) && Number.isFinite(h.clearHigh);
+  const clearPart = showCloudRange
+    ? (en ? `${h.clearLow}–${h.clearHigh}% clear` : `晴空 ${h.clearLow}%–${h.clearHigh}%`)
+    : (en ? `${h.clear}% clear` : `晴空 ${h.clear}%`);
   const tempPart = hasTemp ? fmtTemp(tInt) : '';
   const rightMeta = [clearPart, darkTxt, tempPart, kpBadge].filter(Boolean).join(' · ');
   setHtml('hourDetail',
-    `<div class="sb-top"><strong>${tStr}</strong> <strong style="color:${scCol}">${h.score} ${scTier}</strong></div><div class="sb-bot">${rightMeta}</div>`);
+    `<div class="sb-top"><strong>${tStr}</strong> <strong style="color:${scCol}">${scoreReadout}</strong>${trendTagHtml}</div><div class="sb-bot">${rightMeta}</div>`);
   const prevBtn = $('hrPrevBtn'), nextBtn = $('hrNextBtn');
   if (prevBtn) prevBtn.disabled = idx <= 0;
   if (nextBtn) nextBtn.disabled = idx >= vis.length - 1;

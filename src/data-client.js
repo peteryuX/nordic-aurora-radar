@@ -19,7 +19,7 @@ import {
   parseOpenMeteoHourly12, parseOpenMeteoMultiDay, evaluateCloudConsensus,
   findNearestMetarStation, parseIemMetarCurrent, parseMetNorwayMetarText,
   assimilateMetarNowcast, parseMetNorwayNowcast, parseOpenMeteoCurrent, assimilateLiveGpsNowcast,
-  selectOpenMeteoModels, extractOpenMeteoModelHourly, blendHourlyForecasts,
+  selectOpenMeteoModels, extractOpenMeteoModelHourly, blendHourlyForecasts, blendNordicHourlyForecasts,
   scoreHourlyForecast12, findBestDarkWindow, summarize3NightOutlook,
   normalizeChineseCityQuery, hasCjkChars, matchKnownCity, formatReverseGeo, traditionalRegionName
 } from './aurora-engine.js';
@@ -382,32 +382,15 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
         const omHere = parseOmPoint(omList[0], pos.lat, pos.lon, out.resolvedTz, 24);
         if (omHere.hrs.length) {
           out.cloudConsensus = evaluateCloudConsensus(metHereHrs.slice(0, 12), omHere.hrs.slice(0, 12));
-          // Preserve 2.5km MEPS fjord rain-shadow precision at +0..2h normally;
-          // if live local airport METAR (<=25km) proves ECMWF is >=20 pts closer to actual sky than Yr.no, apply 50/50 damping over +0..5h before Daley OI
-          if (out.cloudConsensus?.level === 'low') {
-            const metarConfirmsEcmwf = Boolean(
-              metarRaw && nearMetar && nearMetar.distKm <= 25 && (metarRaw.ageMin ?? 99) <= 60 &&
-              Number.isFinite(metarRaw.effCloud) &&
-              Number.isFinite(metHereHrs[0]?.block) && Number.isFinite(omHere.hrs[0]?.block) &&
-              (Math.abs(metarRaw.effCloud - metHereHrs[0].block) - Math.abs(metarRaw.effCloud - omHere.hrs[0].block)) >= 20
-            );
-            out.hereHrs = metHereHrs.map((h, idx) => {
-              if (!metarConfirmsEcmwf && idx < 3) return h;
-              if (!Number.isFinite(h?.dtMs) || !Number.isFinite(h?.block)) return h;
-              const omM = omHere.hrs.find(s => s && Number.isFinite(s.dtMs) && Math.abs(s.dtMs - h.dtMs) <= 15 * 60000);
-              if (!omM || !Number.isFinite(omM.block)) return h;
-              const omW = (metarConfirmsEcmwf && idx <= 5) ? 0.50 : 0.25;
-              const block = Math.max(0, Math.min(100, Math.round((1 - omW) * h.block + omW * omM.block)));
-              const clear = 100 - block;
-              let txt = h.txt;
-              if (!h.isDay && txt !== undefined) {
-                const pr = Number(h.precip || 0);
-                const tp = Number(h.temp || 0);
-                txt = pr >= 0.1 ? (tp <= 0 ? '❄️ 雪' : '🌧️ 雨雪') : (block <= 25 ? '🌟 晴' : block <= 65 ? '⛅ 縫' : '☁️ 陰');
-              }
-              return { ...h, block, clear, ...(txt !== undefined ? { txt } : {}) };
-            });
-          }
+          // Preserve 2.5km MEPS fjord rain-shadow precision at +0..2h normally (unless live local obs <=25km proves
+          // ECMWF is >=20 pts closer), transition smoothly at +3h, and run 50/50 MEPS+ECMWF ensemble over +4..23h.
+          const metarConfirmsEcmwf = Boolean(
+            metarRaw && nearMetar && nearMetar.distKm <= 25 && (metarRaw.ageMin ?? 99) <= 60 &&
+            Number.isFinite(metarRaw.effCloud) &&
+            Number.isFinite(metHereHrs[0]?.block) && Number.isFinite(omHere.hrs[0]?.block) &&
+            (Math.abs(metarRaw.effCloud - metHereHrs[0].block) - Math.abs(metarRaw.effCloud - omHere.hrs[0].block)) >= 20
+          );
+          out.hereHrs = blendNordicHourlyForecasts(metHereHrs, omHere.hrs, { metarConfirmsEcmwf });
         }
         // Backfill MET Norway's coarse 6h steps after +48h with hourly ECMWF points so Night +2 gets true 1h resolution
         if (omHere.multiDay.length && metMulti.some(p => (p.stepHrs || 1) > 1)) {
@@ -416,6 +399,14 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
           const tailOm = omHere.multiDay.filter(p => Number.isFinite(p?.dtMs) && p.dtMs > lastFineMs + 30 * 60000);
           if (tailOm.length) metMulti = [...fineMet, ...tailOm];
         }
+      }
+      // Sync all 24h blended cloud/clear values into multiDayPts so Tonight's 3-Night Outlook matches the 24h chart
+      if (metMulti.length && out.hereHrs.length) {
+        const blendedPts = out.hereHrs.filter(h => Number.isFinite(h?.dtMs));
+        metMulti = metMulti.map(p => {
+          const m = blendedPts.find(h => Math.abs(h.dtMs - p.dtMs) <= 15 * 60000);
+          return m ? { ...p, block: m.block, clear: m.clear } : p;
+        });
       }
       out.multiDayPts = metMulti;
       pts.forEach((pt, i) => {

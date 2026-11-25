@@ -290,9 +290,9 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
   const is24 = hrs.length > 14;
   const tickStep = is24 ? 4 : 2;
   const W = 420, H = 156, padL = 56, padR = 10, padT = 22;
-  const plotH = 88; // Score bars: y=22..110; Clear-sky strip: y=116..121; X-axis labels: y=148
+  const plotH = 88; // Score bars: y=22..110; Clear-sky strip: y=115..119.5; Zone rail: y=132.5; X-axis: y=149
   const plotW = W - padL - padR;
-  const stripY = 116, stripH = 5;
+  const stripY = 115, stripH = 4.5;
   const xOf = i => padL + (i / (hrs.length - 1)) * plotW;
   const yOf = sc => padT + ((100 - clampNum(sc, 0, 100, 0)) / 100) * plotH;
   const stepW = plotW / (hrs.length - 1);
@@ -300,6 +300,18 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
 
   const nightHrs = hrs.filter(h => h && !h.isDay);
   const allOutOfZone = nightHrs.length > 0 && nightHrs.every(h => Boolean(h.outOfZone));
+
+  // Live (+0..3h nowcast) vs Trend (+4..23h dual-model ensemble) visual horizon split
+  const hasSplit = hrs.length >= 6;
+  const splitX = hasSplit ? (xOf(3) + xOf(4)) / 2 : -1;
+  const liveBgSvg = hasSplit
+    ? `<rect x="${padL}" y="${padT}" width="${(splitX - padL).toFixed(1)}" height="${plotH}" fill="var(--surface-2)" fill-opacity="0.45"/>`
+    : '';
+  const splitSvg = hasSplit
+    ? `<line data-role="horizon-split" x1="${splitX.toFixed(1)}" y1="${padT}" x2="${splitX.toFixed(1)}" y2="133.5" stroke="var(--chart-mid)" stroke-width="1" stroke-dasharray="2 3" opacity="0.72"/>` +
+      `<text data-role="zone-live" x="${(splitX - 5).toFixed(1)}" y="132" text-anchor="end" fill="var(--text-soft)" font-size="10.5" font-weight="600">${term(TERMS.nowcastShort, en)}</text>` +
+      `<text data-role="zone-trend" x="${(splitX + 5).toFixed(1)}" y="132" text-anchor="start" fill="var(--muted)" font-size="10.5" font-weight="500">${term(TERMS.trendShort, en)}</text>`
+    : '';
 
   // Daylight shading covers ONLY the score-bar plot area (never overlaps the clear-sky strip)
   const dayBands = hrs.map((h, i) => h?.isDay
@@ -341,17 +353,21 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     ? `<text x="${W - padR}" y="13.5" data-role="y-title" text-anchor="end" fill="var(--muted)" font-size="11" font-weight="500">${titleTxt}</text>`
     : `<text x="${padL}" y="13.5" data-role="y-title" fill="var(--muted)" font-size="11" font-weight="500">${titleTxt}</text>`;
 
-  // Midnight boundary hairline (00:xx when 0 < i < len - 1)
+  // Midnight boundary hairline (00:xx when 0 < i < len - 1); omit duplicate vertical line only if directly coincident (<4px) with split
   let midnightSvg = '';
   const midIdx = hrs.findIndex((h, i) => i > 0 && i < hrs.length - 1 && typeof h?.time === 'string' && h.time.startsWith('00:'));
   if (midIdx > 0) {
     const mx = xOf(midIdx);
     const tooCloseToBest = bestX >= 0 && Math.abs(mx - bestX) < 52;
     const tooCloseToDay = Math.abs(mx - dayLabelX) < 42;
+    const tooCloseToSplit = hasSplit && Math.abs(mx - splitX) < 4;
+    const midLine = tooCloseToSplit
+      ? ''
+      : `<line x1="${mx.toFixed(1)}" y1="${padT}" x2="${mx.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="var(--chart-axis)" stroke-dasharray="3 3" stroke-width="1"/>`;
     const midLbl = (!tooCloseToBest && !tooCloseToDay)
       ? `<text x="${Math.min(W - padR - 18, mx + 4).toFixed(1)}" y="${padT + 13}" text-anchor="start" fill="var(--muted)" font-size="10.5" font-weight="500">${term(TERMS.tomorrow, en)}</text>`
       : '';
-    midnightSvg = `<line x1="${mx.toFixed(1)}" y1="${padT}" x2="${mx.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="var(--chart-axis)" stroke-dasharray="3 3" stroke-width="1"/>${midLbl}`;
+    midnightSvg = `${midLine}${midLbl}`;
   }
 
   // Tier guide lines at 65 (Excellent), 40 (Good)
@@ -368,15 +384,24 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
         const x = xOf(i) - barW / 2;
         const isSel = i === selectedIdx;
         const isBest = i === bestIdx;
+        const isTrend = hasSplit && i >= 4;
         if (scVal <= 0) {
-          return `<rect class="sc-bar" data-bar-idx="${i}" x="${x.toFixed(1)}" y="${(baseY - 2.5).toFixed(1)}" width="${barW.toFixed(1)}" height="2.5" rx="1" fill="var(--bar-dim)" fill-opacity="${isSel ? '1' : '0.6'}"/>`;
+          return `<rect class="sc-bar" data-bar-idx="${i}" x="${x.toFixed(1)}" y="${(baseY - 2.5).toFixed(1)}" width="${barW.toFixed(1)}" height="2.5" rx="1" fill="var(--bar-dim)" fill-opacity="${isSel ? '1' : (isTrend ? '0.45' : '0.6')}"/>`;
         }
         const y = yOf(scVal);
         const bh = Math.max(3.5, baseY - y);
         const fill = tierFill(scVal);
-        const op = isSel ? '1' : (isBest ? '0.84' : '0.62');
+        const op = isTrend
+          ? (isSel ? '0.92' : (isBest ? '0.70' : '0.50'))
+          : (isSel ? '1' : (isBest ? '0.94' : '0.86'));
+        const showWhisker = isTrend && !h.outOfZone && scVal >= 12
+          && Number.isFinite(h.scoreLow) && Number.isFinite(h.scoreHigh)
+          && (h.scoreHigh - h.scoreLow) >= 18;
+        const whiskerSvg = showWhisker
+          ? `<line data-role="score-range" x1="${xOf(i).toFixed(1)}" y1="${Math.max(padT + 1.5, yOf(h.scoreHigh)).toFixed(1)}" x2="${xOf(i).toFixed(1)}" y2="${Math.min(baseY - 1.5, yOf(h.scoreLow)).toFixed(1)}" stroke="${fill}" stroke-width="1.5" stroke-linecap="round" stroke-opacity="${isSel ? '0.78' : '0.38'}"/>`
+          : '';
         const capDot = isSel ? `<circle cx="${xOf(i).toFixed(1)}" cy="${Math.max(padT + 2.5, y).toFixed(1)}" r="3.2" fill="var(--text)" stroke="var(--bg)" stroke-width="1.4"/>` : '';
-        return `<rect class="sc-bar" data-bar-idx="${i}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="${barRx}" fill="${fill}" fill-opacity="${op}"/>${capDot}`;
+        return `<rect class="sc-bar" data-bar-idx="${i}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="${barRx}" fill="${fill}" fill-opacity="${op}"/>${whiskerSvg}${capDot}`;
       }).join('');
 
   // Separated Clear-Sky Context Strip (soft glacier blue luminance — clear sky = bright blue, overcast = dark)
@@ -385,7 +410,8 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     const x = xOf(i) - tileW / 2;
     const tx = Math.max(padL, x);
     const tw = Math.max(2, Math.min(tileW, W - padR - tx));
-    const op = (0.08 + 0.72 * (clearVal / 100)).toFixed(2);
+    const isTrend = hasSplit && i >= 4;
+    const op = (0.08 + (isTrend ? 0.60 : 0.72) * (clearVal / 100)).toFixed(2);
     const isSel = i === selectedIdx;
     return `<rect x="${tx.toFixed(1)}" y="${stripY}" width="${tw.toFixed(1)}" height="${stripH}" rx="2" fill="var(--blue)" fill-opacity="${op}"${isSel ? ' stroke="var(--text)" stroke-width="0.9"' : ''}/>`;
   }).join('');
@@ -419,6 +445,7 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
 
   return `
     ${titleSvg}
+    ${liveBgSvg}
     ${dayBands}
     ${dayLabelSvg}
     ${vGrid}
@@ -428,9 +455,10 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     <line x1="${padL}" y1="${baseY.toFixed(1)}" x2="${W - padR}" y2="${baseY.toFixed(1)}" stroke="var(--chart-axis)"/>
     <text x="${padL - 8}" y="${(y65 + 4).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="11.5" font-weight="500">${term(TERMS.tier.excellent, en)}</text>
     <text x="${padL - 8}" y="${(y40 + 4).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="11.5" font-weight="500">${term(TERMS.tier.goodShort, en)}</text>
-    <text x="${padL - 8}" y="${(stripY + 5.5).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="11" font-weight="500">${term(TERMS.clearShort, en)}</text>
+    <text x="${padL - 8}" y="${(stripY + 5).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="11" font-weight="500">${term(TERMS.clearShort, en)}</text>
     ${scoreBars}
     ${clearStrip}
+    ${splitSvg}
     ${overlays}
   `;
 }

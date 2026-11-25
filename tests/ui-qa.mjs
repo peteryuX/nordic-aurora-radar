@@ -46,10 +46,17 @@ const hrs24 = Array.from({ length: 24 }, (_, i) => {
   const clear = [90, 92, 94, 92, 88, 84, 78, 74, 80, 86, 88, 82, 72, 60, 45, 34, 28, 32, 40, 52, 65, 76, 84, 88][i];
   const isDay = hr >= 10 && hr <= 13;
   const score = isDay ? 0 : [68, 76, 84, 80, 72, 62, 54, 48, 44, 40, 36, 32, 26, 20, 14, 0, 0, 0, 0, 22, 34, 46, 58, 66][i];
+  const spread = i >= 4 ? (i >= 10 ? 34 : 24) : 10;
+  const scoreLow = (i < 4 || isDay) ? score : Math.max(0, score - (i >= 12 ? 15 : 11));
+  const scoreHigh = (i < 4 || isDay) ? score : Math.min(99, score + (i >= 12 ? 15 : 10));
   return {
     dtMs: Date.UTC(2026, 10, 25, 18 + i, 0, 0),
     time: `${String(hr).padStart(2, '0')}:00`,
-    clear, block: 100 - clear, score, darkScore: isDay ? 0 : 100, temp: -5, isDay
+    clear, block: 100 - clear, score, scoreLow, scoreHigh,
+    cloudSpread: spread,
+    clearLow: Math.max(0, clear - Math.round(spread / 2)),
+    clearHigh: Math.min(100, clear + Math.round(spread / 2)),
+    darkScore: isDay ? 0 : 100, temp: -5, isDay
   };
 });
 
@@ -217,12 +224,18 @@ html { font-size: ${rootPx}px !important; }
           <span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 4.8V8l2.2 1.4"/></svg><span>${en ? 'Hourly trend' : '逐時趨勢'}</span></span>
           <span class="wave-range">${en ? '24h · Scrub or tap' : '24 小時 · 滑動或點選'}</span>
         </h2>
-        <div class="wave-peak">${en ? 'Best <strong>19:00–04:00</strong> · peaks <strong>21:00</strong>' : '今晚 <strong>19:00–04:00</strong> 極佳 · <strong>21:00</strong> 最強'}</div>
+        <div class="wave-peak">${isCloudy
+          ? (en ? 'Best trend <strong>01:00–04:00</strong> · around <strong>02:00</strong> <span class="wave-peak-note">· recheck 1–2h before</span>' : '今晚 <strong>01:00–04:00</strong> 預估適合觀測 <span class="wave-peak-note">· 出發前 1–2 小時再確認</span>')
+          : (en ? 'Best <strong>19:00–04:00</strong> · peaks <strong>21:00</strong>' : '今晚 <strong>19:00–04:00</strong> 極佳 · <strong>21:00</strong> 最強')}</div>
         <div class="chart-box"><svg class="chart-svg" viewBox="0 0 420 156">${waveSvg}</svg></div>
         <div class="scrub-bar">
           <div class="hr-detail">
-            <div class="sb-top"><strong>21:00</strong><strong style="color:var(--green);">84</strong><span style="color:var(--green);">${en ? 'Excellent' : '極佳'}</span></div>
-            <div class="sb-bot">${en ? '94% clear · Full dark · -5°C · Kp 5.0' : '晴空 94% · 全暗 · -5°C · Kp 5.0'}</div>
+            <div class="sb-top">${isCloudy
+              ? `<strong>01:00</strong> <strong style="color:var(--good);">${en ? '~38–62 Good' : '約 38–62 適合觀測'}</strong> <span class="sb-tag">${en ? 'Trend' : '趨勢參考'}</span>`
+              : `<strong>21:00</strong> <strong style="color:var(--green);">${en ? '84 Excellent' : '84 極佳'}</strong>`}</div>
+            <div class="sb-bot">${isCloudy
+              ? (en ? '62–86% clear · Full dark · -5°C · ~Kp 3' : '晴空 62%–86% · 全暗 · -5°C · 約 Kp 3')
+              : (en ? '94% clear · Full dark · -5°C · Kp 5.0' : '晴空 94% · 全暗 · -5°C · Kp 5.0')}</div>
           </div>
           <div class="steppers">
             <button class="step-btn" type="button" aria-label="prev">${stepPrevSvg}</button>

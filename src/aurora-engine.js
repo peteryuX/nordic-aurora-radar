@@ -2935,7 +2935,7 @@ export function extractOpenMeteoModelHourly(hourly, modelName) {
   };
 }
 
-/** Equal 50/50 physical blend of two aligned hourly forecast arrays (zero fitted weights) */
+/** Equal 50/50 physical blend of two aligned hourly forecast arrays (zero fitted weights) with per-hour spread */
 export function blendHourlyForecasts(primaryHrs, secondaryHrs) {
   if (!Array.isArray(primaryHrs) || !primaryHrs.length) return secondaryHrs || [];
   if (!Array.isArray(secondaryHrs) || !secondaryHrs.length) return primaryHrs;
@@ -2944,8 +2944,14 @@ export function blendHourlyForecasts(primaryHrs, secondaryHrs) {
     const match = (Number.isFinite(h?.dtMs) && hasSecDt)
       ? secondaryHrs.find(s => s && Number.isFinite(s.dtMs) && Math.abs(s.dtMs - h.dtMs) <= 15 * 60000)
       : secondaryHrs[i];
-    if (!match || !Number.isFinite(match.block) || !Number.isFinite(h?.block)) return h;
-    const block = Math.max(0, Math.min(100, Math.round(0.5 * h.block + 0.5 * match.block)));
+    if (!match || !Number.isFinite(match.block) || !Number.isFinite(h?.block)) {
+      return { ...h, cloudSpread: null, clearLow: null, clearHigh: null };
+    }
+    const m1 = h.block, m2 = match.block;
+    const cloudSpread = Math.round(Math.abs(m1 - m2));
+    const clearLow = Math.max(0, Math.min(100, Math.round(100 - Math.max(m1, m2))));
+    const clearHigh = Math.max(0, Math.min(100, Math.round(100 - Math.min(m1, m2))));
+    const block = Math.max(0, Math.min(100, Math.round(0.5 * m1 + 0.5 * m2)));
     const clear = 100 - block;
     let txt = h.txt;
     if (!h.isDay && txt !== undefined) {
@@ -2953,7 +2959,47 @@ export function blendHourlyForecasts(primaryHrs, secondaryHrs) {
       const tp = Number(h.temp || 0);
       txt = pr >= 0.1 ? (tp <= 0 ? '❄️ 雪' : '🌧️ 雨雪') : (block <= 25 ? '🌟 晴' : block <= 65 ? '⛅ 縫' : '☁️ 陰');
     }
-    return { ...h, block, clear, ...(txt !== undefined ? { txt } : {}) };
+    return { ...h, block, clear, cloudSpread, clearLow, clearHigh, ...(txt !== undefined ? { txt } : {}) };
+  });
+}
+
+/**
+ * Nordic horizon-aware dual-model ensemble (MET Norway 2.5km MEPS + independent ECMWF IFS 0.25°):
+ * - +0..2h: preserve 2.5km fjord rain-shadow precision (omW = 0), unless live METAR proves ECMWF >=20 pts closer (omW = 0.50)
+ * - +3h: smooth transition (omW = 0.25, or 0.50 if METAR confirms ECMWF)
+ * - +4..23h: 50/50 synoptic ensemble to curb single-model frontal-timing error
+ * Always preserves surface temp/wind/precip from 2.5km MEPS and attaches raw pre-blend spread metadata.
+ */
+export function blendNordicHourlyForecasts(metHrs, omHrs, { metarConfirmsEcmwf = false } = {}) {
+  if (!Array.isArray(metHrs) || !metHrs.length) return metHrs || [];
+  if (!Array.isArray(omHrs) || !omHrs.length) return metHrs;
+  return metHrs.map((h, idx) => {
+    if (!Number.isFinite(h?.dtMs) || !Number.isFinite(h?.block)) {
+      return { ...h, cloudSpread: null, clearLow: null, clearHigh: null };
+    }
+    const omM = omHrs.find(s => s && Number.isFinite(s.dtMs) && Number.isFinite(s.block) && Math.abs(s.dtMs - h.dtMs) <= 15 * 60000);
+    if (!omM) {
+      return { ...h, cloudSpread: null, clearLow: null, clearHigh: null };
+    }
+    const m1 = h.block, m2 = omM.block;
+    const cloudSpread = Math.round(Math.abs(m1 - m2));
+    const clearLow = Math.max(0, Math.min(100, Math.round(100 - Math.max(m1, m2))));
+    const clearHigh = Math.max(0, Math.min(100, Math.round(100 - Math.min(m1, m2))));
+    const omW = idx <= 2
+      ? (metarConfirmsEcmwf ? 0.50 : 0)
+      : (idx === 3 ? (metarConfirmsEcmwf ? 0.50 : 0.25) : 0.50);
+    if (omW === 0) {
+      return { ...h, cloudSpread, clearLow, clearHigh };
+    }
+    const block = Math.max(0, Math.min(100, Math.round((1 - omW) * m1 + omW * m2)));
+    const clear = 100 - block;
+    let txt = h.txt;
+    if (!h.isDay && txt !== undefined) {
+      const pr = Number(h.precip || 0);
+      const tp = Number(h.temp || 0);
+      txt = pr >= 0.1 ? (tp <= 0 ? '❄️ 雪' : '🌧️ 雨雪') : (block <= 25 ? '🌟 晴' : block <= 65 ? '⛅ 縫' : '☁️ 陰');
+    }
+    return { ...h, block, clear, cloudSpread, clearLow, clearHigh, ...(txt !== undefined ? { txt } : {}) };
   });
 }
 
@@ -3013,7 +3059,7 @@ export function scoreHourlyForecast12(hrs, {
       : Math.min(95, kpFc * 15);
     const ovH = liveW > 0 && ovation !== null ? Math.round(ovation * liveW + estOvFc * (1 - liveW)) : null;
 
-    const scH = computeAuroraScore({
+    const baseParams = {
       lat, lon, cloudNow: h.block, sunAlt: sunAltH,
       bz: bzH, speed: spdH, kp: kpFc, ovation: ovH, hpiGw: hpiH, newell: nwH,
       preconditionedNewell60: precondH,
@@ -3021,9 +3067,35 @@ export function scoreHourlyForecast12(hrs, {
       pdyn: pdynH, shockJumpNpa: liveW > 0 ? +((rawShock || 0) * liveW).toFixed(2) : 0,
       dst: dstH,
       mlt: mltH, effMoonPct: moonH.effMoonPct
-    });
+    };
+    const scH = computeAuroraScore(baseParams);
+    let scoreLow = scH.total;
+    let scoreHigh = scH.total;
+    if (i >= 4) {
+      if (scH.isTooBright || Boolean(scH.outOfZone)) {
+        scoreLow = 0;
+        scoreHigh = 0;
+      } else {
+        const s0 = scH.total;
+        const hasSpread = Number.isFinite(h.clearLow) && Number.isFinite(h.clearHigh);
+        const blockBest = hasSpread ? Math.max(0, Math.min(h.block, 100 - h.clearHigh)) : h.block;
+        const blockWorst = hasSpread ? Math.min(100, Math.max(h.block, 100 - h.clearLow)) : h.block;
+        const kpDelta = i >= 12 ? 1.0 : 0.67;
+        const kpLow = Math.max(0, +(kpFc - kpDelta).toFixed(2));
+        const kpHigh = Math.min(9, +(kpFc + kpDelta).toFixed(2));
+        const sCloudLow = blockWorst === h.block ? s0 : computeAuroraScore({ ...baseParams, cloudNow: blockWorst }).total;
+        const sCloudHigh = blockBest === h.block ? s0 : computeAuroraScore({ ...baseParams, cloudNow: blockBest }).total;
+        const sKpLow = kpLow === kpFc ? s0 : computeAuroraScore({ ...baseParams, kp: kpLow }).total;
+        const sKpHigh = kpHigh === kpFc ? s0 : computeAuroraScore({ ...baseParams, kp: kpHigh }).total;
+        const dLow = Math.hypot(Math.max(0, s0 - sCloudLow), Math.max(0, s0 - sKpLow));
+        const dHigh = Math.hypot(Math.max(0, sCloudHigh - s0), Math.max(0, sKpHigh - s0));
+        scoreLow = Math.max(0, Math.min(s0, Math.round(s0 - dLow)));
+        scoreHigh = Math.min(99, Math.max(s0, Math.round(s0 + dHigh)));
+      }
+    }
     return {
-      ...h, isDay: isDayH, sunAlt: sunAltH, score: scH.total, darkScore: scH.darkScore, kpFc: +Number(kpFc).toFixed(2),
+      ...h, isDay: isDayH, sunAlt: sunAltH, score: scH.total, scoreLow, scoreHigh,
+      darkScore: scH.darkScore, kpFc: +Number(kpFc).toFixed(2),
       moonUp: moonH.up, moonPct: moonH.pct, moonAlt: moonH.altDeg,
       mlt: +mltH.toFixed(1), outOfZone: scH.outOfZone
     };

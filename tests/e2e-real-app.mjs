@@ -344,6 +344,28 @@ function buildInterceptorScript(sc) {
     if (document.documentElement.scrollWidth > vw + 1) issues.push('H_OVERFLOW:' + document.documentElement.scrollWidth);
     const roadEl = document.getElementById('roadLinks');
     const roadVisible = roadEl && getComputedStyle(roadEl).display !== 'none';
+    const waveSvgHtml = document.getElementById('skyWaveChart')?.innerHTML || '';
+    const homeBestText = document.getElementById('homeBest')?.textContent?.trim() || '';
+    let hourDetailTrend = '';
+    const hit6 = document.querySelector('#skyWaveChart [data-hour-idx="6"]');
+    if (hit6) {
+      hit6.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      hourDetailTrend = document.getElementById('hourDetail')?.textContent?.replace(/\\s+/g, ' ').trim() || '';
+      const sb = document.querySelector('.scrub-bar');
+      if (sb) {
+        const kids = Array.from(sb.children).filter(c => c.getBoundingClientRect().width > 0);
+        for (let i = 0; i < kids.length; i++) {
+          const a = kids[i].getBoundingClientRect();
+          for (let j = i + 1; j < kids.length; j++) {
+            const b = kids[j].getBoundingClientRect();
+            if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1.5 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1.5) {
+              issues.push('OVERLAP in .scrub-bar(trend): ' + kids[i].className + ' vs ' + kids[j].className);
+            }
+          }
+        }
+      }
+      if (document.documentElement.scrollWidth > vw + 1) issues.push('H_OVERFLOW_TREND:' + document.documentElement.scrollWidth);
+    }
     const out = {
       locName: document.getElementById('locName')?.textContent?.trim() || '',
       vTitle: document.getElementById('vTitle')?.textContent?.trim() || '',
@@ -355,6 +377,9 @@ function buildInterceptorScript(sc) {
       tsConfRow: document.getElementById('tsConfRow')?.textContent?.trim() || '',
       vActionBtn: document.getElementById('vActionBtn')?.textContent?.trim() || '',
       outlookText: document.getElementById('outlookGrid')?.textContent?.replace(/\\s+/g, ' ').trim() || '',
+      waveSvgHtml,
+      homeBestText,
+      hourDetailTrend,
       roadVisible,
       roadText: roadVisible ? (roadEl.textContent || '').trim() : '',
       bodyText: document.body.innerText || '',
@@ -373,7 +398,7 @@ function buildInterceptorScript(sc) {
 const SCENARIOS = [
   {
     id: 'tromso-radar-rollover',
-    label: 'Tromsø 19px: 5m radar snow squall + 22m 0Z Kp rollover + local obs calibration',
+    label: 'Tromsø 19px: 5m radar snow squall + 22m 0Z Kp rollover + local obs + Live/Trend 24h range',
     query: '?lat=69.6492&lon=18.9553',
     lat: 69.6492, lon: 18.9553, tz: 'Europe/Oslo', utcOff: 3600, rootPx: 19, lang: 'zh',
     nowMs: Date.UTC(2026, 10, 25, 18, 22, 0),
@@ -388,6 +413,12 @@ const SCENARIOS = [
       if (!r.fcConfBtn.includes('已參照當地實測')) errs.push(`Expected 已參照當地實測 badge, got "${r.fcConfBtn}"`);
       if (!r.fDarkSub.includes('滿月')) errs.push(`Expected 滿月 in Darkness sub-label, got "${r.fDarkSub}"`);
       if (!r.tsConfRow.includes('Radar 5m')) errs.push(`Expected Radar 5m in Trust Sheet telemetry, got "${r.tsConfRow}"`);
+      if (!r.waveSvgHtml.includes('data-role="horizon-split"') || !r.waveSvgHtml.includes('>即時<') || !r.waveSvgHtml.includes('>趨勢<')) {
+        errs.push('Expected 24h skyWaveChart to render Live/Trend split (即時 / 趨勢)');
+      }
+      if (!r.hourDetailTrend.includes('趨勢參考') || !r.hourDetailTrend.includes('晴空 28%–78%')) {
+        errs.push(`Expected +6h Trend scrub-bar to show 趨勢參考 and 晴空 28%–78% (met=22 vs ecmwf=72), got "${r.hourDetailTrend}"`);
+      }
       const clr = parseInt(r.fSkyVal, 10);
       if (!(clr <= 10)) errs.push(`Active 0.8mm/h 5m radar snow squall must cap clear sky <=10%, got "${r.fSkyVal}"`);
       if (r.issues.length) errs.push(...r.issues);

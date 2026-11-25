@@ -578,6 +578,7 @@ body.is-loading .skel-day .od-stat {
   color: var(--text-soft); font-variant-numeric: tabular-nums;
 }
 .wave-peak strong { color: var(--text); font-weight: 600; }
+.wave-peak-note { color: var(--muted); font-size: 0.80rem; font-weight: 400; }
 
 .leg-strip {
   display: inline-block; width: 18px; height: 7px; border-radius: 3px;
@@ -615,6 +616,14 @@ body.is-loading .skel-day .od-stat {
 .hr-detail strong { color: var(--text); font-weight: 600; }
 .sb-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 6px; font-size: 0.85rem; }
 .sb-bot { font-size: 0.75rem; color: var(--muted); margin-top: 2px; line-height: 1.34; }
+.sb-tag {
+  display: inline-flex; align-items: center;
+  padding: 1px 6px; border-radius: 999px;
+  font-size: 0.68rem; font-weight: 500; line-height: 1.3;
+  color: var(--muted); background: var(--surface-2);
+  border: 0.5px solid var(--border);
+  white-space: nowrap;
+}
 .steppers { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .step-btn {
   position: relative; width: 36px; height: 36px; border-radius: 10px;
