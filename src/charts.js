@@ -48,7 +48,7 @@ export function buildSkySceneSVG({ cloudPct, auroraScore, moonUp, moonPct, isToo
   ].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#ffffff" opacity="${(starOp * 0.72).toFixed(2)}"/>`).join('');
 
   const clouds = cPct >= 15 ? `
-    <g opacity="${cloudOp.toFixed(2)}" filter="url(#cldBlur)">
+    <g class="cld-anim" opacity="${cloudOp.toFixed(2)}" filter="url(#cldBlur)">
       <ellipse cx="120" cy="76" rx="155" ry="38" fill="${bright ? '#5d7b99' : '#24374f'}"/>
       <ellipse cx="320" cy="62" rx="190" ry="46" fill="${bright ? '#4c6a87' : '#1d2f46'}"/>
       <ellipse cx="520" cy="84" rx="175" ry="40" fill="${bright ? '#5a7896' : '#23364d'}"/>
@@ -62,6 +62,8 @@ export function buildSkySceneSVG({ cloudPct, auroraScore, moonUp, moonPct, isToo
       <circle cx="515" cy="46" r="${moonR.toFixed(1)}" fill="#fff6db" opacity="0.88"/>
     </g>` : '';
 
+  const aur2Op = aurOp > 0.14 ? (aurOp * 0.62).toFixed(2) : '0';
+
   return `
     <defs>
       <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
@@ -73,6 +75,11 @@ export function buildSkySceneSVG({ cloudPct, auroraScore, moonUp, moonPct, isToo
         <stop offset="0%" stop-color="#3ec99a" stop-opacity="0.72"/>
         <stop offset="52%" stop-color="#35a8bd" stop-opacity="0.54"/>
         <stop offset="100%" stop-color="#6b63b5" stop-opacity="0.38"/>
+      </linearGradient>
+      <linearGradient id="aurG2" x1="1" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#48d8a2" stop-opacity="0.55"/>
+        <stop offset="55%" stop-color="#58b8d8" stop-opacity="0.34"/>
+        <stop offset="100%" stop-color="#7c6fd4" stop-opacity="0.22"/>
       </linearGradient>
       <linearGradient id="horizonFade" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="${bgBot}" stop-opacity="0"/>
@@ -86,6 +93,9 @@ export function buildSkySceneSVG({ cloudPct, auroraScore, moonUp, moonPct, isToo
     <g class="aur-anim" opacity="${aurOp.toFixed(2)}" filter="url(#aurBlur)">
       <path d="M-30,115 C95,38 205,126 320,54 C440,-8 530,96 670,34 L670,96 C530,148 440,54 320,112 C205,172 95,94 -30,152 Z" fill="url(#aurG)"/>
     </g>
+    ${aurOp > 0.14 ? `<g class="aur-anim-2" opacity="${aur2Op}" filter="url(#aurBlur)">
+      <path d="M-20,86 C110,124 235,34 360,82 C475,124 565,42 665,78 L665,128 C560,92 470,162 350,126 C230,88 105,164 -20,132 Z" fill="url(#aurG2)"/>
+    </g>` : ''}
     ${moonSvg}
     ${clouds}
     <rect y="148" width="640" height="77" fill="url(#horizonFade)"/>
@@ -547,3 +557,128 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
     <text x="${CX}" y="${CY + 14}" text-anchor="middle" fill="${hCol}" font-size="15.5" font-weight="900">${hTxt}</text>
   `;
 }
+
+// ====== Visual-First Micro-Icons & Solar Wind Magnetic Gate Meter ======
+
+/**
+ * Crisp 16x16 clear-sky / cloud status icon for the 3-column metrics card.
+ */
+export function buildSkyFactorIcon(clearPct = 0, isTooBright = false) {
+  const c = clampNum(clearPct, 0, 100, 0);
+  if (isTooBright) {
+    return `<svg viewBox="0 0 16 16" fill="none" stroke="var(--blue)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.1"/><path d="M8 2v1.3M8 12.7V14M2 8h1.3M12.7 8H14M3.8 3.8l.9.9M11.3 11.3l.9.9M12.2 3.8l-.9.9M4.7 11.3l-.9.9"/></svg>`;
+  }
+  if (c >= 70) {
+    return `<svg viewBox="0 0 16 16" fill="none"><path d="M8.5 2.2l1.15 3.45L13.1 6.8l-3.45 1.15L8.5 11.4 7.35 7.95 3.9 6.8l3.45-1.15L8.5 2.2z" fill="var(--green)"/><circle cx="3.2" cy="11.8" r="1.05" fill="var(--green)" opacity="0.72"/><circle cx="13.2" cy="12.2" r="0.85" fill="var(--green)" opacity="0.58"/></svg>`;
+  }
+  if (c >= 35) {
+    return `<svg viewBox="0 0 16 16" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M11.4 2.4l.55 1.65 1.65.55-1.65.55-.55 1.65-.55-1.65-1.65-.55 1.65-.55.55-1.65z" fill="var(--amber)"/><path d="M4.8 13h6.4a2.3 2.3 0 0 0 .3-4.58A3.2 3.2 0 0 0 5.3 7.5a2.7 2.7 0 0 0-.5 5.5z" fill="rgba(255,255,255,0.10)" stroke="var(--amber)" stroke-width="1.35"/></svg>`;
+  }
+  return `<svg viewBox="0 0 16 16" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.6h7a2.5 2.5 0 0 0 .35-4.97 3.55 3.55 0 0 0-6.8-1.05A2.85 2.85 0 0 0 4.5 12.6z" fill="rgba(255,255,255,0.12)" stroke="var(--muted)" stroke-width="1.4"/></svg>`;
+}
+
+/**
+ * Crisp 16x16 aurora ribbon activity icon for the 3-column metrics card.
+ */
+export function buildAuroraFactorIcon(auroraScore = 0) {
+  const a = clampNum(auroraScore, 0, 100, 0);
+  const col = a >= 65 ? 'var(--green)' : (a >= 35 ? 'var(--amber)' : 'var(--muted)');
+  if (a >= 65) {
+    return `<svg viewBox="0 0 16 16" fill="none" stroke="${col}" stroke-linecap="round"><path d="M2 10.6c2-3.4 4-3.4 6-1.4s4 2 6-2.4" stroke-width="1.75"/><path d="M2.6 13.2c1.8-2.6 3.7-2.6 5.5-1s3.7 1.6 5.4-1.8" stroke-width="1.25" opacity="0.62"/><path d="M5 4.2v2.4M8.4 3v3.2M11.8 4.4v2.2" stroke-width="1.25" opacity="0.78"/></svg>`;
+  }
+  if (a >= 35) {
+    return `<svg viewBox="0 0 16 16" fill="none" stroke="${col}" stroke-linecap="round"><path d="M2.2 10.8c2-2.9 3.9-2.9 5.8-1.1s3.9 1.7 5.8-1.9" stroke-width="1.6"/><path d="M6.2 4.8v2M10.4 4.4v2.2" stroke-width="1.2" opacity="0.65"/></svg>`;
+  }
+  return `<svg viewBox="0 0 16 16" fill="none" stroke="${col}" stroke-linecap="round"><path d="M2.4 11.4c2.4-1.6 4.6-1.6 5.6-.7 1.1.9 3.2.9 5.6-.8" stroke-width="1.45" opacity="0.82"/></svg>`;
+}
+
+/**
+ * Scientifically accurate 16x16 moon-phase / dark-sky / twilight icon.
+ * Uses --moon-fill CSS variable so red-mode collapses seamlessly with zero white leak.
+ */
+export function buildMoonPhaseIcon({ pct = 0, up = false, waxing = true, isTooBright = false } = {}) {
+  if (isTooBright) {
+    return `<svg viewBox="0 0 16 16" fill="none" stroke="var(--blue)" stroke-width="1.45" stroke-linecap="round"><path d="M2.2 11.8h11.6"/><path d="M4.6 11.8a3.4 3.4 0 0 1 6.8 0"/><path d="M8 4.2v1.6M3.9 6.6l1.1 1.1M12.1 6.6L11 7.7"/></svg>`;
+  }
+  if (!up) {
+    // Moon below horizon -> unobstructed dark night sky
+    return `<svg viewBox="0 0 16 16" fill="none"><path d="M9.6 2.8a4.9 4.9 0 1 0 3.6 8.2 4.1 4.1 0 0 1-3.6-8.2z" fill="var(--green)" opacity="0.88"/><path d="M11.8 3.2l.45 1.25 1.25.45-1.25.45-.45 1.25-.45-1.25-1.25-.45 1.25-.45.45-1.25z" fill="var(--green)"/></svg>`;
+  }
+  const f = clampNum(pct, 0, 100, 0) / 100;
+  const r = 5.4;
+  const cx = 8, cy = 8;
+  const topY = (cy - r).toFixed(2);
+  const botY = (cy + r).toFixed(2);
+  if (f <= 0.04) {
+    return `<svg viewBox="0 0 16 16" fill="none"><circle cx="${cx}" cy="${cy}" r="${r}" fill="rgba(255,255,255,0.06)" stroke="var(--muted)" stroke-width="1.3"/></svg>`;
+  }
+  if (f >= 0.96) {
+    return `<svg viewBox="0 0 16 16" fill="none"><circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--moon-fill)" stroke="var(--moon-fill)" stroke-opacity="0.35" stroke-width="1"/></svg>`;
+  }
+  const rx = (Math.abs(1 - 2 * f) * r).toFixed(2);
+  const outerSweep = waxing ? 1 : 0;
+  const innerSweep = waxing ? (f < 0.5 ? 0 : 1) : (f < 0.5 ? 1 : 0);
+  const litPath = `M ${cx} ${topY} A ${r} ${r} 0 0 ${outerSweep} ${cx} ${botY} A ${rx} ${r} 0 0 ${innerSweep} ${cx} ${topY} Z`;
+  return `<svg viewBox="0 0 16 16" fill="none"><circle cx="${cx}" cy="${cy}" r="${r}" fill="rgba(255,255,255,0.07)" stroke="var(--muted)" stroke-opacity="0.55" stroke-width="1.15"/><path d="${litPath}" fill="var(--moon-fill)"/></svg>`;
+}
+
+/**
+ * Crisp 22x22 visual weather/aurora icon for each night in the 3-Night Outlook card.
+ */
+export function buildOutlookSkyIcon({ score = 0, clearPct = null, scoreAvailable = true } = {}) {
+  if (!scoreAvailable) {
+    return `<svg viewBox="0 0 22 22" fill="none" stroke="var(--blue)" stroke-width="1.6" stroke-linecap="round"><path d="M3 15.5h16"/><path d="M6.2 15.5a4.8 4.8 0 0 1 9.6 0"/><path d="M11 5.5v2M5.5 8.5l1.4 1.4M16.5 8.5l-1.4 1.4"/></svg>`;
+  }
+  const s = clampNum(score, 0, 99, 0);
+  const c = clearPct === null || clearPct === undefined ? 50 : clampNum(clearPct, 0, 100, 50);
+  if (s >= 60) {
+    return `<svg viewBox="0 0 22 22" fill="none" stroke-linecap="round"><path d="M2.8 14.4c2.8-4.6 5.4-4.6 8.2-1.8s5.4 2.8 8.2-3.4" stroke="var(--green)" stroke-width="2"/><path d="M3.6 17.6c2.5-3.4 5-3.4 7.4-1.3s4.9 2 7.4-2.4" stroke="var(--green)" stroke-width="1.35" opacity="0.58"/><path d="M16.4 3.4l.65 1.85 1.85.65-1.85.65-.65 1.85-.65-1.85-1.85-.65 1.85-.65.65-1.85z" fill="var(--green)"/></svg>`;
+  }
+  if (s >= 40) {
+    return `<svg viewBox="0 0 22 22" fill="none" stroke-linecap="round"><path d="M3 14.8c2.7-3.8 5.3-3.8 8-1.4s5.3 2.3 8-2.7" stroke="var(--good)" stroke-width="1.85"/><circle cx="7" cy="6.6" r="1.2" fill="var(--good)"/><circle cx="15.8" cy="6.2" r="1" fill="var(--good)" opacity="0.72"/></svg>`;
+  }
+  if (c >= 45) {
+    return `<svg viewBox="0 0 22 22" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14.8 4.2l.55 1.55 1.55.55-1.55.55-.55 1.55-.55-1.55-1.55-.55 1.55-.55.55-1.55z" fill="var(--amber)"/><path d="M6.4 17.2h8.6a3 3 0 0 0 .4-5.97 4.2 4.2 0 0 0-8.1-1.2 3.4 3.4 0 0 0-.9 7.17z" fill="rgba(255,255,255,0.09)" stroke="var(--amber)" stroke-width="1.5"/></svg>`;
+  }
+  return `<svg viewBox="0 0 22 22" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17h9.8a3.2 3.2 0 0 0 .45-6.37 4.6 4.6 0 0 0-8.85-1.35A3.65 3.65 0 0 0 6 17z" fill="rgba(255,255,255,0.11)" stroke="var(--muted)" stroke-width="1.6"/></svg>`;
+}
+
+/**
+ * Visual "Magnetic Gate" diverging meter for Solar Wind Card (#swMeter).
+ * Maps live Bz (-15..+15 nT) onto left=South/Open (green) vs right=North/Closed (muted).
+ */
+export function buildSolarWindMeterHtml({ bz = null, speed = null, en = false } = {}) {
+  if (bz === null || !Number.isFinite(Number(bz))) return '';
+  const bzVal = Number(bz);
+  const spdVal = Number.isFinite(Number(speed)) ? Math.round(Number(speed)) : null;
+  const clamped = Math.max(-15, Math.min(15, bzVal));
+  // Left (0%) = -15 nT (Strong South / Gate Open); Center (50%) = 0 nT; Right (100%) = +15 nT (North / Gate Closed)
+  const posPct = Math.max(5, Math.min(95, 50 + (clamped / 15) * 45));
+  const isSouthStrong = bzVal <= -4;
+  const isSouth = bzVal < -0.5;
+  const dotCol = isSouthStrong ? 'var(--green)' : (isSouth ? 'var(--amber)' : 'var(--muted)');
+  const fillLeft = Math.min(50, posPct);
+  const fillWidth = Math.abs(posPct - 50);
+  const bzSign = bzVal > 0 ? `+${bzVal.toFixed(1)}` : bzVal.toFixed(1);
+  const readout = `Bz ${bzSign} nT${spdVal !== null ? ` · ${spdVal} km/s` : ''}`;
+  const lbl = en ? 'Magnetic Gate' : '地磁閘門（Bz）';
+  const leftLbl = en ? '← South · Open' : '← 朝南開啟';
+  const rightLbl = en ? 'North · Closed →' : '朝北關閉 →';
+  return `
+    <div class="sw-meter-head">
+      <span class="sw-meter-lbl">${escSvg(lbl)}</span>
+      <span class="sw-meter-val" style="color:${dotCol};">${escSvg(readout)}</span>
+    </div>
+    <div class="sw-meter-track" role="img" aria-label="${escSvg(`${lbl} ${readout}`)}">
+      <div class="sw-meter-south-zone"></div>
+      <div class="sw-meter-fill" style="left:${fillLeft.toFixed(1)}%;width:${Math.max(1.5, fillWidth).toFixed(1)}%;background:${dotCol};"></div>
+      <div class="sw-meter-zero"></div>
+      <div class="sw-meter-dot" style="left:${posPct.toFixed(1)}%;background:${dotCol};"></div>
+    </div>
+    <div class="sw-meter-axis">
+      <span class="${isSouth ? 'sw-axis-on' : ''}">${escSvg(leftLbl)}</span>
+      <span>0</span>
+      <span class="${!isSouth ? 'sw-axis-on' : ''}">${escSvg(rightLbl)}</span>
+    </div>`;
+}
+

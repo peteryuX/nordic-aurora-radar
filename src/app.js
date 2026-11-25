@@ -31,7 +31,9 @@ const {
 } = Engine;
 
 const {
-  buildSkySceneSVG, buildBzChartSVG, buildSkyWaveSVG, buildCompassRadarSVG
+  buildSkySceneSVG, buildBzChartSVG, buildSkyWaveSVG, buildCompassRadarSVG,
+  buildSkyFactorIcon, buildAuroraFactorIcon, buildMoonPhaseIcon,
+  buildOutlookSkyIcon, buildSolarWindMeterHtml
 } = Charts;
 
 // Expose pure modules on window for automated VLM / browser console inspection
@@ -752,6 +754,15 @@ function renderGauge(sc, details) {
   setFactor('fSkyVal', 'fSkyBar', 'fSkySub', sc.skyScore, `${sc.skyScore}%`, details.skySubHtml ?? escapeHtml(details.skySub || ''));
   setFactor('fAurVal', 'fAurBar', 'fAurSub', sc.auroraScore, `${sc.auroraScore}`, details.aurSubHtml ?? escapeHtml(details.aurSub || ''));
   setFactor('fDarkVal', 'fDarkBar', 'fDarkSub', sc.darkScore, details.isTooBright ? term(TERMS.status.tooBright, en) : `${sc.darkScore}%`, details.darkSubHtml ?? escapeHtml(details.darkSub || ''), details.isTooBright ? 'var(--blue)' : null);
+
+  setHtml('fSkyIco', buildSkyFactorIcon(sc.skyScore, details.isTooBright));
+  setHtml('fAurIco', buildAuroraFactorIcon(sc.auroraScore));
+  setHtml('fDarkIco', buildMoonPhaseIcon({
+    pct: details.moon?.pct ?? 0,
+    up: Boolean(details.moon?.up),
+    waxing: details.moon?.waxing !== false,
+    isTooBright: Boolean(details.isTooBright)
+  }));
 }
 
 function getVisibleHours() {
@@ -1034,15 +1045,21 @@ function render3NightOutlook(nights) {
     const isBest = i === bestIdx;
     const winTxt = n.bestWindow ? `${term(TERMS.peak, en)} ${n.bestWindow}` : '';
     const winHtml = winTxt ? `<div class="od-win nowrap">${escapeHtml(winTxt)}</div>` : '';
+    const skyIco = buildOutlookSkyIcon({ score: scoreVal, clearPct: n.bestClear, scoreAvailable: hasScore });
+    const barPct = hasScore ? Math.max(8, Math.min(100, scoreVal)) : 0;
     const aria = hasScore
       ? (en ? `${dayTxt} ${dateTxt}: forecast score ${scoreVal}, ${n.badge}${winTxt ? `, ${winTxt}` : ''}` : `${dayTxt} ${dateTxt}：預估觀測指數 ${scoreVal}，${n.badge}${winTxt ? `，${winTxt}` : ''}`)
       : `${dayTxt} ${dateTxt}: ${n.badge}`;
     return `<div class="outlook-day${isBest ? ' od-best' : ''}" role="group" aria-label="${escapeHtml(aria)}${isBest ? (en ? ' (best night)' : '（最佳）') : ''}">
       ${isBest ? `<span class="od-flag-pill">★ ${term(TERMS.best, en)}</span>` : ''}
-      <div class="od-day">${escapeHtml(dayTxt)}</div>
-      <div class="od-date">${escapeHtml(dateTxt)}</div>
+      <div class="od-head">
+        <div class="od-day">${escapeHtml(dayTxt)}</div>
+        <div class="od-date">${escapeHtml(dateTxt)}</div>
+      </div>
+      <div class="od-ico" aria-hidden="true">${skyIco}</div>
       <div class="od-score${hasScore ? '' : ' od-na'}" style="${hasScore ? `color:${bCol};` : ''}">${hasScore ? scoreVal : '--'}</div>
       <div class="od-badge" style="color:${hasScore ? bCol : 'var(--muted)'};">${escapeHtml(n.badge)}</div>
+      <div class="od-bar" aria-hidden="true"><div class="od-bar-fill" style="width:${barPct}%;background:${hasScore ? bCol : 'var(--muted)'};"></div></div>
       ${winHtml}
       <div class="od-stat"><span class="nowrap">${escapeHtml(clearTxt)}</span><br/><span class="nowrap">${escapeHtml(kpTxt)}${gTag}</span></div>
     </div>`;
@@ -1055,11 +1072,11 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales,
   renderStormBanner(noaaScales, noaaAlert);
 
   const enSum = summarizeEnergyTrend(chartSeries, speed, bal);
+  const liveBz = Number.isFinite(bal?.cleanLatestBz)
+    ? bal.cleanLatestBz
+    : (chartSeries?.length && Number.isFinite(chartSeries[chartSeries.length - 1]?.bz) ? chartSeries[chartSeries.length - 1].bz : null);
   const bzBadge = $('bzBadge');
   if (bzBadge) {
-    const liveBz = Number.isFinite(bal?.cleanLatestBz)
-      ? bal.cleanLatestBz
-      : (chartSeries?.length && Number.isFinite(chartSeries[chartSeries.length - 1]?.bz) ? chartSeries[chartSeries.length - 1].bz : null);
     if (goesSub?.active || bal?.shockActive) {
       bzBadge.textContent = term(TERMS.solarWind.strong, en);
       bzBadge.className = 'sw-badge sw-good';
@@ -1076,6 +1093,12 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales,
       bzBadge.textContent = '';
       bzBadge.className = 'sw-badge';
     }
+  }
+  const swMeter = $('swMeter');
+  if (swMeter) {
+    const meterHtml = buildSolarWindMeterHtml({ bz: liveBz, speed, en });
+    swMeter.innerHTML = meterHtml;
+    swMeter.style.display = meterHtml ? '' : 'none';
   }
   const eb = $('energyBanner');
   if (eb) {
@@ -1347,14 +1370,17 @@ function renderFromState(st) {
   const aurSubHtml = sc.outOfZone === 'low-lat'
     ? `<span class="nowrap">${en ? `Mag ${sc.magLat}°` : `地磁 ${sc.magLat}°`}</span>`
     : (sc.outOfZone === 'need-storm'
-        ? `<span class="nowrap">Kp ${kpShort} · ${en ? `need ${sc.neededKp}` : `需 ${sc.neededKp}`}</span>`
+        ? `<span class="nowrap">Kp ${kpShort}</span> · <span class="nowrap">${en ? `need ${sc.neededKp}` : `需 ${sc.neededKp}`}</span>`
         : (ovation !== null
-            ? `<span class="nowrap">${en ? `Kp ${kpShort} · ${ovation}% prob` : `頭頂 ${ovation}% · Kp ${kpShort}`}</span>`
+            ? (en
+                ? `<span class="nowrap">Kp ${kpShort}</span> · <span class="nowrap">${ovation}% prob</span>`
+                : `<span class="nowrap">頭頂 ${ovation}%</span> · <span class="nowrap">Kp ${kpShort}</span>`)
             : `<span class="nowrap">Kp ${kp !== null ? kp.toFixed(1) : '--'}</span>`));
   const darkWin = computeDarkWindow(refNow, pos.lat, pos.lon, pos.tz);
   document.body.classList.remove('is-loading');
   renderGauge(sc, {
     isTooBright: sc.isTooBright,
+    moon,
     skySubHtml: skyParts.join(' · '),
     aurSubHtml,
     darkSubHtml: formatDarkCountdownSub(darkWin, moon, en)
@@ -2111,6 +2137,15 @@ function bindEvents() {
   const syncScrollHdr = () => document.body.classList.toggle('is-scrolled', window.scrollY > 4);
   window.addEventListener('scroll', syncScrollHdr, { passive: true });
   syncScrollHdr();
+
+  const syncFontScaleClass = () => {
+    const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const effEm = Math.min(window.innerWidth, document.documentElement.clientWidth || window.innerWidth) / rootPx;
+    document.body.classList.toggle('a11y-large', effEm <= 21.5);
+    document.body.classList.toggle('a11y-xlarge', effEm <= 17.5);
+  };
+  window.addEventListener('resize', syncFontScaleClass, { passive: true });
+  syncFontScaleClass();
 
   // Tap or swipe-up to dismiss floating notification pill
   const toastEl = $('toast');

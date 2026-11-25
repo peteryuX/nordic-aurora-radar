@@ -2263,6 +2263,24 @@ test('50. Bilingual copy, localization & single-metric chart clarity lint gate (
   assert.ok(dcSrc.includes('prevRaw?.magSeries') && dcSrc.includes('liveAge <= 60'), 'NOAA & METAR must retain stale-on-error fallback to prevent score cliffs');
   assert.ok(appSrc.includes('chartHours: state.renderState.scoredHours'), 'Background ENLIL re-render must preserve chartHours parity');
   assert.ok(html.includes('id="tsConfDetail"') && !html.includes('id="outlookNote" class="od-note" hidden'), 'Trust Sheet must include #tsConfDetail and #outlookNote must be visible by default');
+
+  // 11. v33 Dynamic Type accessibility reflow & visual-first components (zero-leak CSS vars)
+  const cssSrc = fs.readFileSync(path.join(ROOT, 'styles.css'), 'utf8');
+  assert.ok(cssSrc.includes('-apple-system-body') && !cssSrc.includes('html { font-size: 16px;'), 'CSS must support iOS Dynamic Type instead of locking html to fixed 16px');
+  assert.ok(cssSrc.includes('body.a11y-large .factors') && cssSrc.includes('body.a11y-large .outlook-grid'), 'CSS must provide Dynamic Type reflow for 3-col metrics and 3-night outlook');
+  assert.ok(appSrc.includes('syncFontScaleClass') && appSrc.includes("'a11y-large'"), 'app.js must compute live root font-size scale for real iOS Dynamic Type reflow');
+  const mFull = api.getMoonState(new Date('2026-11-24T14:53:00Z'), 69.97, 23.27);
+  assert.equal(typeof mFull.waxing, 'boolean', 'getMoonState must expose boolean waxing phase');
+  const moonCrescentSvg = api.buildMoonPhaseIcon({ pct: 28, up: true, waxing: true, isTooBright: false });
+  assert.ok(moonCrescentSvg.includes('var(--moon-fill)') && !moonCrescentSvg.includes('#fff'), 'Moon phase icon must use var(--moon-fill) for zero-leak red-mode');
+  const skyIcoSvg = api.buildSkyFactorIcon(90, false);
+  const aurIcoSvg = api.buildAuroraFactorIcon(82);
+  const odIcoSvg = api.buildOutlookSkyIcon({ score: 84, clearPct: 94, scoreAvailable: true });
+  assert.ok(skyIcoSvg.includes('<svg') && aurIcoSvg.includes('<svg') && odIcoSvg.includes('<svg'), 'All v33 visual micro-icons must render valid SVGs');
+  const swMeterOpen = api.buildSolarWindMeterHtml({ bz: -6.8, speed: 540, en: false });
+  const swMeterNull = api.buildSolarWindMeterHtml({ bz: null, speed: null, en: false });
+  assert.ok(swMeterOpen.includes('sw-meter-dot') && swMeterOpen.includes('Bz -6.8 nT · 540 km/s'), 'Solar wind gate meter must render Bz + speed readout and indicator dot');
+  assert.equal(swMeterNull, '', 'Solar wind gate meter must hide cleanly when Bz is unavailable');
 });
 
 

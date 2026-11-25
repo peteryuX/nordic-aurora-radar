@@ -663,7 +663,8 @@ export function getMoonState(dateObj, lat = 69.97, lon = 23.27, lang) {
   if (!up) desc = en ? `Moon down (${pct}% phase, dark sky)` : `月亮已落下（相位 ${pct}%，暗空極佳）`;
   else if (effMoonPct >= 55) desc = en ? `Bright moon (${Math.round(altDeg)}° alt)` : `月光較亮（高掛 ${Math.round(altDeg)}°）`;
   else if (effMoonPct >= 20) desc = en ? `Moderate moon (${Math.round(altDeg)}° alt)` : `中度月光（仰角 ${Math.round(altDeg)}°）`;
-  return { pct, altDeg, up, effMoonPct, desc };
+  const waxing = Math.sin(lonM - Ls) >= 0;
+  return { pct, altDeg, up, effMoonPct, waxing, desc };
 }
 
 // ====== Cloud Attenuation, Geomagnetics & Viewing Geometry ======

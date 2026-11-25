@@ -144,20 +144,29 @@
         </div>
 
         <div class="sky-body">
-          <!-- Unified 3-Column Frosted Glass Metrics (Single-Line Atomic Sub-Labels) -->
+          <!-- Unified 3-Column Frosted Glass Metrics (Visual Micro-Icons + Adaptive Accessibility Layout) -->
           <div class="factors">
             <div class="f-box">
-              <div class="f-head"><span id="fSkyLbl" class="f-lbl">晴空率</span><span id="fSkyVal" class="f-val skel-val">--</span></div>
+              <div class="f-head">
+                <div class="f-lbl-row"><span id="fSkyIco" class="f-ico" aria-hidden="true"></span><span id="fSkyLbl" class="f-lbl">晴空率</span></div>
+                <span id="fSkyVal" class="f-val skel-val">--</span>
+              </div>
               <div class="f-track"><div id="fSkyBar" class="f-fill"></div></div>
               <div id="fSkySub" class="f-sub skel-sub">讀取中…</div>
             </div>
             <div class="f-box">
-              <div class="f-head"><span id="fAurLbl" class="f-lbl">極光活動</span><span id="fAurVal" class="f-val skel-val">--</span></div>
+              <div class="f-head">
+                <div class="f-lbl-row"><span id="fAurIco" class="f-ico" aria-hidden="true"></span><span id="fAurLbl" class="f-lbl">極光活動</span></div>
+                <span id="fAurVal" class="f-val skel-val">--</span>
+              </div>
               <div class="f-track"><div id="fAurBar" class="f-fill"></div></div>
               <div id="fAurSub" class="f-sub skel-sub">讀取中…</div>
             </div>
             <div class="f-box">
-              <div class="f-head"><span id="fDarkLbl" class="f-lbl">夜空暗度</span><span id="fDarkVal" class="f-val skel-val">--</span></div>
+              <div class="f-head">
+                <div class="f-lbl-row"><span id="fDarkIco" class="f-ico" aria-hidden="true"></span><span id="fDarkLbl" class="f-lbl">夜空暗度</span></div>
+                <span id="fDarkVal" class="f-val skel-val">--</span>
+              </div>
               <div class="f-track"><div id="fDarkBar" class="f-fill"></div></div>
               <div id="fDarkSub" class="f-sub skel-sub">讀取中…</div>
             </div>
@@ -200,9 +209,10 @@
         <p id="outlookNote" class="od-note">明後天雲量與 Kp 變動較大，出發前 3 小時請再確認。</p>
       </section>
 
-      <!-- Card 4: Humanized Solar Wind Status (Progressive Disclosure Curve) -->
+      <!-- Card 4: Humanized Solar Wind Status (Visual Magnetic Gate + Progressive Disclosure Curve) -->
       <section class="card card-sw" id="solarWindCard">
         <h2><span id="h2Energy">太陽風</span><span id="bzBadge" class="sw-badge"></span></h2>
+        <div id="swMeter" class="sw-meter" style="display:none;"></div>
         <div id="energyBanner" class="callout">正在讀取即時太陽風…</div>
         <button id="swToggleBtn" class="sw-toggle-btn" type="button" aria-expanded="false" aria-controls="swCurvePanel">
           <span id="swToggleTxt">顯示太陽風曲線</span><span class="sw-chev">▾</span>
