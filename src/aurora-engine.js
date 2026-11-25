@@ -2047,8 +2047,12 @@ export function parseNoaaGeomagneticScales(json) {
   for (const d of days) {
     if (d.scale > maxForecastScale) { maxForecastScale = d.scale; peakDate = d.date; peakText = d.text; }
   }
+  const raw0 = json['0'];
+  const updatedUtc = (raw0?.DateStamp && raw0?.TimeStamp)
+    ? `${String(raw0.DateStamp).slice(0, 10)} ${String(raw0.TimeStamp).slice(0, 8)}`
+    : null;
   return {
-    currentScale, currentText, maxForecastScale, peakDate, peakText, days,
+    currentScale, currentText, maxForecastScale, peakDate, peakText, days, updatedUtc,
     active: currentScale >= 1 || maxForecastScale >= 1
   };
 }

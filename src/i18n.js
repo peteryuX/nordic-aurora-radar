@@ -133,8 +133,13 @@ export const STATIC_TEXT_MAP = {
   tsT3: ['普通', 'Fair'],
   tsT4: ['偏低（雲層過厚、天色過亮或極光偏弱）', 'Low (cloudy, too bright or weak activity)'],
   tsSciTitle: ['官方資料來源與驗證', 'Official data & verification'],
+  linkNoaa3d: ['NOAA 3 天預報 ↗', 'NOAA 3-day forecast ↗'],
   linkSolarWind: ['NOAA 太陽風 ↗', 'NOAA Solar Wind ↗'],
-  linkGfz: ['GFZ Hp30 ↗', 'GFZ Hp30 ↗'],
+  linkGfz: ['GFZ 30m Hp30 ↗', 'GFZ 30m Hp30 ↗'],
+  tsNoaaSyncNote: [
+    '直連 NOAA 即時滾動預報（每 3 小時更新），有時比僅讀每日兩次文字報的 App 更早反映最新修正。',
+    'Uses NOAA live rolling 3-hour JSON feeds, which can reflect revisions hours before apps reading the twice-daily text bulletin.'
+  ],
   tsSealLink: ['GitHub 開源（MIT · 不追蹤）↗', 'Open source (MIT · no tracking) ↗'],
   tsValReportLink: ['完整驗證報告 ↗', 'Validation report ↗'],
   tsPwaTip: [

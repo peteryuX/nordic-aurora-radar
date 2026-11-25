@@ -1283,7 +1283,7 @@ function renderFromState(st) {
     heroTags.push(`<span class="hero-tag t-amber">${en ? '⚠ Blowing snow' : '⚠ 吹雪強風'}</span>`);
   }
   if (state.bannerState.stormMinorTag) {
-    heroTags.push(`<span class="hero-tag t-amber">⚡ ${escapeHtml(state.bannerState.stormMinorTag)}</span>`);
+    heroTags.push(`<button type="button" class="hero-tag t-amber hero-tag-btn" data-open-trust="1" aria-haspopup="dialog" aria-controls="trustSheet">⚡ ${escapeHtml(state.bannerState.stormMinorTag)} ›</button>`);
   }
   if (metarObs && metarFusion?.discrepancyFlag) {
     heroTags.push(`<span class="hero-tag t-blue">${en ? `◎ Checked with ${escapeHtml(metarObs.icao)} airport obs` : `◎ 已用 ${escapeHtml(metarObs.icao)} 機場實測校正`}</span>`);
@@ -1668,8 +1668,8 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
   const colOut = scoreCssColor(sc.color);
 
   setHtml('tsLiveTitle', en
-    ? `Why is it <strong id="tsLiveTotal" style="color:${colOut}">${sc.total}</strong> now?`
-    : `為何現在是 <strong id="tsLiveTotal" style="color:${colOut}">${sc.total}</strong> 分？（越高越好）`);
+    ? `Why is the score <strong id="tsLiveTotal" style="color:${colOut}">${sc.total}</strong> now?`
+    : `為何現在指數是 <strong id="tsLiveTotal" style="color:${colOut}">${sc.total}</strong>？（越高越好）`);
   const setCell = (id, val, col) => { const el = $(id); if (el) { el.textContent = val; el.style.color = col; } };
   const skyEffPct = Number.isFinite(exp.breakdown?.skyFactor)
     ? Math.round(exp.breakdown.skyFactor * 100)
@@ -1678,8 +1678,8 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
     ? 0
     : (Number.isFinite(exp.breakdown?.darkFactor) ? Math.round(exp.breakdown.darkFactor * 100) : sc.darkScore);
   setText('tsLblSky', skyEffPct !== sc.skyScore
-    ? (en ? 'Sky Factor' : '晴空係數')
-    : (en ? 'Clear Sky' : '晴空度'));
+    ? (en ? 'Sky factor' : '晴空係數')
+    : term(TERMS.clearSky, en));
   setCell('tsValSky', `${skyEffPct}%`, barColor(sc.skyScore));
   setCell('tsValAur', sc.auroraScore, barColor(sc.auroraScore));
   setCell('tsValDark', `${darkEffPct}%`, sc.isTooBright ? 'var(--blue)' : barColor(sc.darkScore));
@@ -1705,6 +1705,17 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
     }
   }
   setText('tsConfRow', `${exp.confidence.badgeText}${effTelemetry ? ` · ${effTelemetry}` : ''}`);
+  const stLive = state.renderState;
+  const tzLive = stLive?.pos?.tz || state.pos.tz;
+  const noaaStampRaw = stLive?.noaaAlert?.issueTime || stLive?.noaaScales?.updatedUtc || null;
+  const noaaStampHM = noaaStampRaw ? utcTagToLocalHM(noaaStampRaw, tzLive) : '';
+  setText('tsNoaaSyncNote', noaaStampHM
+    ? (en
+        ? `NOAA live rolling forecast (updated ${noaaStampHM} local) — refreshes every 3h, often reflecting revisions hours before apps using the twice-daily text bulletin.`
+        : `NOAA 官方即時滾動預報（更新 ${noaaStampHM} 當地時間）· 每 3 小時更新，有時比僅讀每日兩次文字報的主流 App 更早反映最新修正。`)
+    : (en
+        ? 'Uses NOAA live rolling 3-hour JSON feeds, which can reflect revisions hours before apps reading the twice-daily text bulletin.'
+        : '直連 NOAA 即時滾動預報（每 3 小時更新），有時比僅讀每日兩次文字報的主流 App 更早反映最新修正。'));
 }
 
 function openTrustSheet(triggerEl) {
@@ -1941,6 +1952,10 @@ function bindEvents() {
   $('ringBtn')?.addEventListener('click', (e) => openTrustSheet(e.currentTarget));
   $('trustBtn')?.addEventListener('click', (e) => openTrustSheet(e.currentTarget));
   $('fcConfBtn')?.addEventListener('click', (e) => openTrustSheet(e.currentTarget));
+  $('heroTags')?.addEventListener('click', (e) => {
+    const btn = e.target.closest?.('[data-open-trust]');
+    if (btn) openTrustSheet(btn);
+  });
   $('vActionBtn')?.addEventListener('click', (e) => switchView(e.currentTarget?.dataset?.targetView || 'dir'));
   $('trustCloseBtn')?.addEventListener('click', () => closeTrustSheet());
   $('trustSheet')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closeTrustSheet(); });
