@@ -885,26 +885,36 @@ function render3NightOutlook(nights) {
   const grid = $('outlookGrid');
   if (!grid || !Array.isArray(nights)) return;
   const en = isEn();
-  let bestIdx = -1, bestScore = -1;
+  // ★ Best is an explicit label (never a mystery fill): only the top-scoring night that reaches the unified Good tier (>=40)
+  let bestIdx = -1;
   nights.forEach((n, i) => {
-    if (n && n.tone === 'good' && (n.bestNightScore ?? 0) > bestScore) {
-      bestScore = n.bestNightScore ?? 0;
-      bestIdx = i;
-    }
+    if (!n || !n.scoreAvailable || (n.bestNightScore ?? 0) < 40) return;
+    const cur = bestIdx >= 0 ? nights[bestIdx] : null;
+    if (!cur || n.bestNightScore > cur.bestNightScore
+      || (n.bestNightScore === cur.bestNightScore && (n.clearDarkHrs || 0) > (cur.clearDarkHrs || 0))) bestIdx = i;
   });
   grid.innerHTML = nights.map((n, i) => {
-    const clearTxt = n.bestClear !== null ? (en ? `Clear ${n.bestClear}%` : `晴空 ${n.bestClear}%`) : (en ? 'No dark hrs' : '無暗空');
-    const hrsLine = (n.bestClear !== null && n.clearDarkHrs > 0)
-      ? `<br/><span class="nowrap">${en ? `${n.clearDarkHrs} hrs clear` : `共 ${n.clearDarkHrs} 小時晴`}</span>`
-      : '';
+    const bCol = n.badgeColor?.startsWith('#') ? scoreCssColor(n.badgeColor) : (n.badgeColor || 'var(--muted)');
+    const hasScore = Boolean(n.scoreAvailable);
+    const scoreHtml = hasScore
+      ? `<span class="od-tilde">~</span>${Math.round(n.bestNightScore || 0)}${en ? '' : '<span class="od-unit">分</span>'}`
+      : '--';
+    const clearTxt = n.bestClear !== null
+      ? `${en ? 'Clear' : '晴'} ${n.bestClear}%${n.clearDarkHrs > 0 ? ` · ${n.clearDarkHrs}h` : ''}`
+      : (en ? 'No dark hrs' : '無暗空');
     const kpTxt = n.kpAvailable === false
       ? (en ? 'Kp --' : 'Kp 待更新')
       : `Kp ${Number(n.maxKp || 0).toFixed(1)}${n.gScale >= 1 ? ` · G${n.gScale}` : ''}`;
-    const bCol = n.badgeColor?.startsWith('#') ? scoreCssColor(n.badgeColor) : (n.badgeColor || 'var(--muted)');
-    return `<div class="outlook-day ${i === bestIdx ? 'od-best' : ''}">
+    const isBest = i === bestIdx;
+    const aria = hasScore
+      ? (en ? `${n.label}: estimated peak ${Math.round(n.bestNightScore || 0)}, ${n.badge}` : `${n.label}：預估最高 ${Math.round(n.bestNightScore || 0)} 分，${n.badge}`)
+      : `${n.label}: ${n.badge}`;
+    return `<div class="outlook-day${isBest ? ' od-best' : ''}" aria-label="${escapeHtml(aria)}${isBest ? (en ? ' (best night)' : '（最佳）') : ''}">
       <div class="od-date">${escapeHtml(n.label)}</div>
-      <div class="od-badge" style="color:${bCol};"><span class="leg-dot" style="background:${bCol};margin-right:2px;"></span>${escapeHtml(n.badge)}</div>
-      <div class="od-stat"><span class="nowrap">${escapeHtml(clearTxt)}</span>${hrsLine}<br/>${escapeHtml(kpTxt)}</div>
+      <div class="od-flag">${isBest ? `<span class="od-flag-pill">★ ${en ? 'Best' : '最佳'}</span>` : ''}</div>
+      <div class="od-score${hasScore ? '' : ' od-na'}" style="${hasScore ? `color:${bCol};` : ''}">${scoreHtml}</div>
+      <div class="od-badge" style="color:${bCol};">${escapeHtml(n.badge)}</div>
+      <div class="od-stat"><span class="nowrap">${escapeHtml(clearTxt)}</span><br/><span class="nowrap">${escapeHtml(kpTxt)}</span></div>
     </div>`;
   }).join('');
 }
@@ -1224,7 +1234,8 @@ function renderFromState(st) {
     ? summarize3NightOutlook({
         cloudPoints: multiDayPts, kpForecast: kpForecast || [], currentKp: kp,
         lat: pos.lat, lon: pos.lon, timeZone: pos.tz, nowDate: refNow,
-        enlilForecast: enlilForecast || null
+        enlilForecast: enlilForecast || null,
+        chartHours: Array.isArray(st.scoredHours) && st.scoredHours.length ? st.scoredHours : state.scoredHours
       })
     : nights3;
 

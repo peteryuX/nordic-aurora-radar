@@ -31,7 +31,7 @@
 
 ## Verification & Quality Benchmarks
 
-- Automated test suite (`node --test tests/aurora.test.mjs`): 48 tests (47 deterministic unit tests + 1 optional live API test).
+- Automated test suite (`node --test tests/aurora.test.mjs`): 49 tests (48 deterministic unit tests + 1 optional live API test).
 - Curated scenario regression & ephemeris sanity check (`node tests/benchmark.mjs`): 72 curated/synthetic scenario guardrails (not real-world accuracy) + 22 NASA JPL DE441 astronomy checkpoints.
 - Live public-data validation (`node tests/realworld-validation.mjs`): continuous 2024–2025 NASA OMNI2 (`N=17,255h`, ROC-AUC + PR-AUC, zero Dst leakage), 3-month GFZ Hp30 check, live NOAA telemetry, and 9-airport same-hour METAR audit.
 - Full validation report & known limitations: https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md

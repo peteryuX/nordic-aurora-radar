@@ -490,7 +490,7 @@ export function computeLiveSnapshot({ pos, now, noaa, wx, moon }) {
   const nights3 = summarize3NightOutlook({
     cloudPoints: multiDayPts, kpForecast, currentKp: kp,
     lat: pos.lat, lon: pos.lon, timeZone: pos.tz, nowDate: now,
-    enlilForecast
+    enlilForecast, chartHours: scored12.hours
   });
 
   return {

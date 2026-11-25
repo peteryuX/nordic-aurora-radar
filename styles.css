@@ -367,6 +367,7 @@ body.is-loading .skel-txt,
 body.is-loading .skel-val,
 body.is-loading .skel-sub,
 body.is-loading .skel-bar,
+body.is-loading .skel-day .od-score,
 body.is-loading .skel-day .od-badge,
 body.is-loading .skel-day .od-stat {
   color: transparent !important;
@@ -494,13 +495,30 @@ body.is-loading .skel-day .od-stat {
   background: var(--surface-2); border-radius: 14px; padding: 11px 2px;
 }
 .outlook-day {
-  padding: 2px 7px; text-align: center; border-right: 1px solid var(--border);
+  padding: 4px 6px; text-align: center; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center; min-width: 0;
 }
 .outlook-day:last-child { border-right: none; }
-.od-date { font-size: 0.77rem; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
-.od-badge { font-size: 0.9rem; font-weight: 800; margin-bottom: 4px; display: inline-flex; align-items: center; gap: 4px; }
-.od-stat { font-size: 0.76rem; color: var(--muted); line-height: 1.48; font-variant-numeric: tabular-nums; }
-.od-best { border-radius: 10px; background: var(--green-bg); }
+.od-date { font-size: 0.77rem; font-weight: 700; color: var(--muted); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.od-flag { height: 19px; margin: 3px 0 1px; display: flex; align-items: center; justify-content: center; }
+.od-flag-pill {
+  font-size: 0.68rem; font-weight: 800; line-height: 1; padding: 3px 7px; border-radius: 99px;
+  color: var(--green); background: var(--green-bg); border: 1px solid var(--green-border); white-space: nowrap;
+}
+.od-score {
+  font-size: 1.5rem; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.od-score.od-na { color: var(--muted); opacity: 0.6; }
+.od-tilde { font-size: 0.9rem; font-weight: 700; opacity: 0.7; margin-right: 1px; vertical-align: 0.18em; }
+.od-unit { font-size: 0.72rem; font-weight: 700; opacity: 0.75; margin-left: 2px; }
+.od-badge { font-size: 0.82rem; font-weight: 800; margin: 2px 0 4px; white-space: nowrap; }
+.od-stat { font-size: 0.74rem; color: var(--muted); line-height: 1.5; font-variant-numeric: tabular-nums; }
+.outlook-day.od-best {
+  border-radius: 11px; border-right-color: transparent;
+  background: rgba(255, 255, 255, 0.025); box-shadow: inset 0 0 0 1px var(--green-border);
+}
+.outlook-day:has(+ .od-best) { border-right-color: transparent; }
 
 /* ====== Collapsible Humanized Solar Wind Curve ====== */
 .sw-toggle-btn {

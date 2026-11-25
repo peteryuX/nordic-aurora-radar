@@ -2848,7 +2848,7 @@ export function findBestDarkWindow(hrs) {
 export function summarize3NightOutlook({
   cloudPoints = [], kpForecast = [], currentKp = null,
   lat = 69.97, lon = 23.27, timeZone = 'UTC', nowDate = new Date(), lang,
-  enlilForecast = null
+  enlilForecast = null, chartHours = null
 } = {}) {
   const en = isEn(lang);
   const safeNow = (nowDate instanceof Date && Number.isFinite(nowDate.getTime())) ? nowDate : new Date();
@@ -2920,6 +2920,7 @@ export function summarize3NightOutlook({
     else if (enlilMaxDensity >= 15) enlilTag = en ? `Shock ${Math.round(enlilMaxDensity)}p/cc` : `高密度 ${Math.round(enlilMaxDensity)}p/cc`;
 
     let bestNightScore = 0;
+    let scoreAvailable = false;
     let tone = '', badge = '', badgeColor = 'var(--muted)';
     if (absMag < 32) {
       badge = en ? 'Low Lat' : '緯度過低'; badgeColor = '#ff8a96';
@@ -2934,36 +2935,50 @@ export function summarize3NightOutlook({
     } else if (bestClear === null) {
       badge = gScale >= 1 ? `G${gScale}` : (en ? 'Pending' : '待更新'); badgeColor = gScale >= 1 ? '#ffcf5c' : '#8ea6c4';
     } else {
-      // Co-located hour-by-hour scoring (cloud + matched forecast Kp + lunar illuminance at the SAME hour!)
-      let bestColocatedClear = bestClear;
+      // Unified scoring: every dark hour runs through the SAME computeAuroraScore used by the 24h hourly chart
+      // (cloud + matched forecast Kp + MLT + lunar illuminance at the SAME hour), so Tonight's peak matches the chart.
+      // Live solar-wind terms (Bz/speed/OVATION) are neutral at +24-72h, which keeps multi-day estimates honest.
+      // Hours already scored by the hourly chart (which blends live L1 wind for the next 1-3h) reuse the chart's own
+      // scores, so the ~score on this night is EXACTLY the chart's peak for the overlapping window.
+      const chartDark = Array.isArray(chartHours)
+        ? chartHours.filter(h => h && !h.isDay && Number.isFinite(h.score) && Number.isFinite(h.dtMs) && nightKeyOf(h.dtMs) === key)
+        : [];
+      const chartEndMs = chartDark.length && Array.isArray(chartHours)
+        ? Math.max(...chartHours.filter(h => h && Number.isFinite(h.dtMs)).map(h => h.dtMs)) + 1800000
+        : -Infinity;
+      for (const h of chartDark) if (h.score > bestNightScore) bestNightScore = h.score;
       for (const p of darkPts) {
+        if (p.dtMs <= chartEndMs) continue;
         const dt = new Date(p.dtMs);
         const hKp = lookupForecastKp(kpOnNight.length ? kpOnNight : kpForecast, dt, effMaxKp);
         const moonH = getMoonState(dt, lat, lon);
-        const moonDark = Math.max(0.58, 1 - moonH.effMoonPct * 0.0038);
-        const darkF = 0.55 + 0.45 * moonDark;
-        const aurPot = neededKpMidnight > 1.5
-          ? Math.max(0, Math.min(100, (hKp - neededKpMidnight + 1.8) * 17))
-          : Math.max(15, Math.min(100, hKp * 16 + 10));
-        const hScore = Math.round(Math.pow(Math.max(0, p.clear) / 100, 0.85) * aurPot * darkF);
-        if (hScore > bestNightScore) {
-          bestNightScore = hScore;
-          bestColocatedClear = p.clear;
-        }
+        const sunAltH = Number.isFinite(p.sunAlt) ? p.sunAlt : computeSolarElevation(dt, lat, lon);
+        const cloudH = Number.isFinite(p.block) ? p.block : Math.max(0, Math.min(100, 100 - p.clear));
+        const scH = computeAuroraScore({
+          lat, lon, cloudNow: cloudH, sunAlt: sunAltH,
+          bz: 0, speed: 400, kp: hKp, ovation: null,
+          mlt: computeMLT(dt, lat, lon), effMoonPct: moonH.effMoonPct
+        });
+        const hScore = Number.isFinite(scH?.total) ? scH.total : 0;
+        if (hScore > bestNightScore) bestNightScore = hScore;
       }
-      if ((bestNightScore >= 42 && bestClear >= 45) || (gScale >= 1 && bestColocatedClear >= 50)) {
-        tone = 'good'; badge = en ? 'Promising' : '條件佳'; badgeColor = '#34f0b0';
+      // Map strictly onto the app-wide 0-99 tiers (65 Prime / 40 Good / 18 Watch) — no separate looser thresholds
+      if (bestNightScore >= 65) {
+        tone = 'good'; badge = en ? 'Prime' : '極佳'; badgeColor = '#34f0b0';
+      } else if (bestNightScore >= 40) {
+        tone = 'good'; badge = en ? 'Good' : '適合觀測'; badgeColor = '#34f0b0';
       } else if (bestClear < 30 && gScale < 2) {
         badge = en ? 'Cloudy' : '雲偏厚'; badgeColor = '#ff8a96';
-      } else if (bestNightScore >= 18 || bestClear >= 60) {
-        tone = 'warn'; badge = en ? 'Watch' : '可留意'; badgeColor = '#ffcf5c';
+      } else if (bestNightScore >= 18) {
+        tone = 'warn'; badge = en ? 'Watch' : '有機會'; badgeColor = '#ffcf5c';
       } else if (bestClear < 35) {
         badge = en ? 'Cloudy' : '雲偏厚'; badgeColor = '#ff8a96';
       } else {
-        badge = en ? 'Quiet' : '偏弱'; badgeColor = '#66bdff';
+        badge = en ? 'Weak' : '偏弱'; badgeColor = '#66bdff';
       }
+      scoreAvailable = true;
     }
-    return { key, label, bestClear, clearDarkHrs, bestNightScore, maxKp: maxKp ?? 0, kpAvailable: maxKp !== null, gScale, darkCount: darkPts.length, tone, badge, badgeColor, enlilTag, enlilMaxSpeed };
+    return { key, label, bestClear, clearDarkHrs, bestNightScore, scoreAvailable, maxKp: maxKp ?? 0, kpAvailable: maxKp !== null, gScale, darkCount: darkPts.length, tone, badge, badgeColor, enlilTag, enlilMaxSpeed };
   });
 }
 

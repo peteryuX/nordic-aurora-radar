@@ -6,7 +6,7 @@ Every physics upgrade shipped in [`src/aurora-engine.js`](src/aurora-engine.js) 
 
 > **Transparency & Reproducibility Scope**
 > - **Directly reproducible in this repository** (zero external dependencies):
->   - `node --test tests/aurora.test.mjs` — `48` automated tests (`47` unit + `1` optional live API test).
+>   - `node --test tests/aurora.test.mjs` — `49` automated tests (`48` unit + `1` optional live API test).
 >   - `node tests/benchmark.mjs` — `72` curated/synthetic scenario regression guardrails (**not** real-world statistical accuracy) + `22` NASA JPL Horizons DE441 ephemeris checkpoints.
 >   - `node tests/realworld-validation.mjs` — live public-data audit against 2-year NASA OMNI2 (`2024–2025`, `N = 17,255` continuous hours, zero Dst input leakage, reporting both ROC-AUC and PR-AUC), a 3-month storm-enriched GFZ `Hp30` smoke check (`May/Oct 2024 + Feb 2025`), live NOAA telemetry, and a 9-airport same-hour METAR check.
 > - **Offline multi-year public-archive studies (Sections 2–3)**: Conducted offline against large public scientific archives (AACGMv2, Aurorasaurus, FMI/MIRACLE Zenodo `10.5281/zenodo.19365681`, 6-yr GFZ `Hp30`, 11-yr NASA OMNI2, 2-winter IEM/METAR + Open-Meteo archive). Those multi-gigabyte archive pulls are not bundled in this static client-side repo; every figure below includes sample sizes, base rates, naive baselines, and negative results so claims cannot be cherry-picked.
@@ -144,7 +144,7 @@ Directly reproducible via `node tests/benchmark.mjs`:
 Run all repo-bundled checks with Node.js 20+ (zero npm dependencies):
 
 ```bash
-node --test tests/aurora.test.mjs    # 47 unit tests (+ 1 optional live test)
+node --test tests/aurora.test.mjs    # 48 unit tests (+ 1 optional live test)
 node tests/benchmark.mjs             # 72 curated regression guardrails + 22 JPL DE441 checkpoints
 node tests/realworld-validation.mjs  # 2-yr OMNI2 (ROC+PR-AUC), 3-mo GFZ Hp30, live NOAA & 9-airport METAR
 ```

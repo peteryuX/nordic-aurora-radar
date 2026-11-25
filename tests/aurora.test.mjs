@@ -1894,7 +1894,9 @@ test('46. Gate 1 1P UX regressions: honest Cloudy <30% 3-Night verdict & consume
   assert.equal(zhNights[0].badge, '雲偏厚', `20% clear / Kp 2.7 must classify as 雲偏厚, got ${zhNights[0].badge}`);
   assert.equal(zhNights[0].tone, '', `20% clear / Kp 2.7 must not get warm/good tone, got ${zhNights[0].tone}`);
   assert.equal(enNights[0].badge, 'Cloudy', `20% clear / Kp 2.7 must classify as Cloudy, got ${enNights[0].badge}`);
-  assert.equal(zhNights[1].tone, 'good', 'Clear 82%+ night must stay good');
+  // Clear 82%+ night is never Cloudy; its tone follows the unified 0-99 tiers (full moon + Kp 3.3 peaks just under 40 → Watch)
+  assert.notEqual(zhNights[1].tone, '', 'Clear 82%+ night must never be classified Cloudy/Weak');
+  assert.equal(zhNights[1].tone, zhNights[1].bestNightScore >= 40 ? 'good' : 'warn', 'Clear night tone must follow unified 40-point Good threshold');
 
   // 2. Consumer UI (src/app.js) must NOT render od-enlil (CME ~489km/s) jargon onto 3-Night Outlook cards
   const appSrc = fs.readFileSync(path.join(ROOT, 'src/app.js'), 'utf8');
@@ -2028,3 +2030,71 @@ test('48. Morning-hour 3-Night rollover & VLM QA regressions (Lofoten 09:03 wint
 
 
 
+test('49. 3-Night Outlook unified 0-99 scoring parity, honest ~score tiers & explicit ★ Best label', () => {
+  // 1. Reproduces user iPhone screenshot (Lofoten 10:15 AM, full moon): Tonight peaked at ~32 on the 24h chart
+  //    but the old ad-hoc formula labeled all three nights green 條件佳. Now every night uses computeAuroraScore.
+  const mk = (day, hours, clears) => hours.map((h, i) => ({ dtMs: Date.parse(`2026-11-${day}T${String(h).padStart(2, '0')}:30:00Z`), clear: clears[i], isDay: false }));
+  const pts = [
+    ...mk(25, [16, 17, 18, 19, 20, 21, 22], [68, 64, 66, 60, 55, 50, 48]),
+    ...mk(26, [16, 17, 18, 19, 20, 21, 22, 23], [73, 73, 73, 73, 73, 73, 73, 73]),
+    ...mk(27, [18, 19, 20], [48, 48, 48])
+  ];
+  const kpF = [
+    { ts: Date.parse('2026-11-25T18:00:00Z'), kp: 3.7 },
+    { ts: Date.parse('2026-11-26T18:00:00Z'), kp: 5.0 },
+    { ts: Date.parse('2026-11-27T18:00:00Z'), kp: 3.7 }
+  ];
+  const args = { cloudPoints: pts, kpForecast: kpF, currentKp: 2.7, lat: 68.23, lon: 14.56, timeZone: 'Europe/Oslo', nowDate: new Date('2026-11-25T09:15:00Z') };
+  const zh = api.summarize3NightOutlook({ ...args, lang: 'zh' });
+  const en = api.summarize3NightOutlook({ ...args, lang: 'en' });
+
+  // Parity: Tonight's peak equals the max of the SAME computeAuroraScore over its dark hours
+  const tonightPts = pts.filter(p => p.dtMs < Date.parse('2026-11-26T06:00:00Z'));
+  const directPeak = Math.max(...tonightPts.map(p => {
+    const dt = new Date(p.dtMs);
+    return api.computeAuroraScore({
+      lat: 68.23, lon: 14.56, cloudNow: 100 - p.clear, sunAlt: api.computeSolarElevation(dt, 68.23, 14.56),
+      bz: 0, speed: 400, kp: 3.7, ovation: null, mlt: api.computeMLT(dt, 68.23, 14.56),
+      effMoonPct: api.getMoonState(dt, 68.23, 14.56).effMoonPct
+    }).total;
+  }));
+  assert.equal(zh[0].bestNightScore, directPeak, `Tonight peak must equal computeAuroraScore peak ${directPeak}, got ${zh[0].bestNightScore}`);
+  assert.ok(zh[0].bestNightScore < 40, `Full-moon 66% / Kp 3.7 night must stay below Good tier, got ${zh[0].bestNightScore}`);
+  assert.equal(zh[0].tone, 'warn');
+  assert.equal(zh[0].badge, '有機會');
+  assert.ok(zh[1].bestNightScore > zh[0].bestNightScore && zh[1].bestNightScore >= 40, `73% / Kp 5.0 G1 night must clearly outscore tonight, got ${zh[1].bestNightScore}`);
+  assert.equal(zh[1].tone, 'good');
+  assert.ok(['適合觀測', '極佳'].includes(zh[1].badge), `Good night badge must be a unified tier, got ${zh[1].badge}`);
+  assert.ok(zh[2].bestNightScore < zh[1].bestNightScore && zh[2].tone !== 'good', '48% / Kp 3.7 night must not be labeled Good');
+  assert.ok(zh.every(n => n.scoreAvailable === true), 'All three scored nights expose scoreAvailable');
+  assert.ok(!zh.some(n => n.badge === '條件佳' || n.badge === '可留意'), 'Legacy vague badges must be gone');
+  assert.ok(!en.some(n => /[\u3400-\u9fff]/.test(`${n.label}${n.badge}`)), 'EN outlook must contain zero CJK');
+
+  // 1b. When the hourly chart (with live L1 solar wind blended into +1..3h) covers tonight, its peak IS tonight's ~score
+  const chartHours = tonightPts.map((p, i) => ({ dtMs: p.dtMs, isDay: false, score: i === 1 ? 93 : 20 }));
+  const withChart = api.summarize3NightOutlook({ ...args, lang: 'zh', chartHours });
+  assert.equal(withChart[0].bestNightScore, 93, `Tonight ~score must equal hourly chart peak 93, got ${withChart[0].bestNightScore}`);
+  assert.equal(withChart[0].badge, '極佳');
+  assert.equal(withChart[1].bestNightScore, zh[1].bestNightScore, 'Nights beyond chart coverage keep their own unified score');
+
+  // 2. scoreAvailable is false for Pending / Too Bright / Low Lat so the UI shows a status instead of a fake ~score
+  const pending = api.summarize3NightOutlook({ cloudPoints: [], kpForecast: [], currentKp: null, lat: 68.23, lon: 14.56, timeZone: 'Europe/Oslo', nowDate: new Date('2026-11-25T09:15:00Z'), lang: 'en' });
+  assert.ok(pending.every(n => n.scoreAvailable === false && n.badge === 'Pending'));
+  const polarDay = api.summarize3NightOutlook({
+    cloudPoints: [{ dtMs: Date.parse('2026-06-21T22:00:00Z'), clear: 90, isDay: true }],
+    kpForecast: [{ ts: Date.parse('2026-06-21T21:00:00Z'), kp: 5 }], currentKp: 5,
+    lat: 69.65, lon: 18.96, timeZone: 'Europe/Oslo', nowDate: new Date('2026-06-21T12:00:00Z'), lang: 'en'
+  });
+  assert.equal(polarDay[0].badge, 'Too Bright');
+  assert.equal(polarDay[0].scoreAvailable, false);
+  const taipei = api.summarize3NightOutlook({ cloudPoints: pts, kpForecast: kpF, currentKp: 3, lat: 25.03, lon: 121.56, timeZone: 'Asia/Taipei', nowDate: new Date('2026-11-25T09:15:00Z'), lang: 'en' });
+  assert.ok(taipei.every(n => n.scoreAvailable === false && n.badge === 'Low Lat'));
+
+  // 3. Consumer UI: explicit ★ Best pill gated at the unified 40-point Good tier, honest "~" estimate prefix
+  const appSrc = fs.readFileSync(path.join(ROOT, 'src/app.js'), 'utf8');
+  assert.ok(appSrc.includes('od-flag-pill'), '3-Night best night must carry an explicit ★ Best pill');
+  assert.ok(appSrc.includes("(n.bestNightScore ?? 0) < 40"), '★ Best must only appear when the top night reaches the Good tier');
+  assert.ok(appSrc.includes('od-tilde'), 'Multi-day scores must be shown as ~estimates');
+  const css = fs.readFileSync(path.join(ROOT, 'styles.css'), 'utf8');
+  assert.ok(!/\.od-best\s*\{[^}]*var\(--green-bg\)/.test(css), 'Best night must not use the unexplained green background fill');
+});
