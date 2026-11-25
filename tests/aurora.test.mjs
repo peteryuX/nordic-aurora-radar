@@ -1787,8 +1787,9 @@ test('44. Overcast CME shock verdict never contradicts score with fake rising co
     isDay: i >= 3 && i <= 8
   }));
   const svgLeft = api.buildSkyWaveSVG(hrsLeftBest, hrsLeftBest[0], 0, 'zh');
+  const svgLeftUnsel = api.buildSkyWaveSVG(hrsLeftBest, hrsLeftBest[0], 1, 'zh');
   assert.ok(svgLeft.includes('>06:00 最佳<'), 'Best callout must include exact best hour 06:00');
-  assert.ok(svgLeft.includes('x1="56.0" y1="18"'), 'Best vertical pointer stem must anchor directly to 06:00 (x=56)');
+  assert.ok(svgLeftUnsel.includes('data-role="best-dot" cx="56.0"'), 'Best indicator dot must anchor directly to 06:00 (x=56)');
   assert.ok(svgLeft.includes('x="92.0" y="13.5"'), 'Best callout must stay clamped near left edge above 06:00, not shifted to x=224');
   assert.ok(svgLeft.includes('天色過亮'), 'Contiguous daylight band must be clearly labeled');
 });
@@ -1965,7 +1966,8 @@ test('47. 24-hour forecast physics & UX guardrails (24h parsing, 6h-step guard, 
   const svg24Zh = api.buildSkyWaveSVG(scoredSplit.hours, scoredSplit.bestAurora, 2, 'zh');
   const svg24En = api.buildSkyWaveSVG(scoredSplit.hours, scoredSplit.bestAurora, 2, 'en');
   assert.ok(!svg24Zh.includes('NaN') && !svg24En.includes('NaN'), '24h SVG must contain zero NaN');
-  assert.ok(svg24Zh.includes('stroke-dasharray="3 3"'), '24h SVG must draw midnight boundary hairline');
+  assert.ok(svg24Zh.includes('data-role="midnight-line"'), '24h SVG must draw calm midnight boundary hairline');
+  assert.ok(!svg24Zh.includes('stroke-dasharray'), '24h SVG must stay calm with zero dashed-line clutter');
   assert.ok(!/[\u3400-\u9fff]/.test(svg24En), 'EN 24h SVG must contain zero CJK characters');
 });
 
@@ -2708,7 +2710,8 @@ test('53. v43 Dual-Model +4..23h Ensemble, Honest RSS Uncertainty Range & Live/T
     ...h, time: `${String((20 + i) % 24).padStart(2, '0')}:00`
   }));
   const svgMid4 = api.buildSkyWaveSVG(midAt4, midAt4[10], 10, 'zh');
-  assert.ok(svgMid4.includes('data-role="horizon-split"') && svgMid4.includes('stroke-dasharray="3 3"'), 'Both Live/Trend split and midnight hairline render cleanly with 7.7px separation');
+  assert.ok(svgMid4.includes('data-role="horizon-split"') && svgMid4.includes('data-role="midnight-line"'), 'Both Live/Trend rail divider and calm midnight hairline render cleanly without collision');
+  assert.ok(!svgMid4.includes('stroke-dasharray'), '24h chart must not accumulate noisy dashed lines');
   assert.ok(svgMid4.includes('>明天<'), 'Midnight label 明天 still renders cleanly');
 });
 

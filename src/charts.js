@@ -217,7 +217,7 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang, selectedI
       if (tx < padL + 14 || tx > W - padR - 14) continue;
       const z = getZoneParts(new Date(t), timeZone);
       xTicksSvg += `
-        <line x1="${tx.toFixed(1)}" y1="${padT}" x2="${tx.toFixed(1)}" y2="${baseY}" stroke="var(--chart-grid)" stroke-dasharray="2 4"/>
+        <line x1="${tx.toFixed(1)}" y1="${baseY}" x2="${tx.toFixed(1)}" y2="${(padT + plotH + 3.5).toFixed(1)}" stroke="var(--chart-axis)" stroke-width="1"/>
         <text x="${tx.toFixed(1)}" y="${H - 6}" text-anchor="middle" fill="var(--muted)" font-size="12" font-weight="500">${escSvg(z.hourStr)}:${escSvg(z.minStr)}</text>`;
     }
   }
@@ -238,7 +238,7 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang, selectedI
     const futureW = Math.max(0, W - padR - ax);
     futureBandSvg = `<rect x="${ax.toFixed(1)}" y="${padT}" width="${futureW.toFixed(1)}" height="${plotH}" fill="var(--text)" fill-opacity="0.035"/>`;
     arriveSvg = `
-      <line x1="${ax.toFixed(1)}" y1="${padT}" x2="${ax.toFixed(1)}" y2="${baseY}" stroke="var(--text)" stroke-dasharray="3 3" stroke-width="1.15" opacity="0.62"/>
+      <line x1="${ax.toFixed(1)}" y1="${padT}" x2="${ax.toFixed(1)}" y2="${baseY}" stroke="var(--text)" stroke-width="1" opacity="0.34"/>
       <circle cx="${ax.toFixed(1)}" cy="${yOf(energies[balOpt.arrivingIdx]).toFixed(1)}" r="3.2" fill="var(--text)" stroke="var(--bg)" stroke-width="1.4"/>
       <text x="${lxClamped.toFixed(1)}" y="14" text-anchor="middle" fill="var(--text-soft)" font-size="11.5" font-weight="600">${en ? `Now ${tNowEarth}` : `現在 ${tNowEarth}`}</text>`;
   }
@@ -267,8 +267,8 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang, selectedI
     <text x="${padL}" y="14" data-role="y-title" fill="var(--muted)" font-size="11.5" font-weight="600">${term(TERMS.solarWind.axisTitle, en)}</text>
     ${futureBandSvg}
     ${xTicksSvg}
-    <line x1="${padL}" y1="${yBurst.toFixed(1)}" x2="${W - padR}" y2="${yBurst.toFixed(1)}" stroke="var(--chart-grid)" stroke-dasharray="3 4" stroke-width="1"/>
-    <line x1="${padL}" y1="${yWarm.toFixed(1)}" x2="${W - padR}" y2="${yWarm.toFixed(1)}" stroke="var(--chart-grid)" stroke-dasharray="3 4" stroke-width="1"/>
+    <line x1="${padL}" y1="${yBurst.toFixed(1)}" x2="${W - padR}" y2="${yBurst.toFixed(1)}" stroke="var(--chart-grid)" stroke-width="1"/>
+    <line x1="${padL}" y1="${yWarm.toFixed(1)}" x2="${W - padR}" y2="${yWarm.toFixed(1)}" stroke="var(--chart-grid)" stroke-width="1"/>
     <line x1="${padL}" y1="${baseY}" x2="${W - padR}" y2="${baseY}" stroke="var(--chart-axis)"/>
     <text x="${padL - 8}" y="${(yBurst + 4).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="11.5" font-weight="500">${term(TERMS.solarWind.active, en)}</text>
     <text x="${padL - 8}" y="${(yWarm + 4).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="11.5" font-weight="500">${term(TERMS.solarWind.building, en)}</text>
@@ -301,14 +301,15 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
   const nightHrs = hrs.filter(h => h && !h.isDay);
   const allOutOfZone = nightHrs.length > 0 && nightHrs.every(h => Boolean(h.outOfZone));
 
-  // Live (+0..3h nowcast) vs Trend (+4..23h dual-model ensemble) visual horizon split
+  // Live (+0..3h nowcast) vs Trend (+4..23h 51-member ensemble) visual horizon split:
+  // soft surface tint marks the +0..3h Live window; a short clean tick separates 即時 | 趨勢 on the bottom rail (no tall dashed fence)
   const hasSplit = hrs.length >= 6;
   const splitX = hasSplit ? (xOf(3) + xOf(4)) / 2 : -1;
   const liveBgSvg = hasSplit
-    ? `<rect x="${padL}" y="${padT}" width="${(splitX - padL).toFixed(1)}" height="${plotH}" fill="var(--surface-2)" fill-opacity="0.45"/>`
+    ? `<rect x="${padL}" y="${padT}" width="${(splitX - padL).toFixed(1)}" height="${plotH}" fill="var(--surface-2)" fill-opacity="0.50"/>`
     : '';
   const splitSvg = hasSplit
-    ? `<line data-role="horizon-split" x1="${splitX.toFixed(1)}" y1="${padT}" x2="${splitX.toFixed(1)}" y2="133.5" stroke="var(--chart-mid)" stroke-width="1" stroke-dasharray="2 3" opacity="0.72"/>` +
+    ? `<line data-role="horizon-split" x1="${splitX.toFixed(1)}" y1="123.5" x2="${splitX.toFixed(1)}" y2="133.5" stroke="var(--chart-mid)" stroke-width="1" opacity="0.55"/>` +
       `<text data-role="zone-live" x="${(splitX - 5).toFixed(1)}" y="132" text-anchor="end" fill="var(--text-soft)" font-size="10.5" font-weight="600">${term(TERMS.nowcastShort, en)}</text>` +
       `<text data-role="zone-trend" x="${(splitX + 5).toFixed(1)}" y="132" text-anchor="start" fill="var(--muted)" font-size="10.5" font-weight="500">${term(TERMS.trendShort, en)}</text>`
     : '';
@@ -339,10 +340,6 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     }
   }
 
-  const vGrid = hrs.map((_, i) => i % tickStep === 0
-    ? `<line x1="${xOf(i).toFixed(1)}" y1="${padT}" x2="${xOf(i).toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="var(--chart-grid)" stroke-dasharray="2 4"/>`
-    : '').join('');
-
   const bestIdx = (!allOutOfZone && bestDark && ((bestDark.clear ?? 0) >= 25 || (bestDark.score ?? 0) >= 18))
     ? hrs.findIndex(h => h && !h.isDay && ((Number.isFinite(bestDark.dtMs) && Number.isFinite(h.dtMs)) ? h.dtMs === bestDark.dtMs : h.time === bestDark.time))
     : -1;
@@ -353,24 +350,21 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     ? `<text x="${W - padR}" y="13.5" data-role="y-title" text-anchor="end" fill="var(--muted)" font-size="11" font-weight="500">${titleTxt}</text>`
     : `<text x="${padL}" y="13.5" data-role="y-title" fill="var(--muted)" font-size="11" font-weight="500">${titleTxt}</text>`;
 
-  // Midnight boundary hairline (00:xx when 0 < i < len - 1); omit duplicate vertical line only if directly coincident (<4px) with split
+  // Single calm solid vertical hairline for the midnight (00:00) day boundary
   let midnightSvg = '';
   const midIdx = hrs.findIndex((h, i) => i > 0 && i < hrs.length - 1 && typeof h?.time === 'string' && h.time.startsWith('00:'));
   if (midIdx > 0) {
     const mx = xOf(midIdx);
     const tooCloseToBest = bestX >= 0 && Math.abs(mx - bestX) < 52;
     const tooCloseToDay = Math.abs(mx - dayLabelX) < 42;
-    const tooCloseToSplit = hasSplit && Math.abs(mx - splitX) < 4;
-    const midLine = tooCloseToSplit
-      ? ''
-      : `<line x1="${mx.toFixed(1)}" y1="${padT}" x2="${mx.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="var(--chart-axis)" stroke-dasharray="3 3" stroke-width="1"/>`;
+    const midLine = `<line data-role="midnight-line" x1="${mx.toFixed(1)}" y1="${padT}" x2="${mx.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="var(--chart-axis)" stroke-width="1" opacity="0.72"/>`;
     const midLbl = (!tooCloseToBest && !tooCloseToDay)
       ? `<text x="${Math.min(W - padR - 18, mx + 4).toFixed(1)}" y="${padT + 13}" text-anchor="start" fill="var(--muted)" font-size="10.5" font-weight="500">${term(TERMS.tomorrow, en)}</text>`
       : '';
     midnightSvg = `${midLine}${midLbl}`;
   }
 
-  // Tier guide lines at 65 (Excellent), 40 (Good)
+  // Tier guide lines at 65 (Excellent), 40 (Good) — calm solid hairlines, zero dashed clutter
   const y65 = yOf(65), y40 = yOf(40), baseY = padT + plotH;
   const barW = is24 ? 7.6 : Math.max(9, Math.min(16, stepW * 0.44));
   const barRx = 2.2;
@@ -392,16 +386,23 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
         const bh = Math.max(3.5, baseY - y);
         const fill = tierFill(scVal);
         const op = isTrend
-          ? (isSel ? '0.92' : (isBest ? '0.70' : '0.50'))
+          ? (isSel ? '0.92' : (isBest ? '0.74' : '0.52'))
           : (isSel ? '1' : (isBest ? '0.94' : '0.86'));
-        const showWhisker = isTrend && !h.outOfZone && scVal >= 12
+        // Soft same-width translucent range capsule behind the bar (zero spiky vertical pins)
+        const showRange = isTrend && !h.outOfZone && scVal >= 12
           && Number.isFinite(h.scoreLow) && Number.isFinite(h.scoreHigh)
           && (h.scoreHigh - h.scoreLow) >= 18;
-        const whiskerSvg = showWhisker
-          ? `<line data-role="score-range" x1="${xOf(i).toFixed(1)}" y1="${Math.max(padT + 1.5, yOf(h.scoreHigh)).toFixed(1)}" x2="${xOf(i).toFixed(1)}" y2="${Math.min(baseY - 1.5, yOf(h.scoreLow)).toFixed(1)}" stroke="${fill}" stroke-width="1.5" stroke-linecap="round" stroke-opacity="${isSel ? '0.78' : '0.38'}"/>`
-          : '';
-        const capDot = isSel ? `<circle cx="${xOf(i).toFixed(1)}" cy="${Math.max(padT + 2.5, y).toFixed(1)}" r="3.2" fill="var(--text)" stroke="var(--bg)" stroke-width="1.4"/>` : '';
-        return `<rect class="sc-bar" data-bar-idx="${i}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="${barRx}" fill="${fill}" fill-opacity="${op}"/>${whiskerSvg}${capDot}`;
+        let rangeSvg = '';
+        if (showRange) {
+          const yHi = Math.max(padT + 1.5, yOf(h.scoreHigh));
+          const yLo = Math.min(baseY, yOf(h.scoreLow));
+          const rh = Math.max(3.5, yLo - yHi);
+          rangeSvg = `<rect data-role="score-range" x="${x.toFixed(1)}" y="${yHi.toFixed(1)}" width="${barW.toFixed(1)}" height="${rh.toFixed(1)}" rx="${barRx}" fill="${fill}" fill-opacity="${isSel ? '0.24' : '0.16'}"/>`;
+        }
+        const capDot = isSel
+          ? `<circle cx="${xOf(i).toFixed(1)}" cy="${Math.max(padT + 2.5, y).toFixed(1)}" r="3.2" fill="var(--text)" stroke="var(--bg)" stroke-width="1.4"/>`
+          : (isBest ? `<circle data-role="best-dot" cx="${xOf(i).toFixed(1)}" cy="${Math.max(padT + 2.5, y - 4.5).toFixed(1)}" r="2.2" fill="${fill}"/>` : '');
+        return `${rangeSvg}<rect class="sc-bar" data-bar-idx="${i}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="${barRx}" fill="${fill}" fill-opacity="${op}"/>${capDot}`;
       }).join('');
 
   // Separated Clear-Sky Context Strip (soft glacier blue luminance — clear sky = bright blue, overcast = dark)
@@ -431,10 +432,7 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     if (isBest) {
       const peakTxt = `${hhmm} ${term(TERMS.best, en)}`;
       const tx = Math.max(padL + 36, Math.min(W - padR - 36, x));
-      const barTopY = h && !h.isDay && clampNum(h.score, 0, 100, 0) > 0 ? yOf(h.score) : baseY;
-      bestSvg =
-        `<line x1="${x.toFixed(1)}" y1="18" x2="${x.toFixed(1)}" y2="${Math.max(18, barTopY - 4).toFixed(1)}" stroke="${bestCol}" stroke-dasharray="2.5 3" stroke-width="1" opacity="0.65"/>` +
-        `<text x="${tx.toFixed(1)}" y="13.5" text-anchor="middle" fill="${bestCol}" font-size="11.5" font-weight="600">${peakTxt}</text>`;
+      bestSvg = `<text x="${tx.toFixed(1)}" y="13.5" text-anchor="middle" fill="${bestCol}" font-size="11.5" font-weight="600">${peakTxt}</text>`;
     }
     const selLine = isSel
       ? `<line x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${baseY.toFixed(1)}" stroke="var(--text)" stroke-opacity="0.34" stroke-width="1.1"/>`
@@ -448,10 +446,9 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     ${liveBgSvg}
     ${dayBands}
     ${dayLabelSvg}
-    ${vGrid}
     ${midnightSvg}
-    <line x1="${padL}" y1="${y65.toFixed(1)}" x2="${W - padR}" y2="${y65.toFixed(1)}" stroke="var(--chart-grid)" stroke-dasharray="3 4"/>
-    <line x1="${padL}" y1="${y40.toFixed(1)}" x2="${W - padR}" y2="${y40.toFixed(1)}" stroke="var(--chart-grid)" stroke-dasharray="3 4"/>
+    <line x1="${padL}" y1="${y65.toFixed(1)}" x2="${W - padR}" y2="${y65.toFixed(1)}" stroke="var(--chart-grid)" stroke-width="1"/>
+    <line x1="${padL}" y1="${y40.toFixed(1)}" x2="${W - padR}" y2="${y40.toFixed(1)}" stroke="var(--chart-grid)" stroke-width="1"/>
     <line x1="${padL}" y1="${baseY.toFixed(1)}" x2="${W - padR}" y2="${baseY.toFixed(1)}" stroke="var(--chart-axis)"/>
     <text x="${padL - 8}" y="${(y65 + 4).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="11.5" font-weight="500">${term(TERMS.tier.excellent, en)}</text>
     <text x="${padL - 8}" y="${(y40 + 4).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="11.5" font-weight="500">${term(TERMS.tier.goodShort, en)}</text>
