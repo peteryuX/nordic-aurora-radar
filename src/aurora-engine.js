@@ -371,7 +371,7 @@ function toTraditionalPlace(str) {
 }
 
 let zhRegionNames = null;
-function traditionalRegionName(countryCode, fallbackName) {
+export function traditionalRegionName(countryCode, fallbackName) {
   if (typeof countryCode === 'string' && /^[A-Za-z]{2}$/.test(countryCode)) {
     try {
       if (!zhRegionNames && typeof Intl !== 'undefined' && Intl.DisplayNames) {
@@ -3008,15 +3008,26 @@ export function summarize3NightOutlook({
         ? Math.max(...chartHours.filter(h => h && Number.isFinite(h.dtMs)).map(h => h.dtMs)) + 1800000
         : -Infinity;
       let bestDtMs = null;
+      let kpPeakClearSum = 0;
+      let kpPeakClearCnt = 0;
+      const kpPeakFloor = Math.max(effMaxKp - 0.7, 3.0);
+      const kpLookupSrc = (Array.isArray(kpForecast) && kpForecast.length) ? kpForecast : kpOnNight;
+      const trackKpPeakClear = (clrVal, hKpVal, aurVal = 30) => {
+        if (!Number.isFinite(clrVal) || !Number.isFinite(hKpVal) || hKpVal < kpPeakFloor) return;
+        if (Number.isFinite(aurVal) && aurVal < 30) return;
+        kpPeakClearSum += Math.max(0, Math.min(100, Math.round(clrVal)));
+        kpPeakClearCnt += 1;
+      };
       if (offset === 0) {
         // Tonight: keep 1h peak parity with the live 24h chart (a real 1h clear break tonight IS chaseable)
         for (const h of chartDark) {
+          trackKpPeakClear(h.clear, h.kpFc, h.outOfZone ? 0 : 35);
           if (h.score > bestNightScore) { bestNightScore = h.score; bestDtMs = h.dtMs; }
         }
         for (const p of darkPts) {
           if (p.dtMs <= chartEndMs) continue;
           const dt = new Date(p.dtMs);
-          const hKp = lookupForecastKp(kpOnNight.length ? kpOnNight : kpForecast, dt, effMaxKp);
+          const hKp = lookupForecastKp(kpLookupSrc, dt, effMaxKp);
           const moonH = getMoonState(dt, lat, lon);
           const sunAltH = Number.isFinite(p.sunAlt) ? p.sunAlt : computeSolarElevation(dt, lat, lon);
           const cloudH = Number.isFinite(p.block) ? p.block : Math.max(0, Math.min(100, 100 - p.clear));
@@ -3025,17 +3036,21 @@ export function summarize3NightOutlook({
             bz: 0, speed: 400, kp: hKp, ovation: null,
             mlt: computeMLT(dt, lat, lon), effMoonPct: moonH.effMoonPct
           });
+          trackKpPeakClear(p.clear, hKp, scH?.auroraScore ?? 0);
           const hScore = Number.isFinite(scH?.total) ? scH.total : 0;
           if (hScore > bestNightScore) { bestNightScore = hScore; bestDtMs = p.dtMs; }
         }
       } else {
         // Night +1/+2 (+24-72h): use max 2h sustained rolling score (matching bestClear) so 1h NWP cloud flukes never spike the card
         const scoredPts = [];
-        for (const h of chartDark) scoredPts.push({ dtMs: h.dtMs, score: h.score });
+        for (const h of chartDark) {
+          trackKpPeakClear(h.clear, h.kpFc, h.outOfZone ? 0 : 35);
+          scoredPts.push({ dtMs: h.dtMs, score: h.score });
+        }
         for (const p of darkPts) {
           if (p.dtMs <= chartEndMs) continue;
           const dt = new Date(p.dtMs);
-          const hKp = lookupForecastKp(kpOnNight.length ? kpOnNight : kpForecast, dt, effMaxKp);
+          const hKp = lookupForecastKp(kpLookupSrc, dt, effMaxKp);
           const moonH = getMoonState(dt, lat, lon);
           const sunAltH = Number.isFinite(p.sunAlt) ? p.sunAlt : computeSolarElevation(dt, lat, lon);
           const cloudH = Number.isFinite(p.block) ? p.block : Math.max(0, Math.min(100, 100 - p.clear));
@@ -3044,6 +3059,7 @@ export function summarize3NightOutlook({
             bz: 0, speed: 400, kp: hKp, ovation: null,
             mlt: computeMLT(dt, lat, lon), effMoonPct: moonH.effMoonPct
           });
+          trackKpPeakClear(p.clear, hKp, scH?.auroraScore ?? 0);
           scoredPts.push({ dtMs: p.dtMs, score: Number.isFinite(scH?.total) ? scH.total : 0 });
         }
         scoredPts.sort((a, b) => a.dtMs - b.dtMs);
@@ -3060,6 +3076,7 @@ export function summarize3NightOutlook({
           }
         }
       }
+      const kpPeakClear = kpPeakClearCnt > 0 ? Math.round(kpPeakClearSum / kpPeakClearCnt) : null;
       // 3-hour peak viewing window (matches NOAA 3h forecast cadence without fake minute-level precision)
       let bestWindow = '';
       if (bestNightScore >= 18 && Number.isFinite(bestDtMs)) {
@@ -3071,6 +3088,12 @@ export function summarize3NightOutlook({
           bestWindow = `${String(hStart).padStart(2, '0')}–${String(hEnd).padStart(2, '0')}`;
         }
       }
+      // Detect when clear skies and strong geomagnetic activity occur at different hours of the same night
+      // (e.g. clear early evening Kp 2.7 followed by overcast during Kp 5 G1 storm -> low score despite high bestClear & maxKp)
+      const peakCloudMismatch = Boolean(
+        bestNightScore < 18 && bestClear !== null && bestClear >= 45 &&
+        effMaxKp >= 3.0 && kpPeakClear !== null && kpPeakClear < 30 && (bestClear - kpPeakClear) >= 25
+      );
       // Map strictly onto the app-wide 0-99 tiers (65 Excellent / 40 Good / 18 Fair / <18 Low or Cloudy)
       if (bestNightScore >= 65) {
         tone = 'good'; badge = term(TERMS.tier.excellent, en); badgeColor = '#34f0b0';
@@ -3078,15 +3101,17 @@ export function summarize3NightOutlook({
         tone = 'good'; badge = term(TERMS.tier.good, en); badgeColor = '#25b88a';
       } else if (bestNightScore >= 18) {
         tone = 'warn'; badge = term(TERMS.tier.fair, en); badgeColor = '#f4c350';
+      } else if (peakCloudMismatch) {
+        badge = en ? 'Cloudy at peak' : '強極光時雲厚'; badgeColor = '#8b94a5';
       } else if (bestClear < 35) {
         badge = term(TERMS.status.cloudy, en); badgeColor = '#8b94a5';
       } else {
         badge = term(TERMS.tier.low, en); badgeColor = '#8b94a5';
       }
       scoreAvailable = true;
-      return { key, label, dayLabel, dateLabel, bestClear, clearDarkHrs, bestNightScore, bestWindow, scoreAvailable, maxKp: maxKp ?? 0, kpAvailable: maxKp !== null, gScale, darkCount: darkPts.length, tone, badge, badgeColor, enlilTag, enlilMaxSpeed };
+      return { key, label, dayLabel, dateLabel, bestClear, kpPeakClear, peakCloudMismatch, clearDarkHrs, bestNightScore, bestWindow, scoreAvailable, maxKp: maxKp ?? 0, kpAvailable: maxKp !== null, gScale, darkCount: darkPts.length, tone, badge, badgeColor, enlilTag, enlilMaxSpeed };
     }
-    return { key, label, dayLabel, dateLabel, bestClear, clearDarkHrs, bestNightScore, bestWindow: '', scoreAvailable, maxKp: maxKp ?? 0, kpAvailable: maxKp !== null, gScale, darkCount: darkPts.length, tone, badge, badgeColor, enlilTag, enlilMaxSpeed };
+    return { key, label, dayLabel, dateLabel, bestClear, kpPeakClear: null, peakCloudMismatch: false, clearDarkHrs, bestNightScore, bestWindow: '', scoreAvailable, maxKp: maxKp ?? 0, kpAvailable: maxKp !== null, gScale, darkCount: darkPts.length, tone, badge, badgeColor, enlilTag, enlilMaxSpeed };
   });
 }
 

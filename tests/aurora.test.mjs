@@ -2442,10 +2442,48 @@ test('51. Norway live weather & Kp audit: Svalbard AROME Arctic, 45m 0Z bin guar
   assert.equal(expCalEn.confidence.primaryReason, 'obs-calibrated');
   assert.ok(!/[\u4e00-\u9fff]/.test(expCalEn.confidence.badgeText + expCalEn.confidence.headline), 'EN obs-calibrated copy must not leak CJK');
 
-  // (d) No cryptic '機場實測校正' in main heroTags, clearer moon label, and Kirkenes included in Norway Vegvesen
-  assert.ok(!appSrc.includes('機場實測校正'), 'Cryptic 機場實測校正 tag must not appear in hero card footer');
+  // (d) Global copy & regional consistency: zero cryptic airport labels anywhere in UI, clear moon wording,
+  //     pole-aware Southern Hemisphere direction, honest straight-line GPS CTA, and tight global road-link bounds
+  const htmlSrc = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const i18nSrc = fs.readFileSync(new URL('../src/i18n.js', import.meta.url), 'utf8');
+  assert.ok(!appSrc.includes('機場') && !htmlSrc.includes('機場') && !i18nSrc.includes('機場'), 'UI copy must use plain 當地氣象站 wording instead of cryptic 機場');
   assert.ok(appSrc.includes("'滿月'") && appSrc.includes("'有亮月'"), 'Darkness pillar moon sub-label must clearly distinguish 滿月 / 有亮月');
-  assert.ok(appSrc.includes('pos.lon < 26 || pos.lat >= 69.0'), 'Norway Vegvesen road link must cover Finnmark/Kirkenes');
+  assert.ok(appSrc.includes('朝頭頂與南方觀察') && appSrc.includes('look overhead and south'), 'Southern Hemisphere hero cue must point south, not north');
+  assert.ok(appSrc.includes('bestDir.isGeneric') && appSrc.includes('直線 ~'), 'Generic GPS compass CTA must label straight-line distance honestly');
+  assert.ok(appSrc.includes('else if (pos.lon >= 4)') && appSrc.includes('pos.lon < 26 || pos.lat >= 69.0'), 'Nordic road links must cover Finnmark/Kirkenes and exclude UK/Scotland');
+  assert.ok(appSrc.includes('pos.lat >= 59 && pos.lon >= -126'), 'NWT Highways road link must not leak onto eastern North America');
+
+  // (e) 3-Night Outlook clear-sky vs peak-Kp timing mismatch (e.g. Oslo Thu 11/26: 100% clear at Kp 2.7, 0% clear at Kp 5 G1)
+  const osloThuBase = Date.UTC(2026, 10, 26, 16, 30, 0);
+  const osloMismatchPts = [
+    { dtMs: osloThuBase,               clear: 100, block: 0,   sunAlt: -10, isDay: false, stepHrs: 1 },
+    { dtMs: osloThuBase + 1 * 3600000, clear: 100, block: 0,   sunAlt: -16, isDay: false, stepHrs: 1 },
+    { dtMs: osloThuBase + 2 * 3600000, clear: 85,  block: 15,  sunAlt: -22, isDay: false, stepHrs: 1 },
+    { dtMs: osloThuBase + 5 * 3600000, clear: 0,   block: 100, sunAlt: -38, isDay: false, stepHrs: 1 },
+    { dtMs: osloThuBase + 6 * 3600000, clear: 0,   block: 100, sunAlt: -42, isDay: false, stepHrs: 1 },
+    { dtMs: osloThuBase + 7 * 3600000, clear: 0,   block: 100, sunAlt: -45, isDay: false, stepHrs: 1 }
+  ];
+  const osloMismatchKfc = [
+    { ts: Date.UTC(2026, 10, 26, 15, 0, 0), kp: 2.67 },
+    { ts: Date.UTC(2026, 10, 26, 18, 0, 0), kp: 2.67 },
+    { ts: Date.UTC(2026, 10, 26, 21, 0, 0), kp: 5.0 },
+    { ts: Date.UTC(2026, 10, 27, 0, 0, 0),  kp: 5.0 }
+  ];
+  const osloN3 = api.summarize3NightOutlook({
+    cloudPoints: osloMismatchPts, kpForecast: osloMismatchKfc, currentKp: 1,
+    lat: 59.9139, lon: 10.7522, timeZone: 'Europe/Oslo', nowDate: new Date('2026-11-25T18:50:00Z'), lang: 'zh'
+  });
+  const thu = osloN3[1];
+  assert.equal(thu.peakCloudMismatch, true, 'Oslo Thu 11/26 must flag peakCloudMismatch when clear evening misses overcast Kp 5 storm');
+  assert.equal(thu.kpPeakClear, 0, 'kpPeakClear must report 0% clear during the overcast Kp 5 storm');
+  assert.equal(thu.badge, '強極光時雲厚', 'Mismatch night badge must clearly explain why score is low');
+
+  const osloN3En = api.summarize3NightOutlook({
+    cloudPoints: osloMismatchPts, kpForecast: osloMismatchKfc, currentKp: 1,
+    lat: 59.9139, lon: 10.7522, timeZone: 'Europe/Oslo', nowDate: new Date('2026-11-25T18:50:00Z'), lang: 'en'
+  });
+  assert.equal(osloN3En[1].badge, 'Cloudy at peak');
+  assert.equal(api.traditionalRegionName('NO', 'Norway'), '挪威', 'English city search in zh-TW must localize country code NO -> 挪威');
 });
 
 

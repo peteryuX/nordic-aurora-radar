@@ -241,11 +241,11 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
     tsG.innerHTML = en
       ? `<div class="ts-stat"><strong>Sun 0.006° · Mag 0.24°</strong><span>JPL DE441 (Moon ≤0.74°) · IGRF-14</span></div>` +
         `<div class="ts-stat"><strong>14 NOAA Space Feeds</strong><span>1m L1 Wind · Kp · GOES · OVATION · Dst</span></div>` +
-        `<div class="ts-stat"><strong>METAR Cloud Nowcast</strong><span>Live airport ceilometers ≤55 km (+0–3h)</span></div>` +
+        `<div class="ts-stat"><strong>Local Station Nowcast</strong><span>Live sky-cover sensors ≤55 km (+0–3h)</span></div>` +
         `<div class="ts-stat"><strong>Layered Cloud Check</strong><span>Yr.no 2.5km Nordics · Dual-NWP Global</span></div>`
       : `<div class="ts-stat"><strong>太陽 0.006° · 地磁 0.24°</strong><span>JPL 日月曆（月 ≤0.74°） · IGRF-14</span></div>` +
         `<div class="ts-stat"><strong>14 項 NOAA 太空天氣</strong><span>1m 太陽風 · Kp · GOES · OVATION · Dst</span></div>` +
-        `<div class="ts-stat"><strong>機場實測短時校正</strong><span>55 km 內即時 METAR 融合（+0–3h）</span></div>` +
+        `<div class="ts-stat"><strong>當地氣象站即時校正</strong><span>55 km 內實測雲量融合（+0–3h）</span></div>` +
         `<div class="ts-stat"><strong>分層雲量與共識比對</strong><span>北歐 Yr.no 2.5km · 全球雙模型</span></div>`;
   }
 
@@ -255,13 +255,13 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
     if (hd) {
       hd.innerHTML = en
         ? '<span>Slide or tap any hour on the chart for clear sky %, temp &amp; darkness</span>'
-        : '<span>滑動或點擊任一時段查看晴空率、體感溫度與夜空暗度</span>';
+        : '<span>滑動或點選任一時段查看晴空率、體感溫度與夜空暗度</span>';
     }
     const bd = $('bzDetail');
     if (bd) {
       bd.innerHTML = en
         ? '<span>Slide or tap the curve to inspect exact values for any timestamp</span>'
-        : '<span>滑動或點擊曲線查看各時段精確數值</span>';
+        : '<span>滑動或點選曲線查看各時段精確數值</span>';
     }
     const tlt = $('tsLiveTitle');
     if (tlt) {

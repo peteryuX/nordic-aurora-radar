@@ -20,7 +20,7 @@ import {
   findNearestMetarStation, parseIemMetarCurrent, parseMetNorwayMetarText,
   assimilateMetarNowcast, selectOpenMeteoModels, extractOpenMeteoModelHourly, blendHourlyForecasts,
   scoreHourlyForecast12, findBestDarkWindow, summarize3NightOutlook,
-  normalizeChineseCityQuery, hasCjkChars, matchKnownCity, formatReverseGeo
+  normalizeChineseCityQuery, hasCjkChars, matchKnownCity, formatReverseGeo, traditionalRegionName
 } from './aurora-engine.js';
 
 const MET_CACHE_MAX = 25;
@@ -616,7 +616,8 @@ export async function geocodeCityQuery(rawQuery) {
   if (!d?.results?.length) return null;
   const g = d.results[0];
   const matched = matchKnownCity(g.latitude, g.longitude);
-  const fallbackZh = (g.country && g.country !== g.name) ? `${g.country} · ${g.name}` : g.name;
+  const countryZh = traditionalRegionName(g.country_code, g.country || '');
+  const fallbackZh = (countryZh && countryZh !== g.name) ? `${countryZh} · ${g.name}` : g.name;
   const fallbackEn = (g.country && g.country !== g.name) ? `${g.country} · ${g.name}` : g.name;
   return {
     name: matched ? matched.zh : fallbackZh,

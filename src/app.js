@@ -654,7 +654,7 @@ function renderLocationHeader() {
   const pick = $('pickBtn');
   if (pick) {
     const src = isGps ? (en ? 'My location' : '目前位置') : (isGpsErr ? (en ? 'Location failed, showing' : '定位失敗，目前顯示') : (en ? 'Selected place' : '手動選擇地點'));
-    pick.setAttribute('aria-label', `${src}: ${getPosDisplayName()}. ${en ? 'Tap to change' : '點擊切換地點'}`);
+    pick.setAttribute('aria-label', `${src}: ${getPosDisplayName()}. ${en ? 'Tap to change' : '點選切換地點'}`);
   }
 
   syncPresetChipHighlight();
@@ -847,7 +847,7 @@ function renderWaveCard(focusBest = false) {
   if (isOutOfZone) {
     bestText = outZoneKind === 'need-storm'
       ? (en ? `Activity is too weak for this latitude — needs a stronger storm over the next ${hz}h.` : `目前活動偏弱，此緯度需要更強的地磁暴才會出現極光。`)
-      : (en ? `Outside the auroral zone — tap the location above to explore aurora hotspots.` : `此地不在極光帶，點上方地名可切換北歐或北美極光熱點。`);
+      : (en ? `Outside the auroral zone — tap the location above to explore aurora hotspots.` : `此地不在極光帶，點上方地名可切換全球極光熱點。`);
   } else if (!bestInVis) {
     bestText = en ? `Sky stays too bright for the next ${hz}h — check back after dark.` : `未來 ${hz} 小時天色偏亮，天黑後再查看。`;
   } else {
@@ -1052,9 +1052,12 @@ function render3NightOutlook(nights) {
     const scoreVal = Math.round(n.bestNightScore || 0);
     const dayTxt = n.dayLabel || n.label || '';
     const dateTxt = fmtNightDate(n, en);
-    const clearTxt = n.bestClear !== null
-      ? (en ? `${n.bestClear}% clear` : `${term(TERMS.clearSky, false)} ${n.bestClear}%`)
-      : term(TERMS.status.noDarkSky, en);
+    const isMismatch = Boolean(n.peakCloudMismatch && Number.isFinite(n.kpPeakClear));
+    const clearTxt = isMismatch
+      ? (en ? `${n.kpPeakClear}% clear at peak` : `強光時晴空 ${n.kpPeakClear}%`)
+      : (n.bestClear !== null
+          ? (en ? `${n.bestClear}% clear` : `${term(TERMS.clearSky, false)} ${n.bestClear}%`)
+          : term(TERMS.status.noDarkSky, en));
     const kpTxt = n.kpAvailable === false
       ? (en ? 'Kp --' : 'Kp 更新中')
       : (i > 0
@@ -1063,7 +1066,7 @@ function render3NightOutlook(nights) {
     const gTag = n.kpAvailable !== false && n.gScale >= 1 ? ` <span class="od-g">G${n.gScale}</span>` : '';
     const isBest = i === bestIdx;
     const winTxt = n.bestWindow ? `${term(TERMS.peak, en)} ${n.bestWindow}` : '';
-    const skyIco = buildOutlookSkyIcon({ score: scoreVal, clearPct: n.bestClear, scoreAvailable: hasScore });
+    const skyIco = buildOutlookSkyIcon({ score: scoreVal, clearPct: isMismatch ? n.kpPeakClear : n.bestClear, scoreAvailable: hasScore });
     const barPct = hasScore ? Math.max(8, Math.min(100, scoreVal)) : 0;
     const barBg = hasScore && scoreVal >= 65
       ? 'linear-gradient(90deg, var(--good), var(--green))'
@@ -1260,7 +1263,7 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales,
     if (noaaOk) {
       const stale = noaaLagMin !== null && noaaLagMin > 45;
       pNoaa.textContent = stale
-        ? (en ? `NOAA Aurora Map (${noaaLagMin}m lag) ↗` : `NOAA 極光總覽（延遲 ${noaaLagMin}m）↗`)
+        ? (en ? `NOAA Aurora Map (${noaaLagMin}m lag) ↗` : `NOAA 極光總覽（延遲 ${noaaLagMin} 分鐘）↗`)
         : (en ? 'NOAA Aurora Map ↗' : 'NOAA 極光總覽 ↗');
     } else {
       pNoaa.textContent = en ? 'NOAA Aurora Map (offline) ↗' : 'NOAA 極光總覽（離線）↗';
@@ -1310,18 +1313,18 @@ function renderRoadLinks(pos, en) {
   if (pos.lat >= 55 && pos.lat <= 72 && pos.lon >= -26 && pos.lon <= 35) {
     if (pos.lon <= -10) {
       links.push({ id: 'roadIs', url: 'https://umferdin.is/en', zh: '冰島 Umferðin ↗', en: 'Iceland Umferðin ↗' });
-    } else {
+    } else if (pos.lon >= 4) {
       if (pos.lon < 26 || pos.lat >= 69.0) links.push({ id: 'roadNo', url: 'https://www.vegvesen.no/trafikk', zh: '挪威 Vegvesen ↗', en: 'Norway Vegvesen ↗' });
       if (pos.lon >= 11 && pos.lon <= 25) links.push({ id: 'roadSe', url: 'https://www.trafikverket.se/trafikinformation/vag/', zh: '瑞典 Trafikverket ↗', en: 'Sweden Trafikverket ↗' });
       if (pos.lon >= 20) links.push({ id: 'roadFi', url: 'https://liikennetilanne.fintraffic.fi/', zh: '芬蘭 Fintraffic ↗', en: 'Finland Roads ↗' });
     }
-  } else if (pos.lat >= 45 && pos.lon <= -50) {
-    if (pos.lon <= -135) links.push({ id: 'roadAk', url: 'https://511.alaska.gov/', zh: '阿拉斯加 511 ↗', en: 'Alaska 511 ↗' });
-    if (pos.lon >= -142 && pos.lon <= -123) links.push({ id: 'roadYk', url: 'https://511yukon.ca/', zh: '育空 511 ↗', en: 'Yukon 511 ↗' });
-    if (pos.lon >= -125) links.push({ id: 'roadNwt', url: 'https://www.inf.gov.nt.ca/en/services/highways/highway-conditions', zh: '黃刀公路路況 ↗', en: 'NWT Highways ↗' });
-  } else if (pos.lat <= -30 && pos.lon >= 130) {
-    if (pos.lon >= 160) links.push({ id: 'roadNz', url: 'https://www.journeys.nzta.govt.nz/', zh: '紐西蘭 NZTA 路況 ↗', en: 'NZTA Journeys ↗' });
-    else links.push({ id: 'roadTas', url: 'https://www.police.tas.gov.au/community-alerts/', zh: '塔斯馬尼亞路況 ↗', en: 'Tasmania Alerts ↗' });
+  } else if (pos.lat >= 54 && pos.lon <= -100) {
+    if (pos.lon <= -130) links.push({ id: 'roadAk', url: 'https://511.alaska.gov/', zh: '阿拉斯加 511 ↗', en: 'Alaska 511 ↗' });
+    if (pos.lat >= 59 && pos.lon >= -142 && pos.lon <= -123) links.push({ id: 'roadYk', url: 'https://511yukon.ca/', zh: '育空 511 ↗', en: 'Yukon 511 ↗' });
+    if (pos.lat >= 59 && pos.lon >= -126 && pos.lon <= -102) links.push({ id: 'roadNwt', url: 'https://www.inf.gov.nt.ca/en/services/highways/highway-conditions', zh: '黃刀公路路況 ↗', en: 'NWT Highways ↗' });
+  } else if (pos.lat <= -34 && pos.lon >= 143) {
+    if (pos.lon >= 165) links.push({ id: 'roadNz', url: 'https://www.journeys.nzta.govt.nz/', zh: '紐西蘭 NZTA 路況 ↗', en: 'NZTA Journeys ↗' });
+    else if (pos.lat <= -40 && pos.lon <= 149) links.push({ id: 'roadTas', url: 'https://www.police.tas.gov.au/community-alerts/', zh: '塔斯馬尼亞路況 ↗', en: 'Tasmania Alerts ↗' });
   }
   if (!links.length) {
     wrap.style.display = 'none';
@@ -1551,8 +1554,13 @@ function renderFromState(st) {
   } else if (act.actionType === 'daylight') {
     heroCue = act.lead || act.title;
   } else if (act.actionType === 'go') {
-    const dirCueZh = sc.total >= 65 ? '現在適合出門，朝頭頂與北方觀察' : '可出門觀測，留意北方高空與雲縫';
-    const dirCueEn = sc.total >= 65 ? 'Go out now — look overhead and north' : 'Good to head out — watch the northern sky';
+    const isNorth = pos.lat >= 0;
+    const dirCueZh = sc.total >= 65
+      ? (isNorth ? '現在適合出門，朝頭頂與北方觀察' : '現在適合出門，朝頭頂與南方觀察')
+      : (isNorth ? '可出門觀測，留意北方高空與雲縫' : '可出門觀測，留意南方高空與雲縫');
+    const dirCueEn = sc.total >= 65
+      ? (isNorth ? 'Go out now — look overhead and north' : 'Go out now — look overhead and south')
+      : (isNorth ? 'Good to head out — watch the northern sky' : 'Good to head out — watch the southern sky');
     heroCue = en ? dirCueEn : dirCueZh;
   } else if (act.actionType === 'wait' && sc.total < 18 && sc.skyScore < 45) {
     const upcoming = (activeHrs || []).slice(1, 24).filter(h => !Number.isFinite(h?.dtMs) || h.dtMs > refNowMs + 15 * 60000);
@@ -1586,13 +1594,15 @@ function renderFromState(st) {
     if (bestDir && isCloudyNight) {
       const clear3h = Math.max(0, Math.min(100, Math.round(100 - bestDir.avg3h)));
       const kmVal = Number.isFinite(bestDir.roadKm) ? bestDir.roadKm : (Number.isFinite(bestDir.distKm) ? bestDir.distKm : Math.round(computeDistanceKm(pos.lat, pos.lon, bestDir.lat, bestDir.lon)));
-      const drv = fmtWinterDrive(kmVal, en);
+      const drv = bestDir.isGeneric ? '' : fmtWinterDrive(kmVal, en);
       const mainT = en
         ? `Clear skies ${escapeHtml(tDirLabel(bestDir.label))} (${clear3h}% clear)`
         : `${escapeHtml(tDirLabel(bestDir.label))} 找晴空（晴空 ${clear3h}%）`;
-      const subT = en
-        ? `~${kmVal} km · ${drv || 'check winter roads'}`
-        : `公路 ~${kmVal} km${drv ? ` · 冬季車程${drv}` : ''}`;
+      const subT = bestDir.isGeneric
+        ? (en ? `~${kmVal} km straight-line · verify road` : `直線 ~${kmVal} km · 出發前請確認路況`)
+        : (en
+            ? `~${kmVal} km · ${drv || 'check winter roads'}`
+            : `公路 ~${kmVal} km${drv ? ` · 冬季車程${drv}` : ''}`);
       actBtn.innerHTML = `<span class="cta-txt"><strong>${mainT}</strong><span class="cta-sub">${escapeHtml(subT)}</span></span>${SVG_ICO_ARR_R}`;
       actBtn.dataset.targetView = 'dir';
       actBtn.style.display = 'flex';
@@ -1782,7 +1792,7 @@ function handleOfflineFallback(pos) {
   const cachedPosLabel = getPosDisplayName(pos) || cached.posName || '';
   setText('offlineTxt', en
     ? `Offline: ${minsAgo}m old cache (${cachedPosLabel}).`
-    : `離線模式：顯示 ${minsAgo} 分前（${cachedPosLabel}）快取資料。`);
+    : `離線模式：顯示 ${minsAgo} 分鐘前（${cachedPosLabel}）快取資料。`);
   syncBannerBudget();
 
   const hydrated = hydrateOfflineState(cached, pos);
@@ -2545,7 +2555,7 @@ function bindEvents() {
     setText('skyCamCap', isEn() ? 'All-sky camera feed temporarily offline — try another observatory above.' : '天文台實拍影像暫時無法連線，可切換上方其他極圈天文台。');
   });
   $('ovationImg')?.addEventListener('error', () => {
-    setText('ovCap', isEn() ? 'NOAA OVATION map temporarily unavailable — tap Refresh to retry.' : 'NOAA 極光橢圓圖暫時無法載入，請稍後點 ↻ 重整。');
+    setText('ovCap', isEn() ? 'NOAA OVATION map temporarily unavailable — pull down to refresh.' : 'NOAA 極光橢圓圖暫時無法載入，請稍後下拉更新重試。');
   });
 }
 
