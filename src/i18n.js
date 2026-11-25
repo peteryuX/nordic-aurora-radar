@@ -68,11 +68,14 @@ export const SKY_CAMS = {
 export const STATIC_TEXT_MAP = {
   brandTxt: ['極光即時雷達', 'Aurora Radar'],
   langBtn: ['EN', '中'],
-  lineTip: [
-    '若在 App 內建瀏覽器無法使用 GPS，請改用 Safari / Chrome 開啟，或直接點上方地名切換。',
+  ptrText: ['下拉更新', 'Pull to refresh'],
+  lineTipTxt: [
+    '若在 App 內建瀏覽器無法使用 GPS，請改用 Safari / Chrome 開啟，或點上方地名切換。',
     'If GPS is blocked in an in-app browser, open in Safari/Chrome or tap the city name above.'
   ],
+  offlineRetryBtn: ['重試', 'Retry'],
   clkLbl: ['當地', 'Local'],
+  pickerSheetTitle: ['切換觀測地點', 'Choose Location'],
   pickerGrpNordic: ['北歐極光帶', 'Nordic Belt'],
   pickerGrpNa: ['北美＆冰島', 'N. America & Iceland'],
   pickerGrpSouth: ['南半球極光', 'Southern Hemisphere'],
@@ -82,7 +85,7 @@ export const STATIC_TEXT_MAP = {
   fAurLbl: ['極光活動', 'Aurora'],
   fDarkLbl: ['夜空暗度', 'Darkness'],
   h2Wave: ['未來 12 小時逐時趨勢', '12-Hour Trend'],
-  hrLegRight: ['點圖表查單小時', 'Tap hour'],
+  hrLegRight: ['滑動或點擊查單小時', 'Slide or tap hour'],
   h2Energy: ['太陽風能量', 'Solar Wind Arrival'],
   h2Outlook: ['未來 3 晚極光與晴空展望', '3-Night Outlook'],
   h2Radar: ['周邊 360° 找晴空', '360° Clear-Sky Radar'],
@@ -103,6 +106,7 @@ export const STATIC_TEXT_MAP = {
   camBtnFmi: ['北歐地磁圖', 'Nordic Mag Map'],
   camBtnUaf: ['Fairbanks', 'Fairbanks'],
   camBtnAmax: ['Yellowknife', 'Yellowknife'],
+  camBrightBtn: ['日間過曝・點此看原亮度', 'Daylight dimmed · tap for full'],
   h2Windy: ['即時動態雲圖', 'Live Cloud Map'],
   subWindy: ['已自動對準目前位置，按左下角 ▶ 可播放接下來幾小時雲層移動趨勢：', 'Centered on your location — press ▶ bottom-left to animate cloud movement:'],
   subOv: ['查看綠色／黃色極光帶目前是否覆蓋所在區域（每 5 分鐘自動更新）：', 'Check if the auroral oval covers your region (updates every 5 min):'],
@@ -122,7 +126,8 @@ export const STATIC_TEXT_MAP = {
   tsSciTitle: ['官方資料來源與驗證', 'Official Data & Verification'],
   linkSolarWind: ['NOAA 太陽風 ↗', 'NOAA Solar Wind ↗'],
   linkGfz: ['GFZ Hp30 ↗', 'GFZ Hp30 ↗'],
-  tsSealLink: ['GitHub 開源原始碼（MIT・零追蹤）↗', 'Open Source on GitHub (MIT · Zero Trackers) ↗'],
+  tsSealLink: ['GitHub 開源（MIT・零追蹤）↗', 'Open Source (MIT · Zero Trackers) ↗'],
+  tsValReportLink: ['完整驗證報告 ↗', 'Validation Report ↗'],
   tsPwaTip: [
     '離線使用：Safari 點「分享 → 加入主畫面」或 Chrome 點「安裝」，極區無訊號時仍可開啟快取。',
     'Offline tip: Add to Home Screen (Safari Share / Chrome Install) for cached access with no signal.'
@@ -162,7 +167,9 @@ const ARIA_LABELS = {
   gpsBtn: ['GPS 定位', 'Use GPS location', true],
   shareBtn: ['分享預報連結', 'Share forecast link', true],
   ringBtn: ['查看指數說明與資料來源', 'View score details and sources', false],
-  trustCloseBtn: ['關閉', 'Close', false]
+  trustCloseBtn: ['關閉', 'Close', false],
+  pickerCloseBtn: ['關閉', 'Close', false],
+  lineTipClose: ['關閉提示', 'Dismiss tip', false]
 };
 
 export function renderSkyCamCaption($, key, en) {
@@ -194,13 +201,13 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
   }
 
   const ci = $('cityInput');
-  if (ci) ci.placeholder = en ? 'Search city (e.g. Akureyri, Fairbanks, Lake Tekapo)' : '輸入中／英文地名（例：冰島、特羅姆瑟、蒂卡波）';
+  if (ci) ci.placeholder = en ? 'Search city (e.g. Akureyri, Fairbanks)' : '輸入地名（例：冰島、特羅姆瑟、黃刀）';
 
   const hrl = $('hrLegLeft');
   if (hrl) {
     hrl.innerHTML = en
-      ? `<span class="leg-dot" style="background:var(--green);"></span>Clear Sky % ｜ <span class="leg-dot" style="background:#a855f7;"></span>Top Score`
-      : `<span class="leg-dot" style="background:var(--green);"></span>綠線＝晴空｜<span class="leg-dot" style="background:#a855f7;"></span>紫柱＝上方指數`;
+      ? `<span class="leg-dot" style="background:var(--green);"></span>Clear Sky % ｜ <span class="leg-dot" style="background:var(--purple);"></span>Top Score`
+      : `<span class="leg-dot" style="background:var(--green);"></span>綠線＝晴空｜<span class="leg-dot" style="background:var(--purple);"></span>紫柱＝上方指數`;
   }
 
   const rl = $('radarLeg');
@@ -236,14 +243,14 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
     const hd = $('hourDetail');
     if (hd) {
       hd.innerHTML = en
-        ? '<span>Tap any hour on the chart for clear sky %, feels-like temp & moon</span>'
-        : '<span>點擊圖上任一時段查看晴空率、體感溫度與月光</span>';
+        ? '<span>Slide or tap any hour on the chart for clear sky %, feels-like &amp; moon</span>'
+        : '<span>在圖表上滑動或點擊任一時段查看晴空率、體感溫度與月光</span>';
     }
     const tlt = $('tsLiveTitle');
     if (tlt) {
       tlt.innerHTML = en
-        ? 'Why is it <strong id="tsLiveTotal">--</strong>/100 now? (Higher = Better)'
-        : '為何現在是 <strong id="tsLiveTotal">--</strong> 分？（分數越高越好）';
+        ? 'Why is it <strong id="tsLiveTotal">--</strong> now?'
+        : '為何現在是 <strong id="tsLiveTotal">--</strong> 分？（越高越好）';
     }
   }
 

@@ -3080,13 +3080,24 @@ export function synthesizeTonightAction({
   }
 
   // 4. WAIT (incoming solar wind surge/shock OR clouds clearing later tonight)
-  const incomingStrong = Boolean(scNext && !scNext.outOfZone && !scNext.isTooBright && (scNext.total >= 35 || bal?.shockActive));
+  const risingEnough = Boolean(scNext && !scNext.outOfZone && !scNext.isTooBright && scNext.total >= Math.max(20, sc.total + 5));
+  const incomingStrong = Boolean(scNext && !scNext.outOfZone && !scNext.isTooBright && (scNext.total >= 35 || (bal?.shockActive && risingEnough)));
   if (incomingStrong && bal?.etaMin) {
     const title = en ? `Activity rising in ~${bal.etaMin} min` : `約 ${bal.etaMin} 分鐘後有機會增強`;
     const lead = en
       ? `Incoming solar wind is strengthening (est. score ${scNext.total}). Stay ready with screen-on monitor.`
       : `偵測到太陽風能量增強中（預估指數升至 ${scNext.total} 分），建議原地稍等並保持螢幕常亮監測。`;
     return { ...base, title, lead, actionType: 'wait', ctaView: null, ctaLabel: '' };
+  }
+  if (bal?.shockActive && bal?.etaMin && scNext && !scNext.outOfZone && !scNext.isTooBright && sc.skyScore < 45) {
+    const title = en ? `Solar wind shock in ~${bal.etaMin} min` : `太陽風衝擊波約 ${bal.etaMin} 分後抵達`;
+    const lead = en
+      ? `Heavy clouds block local sky (est. score ${scNext.total}) — check Clear-Sky Radar for cloud gaps.`
+      : `但原地厚雲遮蔽（預估僅 ${scNext.total} 分），建議先查看「找晴空」留意周邊雲縫。`;
+    return {
+      ...base, title, lead, actionType: 'drive',
+      ctaView: 'dir', ctaLabel: en ? 'Open Clear-Sky Radar →' : '查看 360° 找晴空 →'
+    };
   }
   if (sc.total < 18 && sc.skyScore < 45 && bestDark && bestDark.clear >= 55) {
     const title = en ? `Cloudy now — clears around ${bestDark.time}` : `現在雲厚，預計 ${bestDark.time} 轉晴`;

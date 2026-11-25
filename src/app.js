@@ -55,6 +55,8 @@ const state = {
   renderState: null,
   explainState: null,
   alertEnabled: false,
+  wakeLockFailed: false,
+  activeAlert: null,
   redModeEnabled: false,
   lastAlertMs: 0,
   wakeLockObj: null,
@@ -64,7 +66,12 @@ const state = {
   activeRefreshCtrl: null,
   camKey: 'uit',
   camUserPicked: false,
+  camFullBright: false,
+  activeView: 'home',
+  tabScrollY: { home: 0, dir: 0, sat: 0 },
   trustTriggerEl: null,
+  pickerTriggerEl: null,
+  sheetHistoryPushed: false,
   toastTimer: null
 };
 
@@ -72,17 +79,32 @@ const $ = (id) => document.getElementById(id);
 const setText = (id, txt) => { const el = $(id); if (el) el.textContent = txt; };
 const setHtml = (id, html) => { const el = $(id); if (el) el.innerHTML = html; };
 
+function haptic(pattern = 8) {
+  try {
+    if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
+    navigator.vibrate?.(pattern);
+  } catch {}
+}
+
 function getPosDisplayName(pos = state.pos) {
   return resolveCityDisplayName(pos, getLang());
 }
 
-function toast(msg) {
+const TOAST_DURATIONS = { info: 2800, success: 3000, warn: 4800, error: 5000, alert: 6500 };
+
+function hideToast() {
+  clearTimeout(state.toastTimer);
+  $('toast')?.classList.remove('show');
+}
+
+function toast(msg, type = 'info') {
   const el = $('toast');
   if (!el) return;
+  const t = TOAST_DURATIONS[type] ? type : 'info';
   el.textContent = msg;
-  el.classList.add('show');
+  el.className = `toast show t-${t}`;
   clearTimeout(state.toastTimer);
-  state.toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+  state.toastTimer = setTimeout(() => el.classList.remove('show'), TOAST_DURATIONS[t]);
 }
 
 /** Keep address bar synchronized with selected city & language so copying URL always works */
@@ -121,7 +143,9 @@ async function refreshLocalizedPlaceName() {
 // ====== Red-Light Night-Vision Mode & Language ======
 function applyRedModeUI() {
   document.body.classList.toggle('red-mode', state.redModeEnabled);
-  $('redBtn')?.classList.toggle('red-on', state.redModeEnabled);
+  const btn = $('redBtn');
+  btn?.classList.toggle('red-on', state.redModeEnabled);
+  btn?.setAttribute('aria-pressed', String(state.redModeEnabled));
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', state.redModeEnabled ? '#040000' : '#040912');
 }
@@ -130,9 +154,10 @@ function toggleRedMode() {
   state.redModeEnabled = !state.redModeEnabled;
   saveRedMode(state.redModeEnabled);
   applyRedModeUI();
+  haptic(10);
   toast(state.redModeEnabled
     ? (isEn() ? 'Red-light night vision ON' : '已開啟紅光夜視模式（保護暗適應）')
-    : (isEn() ? 'Red-light night vision OFF' : '已關閉紅光夜視模式'));
+    : (isEn() ? 'Red-light night vision OFF' : '已關閉紅光夜視模式'), 'info');
 }
 
 function applyStaticI18n() {
@@ -148,14 +173,16 @@ function toggleLang() {
   saveLangPref(getLang());
   applyStaticI18n();
   renderLocationHeader();
+  renderMonitorBar();
   updateClockAndPhoto();
   if (state.renderState) renderFromState(state.renderState);
   syncBrowserUrl();
   refreshLocalizedPlaceName();
-  toast(isEn() ? 'Switched to English' : '已切換為繁體中文');
+  haptic(6);
+  toast(isEn() ? 'Switched to English' : '已切換為繁體中文', 'info');
 }
 
-// ====== Alerts & Audio ======
+// ====== Alerts, Persistent Monitor Bar & Audio ======
 function playAuroraChime() {
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -179,23 +206,62 @@ function playAuroraChime() {
   } catch {}
 }
 
+function renderMonitorBar() {
+  const bar = $('monitorBar');
+  const btn = $('alertBtn');
+  if (btn) {
+    btn.classList.toggle('alert-on', state.alertEnabled);
+    btn.setAttribute('aria-pressed', String(state.alertEnabled));
+  }
+  if (!bar) return;
+  const en = isEn();
+  if (state.activeAlert) {
+    bar.className = 'monitor-bar on triggered';
+    bar.innerHTML = `<span class="monitor-main"><span class="monitor-pulse"></span><span>${escapeHtml(state.activeAlert.time)} · ${escapeHtml(state.activeAlert.msg)}</span></span><button class="monitor-act" type="button" data-mon-act="ack">${en ? 'Got it' : '知道了'}</button>`;
+    return;
+  }
+  if (state.alertEnabled) {
+    bar.className = 'monitor-bar on';
+    const wlTag = state.wakeLockFailed
+      ? (en ? ' (keep screen awake)' : '（請保持螢幕常亮）')
+      : '';
+    const txt = en
+      ? `Monitor active · alerts at score ≥40 or surge${wlTag}`
+      : `常亮監測中 · 指數 ≥40 或爆發將響鈴${wlTag}`;
+    bar.innerHTML = `<span class="monitor-main"><span class="monitor-pulse"></span><span>${escapeHtml(txt)}</span></span><button class="monitor-act" type="button" data-mon-act="off">${en ? 'Off' : '關閉'}</button>`;
+    return;
+  }
+  bar.className = 'monitor-bar';
+  bar.innerHTML = '';
+}
+
 async function toggleAlertMode() {
   state.alertEnabled = !state.alertEnabled;
-  const btn = $('alertBtn');
   const en = isEn();
   if (state.alertEnabled) {
-    btn?.classList.add('alert-on');
+    state.wakeLockFailed = false;
     playAuroraChime();
-    if (navigator.vibrate) navigator.vibrate([120, 80, 120]);
+    haptic([100, 60, 100]);
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission().catch(() => {});
     }
-    try { if (navigator.wakeLock) state.wakeLockObj = await navigator.wakeLock.request('screen'); } catch {}
-    toast(en ? 'Screen-on monitor ON — keep screen unlocked & plugged in' : '已開啟螢幕常亮監測（請保持螢幕未鎖定並接上電源）');
+    try {
+      if (navigator.wakeLock) state.wakeLockObj = await navigator.wakeLock.request('screen');
+      else state.wakeLockFailed = true;
+    } catch {
+      state.wakeLockFailed = true;
+    }
+    renderMonitorBar();
+    toast(en
+      ? 'Monitor ON — keep screen unlocked & plugged in'
+      : '已開啟常亮監測，請保持螢幕未鎖定並接上電源', 'warn');
   } else {
-    btn?.classList.remove('alert-on');
+    state.wakeLockFailed = false;
+    state.activeAlert = null;
     try { if (state.wakeLockObj) { await state.wakeLockObj.release(); state.wakeLockObj = null; } } catch {}
-    toast(en ? 'Screen-on monitor turned off' : '已關閉螢幕常亮監測');
+    renderMonitorBar();
+    haptic(8);
+    toast(en ? 'Screen-on monitor turned off' : '已關閉常亮監測', 'info');
   }
 }
 
@@ -205,7 +271,7 @@ function maybeTriggerAlert(sc, goesSub, scNext, bal, pos = state.pos) {
   if (!check.fire || Date.now() - state.lastAlertMs < 15 * 60 * 1000) return;
   state.lastAlertMs = Date.now();
   playAuroraChime();
-  if (navigator.vibrate) navigator.vibrate([250, 120, 250, 120, 350]);
+  haptic([250, 120, 250, 120, 350]);
   const en = isEn();
   const cityLabel = getPosDisplayName(pos);
   const msgMap = {
@@ -215,7 +281,10 @@ function maybeTriggerAlert(sc, goesSub, scNext, bal, pos = state.pos) {
     incoming: en ? `Incoming surge: est. ${scNext?.total}/100 in ~${bal?.etaMin || 45} min!` : `太陽風能量將抵達：預估 ${bal?.etaMin || 45} 分內達 ${scNext?.total} 分！`
   };
   const msg = msgMap[check.reason] || msgMap.score;
-  toast(msg);
+  const timeStr = $('clk')?.textContent || new Date().toTimeString().slice(0, 5);
+  state.activeAlert = { time: timeStr, msg };
+  renderMonitorBar();
+  toast(msg, 'alert');
   try {
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification(en ? 'Aurora Radar Alert' : '極光即時雷達提醒', { body: msg });
@@ -223,7 +292,7 @@ function maybeTriggerAlert(sc, goesSub, scNext, bal, pos = state.pos) {
   } catch {}
 }
 
-// ====== Location, Picker, Tabs & All-Sky Cams ======
+// ====== Location, Native Sheets, Tabs & All-Sky Cams ======
 function loadSavedPrefs() {
   state.locationSeq++;
   setLang(detectDefaultLang());
@@ -237,9 +306,11 @@ function loadSavedPrefs() {
     if (saved) state.pos = saved;
   }
   refreshLocalizedPlaceName();
-  if (/Line\/|FBAN|FBAV|Instagram|MicroMessenger/i.test(navigator.userAgent || '')) {
+  let dismissedTip = false;
+  try { dismissedTip = sessionStorage.getItem('aurora_line_tip_dismissed') === '1'; } catch {}
+  if (!dismissedTip && /Line\/|FBAN|FBAV|Instagram|MicroMessenger/i.test(navigator.userAgent || '')) {
     const tip = $('lineTip');
-    if (tip) tip.style.display = 'block';
+    if (tip) tip.style.display = 'flex';
   }
 }
 
@@ -253,14 +324,42 @@ function syncPresetChipHighlight() {
   });
 }
 
-function togglePicker(forceClose) {
+function pushSheetHistory() {
+  try {
+    if (!state.sheetHistoryPushed && typeof history !== 'undefined' && location.protocol.startsWith('http')) {
+      history.pushState({ auroraSheet: true }, '', location.href);
+      state.sheetHistoryPushed = true;
+    }
+  } catch {}
+}
+
+function syncBodySheetClass() {
+  const anyOpen = $('picker')?.classList.contains('open') || $('trustSheet')?.classList.contains('open');
+  document.body.classList.toggle('sheet-open', Boolean(anyOpen));
+}
+
+function togglePicker(forceClose, triggerEl) {
   const p = $('picker');
   const btn = $('pickBtn');
   if (!p || !btn) return;
   const open = forceClose ? false : !p.classList.contains('open');
-  p.classList.toggle('open', open);
-  btn.classList.toggle('open', open);
-  btn.setAttribute('aria-expanded', String(open));
+  if (open) {
+    closeTrustSheet();
+    state.pickerTriggerEl = triggerEl || document.activeElement;
+    p.classList.add('open');
+    p.setAttribute('aria-hidden', 'false');
+    btn.classList.add('open');
+    btn.setAttribute('aria-expanded', 'true');
+    pushSheetHistory();
+    haptic(6);
+  } else {
+    p.classList.remove('open');
+    p.setAttribute('aria-hidden', 'true');
+    btn.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
+    if (state.pickerTriggerEl && forceClose !== 'pop') state.pickerTriggerEl.focus?.();
+  }
+  syncBodySheetClass();
 }
 
 function findNearestCamInRegion(lat, lon, region) {
@@ -274,21 +373,41 @@ function findNearestCamInRegion(lat, lon, region) {
   return { key: bestKey, distKm: minKm };
 }
 
+function syncSkyCamGlareUI(isDaylight) {
+  const wrap = $('skyCamWrap');
+  const btn = $('camBrightBtn');
+  const en = isEn();
+  if (!wrap || !btn) return;
+  if (!isDaylight) {
+    wrap.classList.remove('daylight');
+    btn.style.display = 'none';
+    return;
+  }
+  wrap.classList.toggle('daylight', !state.camFullBright);
+  btn.style.display = 'inline-flex';
+  btn.textContent = state.camFullBright
+    ? (en ? 'Dim glare' : '恢復降亮')
+    : (en ? 'Daylight dimmed · tap for full' : '日間過曝・點此看原亮度');
+}
+
 function updateSkyCamDayNotice(key) {
   const notice = $('camDayNotice');
   const cam = SKY_CAMS[key];
   if (!notice) return;
   if (!cam || cam.isMag || !Number.isFinite(cam.lat)) {
     notice.style.display = 'none';
+    syncSkyCamGlareUI(false);
     return;
   }
   const now = new Date();
   const sunAlt = computeSolarElevation(now, cam.lat, cam.lon);
   if (sunAlt <= -6) {
     notice.style.display = 'none';
+    syncSkyCamGlareUI(false);
     return;
   }
   const en = isEn();
+  const sunStr = `${sunAlt > 0 ? '+' : ''}${sunAlt.toFixed(0)}°`;
   const dw = computeDarkWindow(now, cam.lat, cam.lon, cam.tz || 'UTC');
   const nextStr = dw.state === 'twilight-wait' && dw.nextDarkHM
     ? (en ? ` Dark again around ${dw.nextDarkHM} local.` : ` 預計當地 ${dw.nextDarkHM} 後轉暗恢復正常夜拍。`)
@@ -297,14 +416,19 @@ function updateSkyCamDayNotice(key) {
         : '');
   notice.style.display = 'block';
   notice.textContent = en
-    ? `Daylight/twilight at this observatory (sun ${sunAlt.toFixed(0)}°) — high-sensitivity aurora cameras naturally appear white/overexposed until dark.${nextStr}`
-    : `此天文台目前為白天／暮光（太陽 ${sunAlt.toFixed(0)}°），高感光極光相機畫面偏白過曝屬正常現象。${nextStr}`;
+    ? `Daylight/twilight at this observatory (sun ${sunStr}) — high-sensitivity aurora cameras naturally appear white/overexposed until dark.${nextStr}`
+    : `此天文台目前為白天／暮光（太陽 ${sunStr}），高感光極光相機畫面偏白過曝屬正常現象。${nextStr}`;
+  syncSkyCamGlareUI(true);
 }
 
 function selectSkyCam(key, btn, isUser = false) {
   if (!SKY_CAMS[key]) return;
-  if (isUser) state.camUserPicked = true;
+  if (isUser) {
+    state.camUserPicked = true;
+    haptic(6);
+  }
   state.camKey = key;
+  state.camFullBright = false;
   document.querySelectorAll('#camChips .chip').forEach(c => {
     c.classList.toggle('on', btn ? c === btn : c.dataset.cam === key);
   });
@@ -357,13 +481,22 @@ function syncSatTab() {
 }
 
 function switchView(name, btn) {
+  if (!name || !$('v-' + name)) return;
+  if (state.activeView === name) {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  state.tabScrollY[state.activeView] = window.scrollY || 0;
+  state.activeView = name;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('on'));
   $('v-' + name)?.classList.add('on');
   const navBtn = btn || document.querySelector(`.bottom-nav .nav-btn[data-view="${name}"]`);
   navBtn?.classList.add('on');
   if (name === 'sat') syncSatTab();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  haptic(6);
+  const targetY = state.tabScrollY[name] || 0;
+  window.scrollTo({ top: targetY, behavior: 'auto' });
 }
 
 function renderLocationHeader() {
@@ -397,6 +530,7 @@ function updateClockAndPhoto() {
 
 // ====== Gauges, Charts & State Rendering ======
 const barColor = (score) => (score >= 65 ? 'var(--green)' : score >= 35 ? 'var(--amber)' : 'var(--red)');
+const tierColor = (score) => (score >= 40 ? 'var(--green)' : score >= 18 ? 'var(--amber)' : 'var(--red)');
 function scoreCssColor(hex) {
   if (hex === '#34f0b0') return 'var(--green)';
   if (hex === '#ffcf5c') return 'var(--amber)';
@@ -423,15 +557,15 @@ function renderGauge(sc, details) {
   const grEl = $('ringGrade');
   if (grEl) { grEl.textContent = tGrade(sc.grade).replace(/^[^\p{L}\p{N}]+\s*/u, ''); grEl.style.color = ringCol; }
 
-  const setFactor = (vid, bid, sid, pct, lbl, sub, forceC) => {
+  const setFactor = (vid, bid, sid, pct, lbl, subHtml, forceC) => {
     const c = forceC || barColor(pct);
     const ve = $(vid); if (ve) { ve.textContent = lbl; ve.style.color = c; }
     const be = $(bid); if (be) { be.style.width = `${Math.max(6, pct)}%`; be.style.background = c; }
-    setText(sid, sub);
+    setHtml(sid, subHtml);
   };
-  setFactor('fSkyVal', 'fSkyBar', 'fSkySub', sc.skyScore, `${sc.skyScore}%`, details.skySub);
-  setFactor('fAurVal', 'fAurBar', 'fAurSub', sc.auroraScore, en ? `${sc.auroraScore}` : `${sc.auroraScore}分`, details.aurSub);
-  setFactor('fDarkVal', 'fDarkBar', 'fDarkSub', sc.darkScore, details.isTooBright ? (en ? 'Bright' : '尚亮') : `${sc.darkScore}%`, details.darkSub, details.isTooBright ? 'var(--blue)' : null);
+  setFactor('fSkyVal', 'fSkyBar', 'fSkySub', sc.skyScore, `${sc.skyScore}%`, details.skySubHtml ?? escapeHtml(details.skySub || ''));
+  setFactor('fAurVal', 'fAurBar', 'fAurSub', sc.auroraScore, en ? `${sc.auroraScore}` : `${sc.auroraScore}分`, details.aurSubHtml ?? escapeHtml(details.aurSub || ''));
+  setFactor('fDarkVal', 'fDarkBar', 'fDarkSub', sc.darkScore, details.isTooBright ? (en ? 'Bright' : '尚亮') : `${sc.darkScore}%`, details.darkSubHtml ?? escapeHtml(details.darkSub || ''), details.isTooBright ? 'var(--blue)' : null);
 }
 
 function selectForecastHour(idx) {
@@ -449,9 +583,10 @@ function selectForecastHour(idx) {
   const kpStr = Number.isFinite(h.kpFc) ? h.kpFc.toFixed(2) : escapeHtml(h.kpFc);
   const tStr = escapeHtml(h.time);
   const skyLabel = escapeHtml(en ? tSky(h.txt, 'en') : String(h.txt || '').replace(/^[^\p{L}\p{N}]+\s*/u, ''));
+  const scCol = h.isDay ? 'var(--blue)' : tierColor(h.score);
   setHtml('hourDetail', en
-    ? `<span><strong>${tStr}</strong> · Score <strong>${h.score}</strong> · Clear ${h.clear}% (${skyLabel})</span><span>${fmtTempC(tInt)}${wcTxt} · ${moonTxt} · Kp ${kpStr}</span>`
-    : `<span><strong>${tStr}</strong>｜指數 <strong>${h.score}分</strong>｜晴空 ${h.clear}%（${skyLabel}）</span><span>${fmtTempC(tInt)}${wcTxt} · ${moonTxt} · Kp ${kpStr}</span>`);
+    ? `<span><strong>${tStr}</strong> · Score <strong style="color:${scCol}">${h.score}</strong> · Clear ${h.clear}% (${skyLabel})</span><span>${fmtTempC(tInt)}${wcTxt} · ${moonTxt} · Kp ${kpStr}</span>`
+    : `<span><strong>${tStr}</strong>｜指數 <strong style="color:${scCol}">${h.score}分</strong>｜晴空 ${h.clear}%（${skyLabel}）</span><span>${fmtTempC(tInt)}${wcTxt} · ${moonTxt} · Kp ${kpStr}</span>`);
 }
 
 function renderStormBanner(scales, noaaAlert) {
@@ -470,13 +605,15 @@ function renderStormBanner(scales, noaaAlert) {
     el.style.display = 'flex';
     const isShock = noaaAlert.kind === 'cme-shock';
     const isWarn = Boolean(noaaAlert.isWarning);
-    const pill = isShock ? 'CME SHOCK' : (isWarn ? `NOAA G${lvl} WARN` : `NOAA G${lvl}`);
+    const pill = isShock
+      ? 'CME SHOCK'
+      : (isWarn ? (en ? `G${lvl} WARN` : `G${lvl} 預警`) : `NOAA G${lvl}`);
     const txt = isShock
-      ? (en ? 'SWPC Geomagnetic Sudden Impulse — CME shock arrived' : 'NOAA 官方警報：CME 衝擊波抵達地球（短時間內易爆發）')
+      ? (en ? 'Geomagnetic Sudden Impulse — CME shock arrived' : 'CME 衝擊波抵達地球，短時間內易爆發')
       : (isWarn
-          ? (en ? `SWPC K=${noaaAlert.kLevel} Storm Warning (Expected)` : `NOAA 官方預警：預計達 K=${noaaAlert.kLevel}（G${lvl}）地磁風暴`)
-          : (en ? `SWPC K=${noaaAlert.kLevel} Storm Alert Active` : `NOAA 官方即時警報：達 K=${noaaAlert.kLevel}（G${lvl}）地磁風暴`));
-    el.innerHTML = `<span><span class="storm-pill">${escapeHtml(pill)}</span>${escapeHtml(txt)}</span><span style="opacity:0.75;">↗</span>`;
+          ? (en ? `K=${noaaAlert.kLevel} ${gNamesEn[lvl] || ''} Storm Expected` : `預計達 K=${noaaAlert.kLevel}（${gNamesZh[lvl] || ''}地磁風暴）`)
+          : (en ? `K=${noaaAlert.kLevel} ${gNamesEn[lvl] || ''} Storm Alert Active` : `即時達 K=${noaaAlert.kLevel}（${gNamesZh[lvl] || ''}地磁風暴）`));
+    el.innerHTML = `<span class="storm-pill">${escapeHtml(pill)}</span><span class="storm-txt">${escapeHtml(txt)}</span><span class="storm-arr">↗</span>`;
     return;
   }
   const isNow = scales.currentScale >= 1;
@@ -488,7 +625,7 @@ function renderStormBanner(scales, noaaAlert) {
   const txt = isNow
     ? (en ? `${desc} Geomagnetic Storm Active` : `${desc}地磁風暴進行中・極光帶擴張`)
     : (en ? `${desc} Storm Watch (${dStr})` : `預警 ${dStr} 達${desc}地磁風暴`);
-  el.innerHTML = `<span><span class="storm-pill">NOAA G${lvl}</span>${escapeHtml(txt)}</span><span style="opacity:0.75;">↗</span>`;
+  el.innerHTML = `<span class="storm-pill">NOAA G${lvl}</span><span class="storm-txt">${escapeHtml(txt)}</span><span class="storm-arr">↗</span>`;
 }
 
 function render3NightOutlook(nights) {
@@ -505,17 +642,17 @@ function render3NightOutlook(nights) {
   grid.innerHTML = nights.map((n, i) => {
     const clearTxt = n.bestClear !== null ? (en ? `Clear ${n.bestClear}%` : `晴空 ${n.bestClear}%`) : (en ? 'No dark hrs' : '無暗空');
     const hrsLine = (n.bestClear !== null && n.clearDarkHrs > 0)
-      ? `<br/><span style="white-space:nowrap;">${en ? `${n.clearDarkHrs} hrs clear` : `共 ${n.clearDarkHrs} 小時晴`}</span>`
+      ? `<br/><span class="nowrap">${en ? `${n.clearDarkHrs} hrs clear` : `共 ${n.clearDarkHrs} 小時晴`}</span>`
       : '';
     const kpTxt = n.kpAvailable === false
       ? (en ? 'Kp --' : 'Kp 待更新')
       : `Kp ${Number(n.maxKp || 0).toFixed(1)}${n.gScale >= 1 ? ` · G${n.gScale}` : ''}`;
-    const enlilLine = n.enlilTag ? `<br/><span style="color:var(--amber);font-weight:700;">${escapeHtml(n.enlilTag)}</span>` : '';
+    const enlilLine = n.enlilTag ? `<br/><span class="od-enlil">${escapeHtml(n.enlilTag)}</span>` : '';
     const bCol = n.badgeColor?.startsWith('#') ? scoreCssColor(n.badgeColor) : (n.badgeColor || 'var(--muted)');
     return `<div class="outlook-day ${i === bestIdx ? 'od-best' : ''}">
       <div class="od-date">${escapeHtml(n.label)}</div>
       <div class="od-badge" style="color:${bCol};"><span class="leg-dot" style="background:${bCol};margin-right:2px;"></span>${escapeHtml(n.badge)}</div>
-      <div class="od-stat"><span style="white-space:nowrap;">${escapeHtml(clearTxt)}</span>${hrsLine}<br/>${escapeHtml(kpTxt)}${enlilLine}</div>
+      <div class="od-stat"><span class="nowrap">${escapeHtml(clearTxt)}</span>${hrsLine}<br/>${escapeHtml(kpTxt)}${enlilLine}</div>
     </div>`;
   }).join('');
 }
@@ -579,18 +716,26 @@ function formatDarkCountdownSub(darkWin, moon, en) {
   };
   if (darkWin?.state === 'midnight-sun') return en ? 'Midnight sun (24h)' : '極晝（24h 偏亮）';
   if (darkWin?.state === 'twilight-wait' && darkWin.nextDarkHM) {
-    return en ? `Dark ${darkWin.nextDarkHM} (${fmtDur(darkWin.darkInMin)})` : `${darkWin.nextDarkHM} 轉暗（${fmtDur(darkWin.darkInMin)}）`;
+    return en
+      ? `<span class="nowrap">Dark ${escapeHtml(darkWin.nextDarkHM)}</span> <span class="nowrap">(${fmtDur(darkWin.darkInMin)})</span>`
+      : `<span class="nowrap">${escapeHtml(darkWin.nextDarkHM)} 轉暗</span> <span class="nowrap">(${fmtDur(darkWin.darkInMin)})</span>`;
   }
   if (darkWin?.state === 'polar-night') {
-    return moon.up ? (en ? `Polar night · Moon ${moon.pct}%` : `極夜 · 月相 ${moon.pct}%`) : (en ? 'Polar night dark' : '極夜全暗');
+    return moon.up
+      ? (en ? `<span class="nowrap">Polar night</span> · <span class="nowrap">Moon ${moon.pct}%</span>` : `<span class="nowrap">極夜</span> · <span class="nowrap">月相 ${moon.pct}%</span>`)
+      : (en ? 'Polar night dark' : '極夜全暗');
   }
   if (darkWin?.state === 'dark' && darkWin.darkEndHM) {
     if (moon.up && moon.effMoonPct >= 40) {
-      return en ? `Moon ${moon.pct}% · Dawn ${darkWin.darkEndHM}` : `月相 ${moon.pct}% · 亮 ${darkWin.darkEndHM}`;
+      return en
+        ? `<span class="nowrap">Moon ${moon.pct}%</span> · <span class="nowrap">Dawn ${escapeHtml(darkWin.darkEndHM)}</span>`
+        : `<span class="nowrap">月相 ${moon.pct}%</span> · <span class="nowrap">亮 ${escapeHtml(darkWin.darkEndHM)}</span>`;
     }
-    return en ? `Till ${darkWin.darkEndHM} (${fmtDur(darkWin.darkRemainMin)})` : `暗至 ${darkWin.darkEndHM}（剩 ${fmtDur(darkWin.darkRemainMin)}）`;
+    return en
+      ? `<span class="nowrap">Till ${escapeHtml(darkWin.darkEndHM)}</span> <span class="nowrap">(${fmtDur(darkWin.darkRemainMin)})</span>`
+      : `<span class="nowrap">暗至 ${escapeHtml(darkWin.darkEndHM)}</span> <span class="nowrap">(剩 ${fmtDur(darkWin.darkRemainMin)})</span>`;
   }
-  return moon.up ? (en ? `Moon ${moon.pct}%` : `月相 ${moon.pct}%`) : (en ? 'Moon down' : '月亮落下');
+  return moon.up ? (en ? `<span class="nowrap">Moon ${moon.pct}%</span>` : `<span class="nowrap">月相 ${moon.pct}%</span>`) : (en ? 'Moon down' : '月亮落下');
 }
 
 function renderRoadLinks(pos, en) {
@@ -651,32 +796,36 @@ function renderCompassPanel(dirResults, pos, en) {
       : (Number.isFinite(kmVal) && kmVal > 0 ? (en ? ` · ~${kmVal} km road` : ` · 公路 ~${kmVal} km`) : '');
     const windMs = Number(d.maxWind3h) || 0;
     const precipMm = Number(d.maxPrecip3h) || 0;
-    const windTag = (!d.isOcean && !unavail && windMs >= 12)
-      ? (en ? ` · ⚠ Gale ${Math.round(windMs)}m/s` : ` · ⚠ 強風 ${Math.round(windMs)}m/s`)
-      : ((!d.isOcean && !unavail && windMs >= 9 && (d.temp ?? 5) <= 1.5)
-          ? (en ? ` · ⚠ Drifting snow ${Math.round(windMs)}m/s` : ` · ⚠ 吹雪風 ${Math.round(windMs)}m/s`)
-          : '');
-    const roadTag = (!d.isOcean && !unavail && precipMm >= 0.2)
-      ? (d.temp <= 1.5
-          ? (en ? ' · Snow/Ice risk' : ' · 降雪／結冰風險')
-          : (en ? ' · Rain' : ' · 降雨'))
+    const hazards = [];
+    if (!d.isOcean && !unavail && windMs >= 12) {
+      hazards.push(en ? `⚠ Gale ${Math.round(windMs)}m/s` : `⚠ 強風 ${Math.round(windMs)}m/s`);
+    } else if (!d.isOcean && !unavail && windMs >= 9 && (d.temp ?? 5) <= 1.5) {
+      hazards.push(en ? `⚠ Drifting snow ${Math.round(windMs)}m/s` : `⚠ 吹雪風 ${Math.round(windMs)}m/s`);
+    }
+    if (!d.isOcean && !unavail && precipMm >= 0.2 && d.temp <= 1.5) {
+      hazards.push(en ? 'Snow/Ice risk' : '降雪／結冰風險');
+    }
+    if (!d.isOcean && !unavail && Number.isFinite(d.temp) && d.temp <= -25) {
+      hazards.push(en ? '⚠ Extreme cold' : '⚠ 極寒凍傷風險');
+    }
+    const rainTag = (!d.isOcean && !unavail && precipMm >= 0.2 && d.temp > 1.5)
+      ? (en ? ' · Rain' : ' · 降雨')
       : '';
-    const coldTag = (!d.isOcean && !unavail && Number.isFinite(d.temp) && d.temp <= -25)
-      ? (en ? ' · ⚠ Extreme cold' : ' · ⚠ 極寒凍傷風險')
-      : '';
+    const hazardHtml = hazards.length ? `<div class="dir-hazards">${escapeHtml(hazards.join(' · '))}</div>` : '';
     const noteText = en ? (d.roadNoteEn || '') : (d.roadNote || '');
-    const noteHtml = noteText ? `<div class="dir-note">${escapeHtml(noteText)}</div>` : '';
+    const isPositiveNote = /雨影|晴空|暗空|主幹道|rain shadow|dark sky|main highway|paved/i.test(noteText);
+    const noteHtml = noteText ? `<div class="${isPositiveNote ? 'dir-tip' : 'dir-note'}">${escapeHtml(noteText)}</div>` : '';
     const nav = (d.isOcean || unavail)
       ? (d.isOcean
           ? `<span style="font-size:0.75rem;color:var(--blue);font-weight:700;">${en ? 'Open Sea' : '海域參考'}</span>`
           : `<span style="font-size:0.75rem;color:var(--muted);font-weight:700;">${en ? 'Unavailable' : '暫無資料'}</span>`)
-      : `<a class="btn btn-blue" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/dir/?api=1&origin=${pos.lat},${pos.lon}&destination=${d.lat},${d.lon}&travelmode=driving">${en ? 'Drive' : '導航'}</a>`;
+      : `<a class="btn ${hazard ? 'btn-hazard' : 'btn-blue'}" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/dir/?api=1&origin=${pos.lat},${pos.lon}&destination=${d.lat},${d.lon}&travelmode=driving">${en ? (hazard ? 'Caution' : 'Drive') : (hazard ? '慎行' : '導航')}</a>`;
     const statLine = unavail
       ? (en ? 'Forecast temporarily unavailable' : '此方向氣象暫時無法取得')
-      : `${en ? '3h Clear' : '3h 晴空'} <strong class="${col}">${clear3h}%</strong>｜${en ? 'Now' : '目前'} ${clearNow}%｜${fmtTempC(d.temp)}${windTag}${roadTag}${coldTag}`;
+      : `${en ? '3h Clear' : '3h 晴空'} <strong class="${col}">${clear3h}%</strong>｜${en ? 'Now' : '目前'} ${clearNow}%｜${fmtTempC(d.temp)}${rainTag}`;
     return `<div class="dir ${isBest ? 'best' : ''} ${hazard ? 'hazard' : ''} ${d.isOcean ? 'sea' : ''}">
       <div><div style="font-weight:800;font-size:0.9rem;">${escapeHtml(tDirLabel(d.label))}${isBest ? ' ★' : ''}<span style="font-weight:600;font-size:0.74rem;color:var(--muted);">${distTag}</span></div>
-      <div style="font-size:0.74rem;color:var(--muted);">${statLine}</div>${noteHtml}</div>
+      <div style="font-size:0.74rem;color:var(--muted);">${statLine}</div>${hazardHtml}${noteHtml}</div>
       ${nav}
     </div>`;
   }).join('');
@@ -701,6 +850,10 @@ function renderFromState(st) {
   if (!hereHrs || !hereHrs.length) return;
   const c0 = hereHrs[0].block;
 
+  // Dynamic ambient sky mood (subtle 1P atmosphere)
+  const severeStorm = Boolean((noaaAlert?.active && (noaaAlert.kind === 'cme-shock' || (noaaAlert.gScale || 0) >= 3)) || (noaaScales?.currentScale || 0) >= 3);
+  document.body.dataset.mood = severeStorm ? 'storm' : (sc.total >= 65 ? 'prime' : (sc.total >= 35 ? 'active' : 'quiet'));
+
   const expNow = explainAuroraScore({
     lat: pos.lat, lon: pos.lon,
     cloudNow: c0, sunAlt: sunAltNow,
@@ -714,16 +867,19 @@ function renderFromState(st) {
     scNext, noaaOk, noaaLagMin, usedMet, cloudConsensus, hereHrs, noaaAlert, predKp1h
   });
 
-  // +ETA Forward Forecast Strip & Always-Visible Readable Formula/Confidence Button
+  // +ETA Forward Forecast Strip with Semantic Score Coloring
   if (sc.outOfZone && (!scNext || scNext.outOfZone)) {
-    setHtml('fcNextTxt', en ? `Next 1h est.: Score <strong>0</strong> (Latitude limit)` : `未來 1 小時預估：指數 <strong>0</strong>（緯度限制）`);
+    setHtml('fcNextTxt', en
+      ? `Next 1h est.: Score <strong style="color:var(--red)">0</strong> (Latitude limit)`
+      : `未來 1 小時預估：指數 <strong style="color:var(--red)">0</strong>（緯度限制）`);
   } else if (scNext) {
     const diff = scNext.total - sc.total;
     const arrow = diff >= 6 ? (en ? '↗ Rising' : '↗ 增強') : (diff <= -6 ? (en ? '↘ Fading' : '↘ 轉弱') : (en ? '→ Steady' : '→ 持平'));
     const etaSafe = escapeHtml(etaClock);
+    const nextCol = scoreCssColor(scNext.color);
     setHtml('fcNextTxt', en
-      ? `${etaSafe ? `Est. ${etaSafe}` : `In ~${safeBal.etaMin} min`}: Score <strong>${scNext.total}</strong> (${arrow})`
-      : `${etaSafe ? `${etaSafe} 預估` : `約 ${safeBal.etaMin} 分鐘後預估`}：指數 <strong>${scNext.total}</strong>（${arrow}）`);
+      ? `${etaSafe ? `Est. ${etaSafe}` : `In ~${safeBal.etaMin} min`}: Score <strong style="color:${nextCol}">${scNext.total}</strong> (${arrow})`
+      : `${etaSafe ? `${etaSafe} 預估` : `約 ${safeBal.etaMin} 分鐘後預估`}：指數 <strong style="color:${nextCol}">${scNext.total}</strong>（${arrow}）`);
   }
   const confBtn = $('fcConfBtn');
   if (confBtn) {
@@ -732,7 +888,7 @@ function renderFromState(st) {
     confBtn.textContent = degraded ? `⚠ ${expNow.confidence.badgeText} ›` : (en ? 'Why? ›' : '說明 ›');
   }
 
-  // Live raw telemetry inside Trust Sheet
+  // Live raw telemetry & dedicated METAR calibration note inside Trust Sheet
   const displayBz = Number.isFinite(safeBal.cleanLatestBz) ? safeBal.cleanLatestBz : bz;
   const rawParts = [
     `Bz ${displayBz !== null && Number.isFinite(displayBz) ? (displayBz >= 0 ? '+' : '') + displayBz.toFixed(1) + ' nT' : '--'}`,
@@ -748,8 +904,8 @@ function renderFromState(st) {
   }
   const metarNote = (metarObs && metarFusion?.discrepancyFlag)
     ? (en
-        ? ` (${metarObs.icao} airport laser ${metarObs.ageMin}m ago measured ${metarObs.clearPct}% clear${metarObs.ceilingM ? ` · ceiling ${metarObs.ceilingM}m` : ''} — forecast adjusted)`
-        : `（鄰近 ${metarObs.icao} 機場 ${metarObs.ageMin} 分前雷射實測晴空 ${metarObs.clearPct}%${metarObs.ceilingM ? `・雲底 ${metarObs.ceilingM}m` : ''}，已即時修正預報）`)
+        ? `${metarObs.icao} airport laser (${metarObs.ageMin}m ago) measured ${metarObs.clearPct}% clear${metarObs.ceilingM ? ` · ceiling ${metarObs.ceilingM}m` : ''} — short-term forecast adjusted.`
+        : `鄰近 ${metarObs.icao} 機場 ${metarObs.ageMin} 分前雷射實測晴空 ${metarObs.clearPct}%${metarObs.ceilingM ? `・雲底 ${metarObs.ceilingM}m` : ''}，已即時修正短時預報。`)
     : '';
   renderTrustSheetLive(expNow, sc, rawParts.join(' · '), metarNote);
 
@@ -761,29 +917,45 @@ function renderFromState(st) {
   const wc0Int = Math.round(hereHrs[0].windChill ?? hereHrs[0].temp) || 0;
   const wind0 = Number(hereHrs[0].windMs) || 0;
   const precip0 = Number(hereHrs[0].precip) || 0;
-  const wcTag = (t0Int - wc0Int >= 3) ? (en ? ` · Feels ${fmtTempC(wc0Int)}` : ` · 體感${fmtTempC(wc0Int)}`) : '';
-  const coldWarnTag = (t0Int <= -25 || wc0Int <= -32) ? (en ? ' · ⚠ Extreme cold' : ' · ⚠ 極寒注意') : '';
-  const skyPrecipTag = (wind0 >= 9 && t0Int <= 1 && precip0 >= 0.2)
-    ? (en ? ' · ⚠ Blowing snow' : ' · ⚠ 吹雪')
-    : (precip0 >= 0.2
-        ? (t0Int <= 1 ? (en ? ' · Snow' : ' · 降雪') : (en ? ' · Rain' : ' · 降雨'))
-        : '');
-  const metarSkyTag = (metarObs && metarFusion?.discrepancyFlag)
-    ? (en ? ' · Laser adj' : ' · 實測修正')
-    : '';
-  const aurSubText = sc.outOfZone === 'low-lat'
-    ? (en ? `Mag ${sc.magLat}°` : `地磁 ${sc.magLat}°`)
+  const isExtremeCold = (t0Int <= -25 || wc0Int <= -32);
+  const isBlowingSnow = (wind0 >= 9 && t0Int <= 1 && precip0 >= 0.2);
+
+  // Clean 2-line bento sub-metrics with atomic nowrap tokens
+  const skyParts = [`<span class="nowrap">${fmtTempC(t0Int)}</span>`];
+  if (t0Int - wc0Int >= 3) {
+    skyParts.push(`<span class="nowrap">${en ? `Feels ${fmtTempC(wc0Int)}` : `體感 ${fmtTempC(wc0Int)}`}</span>`);
+  }
+  if (!isBlowingSnow && precip0 >= 0.2) {
+    skyParts.push(`<span class="nowrap">${t0Int <= 1 ? (en ? 'Snow' : '降雪') : (en ? 'Rain' : '降雨')}</span>`);
+  }
+
+  // Dedicated full-width safety & laser calibration micro-pills below Bento
+  const heroTags = [];
+  if (isExtremeCold) {
+    heroTags.push(`<span class="hero-tag t-red">${en ? `⚠ Extreme cold (${fmtTempC(wc0Int)})` : `⚠ 極寒注意（體感 ${fmtTempC(wc0Int)}）`}</span>`);
+  }
+  if (isBlowingSnow) {
+    heroTags.push(`<span class="hero-tag t-amber">${en ? '⚠ Blowing snow' : '⚠ 吹雪強風'}</span>`);
+  }
+  if (metarObs && metarFusion?.discrepancyFlag) {
+    heroTags.push(`<span class="hero-tag t-blue">${en ? `◎ ${escapeHtml(metarObs.icao)} laser adj` : `◎ ${escapeHtml(metarObs.icao)} 機場雷射修正`}</span>`);
+  }
+  setHtml('heroTags', heroTags.join(''));
+
+  const kpShort = kp !== null ? kp.toFixed(1) : '--';
+  const aurSubHtml = sc.outOfZone === 'low-lat'
+    ? `<span class="nowrap">${en ? `Mag ${sc.magLat}°` : `地磁 ${sc.magLat}°`}</span>`
     : (sc.outOfZone === 'need-storm'
-        ? (en ? `Kp ${kp !== null ? kp.toFixed(1) : '--'} / ≥${sc.neededKp}` : `Kp ${kp !== null ? kp.toFixed(1) : '--'} / 需≥${sc.neededKp}`)
+        ? `<span class="nowrap">Kp ${kpShort}</span> · <span class="nowrap">${en ? `need ≥${sc.neededKp}` : `需 ≥${sc.neededKp}`}</span>`
         : (ovation !== null
-            ? (en ? `Overhead ${ovation}% · Kp ${kp !== null ? kp.toFixed(1) : '--'}` : `天頂機率 ${ovation}% · Kp ${kp !== null ? kp.toFixed(1) : '--'}`)
-            : (en ? `Kp ${kp !== null ? kp.toFixed(2) : '--'}` : `全球 Kp ${kp !== null ? kp.toFixed(2) : '--'}`)));
+            ? `<span class="nowrap">${en ? `Overhead ${ovation}%` : `天頂機率 ${ovation}%`}</span> · <span class="nowrap">Kp ${kpShort}</span>`
+            : `<span class="nowrap">${en ? `Kp ${kp !== null ? kp.toFixed(2) : '--'}` : `全球 Kp ${kp !== null ? kp.toFixed(2) : '--'}`}</span>`));
   const darkWin = computeDarkWindow(refNow, pos.lat, pos.lon, pos.tz);
   renderGauge(sc, {
     isTooBright: sc.isTooBright,
-    skySub: `${fmtTempC(t0Int)}${wcTag}${coldWarnTag}${skyPrecipTag}${metarSkyTag}`,
-    aurSub: aurSubText,
-    darkSub: formatDarkCountdownSub(darkWin, moon, en)
+    skySubHtml: skyParts.join(' · '),
+    aurSubHtml,
+    darkSubHtml: formatDarkCountdownSub(darkWin, moon, en)
   });
 
   const localizedNights3 = multiDayPts
@@ -832,9 +1004,10 @@ function renderFromState(st) {
 
   const pMet = $('pMet');
   if (pMet) {
-    const srcLbl = (weatherSourceLabel === 'Yr.no官方' && en)
+    const isYr = weatherSourceLabel === 'Yr.no 官方' || weatherSourceLabel === 'Yr.no官方';
+    const srcLbl = (isYr && en)
       ? 'Yr.no Official'
-      : ((weatherSourceLabel === '氣象' && en) ? 'Weather' : weatherSourceLabel);
+      : (isYr ? 'Yr.no 官方' : ((weatherSourceLabel === '氣象' && en) ? 'Weather' : weatherSourceLabel));
     pMet.textContent = `${srcLbl} (${hereHrs[0].time}) ↗`;
     pMet.href = usedMet
       ? `https://www.yr.no/en/forecast/daily-table/${pos.lat.toFixed(3)},${pos.lon.toFixed(3)}`
@@ -860,6 +1033,7 @@ async function refreshAll(manual) {
 
   state.isRefreshing = true;
   state.lastAttemptMs = nowMs;
+  document.body.classList.add('is-syncing');
   const pos = { ...state.pos };
   const en = isEn();
   const refBtn = $('refBtn');
@@ -937,8 +1111,16 @@ async function refreshAll(manual) {
   } finally {
     if (isCurrent()) {
       state.isRefreshing = false;
+      document.body.classList.remove('is-syncing');
       if (noaaOk || metOk) state.lastSyncMs = Date.now();
-      if (manual) toast(noaaOk && metOk ? (isEn() ? 'Forecast updated' : '已更新最新官方預報') : (isEn() ? 'Partial connection error' : '部分資料連線失敗'));
+      if (manual) {
+        toast(
+          noaaOk && metOk
+            ? (isEn() ? 'Forecast updated' : '已更新最新官方預報')
+            : (isEn() ? 'Partial connection error' : '部分資料連線失敗'),
+          noaaOk && metOk ? 'success' : 'warn'
+        );
+      }
       if (refBtn) { refBtn.disabled = false; refBtn.classList.remove('spinning'); }
     }
   }
@@ -951,10 +1133,10 @@ function handleOfflineFallback(pos) {
   const cached = findMatchingOfflineCache(pos);
   if (!cached) {
     if (ob) {
-      ob.style.display = 'block';
-      ob.textContent = en
-        ? `Offline: no cached forecast for ${getPosDisplayName(pos)} yet. Retry when signal returns.`
-        : `網路訊號中斷：尚無「${getPosDisplayName(pos)}」的快取資料，有訊號時請點 ↻ 更新。`;
+      ob.style.display = 'flex';
+      setText('offlineTxt', en
+        ? `Offline: no cached forecast for ${getPosDisplayName(pos)} yet.`
+        : `網路訊號中斷：尚無「${getPosDisplayName(pos)}」的快取資料。`);
     }
     return;
   }
@@ -962,10 +1144,10 @@ function handleOfflineFallback(pos) {
   const minsAgo = Math.max(1, Math.round((Date.now() - cached.ts) / 60000));
   const cachedPosLabel = getPosDisplayName(pos) || cached.posName || '';
   if (ob) {
-    ob.style.display = 'block';
-    ob.textContent = en
-      ? `Offline: showing cached forecast from ${minsAgo} min ago (${cachedPosLabel}).`
-      : `網路訊號中斷：目前顯示 ${minsAgo} 分鐘前（${cachedPosLabel}）的快取預報，有訊號時點 ↻ 更新。`;
+    ob.style.display = 'flex';
+    setText('offlineTxt', en
+      ? `Offline: ${minsAgo}m old cache (${cachedPosLabel}).`
+      : `離線模式：顯示 ${minsAgo} 分前（${cachedPosLabel}）快取資料。`);
   }
 
   const hydrated = hydrateOfflineState(cached, pos);
@@ -1007,6 +1189,7 @@ function pickPreset(nameZh, nameEn, lat, lon, btn) {
   state.pos = { name: nameZh, nameEn, lat, lon, tz, mode: 'manual', accuracy: null };
   renderLocationHeader();
   syncBrowserUrl();
+  haptic(8);
   togglePicker(true);
   refreshAll(true);
 }
@@ -1015,7 +1198,7 @@ function useGPS() {
   const en = isEn();
   if (!navigator.geolocation) {
     state.pos.mode = 'gps-err'; renderLocationHeader();
-    toast(en ? 'GPS not supported' : '此瀏覽器不支援 GPS');
+    toast(en ? 'GPS not supported' : '此瀏覽器不支援 GPS', 'error');
     return;
   }
   const b = $('gpsBtn');
@@ -1039,7 +1222,8 @@ function useGPS() {
       };
       renderLocationHeader(); syncBrowserUrl(); togglePicker(true);
       stopSpin();
-      toast((isEn() ? 'Located: ' : '已定位：') + getPosDisplayName());
+      haptic(10);
+      toast((isEn() ? 'Located: ' : '已定位：') + getPosDisplayName(), 'success');
       refreshAll(true);
 
       if (!matched) {
@@ -1057,7 +1241,7 @@ function useGPS() {
       stopSpin();
       if (myLocSeq !== state.locationSeq) return;
       state.pos.mode = 'gps-err'; renderLocationHeader();
-      toast(isEn() ? 'GPS permission denied' : 'GPS 權限被拒，請手動選擇地點');
+      toast(isEn() ? 'GPS permission denied — pick a city manually' : 'GPS 權限被拒，請點地名手動切換', 'error');
     },
     { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
   );
@@ -1079,12 +1263,13 @@ async function searchCity(e) {
       state.pos = found;
       renderLocationHeader(); syncBrowserUrl();
       if (input) input.value = '';
+      haptic(8);
       togglePicker(true);
       refreshAll(true);
       return;
     }
-    toast(en ? 'City not found — try another spelling' : '找不到地名，可試英文拼法（如 Reykjavik）');
-  } catch { toast(en ? 'Search failed' : '搜尋連線失敗'); }
+    toast(en ? 'City not found — try another spelling' : '找不到地名，可試英文拼法（如 Reykjavik）', 'warn');
+  } catch { toast(en ? 'Search failed — check connection' : '搜尋連線失敗，請檢查網路', 'error'); }
 }
 
 async function shareStatus() {
@@ -1103,14 +1288,14 @@ async function shareStatus() {
   }
   if (navigator.clipboard) {
     navigator.clipboard.writeText(txt)
-      .then(() => toast(en ? 'Summary copied to clipboard' : '已複製分享摘要與連結'))
-      .catch(() => toast(en ? 'Please copy the URL directly' : '請直接複製網址分享'));
+      .then(() => toast(en ? 'Summary copied to clipboard' : '已複製分享摘要與連結', 'success'))
+      .catch(() => toast(en ? 'Please copy the URL directly' : '請直接複製網址分享', 'info'));
   } else {
-    toast(en ? 'Please copy the URL directly' : '請直接複製網址分享');
+    toast(en ? 'Please copy the URL directly' : '請直接複製網址分享', 'info');
   }
 }
 
-// ====== Trust, Telemetry & Photo-Tips Bottom-Sheet ======
+// ====== Trust, Telemetry & Sources Bottom-Sheet ======
 function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = '', metarNote = '') {
   const exp = expOpt || state.explainState;
   const sc = scOpt || state.renderState?.sc;
@@ -1120,7 +1305,7 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = '', me
   const colOut = scoreCssColor(sc.color);
 
   setHtml('tsLiveTitle', en
-    ? `Why is it <strong id="tsLiveTotal" style="color:${colOut}">${sc.total}</strong> right now? (Higher = better)`
+    ? `Why is it <strong id="tsLiveTotal" style="color:${colOut}">${sc.total}</strong> now?`
     : `為何現在是 <strong id="tsLiveTotal" style="color:${colOut}">${sc.total}</strong> 分？（越高越好）`);
   const setCell = (id, val, col) => { const el = $(id); if (el) { el.textContent = val; el.style.color = col; } };
   setCell('tsValSky', `${sc.skyScore}%`, barColor(sc.skyScore));
@@ -1136,11 +1321,22 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = '', me
     badge.textContent = exp.bottleneck.label;
     badge.className = `ts-badge ${bCls}`;
   }
-  setText('tsDiagTxt', `${exp.bottleneck.headline}${metarNote}`);
+  setText('tsDiagTxt', exp.bottleneck.headline);
+  const mn = $('tsMetarNote');
+  if (mn) {
+    if (metarNote) {
+      mn.style.display = 'block';
+      mn.textContent = `◎ ${metarNote}`;
+    } else {
+      mn.style.display = 'none';
+      mn.textContent = '';
+    }
+  }
   setText('tsConfRow', `${exp.confidence.badgeText}${rawTelemetry ? ` · ${rawTelemetry}` : ''}`);
 }
 
 function openTrustSheet(triggerEl) {
+  togglePicker(true);
   state.trustTriggerEl = triggerEl || document.activeElement;
   if (state.renderState) renderFromState(state.renderState);
   updateClockAndPhoto();
@@ -1148,17 +1344,19 @@ function openTrustSheet(triggerEl) {
   if (!sheet) return;
   sheet.classList.add('open');
   sheet.setAttribute('aria-hidden', 'false');
-  document.body.classList.add('sheet-open');
+  pushSheetHistory();
+  syncBodySheetClass();
+  haptic(6);
   $('trustCloseBtn')?.focus();
 }
 
-function closeTrustSheet() {
+function closeTrustSheet(mode) {
   const sheet = $('trustSheet');
   if (!sheet?.classList.contains('open')) return;
   sheet.classList.remove('open');
   sheet.setAttribute('aria-hidden', 'true');
-  document.body.classList.remove('sheet-open');
-  state.trustTriggerEl?.focus?.();
+  syncBodySheetClass();
+  if (mode !== 'pop') state.trustTriggerEl?.focus?.();
 }
 
 // Expose test helpers for automated visual verification scripts
@@ -1167,18 +1365,127 @@ window.__AURORA_APP__ = {
   renderFromState,
   selectForecastHour,
   toggleRedMode,
+  toggleAlertMode,
+  togglePicker,
   switchView,
   openTrustSheet,
-  closeTrustSheet
+  closeTrustSheet,
+  toast,
+  triggerDemoAlert: (msg) => {
+    state.alertEnabled = true;
+    state.activeAlert = { time: $('clk')?.textContent || '22:30', msg };
+    renderMonitorBar();
+    toast(msg, 'alert');
+  }
 };
+
+// ====== Reusable Native Sheet Swipe-Down & Chart Scrubbing Helpers ======
+function bindSheetSwipe(sheetId, onClose) {
+  const hdr = document.querySelector(`#${sheetId} .sheet-hdr`);
+  const panel = document.querySelector(`#${sheetId} .sheet-panel`);
+  if (!hdr || !panel) return;
+  let startY = 0, dy = 0;
+  hdr.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; dy = 0; panel.style.transition = 'none'; }, { passive: true });
+  hdr.addEventListener('touchmove', (e) => { dy = Math.max(0, e.touches[0].clientY - startY); panel.style.transform = `translateY(${dy}px)`; }, { passive: true });
+  hdr.addEventListener('touchend', () => {
+    panel.style.transition = '';
+    panel.style.transform = '';
+    if (dy > 65) onClose();
+  });
+}
+
+function bindWaveScrubbing() {
+  const svg = $('skyWaveChart');
+  if (!svg) return;
+  let scrubbing = false;
+  const pickFromClientX = (clientX) => {
+    if (!state.scoredHours.length) return;
+    const rect = svg.getBoundingClientRect();
+    if (!rect.width) return;
+    const svgX = ((clientX - rect.left) / rect.width) * 420;
+    const padL = 56, plotW = 420 - 56 - 14;
+    const ratio = Math.max(0, Math.min(1, (svgX - padL) / plotW));
+    const idx = Math.round(ratio * (state.scoredHours.length - 1));
+    if (idx !== state.selectedHourIdx) {
+      selectForecastHour(idx);
+      haptic(5);
+    }
+  };
+  svg.addEventListener('pointerdown', (e) => {
+    if (e.button && e.button !== 0) return;
+    scrubbing = true;
+    try { svg.setPointerCapture(e.pointerId); } catch {}
+    pickFromClientX(e.clientX);
+  });
+  svg.addEventListener('pointermove', (e) => {
+    if (scrubbing) pickFromClientX(e.clientX);
+  });
+  const endScrub = (e) => {
+    if (!scrubbing) return;
+    scrubbing = false;
+    try { svg.releasePointerCapture(e.pointerId); } catch {}
+  };
+  svg.addEventListener('pointerup', endScrub);
+  svg.addEventListener('pointercancel', endScrub);
+  svg.addEventListener('click', (e) => {
+    const hit = e.target.closest?.('[data-hour-idx]');
+    if (hit) selectForecastHour(parseInt(hit.dataset.hourIdx, 10));
+  });
+}
+
+function bindPullToRefresh() {
+  const ptr = $('ptrIndicator');
+  const txt = $('ptrText');
+  if (!ptr) return;
+  let startY = 0, pullY = 0, tracking = false;
+  document.addEventListener('touchstart', (e) => {
+    if (window.scrollY > 2 || document.body.classList.contains('sheet-open') || state.isRefreshing) return;
+    if (e.target.closest?.('.chart-box, .sheet-panel, iframe')) return;
+    startY = e.touches[0].clientY;
+    pullY = 0;
+    tracking = true;
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!tracking) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy <= 6 || window.scrollY > 2) {
+      if (pullY > 0) { ptr.style.height = '0px'; ptr.style.opacity = '0'; pullY = 0; }
+      return;
+    }
+    pullY = Math.min(72, Math.round(dy * 0.45));
+    ptr.classList.add('pulling');
+    ptr.style.height = `${pullY}px`;
+    ptr.style.opacity = String(Math.min(1, pullY / 42));
+    const ready = pullY >= 46;
+    ptr.classList.toggle('ready', ready);
+    if (txt) txt.textContent = ready
+      ? (isEn() ? 'Release to refresh' : '放開立即更新')
+      : (isEn() ? 'Pull to refresh' : '下拉更新');
+  }, { passive: true });
+  document.addEventListener('touchend', () => {
+    if (!tracking) return;
+    tracking = false;
+    const shouldRefresh = pullY >= 46;
+    ptr.classList.remove('pulling', 'ready');
+    ptr.style.height = '0px';
+    ptr.style.opacity = '0';
+    pullY = 0;
+    if (shouldRefresh) {
+      haptic(10);
+      refreshAll(true);
+    }
+  });
+}
 
 // ====== Event Binding & Bootstrap ======
 function bindEvents() {
   $('redBtn')?.addEventListener('click', toggleRedMode);
   $('langBtn')?.addEventListener('click', toggleLang);
   $('alertBtn')?.addEventListener('click', toggleAlertMode);
-  $('refBtn')?.addEventListener('click', () => refreshAll(true));
-  $('pickBtn')?.addEventListener('click', () => togglePicker());
+  $('refBtn')?.addEventListener('click', () => { haptic(8); refreshAll(true); });
+  $('pickBtn')?.addEventListener('click', (e) => togglePicker(false, e.currentTarget));
+  $('pickerCloseBtn')?.addEventListener('click', () => togglePicker(true));
+  $('picker')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) togglePicker(true); });
   $('gpsBtn')?.addEventListener('click', useGPS);
   $('shareBtn')?.addEventListener('click', shareStatus);
   $('cityForm')?.addEventListener('submit', searchCity);
@@ -1186,22 +1493,59 @@ function bindEvents() {
   $('trustBtn')?.addEventListener('click', (e) => openTrustSheet(e.currentTarget));
   $('fcConfBtn')?.addEventListener('click', (e) => openTrustSheet(e.currentTarget));
   $('vActionBtn')?.addEventListener('click', (e) => switchView(e.currentTarget?.dataset?.targetView || 'dir'));
-  $('trustCloseBtn')?.addEventListener('click', closeTrustSheet);
+  $('trustCloseBtn')?.addEventListener('click', () => closeTrustSheet());
   $('trustSheet')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closeTrustSheet(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeTrustSheet(); });
 
-  const sheetHdr = document.querySelector('#trustSheet .sheet-hdr');
-  const sheetPanel = document.querySelector('#trustSheet .sheet-panel');
-  if (sheetHdr && sheetPanel) {
-    let startY = 0, dy = 0;
-    sheetHdr.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; dy = 0; sheetPanel.style.transition = 'none'; }, { passive: true });
-    sheetHdr.addEventListener('touchmove', (e) => { dy = Math.max(0, e.touches[0].clientY - startY); sheetPanel.style.transform = `translateY(${dy}px)`; }, { passive: true });
-    sheetHdr.addEventListener('touchend', () => {
-      sheetPanel.style.transition = '';
-      sheetPanel.style.transform = '';
-      if (dy > 70) closeTrustSheet();
+  $('monitorBar')?.addEventListener('click', (e) => {
+    const act = e.target.closest?.('[data-mon-act]')?.dataset?.monAct;
+    if (act === 'off') toggleAlertMode();
+    else if (act === 'ack') {
+      state.activeAlert = null;
+      renderMonitorBar();
+      haptic(6);
+    }
+  });
+
+  $('lineTipClose')?.addEventListener('click', () => {
+    const lt = $('lineTip'); if (lt) lt.style.display = 'none';
+    try { sessionStorage.setItem('aurora_line_tip_dismissed', '1'); } catch {}
+  });
+  $('offlineRetryBtn')?.addEventListener('click', () => { haptic(8); refreshAll(true); });
+
+  $('camBrightBtn')?.addEventListener('click', () => {
+    state.camFullBright = !state.camFullBright;
+    syncSkyCamGlareUI(true);
+    haptic(6);
+  });
+
+  // Tap or swipe-up to dismiss floating notification pill
+  const toastEl = $('toast');
+  if (toastEl) {
+    let tStartY = 0;
+    toastEl.addEventListener('click', hideToast);
+    toastEl.addEventListener('touchstart', (e) => { tStartY = e.touches[0].clientY; }, { passive: true });
+    toastEl.addEventListener('touchend', (e) => {
+      const endY = e.changedTouches?.[0]?.clientY ?? tStartY;
+      if (tStartY - endY > 20) hideToast();
     });
   }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeTrustSheet();
+      togglePicker(true);
+    }
+  });
+  window.addEventListener('popstate', () => {
+    state.sheetHistoryPushed = false;
+    if ($('trustSheet')?.classList.contains('open')) closeTrustSheet('pop');
+    if ($('picker')?.classList.contains('open')) togglePicker('pop');
+  });
+
+  bindSheetSwipe('trustSheet', () => closeTrustSheet());
+  bindSheetSwipe('picker', () => togglePicker(true));
+  bindWaveScrubbing();
+  bindPullToRefresh();
 
   document.querySelectorAll('#presetChips .chip').forEach(btn => {
     btn.addEventListener('click', () => pickPreset(btn.dataset.zh, btn.dataset.en, parseFloat(btn.dataset.lat), parseFloat(btn.dataset.lon), btn));
@@ -1211,10 +1555,6 @@ function bindEvents() {
   });
   document.querySelectorAll('.bottom-nav .nav-btn').forEach(btn => {
     btn.addEventListener('click', () => switchView(btn.dataset.view, btn));
-  });
-  $('skyWaveChart')?.addEventListener('click', (e) => {
-    const hit = e.target.closest?.('[data-hour-idx]');
-    if (hit) selectForecastHour(parseInt(hit.dataset.hourIdx, 10));
   });
 
   $('skyCamImg')?.addEventListener('error', () => {
@@ -1237,7 +1577,12 @@ loadSavedPrefs();
 applyStaticI18n();
 bindEvents();
 renderLocationHeader();
+renderMonitorBar();
 updateClockAndPhoto();
+try {
+  const initView = new URLSearchParams(location.search).get('view');
+  if (initView === 'dir' || initView === 'sat') switchView(initView);
+} catch {}
 registerServiceWorker();
 refreshAll(false);
 
@@ -1247,7 +1592,7 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) {
     updateClockAndPhoto();
     if (state.alertEnabled && navigator.wakeLock && !state.wakeLockObj) {
-      navigator.wakeLock.request('screen').then(wl => { state.wakeLockObj = wl; }).catch(() => {});
+      navigator.wakeLock.request('screen').then(wl => { state.wakeLockObj = wl; state.wakeLockFailed = false; renderMonitorBar(); }).catch(() => {});
     }
     if (Date.now() - state.lastSyncMs > 3 * 60 * 1000) refreshAll(false);
   }

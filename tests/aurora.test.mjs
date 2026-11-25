@@ -1767,3 +1767,18 @@ test('43. Global dual-model NWP routing/blending & Airport METAR Laser Ceilomete
   assert.equal(api.parseMetNorwayMetarText('ENTC 312350Z 19008KT CAVOK 00/M02 Q1010=', mar4Ms), null, 'Date.UTC Feb-31 rollover must not resurrect stale Jan-31 METAR');
 });
 
+test('44. Overcast CME shock verdict never contradicts score with fake rising copy', () => {
+  const scNow = api.computeAuroraScore({ lat: 69.65, lon: 18.96, cloudNow: 91, sunAlt: -20, bz: -8, speed: 550, kp: 5 });
+  const scNext = api.computeAuroraScore({ lat: 69.65, lon: 18.96, cloudNow: 95, sunAlt: -20, bz: -12, speed: 650, kp: 5 });
+  const actZh = api.synthesizeTonightAction({
+    lat: 69.65, lon: 18.96, sc: scNow, scNext, bal: { etaMin: 34, shockActive: true }, lang: 'zh'
+  });
+  const actEn = api.synthesizeTonightAction({
+    lat: 69.65, lon: 18.96, sc: scNow, scNext, bal: { etaMin: 34, shockActive: true }, lang: 'en'
+  });
+  assert.ok(!actZh.lead.includes('升至'), `Overcast shock must not say 升至 when scNext=${scNext.total}: ${actZh.lead}`);
+  assert.ok(actZh.lead.includes('厚雲') && actZh.ctaView === 'dir', 'Overcast shock must warn about clouds and link to Clear-Sky Radar');
+  assert.ok(!actEn.title.toLowerCase().includes('rising') && actEn.ctaView === 'dir', `EN overcast shock must not claim rising: ${actEn.title}`);
+});
+
+

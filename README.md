@@ -32,7 +32,7 @@ Zero build tools, zero npm runtime dependencies (native ES modules):
 
 ## Independent Zero-Fitting Validation｜零擬合盲測驗證
 
-All physics upgrades are verified strictly out-of-sample (zero weight fitting):
+All physics upgrades are verified strictly out-of-sample (zero weight fitting). See the full methodology, 5-archive breakdown, and **6 rigorously rejected hypotheses** in **[VALIDATION.md](VALIDATION.md)**：
 
 - **Geomagnetic Coordinates (IGRF-14 Apex-110 vs AACGMv2, N=14,122)**：Global MAE reduced 12× from `2.88°` → **`0.24°`** (North America `0.28°`, Europe `0.20°`, Nordics `0.17°`, Southern Hemisphere `0.25°`).
 - **12-Year Global Human Sightings (Aurorasaurus 2014–2025 + NASA OMNI2, N=20,318, 2,008 dates)**：ROC-AUC **`0.807`** (vs `0.689` Kp-only, UTC-date cluster 95% CI lift `+0.025..+0.046` from IGRF-14 alone; MCC `0.359` → `0.437`).

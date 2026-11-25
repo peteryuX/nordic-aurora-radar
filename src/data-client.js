@@ -302,7 +302,7 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
 
     const metHereHrs = metList?.[0] ? parseMetNorwayHourly12(metList[0], pos.lat, pos.lon, out.resolvedTz, now) : [];
     if (metHereHrs.length) {
-      out.usedMet = true; out.metOk = true; out.weatherSourceLabel = 'Yr.no官方';
+      out.usedMet = true; out.metOk = true; out.weatherSourceLabel = 'Yr.no 官方';
       out.hereHrs = metHereHrs;
       out.multiDayPts = parseMetNorwayMultiDay(metList[0], pos.lat, pos.lon, out.resolvedTz, now);
       pts.forEach((pt, i) => {

@@ -6,14 +6,26 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#050c17",
-  "theme_color": "#050c17",
+  "background_color": "#040912",
+  "theme_color": "#040912",
   "icons": [
     {
       "src": "icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "360° 找晴空｜Clear-Sky Radar",
+      "short_name": "Clear Sky",
+      "url": "./?view=dir"
+    },
+    {
+      "name": "天文台實拍｜Live All-Sky Cams",
+      "short_name": "Live Cams",
+      "url": "./?view=sat"
     }
   ]
 }
