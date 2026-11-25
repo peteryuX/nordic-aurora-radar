@@ -95,7 +95,7 @@ export const STATIC_TEXT_MAP = {
   h2Energy: pair(TERMS.solarWind.title),
   swToggleTxt: ['查看 2 小時能量曲線', 'View 2h energy chart'],
   h2Outlook: pair(TERMS.nav.next3Nights),
-  outlookNote: ['明後天雲量與 Kp 變動較大，出發前 3 小時請再確認。', 'Clouds & Kp shift — recheck 3h before going out.'],
+  outlookNote: ['明後天僅供趨勢參考，出發前請再確認。', 'Trend only — recheck before heading out.'],
   seoFootLbl: ['熱門極光地點攻略', 'Aurora destination guides'],
   h2Radar: pair(TERMS.nav.nearbyClear),
   roadLbl: ['冬季即時路況／封路查詢：', 'Winter road & closure status:'],

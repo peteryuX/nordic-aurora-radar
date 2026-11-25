@@ -138,7 +138,7 @@ function syncSwToggleUI() {
   btn.setAttribute('aria-expanded', String(state.swExpanded));
   panel.setAttribute('aria-hidden', String(!state.swExpanded));
   const collapsedTxt = en ? 'View 2h energy chart' : '查看 2 小時能量曲線';
-  const expandedTxt = en ? 'Hide 2h energy chart · Scrub or tap' : '收起 2 小時能量曲線 · 滑動或點選';
+  const expandedTxt = en ? 'Hide 2h energy chart' : '收起 2 小時能量曲線';
   setText('swToggleTxt', state.swExpanded ? expandedTxt : collapsedTxt);
 }
 
@@ -867,32 +867,29 @@ function renderWaveCard(focusBest = false) {
       return { s, e, len: e - s + 1, range: (startLbl && endLbl) ? `${startLbl}–${endLbl}` : '' };
     };
     const dayPrefixZh = bestIsNextNight ? '明晚' : '今晚';
-    const recheckNote = en
-      ? '<span class="wave-peak-note">· recheck 1–2h before</span>'
-      : '<span class="wave-peak-note">· 出發前 1–2 小時再確認</span>';
     if (bestInVis.score >= 40) {
       const win = findContiguous(h => h && !h.isDay && h.score >= 40);
       const startIdx = win ? win.s : bIdx;
-      const tierTagZh = bestInVis.score >= 65 ? '極佳' : '適合觀測';
+      const tierTagZh = bestInVis.score >= 65 ? '極佳' : '適合';
       if (startIdx >= 4) {
         if (win && win.len >= 2 && win.range) {
           bestText = en
-            ? `Best trend <strong>${win.range}</strong> · around <strong>${bestTimeLbl}</strong> ${recheckNote}`
-            : `${dayPrefixZh} <strong>${win.range}</strong> 預估${tierTagZh} ${recheckNote}`;
+            ? `Trend <strong>${win.range}</strong> · peaks ~<strong>${bestTimeLbl}</strong>`
+            : `${dayPrefixZh} <strong>${win.range}</strong> 預估${tierTagZh}`;
         } else {
           bestText = en
-            ? `Possible window around <strong>${bestTimeLbl}</strong> ${recheckNote}`
-            : `${dayPrefixZh} <strong>${bestTimeLbl}</strong> 前後預估有空檔 ${recheckNote}`;
+            ? `Possible window ~<strong>${bestTimeLbl}</strong>`
+            : `${dayPrefixZh} <strong>${bestTimeLbl}</strong> 預估有空檔`;
         }
       } else if (bIdx >= 4) {
         if (win && win.len >= 2 && win.range) {
           bestText = en
-            ? `Best <strong>${win.range}</strong> · may peak around <strong>${bestTimeLbl}</strong>`
-            : `${dayPrefixZh} <strong>${win.range}</strong> ${tierTagZh} · <strong>${bestTimeLbl}</strong> 前後有望最強`;
+            ? `Best <strong>${win.range}</strong> · peaks ~<strong>${bestTimeLbl}</strong>`
+            : `${dayPrefixZh} <strong>${win.range}</strong> ${tierTagZh} · <strong>${bestTimeLbl}</strong> 最強`;
         } else {
           bestText = en
-            ? `Possible window around <strong>${bestTimeLbl}</strong>`
-            : `${dayPrefixZh} <strong>${bestTimeLbl}</strong> 前後有望出現空檔`;
+            ? `Possible window ~<strong>${bestTimeLbl}</strong>`
+            : `${dayPrefixZh} <strong>${bestTimeLbl}</strong> 有望出現空檔`;
         }
       } else if (win && win.len >= 2 && win.range) {
         bestText = en
@@ -900,8 +897,8 @@ function renderWaveCard(focusBest = false) {
           : `${dayPrefixZh} <strong>${win.range}</strong> ${tierTagZh} · <strong>${bestTimeLbl}</strong> 最強`;
       } else {
         bestText = en
-          ? `Brief window around <strong>${bestTimeLbl}</strong>`
-          : `${dayPrefixZh} <strong>${bestTimeLbl}</strong> 前後短暫空檔`;
+          ? `Brief window ~<strong>${bestTimeLbl}</strong>`
+          : `${dayPrefixZh} <strong>${bestTimeLbl}</strong> 短暫空檔`;
       }
     } else if (bestInVis.score >= 18) {
       const win = findContiguous(h => h && !h.isDay && h.score >= 18);
@@ -909,30 +906,30 @@ function renderWaveCard(focusBest = false) {
       if (startIdx >= 4) {
         if (win && win.len >= 2 && win.range) {
           bestText = en
-            ? `Fair trend <strong>${win.range}</strong> · possible around <strong>${bestTimeLbl}</strong> ${recheckNote}`
-            : `${dayPrefixZh} <strong>${win.range}</strong> 預估可留意微弱極光 ${recheckNote}`;
+            ? `Fair trend <strong>${win.range}</strong>`
+            : `${dayPrefixZh} <strong>${win.range}</strong> 預估普通`;
         } else {
           bestText = en
-            ? `Possible break around <strong>${bestTimeLbl}</strong> ${recheckNote}`
-            : `<strong>${bestTimeLbl}</strong> 前後預估雲層稍薄 ${recheckNote}`;
+            ? `Thinner clouds ~<strong>${bestTimeLbl}</strong>`
+            : `${dayPrefixZh} <strong>${bestTimeLbl}</strong> 雲層稍薄`;
         }
       } else if (win && win.len >= 2 && win.range) {
         bestText = en
           ? `Fair <strong>${win.range}</strong> · peaks <strong>${bestTimeLbl}</strong>`
-          : `${dayPrefixZh} <strong>${win.range}</strong> 可留意微弱極光 · <strong>${bestTimeLbl}</strong> 最有機會`;
+          : `${dayPrefixZh} <strong>${win.range}</strong> 普通 · <strong>${bestTimeLbl}</strong> 最佳`;
       } else {
         bestText = en
-          ? `Brief break around <strong>${bestTimeLbl}</strong> — faint chance`
-          : `<strong>${bestTimeLbl}</strong> 前後雲層稍薄，可留意微弱極光`;
+          ? `Brief break ~<strong>${bestTimeLbl}</strong>`
+          : `<strong>${bestTimeLbl}</strong> 雲層稍薄`;
       }
     } else if (bestInVis.clear >= 55) {
       bestText = en
-        ? `Clearest around <strong>${bestTimeLbl}</strong>, but activity is quiet`
-        : `<strong>${bestTimeLbl}</strong> 前後最晴，但極光活動偏弱`;
+        ? `Clearest ~<strong>${bestTimeLbl}</strong>, quiet aurora`
+        : `<strong>${bestTimeLbl}</strong> 最晴，極光偏弱`;
     } else {
       bestText = en
-        ? `Mostly cloudy next ${hz}h — try Clear skies nearby`
-        : `未來 ${hz} 小時偏多雲，建議查看「找晴空」`;
+        ? `Mostly cloudy next ${hz}h`
+        : `未來 ${hz} 小時偏多雲，可看「找晴空」`;
     }
   }
   const hb = $('homeBest');
@@ -985,14 +982,17 @@ function selectForecastHour(idx) {
   const trendTagHtml = (isTrend && !isGated)
     ? ` <span class="sb-tag">${term(TERMS.trendRef, en)}</span>`
     : '';
-  const showCloudRange = isTrend
+  const showCloudRange = isTrend && !h.isDay
     && Number.isFinite(h.clearLow) && Number.isFinite(h.clearHigh)
     && (h.clearHigh - h.clearLow) >= 25;
   const clearPart = showCloudRange
     ? (en ? `${h.clearLow}–${h.clearHigh}% clear` : `晴空 ${h.clearLow}%–${h.clearHigh}%`)
     : (en ? `${h.clear}% clear` : `晴空 ${h.clear}%`);
   const tempPart = hasTemp ? fmtTemp(tInt) : '';
-  const rightMeta = [clearPart, darkTxt, tempPart, kpBadge].filter(Boolean).join(' · ');
+  const rightMeta = [clearPart, darkTxt, tempPart, kpBadge]
+    .filter(Boolean)
+    .map(p => `<span class="nowrap">${p}</span>`)
+    .join(' · ');
   setHtml('hourDetail',
     `<div class="sb-top"><strong>${tStr}</strong> <strong style="color:${scCol}">${scoreReadout}</strong>${trendTagHtml}</div><div class="sb-bot">${rightMeta}</div>`);
   const prevBtn = $('hrPrevBtn'), nextBtn = $('hrNextBtn');

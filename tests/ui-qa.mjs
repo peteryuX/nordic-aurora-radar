@@ -222,10 +222,10 @@ html { font-size: ${rootPx}px !important; }
       <section class="card" id="waveCard">
         <h2 class="wave-h2">
           <span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 4.8V8l2.2 1.4"/></svg><span>${en ? 'Hourly trend' : '逐時趨勢'}</span></span>
-          <span class="wave-range">${en ? '24h · Scrub or tap' : '24 小時 · 滑動或點選'}</span>
+          <span class="wave-range">${en ? '24h' : '24 小時'}</span>
         </h2>
         <div class="wave-peak">${isCloudy
-          ? (en ? 'Best trend <strong>01:00–04:00</strong> · around <strong>02:00</strong> <span class="wave-peak-note">· recheck 1–2h before</span>' : '今晚 <strong>01:00–04:00</strong> 預估適合觀測 <span class="wave-peak-note">· 出發前 1–2 小時再確認</span>')
+          ? (en ? 'Trend <strong>01:00–04:00</strong> · peaks ~<strong>02:00</strong>' : '今晚 <strong>01:00–04:00</strong> 預估適合')
           : (en ? 'Best <strong>19:00–04:00</strong> · peaks <strong>21:00</strong>' : '今晚 <strong>19:00–04:00</strong> 極佳 · <strong>21:00</strong> 最強')}</div>
         <div class="chart-box"><svg class="chart-svg" viewBox="0 0 420 156">${waveSvg}</svg></div>
         <div class="scrub-bar">
@@ -234,8 +234,8 @@ html { font-size: ${rootPx}px !important; }
               ? `<strong>01:00</strong> <strong style="color:var(--good);">${en ? '~38–62 Good' : '約 38–62 適合觀測'}</strong> <span class="sb-tag">${en ? 'Trend' : '趨勢參考'}</span>`
               : `<strong>21:00</strong> <strong style="color:var(--green);">${en ? '84 Excellent' : '84 極佳'}</strong>`}</div>
             <div class="sb-bot">${isCloudy
-              ? (en ? '62–86% clear · Full dark · -5°C · ~Kp 3' : '晴空 62%–86% · 全暗 · -5°C · 約 Kp 3')
-              : (en ? '94% clear · Full dark · -5°C · Kp 5.0' : '晴空 94% · 全暗 · -5°C · Kp 5.0')}</div>
+              ? (en ? '<span class="nowrap">62–86% clear</span> · <span class="nowrap">Full dark</span> · <span class="nowrap">-5°C</span> · <span class="nowrap">~Kp 3</span>' : '<span class="nowrap">晴空 62%–86%</span> · <span class="nowrap">全暗</span> · <span class="nowrap">-5°C</span> · <span class="nowrap">約 Kp 3</span>')
+              : (en ? '<span class="nowrap">94% clear</span> · <span class="nowrap">Full dark</span> · <span class="nowrap">-5°C</span> · <span class="nowrap">Kp 5.0</span>' : '<span class="nowrap">晴空 94%</span> · <span class="nowrap">全暗</span> · <span class="nowrap">-5°C</span> · <span class="nowrap">Kp 5.0</span>')}</div>
           </div>
           <div class="steppers">
             <button class="step-btn" type="button" aria-label="prev">${stepPrevSvg}</button>
@@ -250,7 +250,7 @@ html { font-size: ${rootPx}px !important; }
           <button class="info-btn" type="button"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.6"/><circle cx="8" cy="5.1" r="0.7" fill="currentColor" stroke="none"/></svg></button>
         </h2>
         <div class="outlook-grid">${outlookHtml}</div>
-        <p class="od-note">${en ? 'Clouds & Kp shift — recheck 3h before going out.' : '明後天雲量與 Kp 變動較大，出發前 3 小時請再確認。'}</p>
+        <p class="od-note">${en ? 'Trend only — recheck before heading out.' : '明後天僅供趨勢參考，出發前請再確認。'}</p>
       </section>
 
       <section class="card card-sw ${swExpanded ? 'sw-expanded' : ''}" id="solarWindCard">
@@ -265,7 +265,7 @@ html { font-size: ${rootPx}px !important; }
               : (en ? 'Incoming solar wind is strong — aurora may brighten in ~40 min.' : '上游衛星測得強極光能量，約 40 分鐘內可能變亮，建議留意天空。'))}</div>
         <div class="sw-meter">${swMeterHtml}</div>
         <button class="sw-toggle-btn" type="button"><span>${swExpanded
-          ? (en ? 'Hide 2h energy chart · Scrub or tap' : '收起 2 小時能量曲線 · 滑動或點選')
+          ? (en ? 'Hide 2h energy chart' : '收起 2 小時能量曲線')
           : (en ? 'View 2h energy chart' : '查看 2 小時能量曲線')}</span><svg class="sw-chev" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 6.2L8 10l3.8-3.8"/></svg></button>
         ${swExpanded ? `<div class="sw-curve-panel">
           <div class="bz-html-head"><span>${en ? 'Upstream satellite energy' : '衛星即時太陽風能量'}</span><strong>${en ? 'Building · Bz -3.8 nT · 480 km/s' : '能量累積 · Bz -3.8 nT · 480 km/s'}</strong></div>

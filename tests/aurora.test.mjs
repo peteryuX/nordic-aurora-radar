@@ -2833,6 +2833,45 @@ test('54. v47 Route A Scientific Upgrades: 51-Member ECMWF Layered Ensemble, SMH
   }
 });
 
+test('55. Tonight 3-Night Outlook maxKp parity with 24h live-calibrated chart (no phantom stale-bin Kp 4.0)', () => {
+  // Reproduces Tromsø 22:20 CET (21:20 UTC) when NOAA 3h forecast left stale 4.00 in 21:00 UTC bin
+  // while live 1m Kp=1.0 and Geospace 1h MHD predKp1h=0.67, and rest of tonight is 3.00 / 3.33 / 2.67.
+  const nowDate = new Date('2026-11-25T21:20:00Z');
+  const baseMs = Date.UTC(2026, 10, 25, 21, 0, 0);
+  const hrs24 = Array.from({ length: 24 }, (_, i) => {
+    const dtMs = baseMs + i * 3600000;
+    const hrCet = (22 + i) % 24;
+    const isDay = hrCet >= 10 && hrCet <= 13;
+    return {
+      dtMs, time: `${String(hrCet).padStart(2, '0')}:00`,
+      block: 35, clear: 65, temp: -1, windMs: 3, precip: 0, isDay, sunAlt: isDay ? 1 : -18
+    };
+  });
+  const kpFc = [
+    { ts: Date.UTC(2026, 10, 25, 21, 0, 0), kp: 4.0 },
+    { ts: Date.UTC(2026, 10, 26, 0, 0, 0), kp: 3.0 },
+    { ts: Date.UTC(2026, 10, 26, 3, 0, 0), kp: 3.33 },
+    { ts: Date.UTC(2026, 10, 26, 6, 0, 0), kp: 2.67 },
+    { ts: Date.UTC(2026, 10, 26, 18, 0, 0), kp: 3.67 },
+    { ts: Date.UTC(2026, 10, 26, 21, 0, 0), kp: 5.0 },
+    { ts: Date.UTC(2026, 10, 27, 0, 0, 0), kp: 4.33 }
+  ];
+  const scored = api.scoreHourlyForecast12(hrs24, {
+    lat: 69.6492, lon: 18.9553, kpForecast: kpFc, fallbackKp: 1.0,
+    bz: 0.5, nextBz: 0.5, speed: 380, predKp1h: 0.67
+  });
+  const chartTonightMaxKp = Math.max(...scored.hours.slice(0, 11).filter(h => !h.isDay).map(h => h.kpFc));
+  assert.ok(chartTonightMaxKp <= 3.4, `Chart tonight max Kp should be ~3.33, got ${chartTonightMaxKp}`);
+
+  const nights = api.summarize3NightOutlook({
+    cloudPoints: hrs24, kpForecast: kpFc, currentKp: 1.0,
+    lat: 69.6492, lon: 18.9553, timeZone: 'Europe/Oslo', nowDate, chartHours: scored.hours, lang: 'zh'
+  });
+  assert.equal(nights[0].maxKp, +chartTonightMaxKp.toFixed(1), `Tonight card maxKp (${nights[0].maxKp}) must match 24h chart max (${chartTonightMaxKp.toFixed(1)}), never phantom 4.0`);
+  assert.equal(nights[1].maxKp, 5.0, 'Tomorrow night must still capture post-chart Kp 5.0 G1 storm');
+  assert.equal(nights[1].gScale, 1, 'Tomorrow night must still flag G1');
+});
+
 
 
 

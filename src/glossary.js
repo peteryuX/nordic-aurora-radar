@@ -74,7 +74,7 @@ export const TERMS = Object.freeze({
     cloudMap:       Object.freeze({ zh: '動態雲圖', en: 'Cloud map' }),
     hourlyTrend:    Object.freeze({ zh: '逐時趨勢', en: 'Hourly trend' }),
     next3Nights:    Object.freeze({ zh: '未來三晚', en: 'Next 3 nights' }),
-    range24h:       Object.freeze({ zh: '24 小時 · 滑動或點選', en: '24h · Scrub or tap' })
+    range24h:       Object.freeze({ zh: '24 小時', en: '24h' })
   }),
 
   // Location Source & Freshness

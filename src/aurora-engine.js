@@ -3458,6 +3458,16 @@ export function summarize3NightOutlook({
     }
     const clearDarkHrs = darkPts.filter(p => p.clear >= 55).reduce((s, p) => s + (Number.isFinite(p.stepHrs) ? p.stepHrs : 1), 0);
 
+    // Unified scoring & Kp parity: when the live-calibrated 24h chart covers dark hours of this night,
+    // use the chart's own hourly kpFc (which already merges live 1m Kp + Geospace 1h MHD + AR(1) bridge)
+    // so Tonight's card never displays a stale overridden NOAA 3h bin (e.g. phantom Kp 4.0) absent from the chart above.
+    const chartDark = Array.isArray(chartHours)
+      ? chartHours.filter(h => h && !h.isDay && Number.isFinite(h.score) && Number.isFinite(h.dtMs) && nightKeyOf(h.dtMs) === key)
+      : [];
+    const chartEndMs = chartDark.length && Array.isArray(chartHours)
+      ? Math.max(...chartHours.filter(h => h && Number.isFinite(h.dtMs)).map(h => h.dtMs)) + 1800000
+      : -Infinity;
+
     // Filter Kp forecast bins to darkness (sun < -4° at bin midpoint) so daytime storms don't inflate night outlook
     const kpOnNight = (Array.isArray(kpForecast) ? kpForecast : []).filter(k => {
       if (!k || !Number.isFinite(k.ts) || !Number.isFinite(k.kp)) return false;
@@ -3465,9 +3475,18 @@ export function summarize3NightOutlook({
       const midSun = computeSolarElevation(new Date(k.ts + 5400000), lat, lon);
       return midSun < -4;
     });
-    const kpVals = kpOnNight.map(k => k.kp);
-    if (offset === 0 && Number.isFinite(currentKp) && computeSolarElevation(safeNow, lat, lon) < -4) {
-      kpVals.push(currentKp);
+    const chartKpVals = chartDark.map(h => h.kpFc).filter(Number.isFinite);
+    let kpVals;
+    if (chartKpVals.length > 0) {
+      const postChartBins = kpOnNight
+        .filter(k => (k.ts + 3 * 3600000) > chartEndMs && (offset > 0 || k.ts >= nowMs + 2.5 * 3600000))
+        .map(k => k.kp);
+      kpVals = [...chartKpVals, ...postChartBins];
+    } else {
+      kpVals = kpOnNight.map(k => k.kp);
+      if (offset === 0 && Number.isFinite(currentKp) && computeSolarElevation(safeNow, lat, lon) < -4) {
+        kpVals.push(currentKp);
+      }
     }
     const hasKpData = kpVals.length > 0;
     const maxKp = hasKpData ? +Math.max(...kpVals).toFixed(1) : (offset === 0 && Number.isFinite(currentKp) ? +currentKp.toFixed(1) : null);
@@ -3503,14 +3522,6 @@ export function summarize3NightOutlook({
       // Unified scoring: every dark hour runs through the SAME computeAuroraScore used by the 24h hourly chart
       // (cloud + matched forecast Kp + MLT + lunar illuminance at the SAME hour), so Tonight's peak matches the chart.
       // Live solar-wind terms (Bz/speed/OVATION) are neutral at +24-72h, which keeps multi-day estimates honest.
-      // Hours already scored by the hourly chart (which blends live L1 wind for the next 1-3h) reuse the chart's own
-      // scores, so the score on this night is EXACTLY the chart's peak for the overlapping window.
-      const chartDark = Array.isArray(chartHours)
-        ? chartHours.filter(h => h && !h.isDay && Number.isFinite(h.score) && Number.isFinite(h.dtMs) && nightKeyOf(h.dtMs) === key)
-        : [];
-      const chartEndMs = chartDark.length && Array.isArray(chartHours)
-        ? Math.max(...chartHours.filter(h => h && Number.isFinite(h.dtMs)).map(h => h.dtMs)) + 1800000
-        : -Infinity;
       let bestDtMs = null;
       let kpPeakClearSum = 0;
       let kpPeakClearCnt = 0;
