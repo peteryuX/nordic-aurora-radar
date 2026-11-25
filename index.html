@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>極光即時雷達｜北歐＆全球即時預報</title>
+  <title>極光即時雷達｜北歐與全球即時預報</title>
   <meta name="description" content="Real-time Nordic & global aurora radar combining official Yr.no (MET Norway) layered clouds, NOAA solar wind telemetry, twilight/moonlight physics, and a 360° clear-sky radar. 直連挪威官方 Yr.no 分層雲量與美國 NOAA 即時太陽風衛星，結合太陽暮光、月球仰角與 360° 晴空雷達。" />
   <meta name="keywords" content="aurora forecast, northern lights, nordic aurora radar, Tromso aurora, Alta aurora, Lofoten aurora, Abisko aurora, NOAA SWPC, Yr.no cloud forecast, 極光預報, 極光雷達, 北歐極光" />
   <meta name="google-site-verification" content="9uDTXgYt6cLyIyEW8tmFensPSWjd_Yc3Xj_U_BoEsS0" />
@@ -19,7 +19,7 @@
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://peteryux.github.io/nordic-aurora-radar/" />
   <meta property="og:title" content="Aurora Radar — Live Clear-Sky & Solar Wind Forecast" />
-  <meta property="og:description" content="Free, no-ad aurora radar combining 2.5km Yr.no layered clouds, 14 live NOAA SWPC space-weather feeds, twilight/moonlight darkness countdown, and a 360° clear-sky driving radar." />
+  <meta property="og:description" content="Aurora forecast for travelers: clear sky, aurora activity and darkness in one score. Free, no ads, live Yr.no clouds and NOAA solar wind." />
   <meta property="og:image" content="https://peteryux.github.io/nordic-aurora-radar/og-cover.png?v=2" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -83,8 +83,8 @@
     <header class="hdr" id="topHdr">
       <button id="pickBtn" class="hdr-loc-btn" type="button" aria-haspopup="dialog" aria-controls="picker" aria-expanded="false">
         <span class="hdr-loc-row">
-          <span id="gpsDot" class="gps-dot manual"></span>
-          <span id="locName" class="hdr-loc-name">挪威・Alta</span>
+          <svg id="gpsDot" class="loc-arrow" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M21 3 3 10.53v.98l6.84 2.65L12.48 21h.98z" fill="currentColor"/></svg>
+          <span id="locName" class="hdr-loc-name">挪威 · Alta</span>
           <span class="chev">▾</span>
         </span>
         <span id="locMeta" class="hdr-loc-meta">
@@ -130,7 +130,7 @@
           <svg id="skySvg" class="sky-svg" viewBox="0 0 640 225" preserveAspectRatio="xMidYMid slice"></svg>
           <div class="sky-overlay">
             <div class="sky-text">
-              <h1 id="vTitle" class="sky-title skel-txt">連線同步最新天空實況...</h1>
+              <h1 id="vTitle" class="sky-title skel-txt">正在同步最新天空狀況…</h1>
               <p id="vLead" class="sky-lead skel-txt">結合官方分層晴空預報、NOAA 即時衛星與天文暗空倒數。</p>
               <button id="vActionBtn" class="hero-cta" type="button" style="display:none;"></button>
             </div>
@@ -155,42 +155,39 @@
             <div class="f-box">
               <div class="f-head"><span id="fSkyLbl" class="f-lbl">晴空率</span><span id="fSkyVal" class="f-val skel-val">--</span></div>
               <div class="f-track"><div id="fSkyBar" class="f-fill"></div></div>
-              <div id="fSkySub" class="f-sub skel-sub">讀取中...</div>
+              <div id="fSkySub" class="f-sub skel-sub">讀取中…</div>
             </div>
             <div class="f-box">
               <div class="f-head"><span id="fAurLbl" class="f-lbl">極光活動</span><span id="fAurVal" class="f-val skel-val">--</span></div>
               <div class="f-track"><div id="fAurBar" class="f-fill"></div></div>
-              <div id="fAurSub" class="f-sub skel-sub">讀取中...</div>
+              <div id="fAurSub" class="f-sub skel-sub">讀取中…</div>
             </div>
             <div class="f-box">
               <div class="f-head"><span id="fDarkLbl" class="f-lbl">夜空暗度</span><span id="fDarkVal" class="f-val skel-val">--</span></div>
               <div class="f-track"><div id="fDarkBar" class="f-fill"></div></div>
-              <div id="fDarkSub" class="f-sub skel-sub">讀取中...</div>
+              <div id="fDarkSub" class="f-sub skel-sub">讀取中…</div>
             </div>
           </div>
 
           <div id="heroTags" class="hero-tags"></div>
 
           <div id="fcStrip" class="fc-strip">
-            <span id="fcNextTxt">未來 1 小時預估：計算中...</span>
+            <span id="fcNextTxt">未來 1 小時：計算中…</span>
             <button id="fcConfBtn" class="fc-conf-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet">說明 ›</button>
           </div>
         </div>
       </section>
 
-      <!-- Card 2 (Above-the-Fold Peek): 12h / 24h Combined Clear-Sky & Score Trend -->
+      <!-- Card 2 (Above-the-Fold Peek): fixed 24h Combined Clear-Sky & Score Trend -->
       <section class="card" id="waveCard">
         <h2 class="wave-h2">
           <span id="h2Wave">逐時趨勢</span>
-          <div id="horizonSeg" class="seg-ctrl" role="tablist" aria-label="預報時間範圍">
-            <button id="hz12Btn" class="seg-btn on" type="button" role="tab" aria-selected="true" data-hz="12">12h</button>
-            <button id="hz24Btn" class="seg-btn" type="button" role="tab" aria-selected="false" data-hz="24">24h</button>
-          </div>
+          <span id="waveRange" class="wave-range">24 小時</span>
         </h2>
-        <div id="homeBest" class="callout skel-bar">載入中...</div>
+        <div id="homeBest" class="callout skel-bar">載入中…</div>
         <div class="hr-legend hr-legend-top">
-          <span id="hrLegLeft"><span class="leg-dot" style="background:var(--green);"></span>晴空 <span class="leg-dot" style="background:var(--purple);margin-left:8px;"></span>指數</span>
-          <span id="hrLegRight">滑動查單小時</span>
+          <span id="hrLegLeft"><span class="leg-dot" style="background:var(--green);"></span>柱＝指數（0–99）<span class="leg-strip"></span>灰條＝晴空率</span>
+          <span id="hrLegRight">滑動查看各時段</span>
         </div>
         <div class="chart-box">
           <svg id="skyWaveChart" class="chart-svg" viewBox="0 0 420 194"></svg>
@@ -200,20 +197,21 @@
 
       <!-- Card 3: 3-Night Aurora & Clear-Sky Outlook (Clean, Zero-Jargon Decision Order) -->
       <section class="card" id="outlookCard">
-        <h2><span id="h2Outlook">未來 3 晚極光與晴空展望</span></h2>
+        <h2 class="h2-with-info"><span id="h2Outlook">未來三晚</span><button id="outlookInfoBtn" class="info-btn" type="button" aria-expanded="false" aria-controls="outlookNote" aria-label="指數說明">ⓘ</button></h2>
         <div id="outlookGrid" class="outlook-grid">
-          <div class="outlook-day skel-day"><div class="od-date">今晚</div><div class="od-flag"></div><div class="od-score">~00</div><div class="od-badge">----</div><div class="od-stat">晴 00% · 0h<br/>Kp 0.0</div></div>
-          <div class="outlook-day skel-day"><div class="od-date">明晚</div><div class="od-flag"></div><div class="od-score">~00</div><div class="od-badge">----</div><div class="od-stat">晴 00% · 0h<br/>Kp 0.0</div></div>
-          <div class="outlook-day skel-day"><div class="od-date">後晚</div><div class="od-flag"></div><div class="od-score">~00</div><div class="od-badge">----</div><div class="od-stat">晴 00% · 0h<br/>Kp 0.0</div></div>
+          <div class="outlook-day skel-day"><div class="od-day">今晚</div><div class="od-date">--/--</div><div class="od-score">00</div><div class="od-badge">----</div><div class="od-stat">晴空率 00%<br/>Kp 0.0</div></div>
+          <div class="outlook-day skel-day"><div class="od-day">週四</div><div class="od-date">--/--</div><div class="od-score">00</div><div class="od-badge">----</div><div class="od-stat">晴空率 00%<br/>Kp 0.0</div></div>
+          <div class="outlook-day skel-day"><div class="od-day">週五</div><div class="od-date">--/--</div><div class="od-score">00</div><div class="od-badge">----</div><div class="od-stat">晴空率 00%<br/>Kp 0.0</div></div>
         </div>
+        <p id="outlookNote" class="od-note" hidden>預估觀測指數 0–99，綜合晴空率、極光活動與夜空暗度；越後面的夜晚越不確定。</p>
       </section>
 
       <!-- Card 4: Humanized Solar Wind Status (Progressive Disclosure Curve) -->
       <section class="card card-sw" id="solarWindCard">
-        <h2><span id="h2Energy">太陽風即時動態</span><span id="bzBadge" class="sw-badge"></span></h2>
-        <div id="energyBanner" class="callout">讀取衛星即時太陽風中...</div>
+        <h2><span id="h2Energy">太陽風</span><span id="bzBadge" class="sw-badge"></span></h2>
+        <div id="energyBanner" class="callout">正在讀取即時太陽風…</div>
         <button id="swToggleBtn" class="sw-toggle-btn" type="button" aria-expanded="false" aria-controls="swCurvePanel">
-          <span id="swToggleTxt">展開太陽風到達地球曲線</span><span class="sw-chev">▾</span>
+          <span id="swToggleTxt">顯示太陽風曲線</span><span class="sw-chev">▾</span>
         </button>
         <div id="swCurvePanel" class="sw-curve-panel" aria-hidden="true">
           <div class="chart-box" style="margin-top:9px;">
@@ -229,15 +227,15 @@
     <!-- VIEW 2: 360° CLEAR-SKY DRIVING RADAR -->
     <section id="v-dir" class="view">
       <div class="card">
-        <h2 id="h2Radar">周邊 360° 找晴空</h2>
-        <div id="compassSummary" class="callout warn">掃描周邊晴空分佈中...</div>
+        <h2 id="h2Radar">周邊晴空</h2>
+        <div id="compassSummary" class="callout warn">正在掃描周邊晴空…</div>
         <div class="radar-wrap">
           <svg id="radarSvg" class="radar-svg" viewBox="0 0 320 320"></svg>
           <div id="radarLeg" class="radar-leg"></div>
         </div>
         <div id="compassBox" style="margin-top:12px;"></div>
         <div class="road-links" id="roadLinks">
-          <span id="roadLbl" class="road-lbl">冬季即時路況／封路查詢：</span>
+          <span id="roadLbl" class="road-lbl">即時路況與封路：</span>
           <a id="roadNo" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="https://www.vegvesen.no/trafikk">挪威 Vegvesen ↗</a>
           <a id="roadSe" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="https://www.trafikverket.se/trafikinformation/vag/">瑞典 Trafikverket ↗</a>
           <a id="roadIs" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="https://umferdin.is/en">冰島 Umferðin ↗</a>
@@ -263,7 +261,7 @@
         <div id="camDayNotice" class="callout warn" style="display:none; margin-bottom:10px;"></div>
         <div id="skyCamWrap" class="sat-img-wrap sat-cam-frame">
           <img id="skyCamImg" class="sat-img" alt="Observatory Live All-Sky Camera" loading="lazy" />
-          <button id="camBrightBtn" class="cam-bright-pill" type="button" style="display:none;">日間過曝・點此看原亮度</button>
+          <button id="camBrightBtn" class="cam-bright-pill" type="button" style="display:none;">日間已調暗 · 點此看原亮度</button>
           <div id="skyCamCap" class="sat-cap"><a class="src-link" target="_blank" rel="noopener noreferrer" href="https://fox.phys.uit.no/ASC/">資料來源：挪威北極大學 UiT 全天空極光相機（Skibotn 天文台，約每分鐘實拍）↗</a></div>
         </div>
       </div>
@@ -292,7 +290,7 @@
     <div class="bottom-inner">
       <button class="nav-btn on" type="button" data-view="home">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3m0 12v3M4.93 4.93l2.12 2.12m9.9 9.9 2.12 2.12M3 12h3m12 0h3M4.93 19.07l2.12-2.12m9.9-9.9 2.12-2.12"/><circle cx="12" cy="12" r="4"/></svg>
-        <span id="navHome">即時總覽</span>
+        <span id="navHome">總覽</span>
       </button>
       <button class="nav-btn" type="button" data-view="dir">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
@@ -316,9 +314,9 @@
         </div>
       </div>
       <div class="sheet-body">
-        <button id="gpsBtn" class="btn btn-gps-primary" type="button" title="使用目前 GPS 定位" aria-label="使用目前 GPS 定位">
+        <button id="gpsBtn" class="btn btn-gps-primary" type="button" title="使用目前位置" aria-label="使用目前位置">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>
-          <span id="gpsBtnTxt">使用目前 GPS 定位</span>
+          <span id="gpsBtnTxt">使用目前位置</span>
         </button>
         <form id="cityForm" class="search-row">
           <input id="cityInput" type="text" placeholder="輸入地名（例：冰島、特羅姆瑟、黃刀）" />
@@ -328,34 +326,34 @@
           <div class="picker-grp">
             <div id="pickerGrpNordic" class="picker-lbl">北歐極光帶</div>
             <div class="chips">
-              <button class="chip on" type="button" data-zh="挪威・Alta" data-en="Norway · Alta" data-lat="69.9689" data-lon="23.2716">Alta</button>
-              <button class="chip" type="button" data-zh="挪威・Tromsø" data-en="Norway · Tromsø" data-lat="69.6492" data-lon="18.9553">Tromsø</button>
-              <button class="chip" type="button" data-zh="挪威・Lofoten" data-en="Norway · Lofoten" data-lat="68.2342" data-lon="14.5683">Lofoten</button>
-              <button class="chip" type="button" data-zh="挪威・Senja" data-en="Norway · Senja" data-lat="69.3470" data-lon="17.4820">Senja</button>
-              <button class="chip" type="button" data-zh="挪威・Narvik" data-en="Norway · Narvik" data-lat="68.4385" data-lon="17.4273">Narvik</button>
-              <button class="chip" type="button" data-zh="瑞典・Abisko" data-en="Sweden · Abisko" data-lat="68.3495" data-lon="18.8312">Abisko</button>
-              <button class="chip" type="button" data-zh="瑞典・Kiruna" data-en="Sweden · Kiruna" data-lat="67.8558" data-lon="20.2253">Kiruna</button>
-              <button class="chip" type="button" data-zh="挪威・Kirkenes" data-en="Norway · Kirkenes" data-lat="69.7271" data-lon="30.0458">Kirkenes</button>
-              <button class="chip" type="button" data-zh="芬蘭・Rovaniemi" data-en="Finland · Rovaniemi" data-lat="66.5039" data-lon="25.7294">Rovaniemi</button>
-              <button class="chip" type="button" data-zh="芬蘭・Inari" data-en="Finland · Inari" data-lat="68.9060" data-lon="27.0275">Inari</button>
+              <button class="chip on" type="button" data-zh="挪威 · Alta" data-en="Norway · Alta" data-lat="69.9689" data-lon="23.2716">Alta</button>
+              <button class="chip" type="button" data-zh="挪威 · Tromsø" data-en="Norway · Tromsø" data-lat="69.6492" data-lon="18.9553">Tromsø</button>
+              <button class="chip" type="button" data-zh="挪威 · Lofoten" data-en="Norway · Lofoten" data-lat="68.2342" data-lon="14.5683">Lofoten</button>
+              <button class="chip" type="button" data-zh="挪威 · Senja" data-en="Norway · Senja" data-lat="69.3470" data-lon="17.4820">Senja</button>
+              <button class="chip" type="button" data-zh="挪威 · Narvik" data-en="Norway · Narvik" data-lat="68.4385" data-lon="17.4273">Narvik</button>
+              <button class="chip" type="button" data-zh="瑞典 · Abisko" data-en="Sweden · Abisko" data-lat="68.3495" data-lon="18.8312">Abisko</button>
+              <button class="chip" type="button" data-zh="瑞典 · Kiruna" data-en="Sweden · Kiruna" data-lat="67.8558" data-lon="20.2253">Kiruna</button>
+              <button class="chip" type="button" data-zh="挪威 · Kirkenes" data-en="Norway · Kirkenes" data-lat="69.7271" data-lon="30.0458">Kirkenes</button>
+              <button class="chip" type="button" data-zh="芬蘭 · Rovaniemi" data-en="Finland · Rovaniemi" data-lat="66.5039" data-lon="25.7294">Rovaniemi</button>
+              <button class="chip" type="button" data-zh="芬蘭 · Inari" data-en="Finland · Inari" data-lat="68.9060" data-lon="27.0275">Inari</button>
             </div>
           </div>
           <div class="picker-grp">
-            <div id="pickerGrpNa" class="picker-lbl">北美＆冰島</div>
+            <div id="pickerGrpNa" class="picker-lbl">北美與冰島</div>
             <div class="chips">
-              <button class="chip" type="button" data-zh="冰島・Reykjavik" data-en="Iceland · Reykjavik" data-lat="64.1466" data-lon="-21.9426">Reykjavik</button>
-              <button class="chip" type="button" data-zh="冰島・Akureyri" data-en="Iceland · Akureyri" data-lat="65.6885" data-lon="-18.1262">Akureyri</button>
-              <button class="chip" type="button" data-zh="美國・Fairbanks" data-en="USA · Fairbanks" data-lat="64.8378" data-lon="-147.7164">Fairbanks</button>
-              <button class="chip" type="button" data-zh="加拿大・Yellowknife" data-en="Canada · Yellowknife" data-lat="62.4540" data-lon="-114.3718">Yellowknife</button>
-              <button class="chip" type="button" data-zh="加拿大・Whitehorse" data-en="Canada · Whitehorse" data-lat="60.7212" data-lon="-135.0568">Whitehorse</button>
+              <button class="chip" type="button" data-zh="冰島 · Reykjavik" data-en="Iceland · Reykjavik" data-lat="64.1466" data-lon="-21.9426">Reykjavik</button>
+              <button class="chip" type="button" data-zh="冰島 · Akureyri" data-en="Iceland · Akureyri" data-lat="65.6885" data-lon="-18.1262">Akureyri</button>
+              <button class="chip" type="button" data-zh="美國 · Fairbanks" data-en="USA · Fairbanks" data-lat="64.8378" data-lon="-147.7164">Fairbanks</button>
+              <button class="chip" type="button" data-zh="加拿大 · Yellowknife" data-en="Canada · Yellowknife" data-lat="62.4540" data-lon="-114.3718">Yellowknife</button>
+              <button class="chip" type="button" data-zh="加拿大 · Whitehorse" data-en="Canada · Whitehorse" data-lat="60.7212" data-lon="-135.0568">Whitehorse</button>
             </div>
           </div>
           <div class="picker-grp">
             <div id="pickerGrpSouth" class="picker-lbl">南半球極光</div>
             <div class="chips">
-              <button class="chip" type="button" data-zh="紐西蘭・Queenstown" data-en="New Zealand · Queenstown" data-lat="-45.0312" data-lon="168.6626">Queenstown</button>
-              <button class="chip" type="button" data-zh="紐西蘭・Lake Tekapo" data-en="New Zealand · Lake Tekapo" data-lat="-44.0047" data-lon="170.4771">Lake Tekapo</button>
-              <button class="chip" type="button" data-zh="澳洲・Hobart" data-en="Australia · Hobart" data-lat="-42.8821" data-lon="147.3272">Hobart</button>
+              <button class="chip" type="button" data-zh="紐西蘭 · Queenstown" data-en="New Zealand · Queenstown" data-lat="-45.0312" data-lon="168.6626">Queenstown</button>
+              <button class="chip" type="button" data-zh="紐西蘭 · Lake Tekapo" data-en="New Zealand · Lake Tekapo" data-lat="-44.0047" data-lon="170.4771">Lake Tekapo</button>
+              <button class="chip" type="button" data-zh="澳洲 · Hobart" data-en="Australia · Hobart" data-lat="-42.8821" data-lon="147.3272">Hobart</button>
             </div>
           </div>
         </div>
@@ -384,7 +382,8 @@
             <svg class="qa-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
             <span id="shareBtnTxt">分享預報</span>
           </button>
-          <button id="langBtn" class="qa-btn" type="button" title="Switch Language" aria-label="Switch Language">EN</button>
+          <button id="langBtn" class="qa-btn" type="button" title="Switch Language" aria-label="Switch Language">English</button>
+          <button id="unitBtn" class="qa-btn qa-unit" type="button" title="溫度單位：攝氏 °C" aria-label="溫度單位：攝氏 °C"><span class="u-on">°C</span><span class="u-sep">/</span><span>°F</span></button>
         </div>
 
         <!-- 1. LIVE SCORE BREAKDOWN (CONCISE) -->
@@ -394,27 +393,27 @@
             <span id="tsLiveBadge" class="ts-badge">計算中</span>
           </div>
           <div class="ts-eq" id="tsEq">
-            <div class="ts-eq-cell"><span class="ts-eq-lbl" id="tsLblSky">晴空度</span><strong id="tsValSky">--</strong></div>
+            <div class="ts-eq-cell"><span class="ts-eq-lbl" id="tsLblSky">晴空率</span><strong id="tsValSky">--</strong></div>
             <span class="ts-op">×</span>
             <div class="ts-eq-cell"><span class="ts-eq-lbl" id="tsLblAur">極光活動</span><strong id="tsValAur">--</strong></div>
             <span class="ts-op">×</span>
             <div class="ts-eq-cell"><span class="ts-eq-lbl" id="tsLblDark">夜空暗度</span><strong id="tsValDark">--</strong></div>
             <span class="ts-op">→</span>
-            <div class="ts-eq-cell ts-eq-out"><span class="ts-eq-lbl" id="tsLblOut">總分</span><strong id="tsValOut">--</strong></div>
+            <div class="ts-eq-cell ts-eq-out"><span class="ts-eq-lbl" id="tsLblOut">觀測指數</span><strong id="tsValOut">--</strong></div>
           </div>
-          <p id="tsDiagTxt" class="ts-diag">正在分析主要影響因子...</p>
+          <p id="tsDiagTxt" class="ts-diag">正在分析主要影響因素…</p>
           <div id="tsMetarNote" class="ts-metar-note" style="display:none;"></div>
-          <div id="tsConfRow" class="ts-conf-row">確認氣象與衛星同步狀態中...</div>
+          <div id="tsConfRow" class="ts-conf-row">正在確認氣象與衛星資料…</div>
         </section>
 
         <!-- 2. SCORE TIERS -->
         <section class="ts-sec">
           <h3 id="tsTierTitle" class="ts-h3">觀測指數分級（0–99，越高越好）</h3>
           <div class="ts-tiers" id="tsTiers" style="margin-bottom:0;">
-            <div class="ts-tier"><span class="ts-dot t-high"></span><b>65–99</b><span id="tsT1">極佳條件</span></div>
+            <div class="ts-tier"><span class="ts-dot t-high"></span><b>65–99</b><span id="tsT1">極佳</span></div>
             <div class="ts-tier"><span class="ts-dot t-good"></span><b>40–64</b><span id="tsT2">適合觀測</span></div>
-            <div class="ts-tier"><span class="ts-dot t-mid"></span><b>18–39</b><span id="tsT3">有機會看見</span></div>
-            <div class="ts-tier"><span class="ts-dot t-low"></span><b>0–17</b><span id="tsT4">雲厚／過亮／弱</span></div>
+            <div class="ts-tier"><span class="ts-dot t-mid"></span><b>18–39</b><span id="tsT3">普通</span></div>
+            <div class="ts-tier"><span class="ts-dot t-low"></span><b>0–17</b><span id="tsT4">偏低（雲層過厚、天色過亮或極光偏弱）</span></div>
           </div>
         </section>
 
@@ -422,10 +421,10 @@
         <section class="ts-sec">
           <h3 id="tsSciTitle" class="ts-h3">官方資料來源與驗證</h3>
           <div class="ts-stat-grid" id="tsStatGrid">
-            <div class="ts-stat"><strong>太陽 0.006°・地磁 0.24°</strong><span>JPL 日月曆（月 ≤0.74°）・IGRF-14</span></div>
-            <div class="ts-stat"><strong>14 項 NOAA 太空天氣</strong><span>1m 太陽風・Kp・GOES・OVATION・Dst</span></div>
+            <div class="ts-stat"><strong>太陽 0.006° · 地磁 0.24°</strong><span>JPL 日月曆（月 ≤0.74°） · IGRF-14</span></div>
+            <div class="ts-stat"><strong>14 項 NOAA 太空天氣</strong><span>1m 太陽風 · Kp · GOES · OVATION · Dst</span></div>
             <div class="ts-stat"><strong>機場雷射短時校正</strong><span>55 km 內即時 METAR 融合（+0–3h）</span></div>
-            <div class="ts-stat"><strong>分層雲量與共識比對</strong><span>北歐 Yr.no 2.5km・全球雙模型</span></div>
+            <div class="ts-stat"><strong>分層雲量與共識比對</strong><span>北歐 Yr.no 2.5km · 全球雙模型</span></div>
           </div>
           <div class="ts-src-links">
             <a id="pNoaa" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/planetary-k-index">NOAA ↗</a>
@@ -434,7 +433,7 @@
             <a id="linkGfz" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="https://kp.gfz.de/en/hp30-hp60">GFZ Hp30 ↗</a>
           </div>
           <div class="ts-src-links" style="margin-top:8px;">
-            <a id="tsSealLink" class="ts-seal ts-seal-link" target="_blank" rel="noopener noreferrer" href="https://github.com/peteryuX/nordic-aurora-radar">GitHub 開源（MIT・零追蹤）↗</a>
+            <a id="tsSealLink" class="ts-seal ts-seal-link" target="_blank" rel="noopener noreferrer" href="https://github.com/peteryuX/nordic-aurora-radar">GitHub 開源（MIT · 不追蹤）↗</a>
             <a id="tsValReportLink" class="ts-seal ts-seal-link" target="_blank" rel="noopener noreferrer" href="https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md">完整驗證報告 ↗</a>
           </div>
           <p id="tsPwaTip" class="ts-pwa-tip">離線使用：Safari 點「分享 → 加入主畫面」或 Chrome 點「安裝」，極區無訊號時仍可開啟快取。</p>

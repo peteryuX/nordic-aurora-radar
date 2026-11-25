@@ -1,7 +1,7 @@
 {
   "name": "Nordic Aurora Radar｜極光即時雷達",
   "short_name": "Aurora Radar",
-  "description": "Real-time Nordic & global aurora radar with official Yr.no layered clouds, NOAA solar wind telemetry, twilight/moonlight physics, and 360° clear-sky radar.",
+  "description": "Aurora forecast for travelers: clear sky, aurora activity and darkness in one score. Live Yr.no clouds, NOAA solar wind, and nearby clear-sky radar.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

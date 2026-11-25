@@ -261,7 +261,7 @@ test('9. Aurora scoring invariants, monotonicity, and zero contradiction with ho
   const hobart = api.computeAuroraScore({ lat: -42.88, lon: 147.33, cloudNow: 10, sunAlt: -25, bz: 0, speed: 350, kp: 1, ovation: 0 });
   assert.equal(hobart.outOfZone, 'need-storm');
   assert.equal(hobart.grade, '🌍 極光帶偏南');
-  assert.equal(api.tGrade(hobart.grade, 'en'), 'Oval South');
+  assert.equal(api.tGrade(hobart.grade, 'en'), 'Needs storm');
   const vHobartEn = api.evaluateVerdict({ lat: -42.88, lon: 147.33, bestDark: hrs[0], kp: 1, scoreObj: hobart, lang: 'en' });
   const vHobartZh = api.evaluateVerdict({ lat: -42.88, lon: 147.33, bestDark: hrs[0], kp: 1, scoreObj: hobart, lang: 'zh' });
   assert.match(vHobartEn.title, /south/i);
@@ -331,8 +331,8 @@ test('12. All SVG builders produce clean markup with strictly uniform X-axis int
     score: i === 3 ? 72 : 30, temp: -2, isDay: false
   }));
   const waveSvg = api.buildSkyWaveSVG(hrs, hrs[3], 5, 'zh');
-  assert.ok(waveSvg.includes('<polyline') && !waveSvg.includes('NaN') && !waveSvg.includes('undefined'));
-  const waveTicks = [...waveSvg.matchAll(/<text[^>]*y="170"[^>]*>(\d{2}:\d{2})<\/text>/g)].map(m => m[1]);
+  assert.ok(waveSvg.includes('class="sc-bar"') && !waveSvg.includes('<polyline') && !waveSvg.includes('NaN') && !waveSvg.includes('undefined'));
+  const waveTicks = [...waveSvg.matchAll(/<text[^>]*y="184"[^>]*>(\d{2}:\d{2})<\/text>/g)].map(m => m[1]);
   assert.deepEqual(waveTicks, ['22:00', '00:00', '02:00', '04:00', '06:00', '08:00']);
 
   const dirs = [
@@ -484,14 +484,14 @@ test('16. True geomagnetic azimuth, 300km G5 red aurora, and naked-eye vs camera
 test('17. Shareable city URL parser and builder validate coordinates, sanitize names, and round-trip cleanly', () => {
   const built = api.buildShareUrl(
     'https://peteryux.github.io/nordic-aurora-radar/?lat=1&lon=2&lang=zh',
-    { name: '挪威・Tromsø', nameEn: 'Norway · Tromsø', lat: 69.6492, lon: 18.9553 },
+    { name: '挪威 · Tromsø', nameEn: 'Norway · Tromsø', lat: 69.6492, lon: 18.9553 },
     'en'
   );
   const parsed = api.parseUrlLocation(new URL(built).search);
   assert.ok(parsed);
   assert.equal(parsed.lat, 69.6492);
   assert.equal(parsed.lon, 18.9553);
-  assert.equal(parsed.name, '挪威・Tromsø');
+  assert.equal(parsed.name, '挪威 · Tromsø');
   assert.equal(parsed.nameEn, 'Norway · Tromsø');
 
   assert.equal(api.parseUrlLocation('?lat=999&lon=10'), null);
@@ -818,26 +818,26 @@ test('28. explainAuroraScore single-source-of-truth across 72 events, confidence
   const svg1 = api.buildBzChartSVG(ser, 'UTC', 420, api.computeBallisticCoupling(ser, 420), 'zh');
   const svg2 = api.buildSkyWaveSVG(hrs, hrs[2], 2, 'zh');
   assert.ok(svg1.includes('x1="56"') && svg2.includes('x1="56"'), 'Chart 1 & Chart 2 must share identical padL=56 axis');
-  assert.ok(svg1.includes('↑ 越高越強') && svg2.includes('↑ 越高越好'), 'Both charts must state higher=better clearly');
+  assert.ok(svg1.includes('太陽風能量') && svg2.includes('觀測指數'), 'Both charts must label their single Y-axis metric clearly');
 });
 
 test('29. Bilingual city localization repairs cached/URL Chinese names when switching to English', () => {
-  const staleAlta = { name: '挪威・阿爾塔', nameEn: '挪威・阿爾塔', lat: 69.9689, lon: 23.2716 };
+  const staleAlta = { name: '挪威 · 阿爾塔', nameEn: '挪威 · 阿爾塔', lat: 69.9689, lon: 23.2716 };
   assert.equal(api.resolveCityDisplayName(staleAlta, 'en'), 'Norway · Alta');
-  assert.equal(api.resolveCityDisplayName(staleAlta, 'zh'), '挪威・Alta');
+  assert.equal(api.resolveCityDisplayName(staleAlta, 'zh'), '挪威 · Alta');
 
   const parsedAlta = api.parseUrlLocation('?lat=69.9689&lon=23.2716&name=%E6%8C%AA%E5%A8%81%E3%83%BB%E9%98%BF%E7%88%BE%E5%A1%94');
-  assert.equal(parsedAlta.name, '挪威・Alta');
+  assert.equal(parsedAlta.name, '挪威 · Alta');
   assert.equal(parsedAlta.nameEn, 'Norway · Alta');
 
   const parsedCustom = api.parseUrlLocation('?lat=25.0330&lon=121.5654&name=%E5%8F%B0%E7%81%A3%E3%83%BB%E5%8F%B0%E5%8C%97');
-  assert.equal(parsedCustom.name, '台灣・台北');
+  assert.equal(parsedCustom.name, '台灣 · 台北');
   assert.equal(parsedCustom.nameEn, '');
 
   const geoEn = { countryName: 'Norway', city: 'Alta', locality: 'Bossekop' };
   assert.equal(api.formatReverseGeo(geoEn, 'en'), 'Norway · Alta (Bossekop)');
   const geoZh = { countryName: '挪威', city: '阿爾塔', locality: '市中心' };
-  assert.equal(api.formatReverseGeo(geoZh, 'zh'), '挪威・阿爾塔（市中心）');
+  assert.equal(api.formatReverseGeo(geoZh, 'zh'), '挪威 · 阿爾塔（市中心）');
 });
 
 // ====== Exhaustive Chaos, Physics Regression, Fuzz, Monotonicity, i18n & Security Suite ======
@@ -1383,9 +1383,9 @@ test('39. WSA-ENLIL CME/HSS parser handles reverse-chronological feed & tags mat
   // GPS reverse-geocoding anti-Simplified-Chinese guard (BigDataCloud returns 北雷萨 even for zh-Hant)
   const zhGeo = { countryCode: 'NO', countryName: '挪威', city: '北雷萨', locality: '北雷萨' };
   const enGeo = { countryCode: 'NO', countryName: 'Norway', city: 'Nordreisa', locality: 'Nordreisa' };
-  assert.equal(api.formatReverseGeo(zhGeo, 'zh', enGeo), '挪威・Nordreisa');
-  assert.equal(api.formatReverseGeo(zhGeo, 'zh'), '挪威・北雷薩');
-  assert.equal(api.formatReverseGeo({ countryCode: 'FI', countryName: '芬兰', city: '伊纳里' }, 'zh', { countryCode: 'FI', countryName: 'Finland', city: 'Inari' }), '芬蘭・Inari');
+  assert.equal(api.formatReverseGeo(zhGeo, 'zh', enGeo), '挪威 · Nordreisa');
+  assert.equal(api.formatReverseGeo(zhGeo, 'zh'), '挪威 · 北雷薩');
+  assert.equal(api.formatReverseGeo({ countryCode: 'FI', countryName: '芬兰', city: '伊纳里' }, 'zh', { countryCode: 'FI', countryName: 'Finland', city: 'Inari' }), '芬蘭 · Inari');
 });
 
 test('40. Dark-window countdown, distance km, Chinese search, cross-tab action synthesizer & Clear Sky % compass', () => {
@@ -1520,7 +1520,7 @@ test('41. Modular storage.js (SWR LRU, legacy cleanup, corrupt-JSON recovery, of
   assert.equal(storage.findMatchingOfflineCache({ lat: 70, lon: 20 }, nowMs + 10000, mockStore)?.score?.total, 45);
 
   // 3. Pure computeLiveSnapshot + buildSwrPayload + hydrateOfflineState full round-trip
-  const pos = { name: '挪威・Alta', nameEn: 'Norway · Alta', lat: 69.9689, lon: 23.2716, tz: 'Europe/Oslo' };
+  const pos = { name: '挪威 · Alta', nameEn: 'Norway · Alta', lat: 69.9689, lon: 23.2716, tz: 'Europe/Oslo' };
   const now = new Date('2026-11-24T22:00:00Z');
   const hereHrs = Array.from({ length: 12 }, (_, i) => ({
     dtMs: now.getTime() + i * 3600000,
@@ -1629,7 +1629,7 @@ test('42. Winter safety gates, geodesic 70°N cache, 3-sector radar SVG, sustain
   }));
   const akSvgEn = api.buildCompassRadarSVG(akDirs, { lat: 65.6885, lon: -18.1262 }, 'en');
   const akSvgZh = api.buildCompassRadarSVG(akDirs, { lat: 65.6885, lon: -18.1262 }, 'zh');
-  assert.ok(akSvgEn.includes('No Winter Rd') && akSvgZh.includes('無冬季路'), 'Closed direction must show No Winter Rd');
+  assert.ok(akSvgEn.includes('Closed in winter') && akSvgZh.includes('冬季封閉'), 'Closed direction must show Closed in winter');
   assert.ok(akSvgEn.includes('✓ 85%') && akSvgEn.includes('~ 50%') && akSvgEn.includes('⚠ 80%'), 'SVG wedges must render Red-Light-safe status glyphs');
   assert.ok(!akSvgEn.includes('google.com/maps') && !akSvgEn.includes('<a '), 'SVG wedges must NOT contain accidental Google Maps links');
 
@@ -1777,7 +1777,7 @@ test('44. Overcast CME shock verdict never contradicts score with fake rising co
     lat: 69.65, lon: 18.96, sc: scNow, scNext, bal: { etaMin: 34, shockActive: true }, lang: 'en'
   });
   assert.ok(!actZh.lead.includes('升至'), `Overcast shock must not say 升至 when scNext=${scNext.total}: ${actZh.lead}`);
-  assert.ok(actZh.lead.includes('厚雲') && actZh.ctaView === 'dir', 'Overcast shock must warn about clouds and link to Clear-Sky Radar');
+  assert.ok(/雲層偏厚|厚雲|多雲/.test(actZh.lead) && actZh.ctaView === 'dir', 'Overcast shock must warn about clouds and link to Clear-Sky Radar');
   assert.ok(!actEn.title.toLowerCase().includes('rising') && actEn.ctaView === 'dir', `EN overcast shock must not claim rising: ${actEn.title}`);
 
   // Chart 2: ★ HH:MM Best badge must stay anchored over far-left best hour (x=56), never shifted to middle daytime!
@@ -1790,7 +1790,7 @@ test('44. Overcast CME shock verdict never contradicts score with fake rising co
   assert.ok(svgLeft.includes('★ 06:00 最佳'), 'Best badge must include exact best hour 06:00');
   assert.ok(svgLeft.includes('x1="56.0" y1="22"'), 'Best vertical pointer stem must anchor directly to 06:00 (x=56)');
   assert.ok(svgLeft.includes('x="56.0" y="2"'), 'Best pill must sit at left edge above 06:00, not shifted to x=224');
-  assert.ok(svgLeft.includes('白天過亮'), 'Contiguous daylight band must be clearly labeled');
+  assert.ok(svgLeft.includes('天色過亮'), 'Contiguous daylight band must be clearly labeled');
 });
 
 test('45. Gate 0B parity & edge-case regressions (hour[0] Hero match, BR mist, CME warn, 6h Night+2, view strip, Abisko)', async () => {
@@ -1812,7 +1812,7 @@ test('45. Gate 0B parity & edge-case regressions (hour[0] Hero match, BR mist, C
     { time_tag: '2026-03-20 16:00:00.000', speed: 380, density: 4 },
     { time_tag: '2026-03-20 17:04:00.000', speed: 700, density: 28 } // Upstream L1 shock NOT yet at Earth
   ];
-  const pos = { name: '挪威・Alta', nameEn: 'Norway · Alta', lat: 69.9689, lon: 23.2716, tz: 'Europe/Oslo' };
+  const pos = { name: '挪威 · Alta', nameEn: 'Norway · Alta', lat: 69.9689, lon: 23.2716, tz: 'Europe/Oslo' };
   const moon = api.getMoonState(now, pos.lat, pos.lon);
   const snap = computeLiveSnapshot({
     pos, now, moon,
@@ -1856,7 +1856,7 @@ test('45. Gate 0B parity & edge-case regressions (hour[0] Hero match, BR mist, C
     lat: 59.91, lon: 10.75, timeZone: 'Europe/Oslo', nowDate: new Date('2026-11-24T20:00:00Z'), lang: 'en'
   });
   assert.equal(osloNights[2].kpAvailable, false);
-  assert.equal(osloNights[2].badge, 'Pending', `Mid-lat +2 Nights with missing Kp must show Pending, not false Kp gate: ${osloNights[2].badge}`);
+  assert.equal(osloNights[2].badge, 'Updating', `Mid-lat +2 Nights with missing Kp must show Updating, not false Kp gate: ${osloNights[2].badge}`);
   assert.ok(osloNights[2].clearDarkHrs >= 12, `6h MET Norway clear steps must sum to >=12 hrs, got ${osloNights[2].clearDarkHrs}`);
 
   // 5. buildShareUrl strips transient ?view=dir shortcut param; Abisko corridor puts Torneträsk E and Kiruna S
@@ -1891,7 +1891,7 @@ test('46. Gate 1 1P UX regressions: honest Cloudy <30% 3-Night verdict & consume
     cloudPoints: cloudyPts, kpForecast: kpF, currentKp: 2.7,
     lat: 69.97, lon: 23.27, timeZone: 'Europe/Oslo', nowDate, lang: 'en'
   });
-  assert.equal(zhNights[0].badge, '雲偏厚', `20% clear / Kp 2.7 must classify as 雲偏厚, got ${zhNights[0].badge}`);
+  assert.equal(zhNights[0].badge, '雲層過厚', `20% clear / Kp 2.7 must classify as 雲層過厚, got ${zhNights[0].badge}`);
   assert.equal(zhNights[0].tone, '', `20% clear / Kp 2.7 must not get warm/good tone, got ${zhNights[0].tone}`);
   assert.equal(enNights[0].badge, 'Cloudy', `20% clear / Kp 2.7 must classify as Cloudy, got ${enNights[0].badge}`);
   // Clear 82%+ night is never Cloudy; its tone follows the unified 0-99 tiers (full moon + Kp 3.3 peaks just under 40 → Watch)
@@ -1991,7 +1991,7 @@ test('48. Morning-hour 3-Night rollover & VLM QA regressions (Lofoten 09:03 wint
     currentKp: 2.7, lat: 68.23, lon: 14.56, timeZone: 'Europe/Oslo', nowDate: lofotenMorning, lang: 'zh'
   });
   assert.equal(lofotenNights[0].label, '今晚 11/25', `At 09:03 AM on 11/25, Night 0 must be 今晚 11/25, got ${lofotenNights[0].label}`);
-  assert.notEqual(lofotenNights[0].badge, '天色偏亮', `Winter Lofoten 09:03 AM must NEVER show 天色偏亮 / 無暗空, got ${lofotenNights[0].badge}`);
+  assert.notEqual(lofotenNights[0].badge, '天色過亮', `Winter Lofoten 09:03 AM must NEVER show 天色偏亮 / 無暗空, got ${lofotenNights[0].badge}`);
   assert.ok(lofotenNights[0].bestClear >= 60, `Expected tonight clear sky >=60%, got ${lofotenNights[0].bestClear}%`);
 
   // 2. Late-night 02:00 AM with remaining dark hours still stays on tonight's active session (11/24)
@@ -2025,12 +2025,12 @@ test('48. Morning-hour 3-Night rollover & VLM QA regressions (Lofoten 09:03 wint
     kp: 1.0, lang: 'zh'
   });
   assert.ok(!qtAct.lead.includes('最晴時段'), `5% clear overcast must not say 最晴時段: ${qtAct.lead}`);
-  assert.ok(qtAct.lead.includes('厚雲'), `5% clear overcast must honestly mention 厚雲: ${qtAct.lead}`);
+  assert.ok(/雲層偏厚|厚雲|多雲/.test(qtAct.lead), `5% clear overcast must honestly mention clouds: ${qtAct.lead}`);
 });
 
 
 
-test('49. 3-Night Outlook unified 0-99 scoring parity, honest ~score tiers & explicit ★ Best label', () => {
+test('49. 3-Night Outlook unified 0-99 scoring parity, unified tiers & explicit ★ Best label', () => {
   // 1. Reproduces user iPhone screenshot (Lofoten 10:15 AM, full moon): Tonight peaked at ~32 on the 24h chart
   //    but the old ad-hoc formula labeled all three nights green 條件佳. Now every night uses computeAuroraScore.
   const mk = (day, hours, clears) => hours.map((h, i) => ({ dtMs: Date.parse(`2026-11-${day}T${String(h).padStart(2, '0')}:30:00Z`), clear: clears[i], isDay: false }));
@@ -2061,40 +2061,158 @@ test('49. 3-Night Outlook unified 0-99 scoring parity, honest ~score tiers & exp
   assert.equal(zh[0].bestNightScore, directPeak, `Tonight peak must equal computeAuroraScore peak ${directPeak}, got ${zh[0].bestNightScore}`);
   assert.ok(zh[0].bestNightScore < 40, `Full-moon 66% / Kp 3.7 night must stay below Good tier, got ${zh[0].bestNightScore}`);
   assert.equal(zh[0].tone, 'warn');
-  assert.equal(zh[0].badge, '有機會');
+  assert.equal(zh[0].badge, '普通');
   assert.ok(zh[1].bestNightScore > zh[0].bestNightScore && zh[1].bestNightScore >= 40, `73% / Kp 5.0 G1 night must clearly outscore tonight, got ${zh[1].bestNightScore}`);
   assert.equal(zh[1].tone, 'good');
   assert.ok(['適合觀測', '極佳'].includes(zh[1].badge), `Good night badge must be a unified tier, got ${zh[1].badge}`);
   assert.ok(zh[2].bestNightScore < zh[1].bestNightScore && zh[2].tone !== 'good', '48% / Kp 3.7 night must not be labeled Good');
   assert.ok(zh.every(n => n.scoreAvailable === true), 'All three scored nights expose scoreAvailable');
-  assert.ok(!zh.some(n => n.badge === '條件佳' || n.badge === '可留意'), 'Legacy vague badges must be gone');
+  assert.ok(!zh.some(n => ['條件佳', '可留意', '有機會'].includes(n.badge)), 'Legacy vague badges must be gone');
+  assert.ok(!en.some(n => ['Prime', 'Watch', 'Promising', 'Weak'].includes(n.badge)), 'EN tiers must use Excellent/Good/Fair/Low');
   assert.ok(!en.some(n => /[\u3400-\u9fff]/.test(`${n.label}${n.badge}`)), 'EN outlook must contain zero CJK');
 
-  // 1b. When the hourly chart (with live L1 solar wind blended into +1..3h) covers tonight, its peak IS tonight's ~score
+  // 1b. When the hourly chart (with live L1 solar wind blended into +1..3h) covers tonight, its peak IS tonight's score
   const chartHours = tonightPts.map((p, i) => ({ dtMs: p.dtMs, isDay: false, score: i === 1 ? 93 : 20 }));
   const withChart = api.summarize3NightOutlook({ ...args, lang: 'zh', chartHours });
   assert.equal(withChart[0].bestNightScore, 93, `Tonight ~score must equal hourly chart peak 93, got ${withChart[0].bestNightScore}`);
   assert.equal(withChart[0].badge, '極佳');
+  assert.equal(api.summarize3NightOutlook({ ...args, lang: 'en', chartHours })[0].badge, 'Excellent');
   assert.equal(withChart[1].bestNightScore, zh[1].bestNightScore, 'Nights beyond chart coverage keep their own unified score');
 
-  // 2. scoreAvailable is false for Pending / Too Bright / Low Lat so the UI shows a status instead of a fake ~score
+  // 2. scoreAvailable is false for Updating / Too bright / Out of zone so the UI shows a status instead of a fake score
   const pending = api.summarize3NightOutlook({ cloudPoints: [], kpForecast: [], currentKp: null, lat: 68.23, lon: 14.56, timeZone: 'Europe/Oslo', nowDate: new Date('2026-11-25T09:15:00Z'), lang: 'en' });
-  assert.ok(pending.every(n => n.scoreAvailable === false && n.badge === 'Pending'));
+  assert.ok(pending.every(n => n.scoreAvailable === false && n.badge === 'Updating'));
   const polarDay = api.summarize3NightOutlook({
     cloudPoints: [{ dtMs: Date.parse('2026-06-21T22:00:00Z'), clear: 90, isDay: true }],
     kpForecast: [{ ts: Date.parse('2026-06-21T21:00:00Z'), kp: 5 }], currentKp: 5,
     lat: 69.65, lon: 18.96, timeZone: 'Europe/Oslo', nowDate: new Date('2026-06-21T12:00:00Z'), lang: 'en'
   });
-  assert.equal(polarDay[0].badge, 'Too Bright');
+  assert.equal(polarDay[0].badge, 'Too bright');
   assert.equal(polarDay[0].scoreAvailable, false);
   const taipei = api.summarize3NightOutlook({ cloudPoints: pts, kpForecast: kpF, currentKp: 3, lat: 25.03, lon: 121.56, timeZone: 'Asia/Taipei', nowDate: new Date('2026-11-25T09:15:00Z'), lang: 'en' });
-  assert.ok(taipei.every(n => n.scoreAvailable === false && n.badge === 'Low Lat'));
+  assert.ok(taipei.every(n => n.scoreAvailable === false && n.badge === 'Out of zone'));
 
-  // 3. Consumer UI: explicit ★ Best pill gated at the unified 40-point Good tier, honest "~" estimate prefix
+  // 3. Consumer UI: explicit ★ Best pill gated at the unified 40-point Good tier
   const appSrc = fs.readFileSync(path.join(ROOT, 'src/app.js'), 'utf8');
   assert.ok(appSrc.includes('od-flag-pill'), '3-Night best night must carry an explicit ★ Best pill');
   assert.ok(appSrc.includes("(n.bestNightScore ?? 0) < 40"), '★ Best must only appear when the top night reaches the Good tier');
-  assert.ok(appSrc.includes('od-tilde'), 'Multi-day scores must be shown as ~estimates');
+  assert.ok(!appSrc.includes('od-tilde'), 'Scores are bare integers (no ~ prefix)');
+  assert.ok(appSrc.includes('outlookInfoBtn'), 'Forecast uncertainty is explained via the card-level info button');
   const css = fs.readFileSync(path.join(ROOT, 'styles.css'), 'utf8');
   assert.ok(!/\.od-best\s*\{[^}]*var\(--green-bg\)/.test(css), 'Best night must not use the unexplained green background fill');
 });
+
+test('50. Bilingual copy, localization & single-metric chart clarity lint gate (zh-TW / EN / color semantics / 24h / °C-°F)', async () => {
+  const { STATIC_TEXT_MAP, LOADING_PLACEHOLDER_MAP } = await import('../src/i18n.js');
+
+  // 1. Static text & loading placeholder maps: zero CJK in EN, zero banned mainland/HK terms or legacy EN jargon, no /100 or ~score
+  const BANNED_ZH = /信息|默认|屏幕|视频|貼士|數據|網絡|分佈|持平|天頂|後晚|・|＆|\.\.\./;
+  const BANNED_EN = /\b(Prime Conditions|Latitude Gate|Daylight Gate|All Pillars|Conf:|laser adj|No Winter Rd|Ov \d)/;
+  const SCORE_TILDE = /~\s*\d/;
+  const SLASH_100 = /\/100\b/;
+  const ZH_SCORE_FEN = /指數[^。，；\n]{0,12}\d+\s*分(?!鐘)/;
+
+  for (const [k, pair] of Object.entries({ ...STATIC_TEXT_MAP, ...LOADING_PLACEHOLDER_MAP })) {
+    const [zh, en] = pair;
+    if (k !== 'langBtn') assert.ok(!/[\u3400-\u9fff]/.test(en), `EN static key ${k} leaked CJK: ${en}`);
+    assert.ok(!BANNED_ZH.test(zh), `ZH static key ${k} contains banned wording/punctuation: ${zh}`);
+    assert.ok(!BANNED_EN.test(en), `EN static key ${k} contains banned jargon: ${en}`);
+    assert.ok(!SCORE_TILDE.test(zh) && !SCORE_TILDE.test(en), `Static key ${k} uses banned ~score prefix`);
+    assert.ok(!SLASH_100.test(zh) && !SLASH_100.test(en), `Static key ${k} uses banned /100 suffix`);
+    assert.ok(!ZH_SCORE_FEN.test(zh), `ZH static key ${k} uses 分 as score unit: ${zh}`);
+  }
+
+  // 2. Engine outputs (verdict, synthesizeTonightAction, explainAuroraScore, summarize3NightOutlook, tGrade) across representative states
+  const nowDate = new Date('2026-11-25T20:00:00Z');
+  const states = [
+    api.computeAuroraScore({ lat: 69.65, lon: 18.96, cloudNow: 10, sunAlt: -15, bz: -8, speed: 620, kp: 5.2, ovation: 75 }),
+    api.computeAuroraScore({ lat: 69.65, lon: 18.96, cloudNow: 85, sunAlt: -15, bz: -6, speed: 550, kp: 4.5, ovation: 60 }),
+    api.computeAuroraScore({ lat: 69.65, lon: 18.96, cloudNow: 10, sunAlt: 5, bz: -2, speed: 400, kp: 2.0, ovation: 20 }),
+    api.computeAuroraScore({ lat: 25.03, lon: 121.56, cloudNow: 10, sunAlt: -20, bz: -2, speed: 400, kp: 3.0, ovation: 0 })
+  ];
+  for (const sc of states) {
+    for (const lang of ['zh', 'en']) {
+      const v = api.evaluateVerdict({ lat: 69.65, lon: 18.96, kp: 4.0, scoreObj: sc, lang });
+      const act = api.synthesizeTonightAction({ lat: 69.65, lon: 18.96, sc, kp: 4.0, lang });
+      const exp = api.explainAuroraScore({ lat: 69.65, lon: 18.96, cloudNow: 10, sunAlt: -15, bz: -5, speed: 500, kp: 4.0, ovation: 50, lang });
+      const gr = api.tGrade(sc.grade, lang);
+      const blob = [v.kicker, v.title, v.lead, act.title, act.lead, act.ctaLabel, exp.bottleneck.label, exp.confidence.badgeText, gr].join(' | ');
+      if (lang === 'en') {
+        assert.ok(!/[\u3400-\u9fff]/.test(blob), `EN engine output leaked CJK: ${blob}`);
+        assert.ok(!BANNED_EN.test(blob), `EN engine output contains banned jargon: ${blob}`);
+      } else {
+        assert.ok(!BANNED_ZH.test(blob), `ZH engine output contains banned wording: ${blob}`);
+        assert.ok(!ZH_SCORE_FEN.test(blob), `ZH engine output uses 分 as score unit: ${blob}`);
+      }
+      assert.ok(!SLASH_100.test(blob), `${lang} engine output contains /100: ${blob}`);
+      assert.ok(!/[!！]/.test(`${v.title}${act.title}`), `${lang} verdict title must not use exclamation mark: ${v.title}`);
+    }
+  }
+
+  // 3. 3-Night Outlook date/weekday format, badge length budgets & unified tier colors (no blue for Low, no red for Cloudy)
+  const pts = [0, 1, 2].flatMap(d => [20, 22, 23].map(h => ({
+    dtMs: Date.UTC(2026, 10, 25 + d, h, 0, 0),
+    clear: d === 0 ? 15 : (d === 1 ? 88 : 55),
+    isDay: false
+  })));
+  const kpF = [0, 1, 2].map(d => ({ ts: Date.UTC(2026, 10, 25 + d, 21, 0, 0), kp: d === 1 ? 5.5 : 2.3 }));
+  const nEn = api.summarize3NightOutlook({ cloudPoints: pts, kpForecast: kpF, currentKp: 2.3, lat: 69.65, lon: 18.96, timeZone: 'Europe/Oslo', nowDate, lang: 'en' });
+  const nZh = api.summarize3NightOutlook({ cloudPoints: pts, kpForecast: kpF, currentKp: 2.3, lat: 69.65, lon: 18.96, timeZone: 'Europe/Oslo', nowDate, lang: 'zh' });
+  for (const n of nEn) {
+    assert.match(n.dayLabel, /^(Tonight|Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/, `EN dayLabel invalid: ${n.dayLabel}`);
+    assert.ok(!/^\d{1,2}\/\d{1,2}$/.test(n.dateLabel), `EN dateLabel must never use numeric M/D: ${n.dateLabel}`);
+    assert.ok(n.badge.length <= 12, `EN od-badge exceeds 12-char budget: ${n.badge}`);
+  }
+  for (const n of nZh) {
+    assert.match(n.dayLabel, /^(今晚|週[一二三四五六日])$/, `ZH dayLabel invalid: ${n.dayLabel}`);
+    assert.ok(n.badge.length <= 6, `ZH od-badge exceeds 6-char budget: ${n.badge}`);
+  }
+  assert.equal(nEn[0].badge, 'Cloudy');
+  assert.equal(nEn[0].badgeColor, '#8b94a5', 'Cloudy night must use muted grey (never red)');
+  assert.equal(nEn[0].bestWindow, '', 'Cloudy/Low (<18) night must not show a fake peak time window');
+  assert.ok(['#34f0b0', '#25b88a'].includes(nEn[1].badgeColor), `Good/Excellent night must use green/emerald, got ${nEn[1].badgeColor}`);
+  assert.equal(nEn[1].bestWindow, '21–00', `21–23 UTC (22–00 CET) evening peak must produce 21–00 window, got ${nEn[1].bestWindow}`);
+
+  // 4. Single-metric hourly chart clarity + zero dual-axis polyline + separated clear-sky strip + no temperature row
+  const hrs24 = Array.from({ length: 24 }, (_, i) => ({
+    dtMs: Date.UTC(2026, 10, 25, 11 + i, 0, 0),
+    time: `${String((11 + i) % 24).padStart(2, '0')}:00`,
+    clear: i < 4 ? 20 : 85,
+    block: i < 4 ? 80 : 15,
+    score: i < 4 ? 0 : (i === 11 ? 52 : 30),
+    temp: -4,
+    isDay: i < 4
+  }));
+  const waveEn = api.buildSkyWaveSVG(hrs24, hrs24[11], 11, 'en');
+  const waveZh = api.buildSkyWaveSVG(hrs24, hrs24[11], 11, 'zh');
+  assert.ok(!waveEn.includes('<polyline') && !waveZh.includes('<polyline'), 'Hourly chart must NOT overlay a clear-sky polyline on the score Y-axis');
+  assert.ok(waveEn.includes('data-role="y-title"') && waveEn.includes('Score (0–99)'), 'EN hourly chart must label its single Y-axis metric');
+  assert.ok(waveZh.includes('data-role="y-title"') && waveZh.includes('觀測指數'), 'ZH hourly chart must label its single Y-axis metric');
+  assert.ok(waveEn.includes('>Clear<') && waveZh.includes('>晴空<'), 'Hourly chart must render the separated clear-sky context strip');
+  assert.ok(!waveEn.includes('°') && !waveZh.includes('°'), 'Hourly chart axis must not clutter X-axis with temperature degrees');
+  assert.ok(!waveEn.includes('#2ed39e') && !waveEn.includes('#818cf8'), 'Hourly chart must use CSS variables (zero hardcoded hex leaks in red-mode)');
+
+  // 5. Solar wind & compass color semantics: Low/Cloudy = var(--muted), Red = driving hazard ONLY
+  const bzLow = api.buildBzChartSVG(
+    Array.from({ length: 20 }, (_, i) => ({ time_tag: `2026-11-25 20:${String(i).padStart(2, '0')}:00`, bz: 2 })),
+    'UTC', 350, null, 'en'
+  );
+  assert.ok(bzLow.includes('data-role="y-title"') && bzLow.includes('var(--muted)'), 'Bz chart Low state must use var(--muted), not blue');
+  assert.ok(!bzLow.includes('#66bdff') && !bzLow.includes('#22d3ee'), 'Bz chart must not use hardcoded blue/cyan hex');
+
+  const radarCloudy = api.buildCompassRadarSVG([
+    { key: 'here', avg3h: 90 },
+    { key: 'N', label: '往西北 Grøtfjord', lat: 69.7794, lon: 18.5453, roadKm: 42, avg3h: 90, maxWind3h: 3, maxPrecip3h: 0, temp: -2 },
+    { key: 'E', label: '往東南 Skibotn', lat: 69.3911, lon: 20.2683, roadKm: 118, avg3h: 20, maxWind3h: 15, maxPrecip3h: 1, temp: -3 }
+  ], { lat: 69.6492, lon: 18.9553 }, 'en');
+  assert.ok(radarCloudy.includes('var(--muted)') && radarCloudy.includes('var(--red)'), 'Radar must use muted grey for cloudy and reserve red strictly for hazards');
+  assert.ok(radarCloudy.includes('data-km="42"') && radarCloudy.includes('data-km="118"') && !radarCloudy.includes(' A146,146'), 'Radar must use continuous 360° polar plotting (not rigid 4-pie wedges)');
+
+  // 6. Fixed 24h chart, °C/°F unit switcher & zero-hex ring glow in app/HTML
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const appSrc = fs.readFileSync(path.join(ROOT, 'src/app.js'), 'utf8');
+  assert.ok(!html.includes('hz12Btn') && !html.includes('hz24Btn'), 'Fixed 24h chart must not include legacy 12h/24h toggle');
+  assert.ok(html.includes('id="unitBtn"') && appSrc.includes('detectTempUnit') && !appSrc.includes('fmtTempC'), 'App must support °C/°F via detectTempUnit + fmtTemp + #unitBtn');
+  assert.ok(!appSrc.includes('${sc.color}88'), 'Ring drop-shadow must use CSS var color-mix (zero hex leak in red-mode)');
+});
+

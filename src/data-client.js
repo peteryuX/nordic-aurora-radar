@@ -559,7 +559,7 @@ export async function geocodeCityQuery(rawQuery) {
   if (!d?.results?.length) return null;
   const g = d.results[0];
   const matched = matchKnownCity(g.latitude, g.longitude);
-  const fallbackZh = (g.country && g.country !== g.name) ? `${g.country}・${g.name}` : g.name;
+  const fallbackZh = (g.country && g.country !== g.name) ? `${g.country} · ${g.name}` : g.name;
   const fallbackEn = (g.country && g.country !== g.name) ? `${g.country} · ${g.name}` : g.name;
   return {
     name: matched ? matched.zh : fallbackZh,

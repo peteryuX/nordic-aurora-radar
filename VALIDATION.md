@@ -6,7 +6,7 @@ Every physics upgrade shipped in [`src/aurora-engine.js`](src/aurora-engine.js) 
 
 > **Transparency & Reproducibility Scope**
 > - **Directly reproducible in this repository** (zero external dependencies):
->   - `node --test tests/aurora.test.mjs` — `49` automated tests (`48` unit + `1` optional live API test).
+>   - `node --test tests/aurora.test.mjs` — `50` automated tests (`49` unit + `1` optional live API test).
 >   - `node tests/benchmark.mjs` — `72` curated/synthetic scenario regression guardrails (**not** real-world statistical accuracy) + `22` NASA JPL Horizons DE441 ephemeris checkpoints.
 >   - `node tests/realworld-validation.mjs` — live public-data audit against 2-year NASA OMNI2 (`2024–2025`, `N = 17,255` continuous hours, zero Dst input leakage, reporting both ROC-AUC and PR-AUC), a 3-month storm-enriched GFZ `Hp30` smoke check (`May/Oct 2024 + Feb 2025`), live NOAA telemetry, and a 9-airport same-hour METAR check.
 > - **Offline multi-year public-archive studies (Sections 2–3)**: Conducted offline against large public scientific archives (AACGMv2, Aurorasaurus, FMI/MIRACLE Zenodo `10.5281/zenodo.19365681`, 6-yr GFZ `Hp30`, 11-yr NASA OMNI2, 2-winter IEM/METAR + Open-Meteo archive). Those multi-gigabyte archive pulls are not bundled in this static client-side repo; every figure below includes sample sizes, base rates, naive baselines, and negative results so claims cannot be cherry-picked.
@@ -144,7 +144,47 @@ Directly reproducible via `node tests/benchmark.mjs`:
 Run all repo-bundled checks with Node.js 20+ (zero npm dependencies):
 
 ```bash
-node --test tests/aurora.test.mjs    # 48 unit tests (+ 1 optional live test)
+node --test tests/aurora.test.mjs    # 49 unit tests (+ 1 optional live test)
 node tests/benchmark.mjs             # 72 curated regression guardrails + 22 JPL DE441 checkpoints
 node tests/realworld-validation.mjs  # 2-yr OMNI2 (ROC+PR-AUC), 3-mo GFZ Hp30, live NOAA & 9-airport METAR
 ```
+
+---
+
+## 6. UI Copy, Localization & Visual Clarity Gate｜介面文案、在地化與視覺清晰度驗證
+
+Every user-facing UI change must pass a mandatory **bilingual language-expert & visual-clarity gate** (enforced automatically by **Test 50** in `tests/aurora.test.mjs` and verified visually at `360px` and `body.red-mode`):
+
+### 6.1 Single-Source Bilingual Glossary (zh-TW ↔ EN)
+
+| Concept | 繁體中文（台灣慣用） | English | Forbidden Variants |
+|---|---|---|---|
+| Viewing score (`0–99`) | 觀測指數 / 指數（純數字，不加「分」與 `~`） | Score (bare integer, no `~`, no `/100`) | `~46分`、`46/100` |
+| Unified 4 tiers (`65 / 40 / 18`) | 極佳 / 適合觀測 / 普通 / 偏低 | Excellent / Good / Fair / Low | Prime, Watch, Promising, Weak, 條件佳 |
+| Clear sky % | 晴空率 | Clear sky / `X% clear` | 晴空 (when paired with % in sentences) |
+| Darkness / Daylight | 夜空暗度 / 天色過亮 / 暮光 | Darkness / Too bright / Twilight | 白天過亮、尚亮、Bright |
+| Moon | 月光 `X%` / 月亮已落下 | Moon `X%` / Moon down | 月相、無月光干擾 |
+| Location source | ➤ 目前位置 / 當地 / ⚠ 定位失敗 | ➤ My location / Local / ⚠ Location failed | Color-only GPS dot |
+| 3-night outlook | 未來三晚（今晚 / 週三 + `11/26`） | Next 3 nights (`Tonight` / `Wed` + locale `26 Nov` / `Nov 26`) | 後晚、EN numeric `11/26` |
+| Clear-sky feature | 找晴空 / 周邊晴空 | Find clear skies / Clear skies nearby | 360° 找晴空 CTA, Clear-Sky Radar |
+| Confidence | 可信度：高 / 中 / 低 | Confidence: high / medium / low | `Conf: Med (Sat lag)` |
+| Temperature | 依語系自動 `°C` / `°F`（支援手動切換） | Auto `°F` (US & °F regions) / `°C` + toggle | Hardcoded `°C` only |
+
+### 6.2 Style, Chart & Color-Semantics Rules
+
+1. **zh-TW & EN Copy Hygiene**:
+   - zh-TW uses full-width punctuation (`，。：（）`), single space between CJK and digits/Latin, ` · ` separator, `…` ellipsis, durations in `小時` / `分鐘`, and zero Mainland/HK phrasing (`信息`、`默认`、`屏幕`、`视频`、`貼士`、`數據`、`網絡`、`分佈`、`持平`、`天頂`、`後晚`).
+   - EN uses sentence case, zero CJK leaks, zero exclamation marks in verdict/alert titles, and locale-aware dates (never US-only `M/D`).
+2. **One Metric per Y-Axis**:
+   - Never overlay two different units (e.g., `%` line + `0–99` bars) on one unlabeled Y-axis. Secondary context (such as clear-sky %) renders as a cleanly separated context strip with its own row label.
+   - Every chart declares an explicit `data-role="y-title"` naming its single metric.
+   - Every `★ Best` marker anchors directly to the winning score bar.
+3. **Unified Color Semantics (Zero Red-Mode Leaks)**:
+   - **Score tiers only**: `var(--green)` Excellent (`≥65`), `var(--good)` Good (`40–64`), `var(--amber)` Fair (`18–39`), `var(--muted)` Low / Cloudy (`<18`).
+   - **Red (`var(--red)`)**: reserved strictly for **safety / hazards** (G3+ severe storm, extreme cold, blowing snow, winter road hazard, offline) — never "cloudy" or "low aurora".
+   - **Blue (`var(--blue)`)**: reserved strictly for **environmental N/A & location** (daylight / too bright, open sea, GPS arrow) — never Low score.
+   - **Zero hardcoded data hex in SVG or inline glow**: all chart fills, strokes, and ring glows route through CSS custom properties so `body.red-mode` collapses strictly into deep-red luminance steps with zero green/blue/purple leaks.
+4. **Release Checklist**:
+   - `node --test tests/aurora.test.mjs` (`50` tests, `0` failures) + `node tests/benchmark.mjs` (`0` failures).
+   - Headless Chrome multi-location VLM QA (`360px` & `393px`, ZH + EN, GPS vs manual, `°C`/`°F`, red-light mode) with zero truncation, zero CLS, and verified visual inspection before push.
+

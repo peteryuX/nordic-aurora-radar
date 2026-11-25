@@ -43,7 +43,7 @@ export const SKY_CAMS = {
     isMag: true,
     url: 'https://cdn.fmi.fi/weather-observations/products/magnetic-disturbance-observations/map-latest-en.png',
     page: 'https://en.ilmatieteenlaitos.fi/auroras-and-space-weather',
-    capZh: '資料來源：芬蘭氣象局 FMI 北歐地面磁力儀即時擾動圖（橘／紅點＝當地正發生副磁暴）',
+    capZh: '資料來源：芬蘭氣象局 FMI 北歐地面磁力儀即時擾動圖（橘、紅點＝當地正發生副磁暴）',
     capEn: 'Source: Finnish Meteorological Institute (FMI) Live Nordic Ground Magnetometer Map'
   },
   uaf: {
@@ -67,37 +67,38 @@ export const SKY_CAMS = {
 /** Declarative [zh, en] text map for every static element ID in index.html */
 export const STATIC_TEXT_MAP = {
   langBtn: ['English', '繁體中文'],
+  waveRange: ['24 小時', '24 hours'],
   ptrText: ['下拉更新', 'Pull to refresh'],
   lineTipTxt: [
     '若在 App 內建瀏覽器無法使用 GPS，請改用 Safari / Chrome 開啟，或點上方地名切換。',
     'If GPS is blocked in an in-app browser, open in Safari/Chrome or tap the city name above.'
   ],
   offlineRetryBtn: ['重試', 'Retry'],
-  clkLbl: ['當地', 'Local'],
-  pickerSheetTitle: ['切換觀測地點', 'Choose Location'],
-  gpsBtnTxt: ['使用目前 GPS 定位', 'Use Current GPS Location'],
-  refBtnTxt: ['立即同步', 'Sync Now'],
+  pickerSheetTitle: ['切換觀測地點', 'Choose location'],
+  gpsBtnTxt: ['使用目前位置', 'Use my location'],
+  refBtnTxt: ['立即同步', 'Sync now'],
   shareBtnTxt: ['分享預報', 'Share'],
-  pickerGrpNordic: ['北歐極光帶', 'Nordic Belt'],
-  pickerGrpNa: ['北美＆冰島', 'N. America & Iceland'],
+  pickerGrpNordic: ['北歐極光帶', 'Nordic aurora belt'],
+  pickerGrpNa: ['北美與冰島', 'North America & Iceland'],
   pickerGrpSouth: ['南半球極光', 'Southern Hemisphere'],
-  searchBtn: ['搜尋', 'Go'],
+  searchBtn: ['搜尋', 'Search'],
   ringSubLbl: ['觀測指數', 'Score'],
-  fSkyLbl: ['晴空率', 'Clear Sky'],
+  fSkyLbl: ['晴空率', 'Clear sky'],
   fAurLbl: ['極光活動', 'Aurora'],
   fDarkLbl: ['夜空暗度', 'Darkness'],
-  h2Wave: ['逐時趨勢', 'Hourly Trend'],
-  hrLegRight: ['滑動查單小時', 'Slide for hour'],
-  h2Energy: ['太陽風即時動態', 'Solar Wind Status'],
-  swToggleTxt: ['展開太陽風到達地球曲線', 'Show solar wind timeline'],
-  h2Outlook: ['未來 3 晚極光與晴空展望', '3-Night Outlook'],
-  h2Radar: ['周邊 360° 找晴空', '360° Clear-Sky Radar'],
+  h2Wave: ['逐時趨勢', 'Hourly trend'],
+  hrLegRight: ['滑動查看各時段', 'Drag to explore'],
+  h2Energy: ['太陽風', 'Solar wind'],
+  swToggleTxt: ['顯示太陽風曲線', 'Show solar wind chart'],
+  h2Outlook: ['未來三晚', 'Next 3 nights'],
+  outlookNote: ['預估觀測指數 0–99，綜合晴空率、極光活動與夜空暗度；越後面的夜晚越不確定。', 'Forecast score 0–99, combining clear sky, aurora activity and darkness. Later nights are less certain.'],
+  h2Radar: ['周邊晴空', 'Clear skies nearby'],
   roadLbl: ['冬季即時路況／封路查詢：', 'Winter road & closure status:'],
-  roadNo: ['挪威 Vegvesen ↗', 'Norway Vegvesen ↗'],
+  roadNo: ['挪威 Vegvesen ↗', 'Norway · Vegvesen ↗'],
   roadSe: ['瑞典 Trafikverket ↗', 'Sweden Trafikverket ↗'],
   roadIs: ['冰島 Umferðin ↗', 'Iceland Umferðin ↗'],
-  roadFi: ['芬蘭路況 ↗', 'Finland Roads ↗'],
-  h2Cam: ['天文台即時全天空實拍', 'Observatory All-Sky Cameras'],
+  roadFi: ['芬蘭路況 ↗', 'Finland roads ↗'],
+  h2Cam: ['天文台即時全天空實拍', 'Observatory all-sky cameras'],
   subCam: [
     '約每分鐘實拍，請留意畫面內建 UTC 時間戳記確認是否即時：',
     'Live observatory frames — check the embedded UTC timestamp to confirm freshness:'
@@ -106,31 +107,31 @@ export const STATIC_TEXT_MAP = {
   camBtnIrf: ['Kiruna', 'Kiruna'],
   camBtnSgo: ['Sodankylä', 'Sodankylä'],
   camBtnKho: ['Svalbard', 'Svalbard'],
-  camBtnFmi: ['北歐地磁圖', 'Nordic Mag Map'],
+  camBtnFmi: ['北歐地磁圖', 'Nordic magnetic map'],
   camBtnUaf: ['Fairbanks', 'Fairbanks'],
   camBtnAmax: ['Yellowknife', 'Yellowknife'],
-  camBrightBtn: ['日間過曝・點此看原亮度', 'Daylight dimmed · tap for full'],
-  h2Windy: ['即時動態雲圖', 'Live Cloud Map'],
+  camBrightBtn: ['日間已調暗 · 點此看原亮度', 'Dimmed in daylight · tap for full'],
+  h2Windy: ['即時動態雲圖', 'Live cloud map'],
   subWindy: ['已自動對準目前位置，按左下角 ▶ 可播放接下來幾小時雲層移動趨勢：', 'Centered on your location — press ▶ bottom-left to animate cloud movement:'],
   subOv: ['查看綠色／黃色極光帶目前是否覆蓋所在區域（每 5 分鐘自動更新）：', 'Check if the auroral oval covers your region (updates every 5 min):'],
-  navHome: ['即時總覽', 'Overview'],
-  navDir: ['找晴空', 'Clear Sky'],
-  navSat: ['實拍雲圖', 'Live Map'],
-  trustSheetTitle: ['指數說明與設定', 'Score & Settings'],
-  tsLblSky: ['晴空度', 'Clear Sky'],
+  navHome: ['總覽', 'Overview'],
+  navDir: ['找晴空', 'Clear skies'],
+  navSat: ['實拍雲圖', 'Live map'],
+  trustSheetTitle: ['指數說明與設定', 'Score & settings'],
+  tsLblSky: ['晴空率', 'Clear sky'],
   tsLblAur: ['極光活動', 'Aurora'],
   tsLblDark: ['夜空暗度', 'Darkness'],
-  tsLblOut: ['總分', 'Score'],
-  tsTierTitle: ['觀測指數分級（0–99，越高越好）', 'Score Tiers (0–99, Higher = Better)'],
-  tsT1: ['極佳條件', 'Optimal'],
+  tsLblOut: ['觀測指數', 'Score'],
+  tsTierTitle: ['觀測指數分級（0–99，越高越好）', 'Score tiers (0–99, higher is better)'],
+  tsT1: ['極佳', 'Excellent'],
   tsT2: ['適合觀測', 'Good'],
-  tsT3: ['有機會看見', 'Possible'],
-  tsT4: ['雲厚／過亮／弱', 'Blocked / Weak'],
-  tsSciTitle: ['官方資料來源與驗證', 'Official Data & Verification'],
+  tsT3: ['普通', 'Fair'],
+  tsT4: ['偏低（雲層過厚、天色過亮或極光偏弱）', 'Low (cloudy, too bright or weak activity)'],
+  tsSciTitle: ['官方資料來源與驗證', 'Official data & verification'],
   linkSolarWind: ['NOAA 太陽風 ↗', 'NOAA Solar Wind ↗'],
   linkGfz: ['GFZ Hp30 ↗', 'GFZ Hp30 ↗'],
-  tsSealLink: ['GitHub 開源（MIT・零追蹤）↗', 'Open Source (MIT · Zero Trackers) ↗'],
-  tsValReportLink: ['完整驗證報告 ↗', 'Validation Report ↗'],
+  tsSealLink: ['GitHub 開源（MIT · 不追蹤）↗', 'Open source (MIT · no tracking) ↗'],
+  tsValReportLink: ['完整驗證報告 ↗', 'Validation report ↗'],
   tsPwaTip: [
     '離線使用：Safari 點「分享 → 加入主畫面」或 Chrome 點「安裝」，極區無訊號時仍可開啟快取。',
     'Offline tip: Add to Home Screen (Safari Share / Chrome Install) for cached access with no signal.'
@@ -143,23 +144,23 @@ export const STATIC_TEXT_MAP = {
 
 /** Initial loading placeholders (only applied before first live render) */
 export const LOADING_PLACEHOLDER_MAP = {
-  vTitle: ['連線同步最新天空實況...', 'Syncing live sky & space weather...'],
+  vTitle: ['正在同步最新天空狀況…', 'Syncing live sky & space weather…'],
   vLead: ['結合官方分層晴空預報、NOAA 即時衛星與天文暗空倒數。', 'Combining official layered clouds, NOAA solar wind & twilight countdown.'],
   ringGrade: ['計算中', 'Loading'],
-  fSkySub: ['讀取中...', 'Loading...'],
-  fAurSub: ['讀取中...', 'Loading...'],
-  fDarkSub: ['讀取中...', 'Loading...'],
-  fcNextTxt: ['未來 1 小時預估：計算中...', 'Next 1h est.: Calculating...'],
+  fSkySub: ['讀取中…', 'Loading…'],
+  fAurSub: ['讀取中…', 'Loading…'],
+  fDarkSub: ['讀取中…', 'Loading…'],
+  fcNextTxt: ['未來 1 小時：計算中…', 'Next hour: calculating…'],
   fcConfBtn: ['說明 ›', 'Why? ›'],
   pMet: ['Yr.no 官方 ↗', 'Yr.no Official ↗'],
-  syncTime: ['同步中', 'Syncing...'],
-  energyBanner: ['讀取衛星即時太陽風中...', 'Loading live NOAA solar wind...'],
+  syncTime: ['同步中', 'Syncing…'],
+  energyBanner: ['正在讀取即時太陽風…', 'Loading live solar wind…'],
   etaHint: ['時間軸已換算為到達地球的當地時間', 'Time axis shows estimated Earth arrival'],
-  homeBest: ['載入中...', 'Loading...'],
-  compassSummary: ['掃描周邊晴空分佈中...', 'Scanning surrounding clear skies...'],
+  homeBest: ['載入中…', 'Loading…'],
+  compassSummary: ['正在掃描周邊晴空…', 'Scanning nearby clear skies…'],
   tsLiveBadge: ['計算中', 'Loading'],
-  tsDiagTxt: ['正在分析主要影響因子...', 'Analyzing key factor...'],
-  tsConfRow: ['確認氣象與衛星同步狀態中...', 'Checking forecast & satellite sync...']
+  tsDiagTxt: ['正在分析主要影響因素…', 'Analyzing key factor…'],
+  tsConfRow: ['正在確認氣象與衛星資料…', 'Checking forecast & satellite data…']
 };
 
 const ARIA_LABELS = {
@@ -167,13 +168,13 @@ const ARIA_LABELS = {
   alertBtn: ['螢幕常亮監測提醒', 'Screen-on aurora monitor', true],
   trustBtn: ['更多設定與指數說明', 'More settings & score guide', true],
   refBtn: ['立即更新', 'Sync now', true],
-  gpsBtn: ['使用目前 GPS 定位', 'Use current GPS location', true],
+  gpsBtn: ['使用目前位置', 'Use my location', true],
   shareBtn: ['分享預報連結', 'Share forecast link', true],
   ringBtn: ['查看指數說明與資料來源', 'View score details and sources', false],
   trustCloseBtn: ['關閉', 'Close', false],
   pickerCloseBtn: ['關閉', 'Close', false],
   lineTipClose: ['關閉提示', 'Dismiss tip', false],
-  horizonSeg: ['預報時間範圍', 'Forecast range', false]
+  outlookInfoBtn: ['指數說明', 'About this score', false]
 };
 
 export function renderSkyCamCaption($, key, en) {
@@ -186,7 +187,7 @@ export function renderSkyCamCaption($, key, en) {
 
 export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState, onUpdateCamDayNotice }) {
   document.documentElement.lang = en ? 'en' : 'zh-Hant';
-  document.title = en ? 'Nordic Aurora Radar · Live Global Forecast' : '極光即時雷達｜北歐＆全球即時預報';
+  document.title = en ? 'Nordic Aurora Radar · Live Global Forecast' : '極光即時雷達｜北歐與全球即時預報';
 
   const applyMap = (map) => {
     for (const [id, [zh, enT]] of Object.entries(map)) {
@@ -210,22 +211,22 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
   const hrl = $('hrLegLeft');
   if (hrl) {
     hrl.innerHTML = en
-      ? `<span class="leg-dot" style="background:var(--green);"></span>Clear Sky <span class="leg-dot" style="background:var(--purple);margin-left:8px;"></span>Score`
-      : `<span class="leg-dot" style="background:var(--green);"></span>晴空 <span class="leg-dot" style="background:var(--purple);margin-left:8px;"></span>指數`;
+      ? `<span class="leg-dot" style="background:var(--green);"></span>Bars = score (0–99)<span class="leg-strip"></span>Strip = clear sky`
+      : `<span class="leg-dot" style="background:var(--green);"></span>柱＝指數（0–99）<span class="leg-strip"></span>灰條＝晴空率`;
   }
 
   const rl = $('radarLeg');
   if (rl) {
     rl.innerHTML = en
-      ? `<span>3h avg clear:</span><span><span class="leg-dot" style="background:var(--green);"></span>✓ ≥65%</span><span><span class="leg-dot" style="background:var(--amber);"></span>~ 35–64%</span><span><span class="leg-dot" style="background:var(--red);"></span>✕ &lt;35% / ⚠ Wind</span>`
-      : `<span>未來 3h 均晴空：</span><span><span class="leg-dot" style="background:var(--green);"></span>✓ ≥65%</span><span><span class="leg-dot" style="background:var(--amber);"></span>~ 35–64%</span><span><span class="leg-dot" style="background:var(--red);"></span>✕ 厚雲 / ⚠ 強風雪</span>`;
+      ? `<span>Next 3h clear:</span><span><span class="leg-dot" style="background:var(--green);"></span>✓ ≥65%</span><span><span class="leg-dot" style="background:var(--amber);"></span>~ 35–64%</span><span><span class="leg-dot" style="background:var(--muted);"></span>✕ &lt;35%</span><span><span class="leg-dot" style="background:var(--red);"></span>⚠ Hazard</span>`
+      : `<span>未來 3 小時晴空率：</span><span><span class="leg-dot" style="background:var(--green);"></span>✓ ≥65%</span><span><span class="leg-dot" style="background:var(--amber);"></span>~ 35–64%</span><span><span class="leg-dot" style="background:var(--muted);"></span>✕ 雲厚</span><span><span class="leg-dot" style="background:var(--red);"></span>⚠ 強風雪</span>`;
   }
 
   const ovCapEl = $('ovCap');
   if (ovCapEl) {
     const ovTxt = en
       ? 'Source: NOAA SWPC OVATION Live Model (Green = aurora, Yellow/Red = intense)'
-      : '資料來源：NOAA SWPC OVATION 即時模型（綠色＝有極光、黃紅＝強爆發）';
+      : '資料來源：NOAA SWPC OVATION 即時模型（綠色＝有極光，黃紅＝強烈爆發）';
     ovCapEl.innerHTML = `<a class="src-link" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/aurora-30-minute-forecast">${ovTxt} ↗</a>`;
   }
 
@@ -236,10 +237,10 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
         `<div class="ts-stat"><strong>14 NOAA Space Feeds</strong><span>1m L1 Wind · Kp · GOES · OVATION · Dst</span></div>` +
         `<div class="ts-stat"><strong>METAR Cloud Nowcast</strong><span>Live airport ceilometers ≤55 km (+0–3h)</span></div>` +
         `<div class="ts-stat"><strong>Layered Cloud Check</strong><span>Yr.no 2.5km Nordics · Dual-NWP Global</span></div>`
-      : `<div class="ts-stat"><strong>太陽 0.006°・地磁 0.24°</strong><span>JPL 日月曆（月 ≤0.74°）・IGRF-14</span></div>` +
-        `<div class="ts-stat"><strong>14 項 NOAA 太空天氣</strong><span>1m 太陽風・Kp・GOES・OVATION・Dst</span></div>` +
-        `<div class="ts-stat"><strong>機場雷射短時校正</strong><span>55 km 內即時 METAR 融合（+0–3h）</span></div>` +
-        `<div class="ts-stat"><strong>分層雲量與共識比對</strong><span>北歐 Yr.no 2.5km・全球雙模型</span></div>`;
+      : `<div class="ts-stat"><strong>太陽 0.006° · 地磁 0.24°</strong><span>JPL 日月曆（月 ≤0.74°） · IGRF-14</span></div>` +
+        `<div class="ts-stat"><strong>14 項 NOAA 太空天氣</strong><span>1m 太陽風 · Kp · GOES · OVATION · Dst</span></div>` +
+        `<div class="ts-stat"><strong>機場實測短時校正</strong><span>55 km 內即時 METAR 融合（+0–3h）</span></div>` +
+        `<div class="ts-stat"><strong>分層雲量與共識比對</strong><span>北歐 Yr.no 2.5km · 全球雙模型</span></div>`;
   }
 
   if (!hasLiveState) {
@@ -254,7 +255,7 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
     if (tlt) {
       tlt.innerHTML = en
         ? 'Why is it <strong id="tsLiveTotal">--</strong> now?'
-        : '為何現在是 <strong id="tsLiveTotal">--</strong> 分？（越高越好）';
+        : '為何現在指數是 <strong id="tsLiveTotal">--</strong>？（越高越好）';
     }
   }
 
