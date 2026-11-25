@@ -1369,13 +1369,48 @@ function renderFromState(st) {
       })
     : nights3;
 
+  const activeHrs = Array.isArray(st.scoredHours) && st.scoredHours.length ? st.scoredHours : state.scoredHours;
+  if (Array.isArray(st.scoredHours) && st.scoredHours.length) state.scoredHours = st.scoredHours;
+
   const act = synthesizeTonightAction({
     lat: pos.lat, lon: pos.lon, sc, scNext, bal: safeBal, goesSub,
     bestDark, dirResults, nights3: localizedNights3, darkWin,
     kp, mlt: mltNow ?? null, effMoonPct: moon.effMoonPct
   });
-  setText('vTitle', act.title);
-  setText('vLead', act.lead);
+  // Derive a single crisp, non-redundant Hero action cue (never repeats #ringGrade or Card 2 numbers; uses actual start of green window, not midnight peak)
+  let heroCue = act.title;
+  let heroSub = '';
+  if (act.actionType === 'drive') {
+    heroCue = act.title;
+    heroSub = act.lead;
+  } else if (act.actionType === 'daylight') {
+    heroCue = act.lead || act.title;
+  } else if (act.actionType === 'go') {
+    const dirCueZh = sc.total >= 65 ? '現在適合出門，朝頭頂與北方觀察' : '可出門觀測，留意北方高空與雲縫';
+    const dirCueEn = sc.total >= 65 ? 'Go out now — look overhead and north' : 'Good to head out — watch the northern sky';
+    heroCue = en ? dirCueEn : dirCueZh;
+  } else if (act.actionType === 'wait' && sc.total < 18 && sc.skyScore < 45) {
+    const upcoming = (activeHrs || []).slice(1, 24);
+    const firstGood = upcoming.find(h => h && !h.isDay && h.score >= 40)
+      || upcoming.find(h => h && !h.isDay && h.clear >= 55);
+    const startT = firstGood?.time || bestDark?.time || '';
+    heroCue = startT
+      ? (en ? `Rest for now — conditions improve after ${startT}` : `先休息，預計 ${startT} 後有望轉佳`)
+      : act.title;
+  } else if (act.actionType === 'sleep') {
+    const futureBest = (localizedNights3 || []).slice(1)
+      .filter(n => n && (n.tone === 'good' || n.tone === 'warn'))
+      .sort((a, b) => (b.bestNightScore || 0) - (a.bestNightScore || 0))[0];
+    heroCue = futureBest
+      ? (en ? `Low chance tonight — ${futureBest.dayLabel} looks better` : `今晚機率偏低，${futureBest.dayLabel}機會較佳`)
+      : (en ? 'Low chance right now — check back later' : '目前機率偏低，可先休息稍後再看');
+  }
+  setText('vTitle', heroCue);
+  const leadEl = $('vLead');
+  if (leadEl) {
+    leadEl.textContent = heroSub;
+    leadEl.style.display = heroSub ? '' : 'none';
+  }
   const actBtn = $('vActionBtn');
   if (actBtn) {
     actBtn.style.display = (act.ctaView && act.ctaLabel) ? 'inline-flex' : 'none';
@@ -1385,7 +1420,6 @@ function renderFromState(st) {
     }
   }
 
-  if (Array.isArray(st.scoredHours) && st.scoredHours.length) state.scoredHours = st.scoredHours;
   renderWaveCard(false);
   render3NightOutlook(localizedNights3);
   renderCompassPanel(dirResults, pos, en);

@@ -132,17 +132,13 @@
       <section class="sky-hero">
         <div class="sky-stage">
           <button id="ringBtn" class="hero-score-btn ring-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet" aria-label="查看指數算法與可信度">
-            <div class="hero-score-row">
-              <div id="ringNum" class="ring-num">--</div>
-              <div class="hero-score-meta">
-                <div id="ringGrade" class="ring-grade">計算中</div>
-                <div id="ringSubLbl" class="ring-sub">觀測指數</div>
-              </div>
-            </div>
+            <div id="ringSubLbl" class="ring-sub">觀測指數</div>
+            <div id="ringNum" class="ring-num">--</div>
+            <div id="ringGrade" class="ring-grade">計算中</div>
           </button>
           <div class="sky-text">
             <h1 id="vTitle" class="sky-title skel-txt">正在同步最新天空狀況…</h1>
-            <p id="vLead" class="sky-lead skel-txt">結合官方分層晴空預報、NOAA 即時衛星與天文暗空倒數。</p>
+            <p id="vLead" class="sky-lead skel-txt" style="display:none;"></p>
             <button id="vActionBtn" class="hero-cta" type="button" style="display:none;"></button>
           </div>
         </div>
