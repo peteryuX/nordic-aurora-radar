@@ -625,6 +625,10 @@ function switchView(name, btn) {
   haptic(6);
   const targetY = state.tabScrollY[name] || 0;
   window.scrollTo({ top: targetY, behavior: 'auto' });
+  if (name === 'home') {
+    const stg = document.querySelector('.sky-stage');
+    if (stg) stg.style.opacity = targetY <= 10 ? '' : (targetY >= 95 ? '0' : String(Math.round((1 - (targetY - 10) / 85) * 100) / 100));
+  }
   syncAnimBatteryGuard();
 }
 
@@ -2093,9 +2097,11 @@ function bindSheetSwipe(sheetId, onClose) {
   const panel = document.querySelector(`#${sheetId} .sheet-panel`);
   if (!hdr || !panel) return;
   let startY = 0, startT = 0, dy = 0, active = false;
+  let rafId = 0;
   const reset = (shouldClose) => {
     if (!active) return;
     active = false;
+    if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
     panel.style.transition = '';
     panel.style.transform = '';
     const moved = dy;
@@ -2115,7 +2121,12 @@ function bindSheetSwipe(sheetId, onClose) {
   hdr.addEventListener('touchmove', (e) => {
     if (!active || e.touches.length !== 1) { reset(false); return; }
     dy = Math.max(0, e.touches[0].clientY - startY);
-    panel.style.transform = `translateY(${dy}px)`;
+    if (!rafId) {
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        if (active) panel.style.transform = `translate3d(0, ${dy}px, 0)`;
+      });
+    }
   }, { passive: true });
   hdr.addEventListener('touchend', () => reset(true));
   hdr.addEventListener('touchcancel', () => reset(false));
@@ -2125,10 +2136,11 @@ function bindWaveScrubbing() {
   const svg = $('skyWaveChart');
   if (!svg) return;
   let tracking = false, scrubbing = false, startX = 0, startY = 0, activePointerId = null;
+  let cachedRect = null, pendingX = 0, rafId = 0;
   const pickFromClientX = (clientX) => {
     const vis = getVisibleHours();
     if (vis.length < 2) return;
-    const rect = svg.getBoundingClientRect();
+    const rect = cachedRect || svg.getBoundingClientRect();
     if (!rect.width) return;
     const svgX = ((clientX - rect.left) / rect.width) * 420;
     const padL = 56, plotW = 420 - 56 - 10;
@@ -2139,13 +2151,24 @@ function bindWaveScrubbing() {
       haptic(5);
     }
   };
+  const schedulePick = (clientX) => {
+    pendingX = clientX;
+    if (!rafId) {
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        if (scrubbing) pickFromClientX(pendingX);
+      });
+    }
+  };
   const reset = () => {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
     if (scrubbing && activePointerId !== null) {
       try { svg.releasePointerCapture(activePointerId); } catch {}
     }
     tracking = false;
     scrubbing = false;
     activePointerId = null;
+    cachedRect = null;
   };
   svg.addEventListener('pointerdown', (e) => {
     if (e.button && e.button !== 0) return;
@@ -2155,6 +2178,7 @@ function bindWaveScrubbing() {
     startX = e.clientX;
     startY = e.clientY;
     activePointerId = e.pointerId;
+    cachedRect = svg.getBoundingClientRect();
   });
   svg.addEventListener('pointermove', (e) => {
     if (!tracking || e.pointerId !== activePointerId) return;
@@ -2169,17 +2193,18 @@ function bindWaveScrubbing() {
       if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) * 1.2) {
         scrubbing = true;
         try { svg.setPointerCapture(e.pointerId); } catch {}
-        pickFromClientX(e.clientX);
+        schedulePick(e.clientX);
       }
       return;
     }
-    pickFromClientX(e.clientX);
+    schedulePick(e.clientX);
   });
   svg.addEventListener('pointerup', (e) => {
     if (!tracking || e.pointerId !== activePointerId) return;
     const isCleanTap = !scrubbing && Math.hypot(e.clientX - startX, e.clientY - startY) <= 10;
+    const tapRect = cachedRect;
     reset();
-    if (isCleanTap) pickFromClientX(e.clientX);
+    if (isCleanTap) { cachedRect = tapRect; pickFromClientX(e.clientX); cachedRect = null; }
   });
   svg.addEventListener('pointercancel', reset);
 }
@@ -2188,10 +2213,11 @@ function bindBzScrubbing() {
   const svg = $('bzChart');
   if (!svg) return;
   let tracking = false, scrubbing = false, startX = 0, startY = 0, activePointerId = null;
+  let cachedRect = null, pendingX = 0, rafId = 0;
   const pickFromClientX = (clientX) => {
     const st = state.bzChartState;
     if (!st || !Array.isArray(st.series) || st.series.length < 2) return;
-    const rect = svg.getBoundingClientRect();
+    const rect = cachedRect || svg.getBoundingClientRect();
     if (!rect.width) return;
     const svgX = ((clientX - rect.left) / rect.width) * 420;
     const padL = 56, plotW = 420 - 56 - 14;
@@ -2215,13 +2241,24 @@ function bindBzScrubbing() {
       haptic(4);
     }
   };
+  const schedulePick = (clientX) => {
+    pendingX = clientX;
+    if (!rafId) {
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        if (scrubbing) pickFromClientX(pendingX);
+      });
+    }
+  };
   const reset = () => {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
     if (scrubbing && activePointerId !== null) {
       try { svg.releasePointerCapture(activePointerId); } catch {}
     }
     tracking = false;
     scrubbing = false;
     activePointerId = null;
+    cachedRect = null;
   };
   svg.addEventListener('pointerdown', (e) => {
     if (e.button && e.button !== 0) return;
@@ -2231,6 +2268,7 @@ function bindBzScrubbing() {
     startX = e.clientX;
     startY = e.clientY;
     activePointerId = e.pointerId;
+    cachedRect = svg.getBoundingClientRect();
   });
   svg.addEventListener('pointermove', (e) => {
     if (!tracking || e.pointerId !== activePointerId) return;
@@ -2244,34 +2282,56 @@ function bindBzScrubbing() {
       if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) * 1.2) {
         scrubbing = true;
         try { svg.setPointerCapture(e.pointerId); } catch {}
-        pickFromClientX(e.clientX);
+        schedulePick(e.clientX);
       }
       return;
     }
-    pickFromClientX(e.clientX);
+    schedulePick(e.clientX);
   });
   svg.addEventListener('pointerup', (e) => {
     if (!tracking || e.pointerId !== activePointerId) return;
     const isCleanTap = !scrubbing && Math.hypot(e.clientX - startX, e.clientY - startY) <= 10;
+    const tapRect = cachedRect;
     reset();
-    if (isCleanTap) pickFromClientX(e.clientX);
+    if (isCleanTap) { cachedRect = tapRect; pickFromClientX(e.clientX); cachedRect = null; }
   });
   svg.addEventListener('pointercancel', reset);
 }
 
+/** Zero-reflow 1P floating GPU pull-to-refresh (pure translate3d + opacity, ZERO height layout shift) */
 function bindPullToRefresh() {
   const ptr = $('ptrIndicator');
   const txt = $('ptrText');
   if (!ptr) return;
-  let startX = 0, startY = 0, pullY = 0, tracking = false;
+  let startX = 0, startY = 0, pullY = 0, tracking = false, wasReady = false, rafId = 0;
+  const applyVisual = () => {
+    rafId = 0;
+    if (!tracking || pullY <= 0) return;
+    const p = Math.min(1, pullY / 46);
+    const yOff = Math.round(-18 + pullY * 0.42);
+    const sc = (0.92 + 0.08 * p).toFixed(3);
+    ptr.classList.add('pulling');
+    ptr.style.transform = `translate3d(-50%, ${yOff}px, 0) scale(${sc})`;
+    ptr.style.opacity = String(p.toFixed(2));
+    const ready = pullY >= 46;
+    if (ready !== wasReady) {
+      wasReady = ready;
+      ptr.classList.toggle('ready', ready);
+      if (txt) txt.textContent = ready
+        ? (isEn() ? 'Release to refresh' : '放開立即更新')
+        : (isEn() ? 'Pull to refresh' : '下拉更新');
+    }
+  };
   const finish = (allowRefresh) => {
     if (!tracking) return;
     tracking = false;
+    if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
     const shouldRefresh = allowRefresh && pullY >= 46;
-    ptr.classList.remove('pulling', 'ready');
-    ptr.style.height = '0px';
-    ptr.style.opacity = '0';
+    wasReady = false;
     pullY = 0;
+    ptr.classList.remove('pulling', 'ready');
+    ptr.style.transform = '';
+    ptr.style.opacity = '';
     if (shouldRefresh) {
       haptic(10);
       refreshAll(true, { forceNoaa: true });
@@ -2284,6 +2344,7 @@ function bindPullToRefresh() {
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
     pullY = 0;
+    wasReady = false;
     tracking = true;
   }, { passive: true });
   document.addEventListener('touchmove', (e) => {
@@ -2292,19 +2353,16 @@ function bindPullToRefresh() {
     const dx = Math.abs(e.touches[0].clientX - startX);
     const dy = e.touches[0].clientY - startY;
     if (dx > dy && dy < 20) { finish(false); return; }
-    if (dy <= 6 || window.scrollY > 2) {
-      if (pullY > 0) { ptr.style.height = '0px'; ptr.style.opacity = '0'; pullY = 0; }
+    if (dy <= 10 || window.scrollY > 2) {
+      if (pullY > 0) {
+        pullY = 0;
+        ptr.style.transform = '';
+        ptr.style.opacity = '';
+      }
       return;
     }
-    pullY = Math.min(72, Math.round(dy * 0.45));
-    ptr.classList.add('pulling');
-    ptr.style.height = `${pullY}px`;
-    ptr.style.opacity = String(Math.min(1, pullY / 42));
-    const ready = pullY >= 46;
-    ptr.classList.toggle('ready', ready);
-    if (txt) txt.textContent = ready
-      ? (isEn() ? 'Release to refresh' : '放開立即更新')
-      : (isEn() ? 'Pull to refresh' : '下拉更新');
+    pullY = Math.min(72, Math.round((dy - 10) * 0.45));
+    if (!rafId) rafId = requestAnimationFrame(applyVisual);
   }, { passive: true });
   document.addEventListener('touchend', () => finish(true));
   document.addEventListener('touchcancel', () => finish(false));
@@ -2392,11 +2450,25 @@ function bindEvents() {
     haptic(6);
   });
 
-  // Scroll-reactive frosted glass sticky header + off-screen Hero animation battery guard
+  // Scroll-reactive frosted glass sticky header + Apple Weather 1P Hero dissolve + off-screen Hero battery guard
+  let wasScrolled = null;
   let wasPastHero = false;
+  let lastHeroFade = -1;
+  const skyStageEl = document.querySelector('.sky-stage');
   const syncScrollHdr = () => {
     const y = window.scrollY || 0;
-    document.body.classList.toggle('is-scrolled', y > 4);
+    const scrolled = y > 4;
+    if (scrolled !== wasScrolled) {
+      wasScrolled = scrolled;
+      document.body.classList.toggle('is-scrolled', scrolled);
+    }
+    if (skyStageEl && state.activeView === 'home') {
+      const fade = y <= 10 ? 1 : (y >= 95 ? 0 : Math.round((1 - (y - 10) / 85) * 100) / 100);
+      if (fade !== lastHeroFade) {
+        lastHeroFade = fade;
+        skyStageEl.style.opacity = fade === 1 ? '' : String(fade);
+      }
+    }
     const pastHero = y > 220;
     if (pastHero !== wasPastHero) {
       wasPastHero = pastHero;

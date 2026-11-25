@@ -294,6 +294,12 @@ html { font-size: ${rootPx}px !important; }
       if (${scrollY} > 0) {
         window.scrollTo({ top: ${scrollY}, behavior: 'instant' });
         document.body.classList.toggle('is-scrolled', window.scrollY > 4);
+        const stg = document.querySelector('.sky-stage');
+        if (stg) {
+          const y = window.scrollY || 0;
+          const fade = y <= 10 ? 1 : (y >= 95 ? 0 : Math.round((1 - (y - 10) / 85) * 100) / 100);
+          if (fade < 1) stg.style.opacity = String(fade);
+        }
       }
 
       const issues = [];
@@ -355,15 +361,23 @@ html { font-size: ${rootPx}px !important; }
         issues.push('VOCAB_DRIFT: Found 月光/月亮已落下 in Overview UI instead of unified 夜空暗度/暗度/全暗');
       }
 
-      // 5. Real iPhone safe-area bleed check (top sticky header + bottom scrim)
+      // 5. Real iPhone safe-area bleed + 1P 120fps scroll-architecture checks
+      const skyPos = getComputedStyle(document.querySelector('.sky-backdrop')).position;
+      if (skyPos !== 'absolute') {
+        issues.push('SKY_BACKDROP_NOT_SCROLLING: position=' + skyPos + ' (fixed sky causes header seam artifact on scroll)');
+      }
+      for (const sEl of document.querySelectorAll('.sky-body, .card, .icon-btn')) {
+        const bf = getComputedStyle(sEl).backdropFilter || getComputedStyle(sEl).webkitBackdropFilter || 'none';
+        if (bf !== 'none') issues.push('SCROLL_BACKDROP_FILTER_JANK: ' + sEl.className + ' backdropFilter=' + bf);
+      }
       if (${safeTop} > 0 && ${scrollY} > 10) {
         const hdrRect = document.querySelector('.hdr').getBoundingClientRect();
-        const hdrBg = getComputedStyle(document.querySelector('.hdr')).backgroundColor;
+        const hdrBefore = getComputedStyle(document.querySelector('.hdr'), '::before');
         if (hdrRect.top > 1 || hdrRect.bottom < ${safeTop} + 40) {
           issues.push('TOP_SAFE_AREA_GAP: hdr top=' + hdrRect.top + ' bottom=' + hdrRect.bottom);
         }
-        if (hdrBg === 'rgba(0, 0, 0, 0)' || hdrBg === 'transparent') {
-          issues.push('TOP_HEADER_TRANSPARENT_ON_SCROLL');
+        if (parseFloat(hdrBefore.opacity) < 0.95 || hdrBefore.backgroundColor === 'rgba(0, 0, 0, 0)' || hdrBefore.backgroundColor === 'transparent') {
+          issues.push('TOP_HEADER_TRANSPARENT_ON_SCROLL: opacity=' + hdrBefore.opacity + ' bg=' + hdrBefore.backgroundColor);
         }
       }
       if (${safeBottom} > 0) {
@@ -416,7 +430,8 @@ const cases = [
   // Real iPhone 15 390x844 viewport tests (with real safe-area-inset-top:59px & safe-area-inset-bottom:34px!)
   { id: 'ios15_17_top', label: 'iPhone 15 17px Top (390×844)', rootPx: 17, width: 390, height: 844, safeTop: 59, safeBottom: 34, scrollY: 0 },
   { id: 'ios15_17_scroll', label: 'iPhone 15 17px Scrolled (390×844)', rootPx: 17, width: 390, height: 844, safeTop: 59, safeBottom: 34, scrollY: 270 },
-  { id: 'ios15_19_cloudy', label: 'iPhone 15 19px Cloudy (User Case!)', rootPx: 19, width: 390, height: 844, safeTop: 59, safeBottom: 34, scrollY: 0, mode: 'cloudy' },
+  { id: 'ios15_21_midscroll', label: 'iPhone 15 21px Mid-Scroll (User Case!)', rootPx: 21, width: 390, height: 844, safeTop: 59, safeBottom: 34, scrollY: 85 },
+  { id: 'ios15_19_cloudy', label: 'iPhone 15 19px Cloudy (48px CTA)', rootPx: 19, width: 390, height: 844, safeTop: 59, safeBottom: 34, scrollY: 0, mode: 'cloudy' },
   { id: 'ios15_19_scroll', label: 'iPhone 15 19px Scrolled Bleed Check', rootPx: 19, width: 390, height: 844, safeTop: 59, safeBottom: 34, scrollY: 260, mode: 'cloudy' },
   { id: 'ios15_17_en', label: 'iPhone 15 17px EN Top (390×844)', rootPx: 17, width: 390, height: 844, safeTop: 59, safeBottom: 34, scrollY: 0, lang: 'en' },
   { id: 'ios15_17_red', label: 'iPhone 15 17px Red Scrolled', rootPx: 17, width: 390, height: 844, safeTop: 59, safeBottom: 34, scrollY: 260, redMode: true },
@@ -472,7 +487,7 @@ for (const c of cases) {
 }
 
 // Render Sheet 1: Real iPhone 15 390x844 Viewport & Scroll-Bleed Verification
-const iosIds = ['ios15_17_top', 'ios15_17_scroll', 'ios15_19_cloudy', 'ios15_19_scroll', 'ios15_19_bz_scrub', 'ios15_17_en', 'ios15_17_red'];
+const iosIds = ['ios15_17_top', 'ios15_17_scroll', 'ios15_21_midscroll', 'ios15_19_cloudy', 'ios15_19_scroll', 'ios15_19_bz_scrub', 'ios15_17_en', 'ios15_17_red'];
 const iosHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>
   body { margin: 0; padding: 28px; background: #040812; color: #f4f7fc; font-family: -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; }
   h1 { margin: 0 0 6px; font-size: 26px; font-weight: 700; }
@@ -482,8 +497,8 @@ const iosHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>
   .lbl { font-size: 15px; font-weight: 600; margin-bottom: 10px; color: #58dba4; }
   iframe { border: 2px solid rgba(255,255,255,0.22); border-radius: 42px; display: block; background: #08101c; }
 </style></head><body>
-  <h1>v36 Direction B (Nordic Atmospheric 1P) — Real iPhone 15 (390×844) QA</h1>
-  <p>Simulated iOS status bar (59px) + home indicator (34px) · Top, Mid-Scroll, Cloudy 48px CTA &amp; Expanded 2h Scrub · 17px &amp; 19px · EN &amp; WCAG AA Red-Mode</p>
+  <h1>v38 1P 120fps Scroll Architecture — Real iPhone 15 (390×844) QA</h1>
+  <p>Scrolling .sky-backdrop (zero fixed-sky header seam!) · Opacity-only .hdr::before glass · Zero card backdrop-filter · Zero-reflow GPU PTR · 17px/19px/21px · EN &amp; Red</p>
   <div class="grid">
     ${iosIds.map(id => {
       const c = cases.find(x => x.id === id);
@@ -494,7 +509,7 @@ const iosHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>
 fs.writeFileSync(path.join(OUT, 'v34_ios15_qa.html'), iosHtml);
 execFileSync(chrome, [
   '--headless=new', '--no-sandbox', '--disable-gpu', '--allow-file-access-from-files',
-  '--window-size=2960,980', '--force-device-scale-factor=1',
+  '--window-size=3380,980', '--force-device-scale-factor=1',
   `--screenshot=${path.join(OUT, 'v34_ios15_qa.png')}`,
   `file://${path.join(OUT, 'v34_ios15_qa.html')}`
 ], { stdio: 'pipe' });

@@ -2343,6 +2343,16 @@ test('50. Bilingual copy, localization & single-metric chart clarity lint gate (
   assert.ok(cssSrc.includes('contain: strict;') && cssSrc.includes('translate3d('), 'styles.css must isolate .sky-backdrop with contain: strict and GPU translate3d');
   assert.ok(cssSrc.includes('body.red-mode .star-tw') && cssSrc.includes('body.anim-paused .star-tw'), 'Ambient sky & star twinkle must pause in red-mode and anim-paused');
   assert.ok(appSrc.includes('state.redModeEnabled') && appSrc.includes("state.activeView !== 'home'") && appSrc.includes('state.alertEnabled') && appSrc.includes('> 220'), 'syncAnimBatteryGuard must pause ambient GPU breathing on red-mode, non-home tabs, Wake-Lock monitor, and scrollY > 220');
+
+  // 15. v38 1P 120fps ProMotion Scroll & Touch Architecture
+  const skyBlk = cssSrc.match(/\.sky-backdrop\s*\{([^}]+)\}/)?.[1] || '';
+  assert.ok(skyBlk.includes('position: absolute') && !skyBlk.includes('position: fixed'), '.sky-backdrop must scroll naturally with Hero (position: absolute) to eliminate fixed-sky header seam');
+  assert.ok(cssSrc.includes('.hdr::before') && cssSrc.includes('body.is-scrolled .hdr::before { opacity: 1; }') && !cssSrc.includes('backdrop-filter 0.22s'), 'Sticky header must pre-mount glass layer on ::before and animate opacity only (zero backdrop-filter transition stutter)');
+  const cardBlk = cssSrc.match(/\.card\s*\{([^}]+)\}/)?.[1] || '';
+  const skyBodyBlk = cssSrc.match(/\.sky-body\s*\{([^}]+)\}/)?.[1] || '';
+  assert.ok(!cardBlk.includes('backdrop-filter') && !skyBodyBlk.includes('backdrop-filter'), 'Scrolling .card and .sky-body must omit backdrop-filter for 120fps iOS scroll');
+  assert.ok(!appSrc.includes('ptr.style.height'), 'Pull-to-refresh must never mutate height in touchmove (zero full-page reflow)');
+  assert.ok(appSrc.includes('cachedRect = svg.getBoundingClientRect()') && appSrc.includes('schedulePick('), 'Chart scrubbers must cache getBoundingClientRect on pointerdown and coalesce pointermove in rAF');
 });
 
 
