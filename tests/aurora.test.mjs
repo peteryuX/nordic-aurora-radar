@@ -2245,6 +2245,25 @@ test('50. Bilingual copy, localization & single-metric chart clarity lint gate (
   assert.ok(html.includes('https://www.spaceweather.gov/products/alerts-watches-and-warnings'), 'index.html must link to live NOAA Storm Alerts & Watches');
   assert.ok(html.includes('https://www.spaceweather.gov/products/solar-wind') && html.includes('https://kp.gfz.de/en/hp30-hp60'), 'index.html must link to NOAA Solar Wind and GFZ Hp30');
   assert.ok(!html.includes('swpc.noaa.gov/products/3-day-forecast') && !html.includes('spaceweather.gov/products/3-day-forecast'), 'Trust Sheet must not link to twice-daily stale 3-day-forecast text page');
+
+  // 10. v28 credibility & stability guardrails: Night+1/+2 2h fluke-smoothing, Nordic ECMWF, <=20km corridor METAR, per-feed fallback & horizon-honest UI
+  const flukePts = [
+    ...[18, 19, 20, 21, 22].map((h, i) => ({ dtMs: Date.parse(`2026-11-26T${h}:00:00Z`), clear: i === 2 ? 95 : 5, isDay: false })),
+    ...[18, 19, 20, 21, 22].map((h) => ({ dtMs: Date.parse(`2026-11-27T${h}:00:00Z`), clear: 95, isDay: false }))
+  ];
+  const flukeOut = api.summarize3NightOutlook({
+    cloudPoints: flukePts,
+    kpForecast: [{ ts: Date.parse('2026-11-26T18:00:00Z'), kp: 5.0 }, { ts: Date.parse('2026-11-27T18:00:00Z'), kp: 5.0 }],
+    currentKp: 3, lat: 69.65, lon: 18.96, timeZone: 'Europe/Oslo', nowDate: new Date('2026-11-25T12:00:00Z'), lang: 'en'
+  });
+  assert.ok(flukeOut[1].bestNightScore < flukeOut[2].bestNightScore - 20, `Night+1 1h cloud fluke (${flukeOut[1].bestNightScore}) must score well below sustained clear Night+2 (${flukeOut[2].bestNightScore})`);
+  const dcSrc = fs.readFileSync(path.join(ROOT, 'src/data-client.js'), 'utf8');
+  assert.ok(dcSrc.includes('models=ecmwf_ifs025'), 'Nordic Open-Meteo comparison must request independent ecmwf_ifs025');
+  assert.ok(dcSrc.includes('dMetar <= 20') && !dcSrc.includes('dMetar <= 55'), 'Corridor METAR OI must be capped at <=20 km to protect inland rain shadows');
+  assert.ok(dcSrc.includes('prevRaw?.magSeries') && dcSrc.includes('liveAge <= 60'), 'NOAA & METAR must retain stale-on-error fallback to prevent score cliffs');
+  assert.ok(appSrc.includes('chartHours: state.renderState.scoredHours'), 'Background ENLIL re-render must preserve chartHours parity');
+  assert.ok(html.includes('id="tsConfDetail"') && !html.includes('id="outlookNote" class="od-note" hidden'), 'Trust Sheet must include #tsConfDetail and #outlookNote must be visible by default');
 });
+
 
 

@@ -198,13 +198,13 @@
 
       <!-- Card 3: 3-Night Aurora & Clear-Sky Outlook (Clean, Zero-Jargon Decision Order) -->
       <section class="card" id="outlookCard">
-        <h2 class="h2-with-info"><span id="h2Outlook">未來三晚</span><button id="outlookInfoBtn" class="info-btn" type="button" aria-expanded="false" aria-controls="outlookNote" aria-label="指數說明">ⓘ</button></h2>
+        <h2 class="h2-with-info"><span id="h2Outlook">未來三晚</span><button id="outlookInfoBtn" class="info-btn" type="button" aria-haspopup="dialog" aria-controls="trustSheet" aria-label="指數說明">ⓘ</button></h2>
         <div id="outlookGrid" class="outlook-grid">
           <div class="outlook-day skel-day"><div class="od-day">今晚</div><div class="od-date">--/--</div><div class="od-score">00</div><div class="od-badge">----</div><div class="od-stat">晴空率 00%<br/>Kp 0.0</div></div>
           <div class="outlook-day skel-day"><div class="od-day">週四</div><div class="od-date">--/--</div><div class="od-score">00</div><div class="od-badge">----</div><div class="od-stat">晴空率 00%<br/>Kp 0.0</div></div>
           <div class="outlook-day skel-day"><div class="od-day">週五</div><div class="od-date">--/--</div><div class="od-score">00</div><div class="od-badge">----</div><div class="od-stat">晴空率 00%<br/>Kp 0.0</div></div>
         </div>
-        <p id="outlookNote" class="od-note" hidden>預估觀測指數 0–99，綜合晴空率、極光活動與夜空暗度；越後面的夜晚越不確定。</p>
+        <p id="outlookNote" class="od-note">明後天雲量與 Kp 變動較大，出發前 3 小時請再確認。</p>
       </section>
 
       <!-- Card 4: Humanized Solar Wind Status (Progressive Disclosure Curve) -->
@@ -427,6 +427,7 @@
           <p id="tsDiagTxt" class="ts-diag">正在分析主要影響因素…</p>
           <div id="tsMetarNote" class="ts-metar-note" style="display:none;"></div>
           <div id="tsConfRow" class="ts-conf-row">正在確認氣象與衛星資料…</div>
+          <div id="tsConfDetail" class="ts-conf-detail" style="display:none;"></div>
         </section>
 
         <!-- 2. SCORE TIERS -->

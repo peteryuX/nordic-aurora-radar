@@ -851,7 +851,12 @@ function selectForecastHour(idx) {
   const moonTxt = h.isDay
     ? (en ? 'Too bright' : '天色過亮')
     : (h.moonUp ? (en ? `Moon ${h.moonPct}%` : `月光 ${h.moonPct}%`) : (en ? 'Moon down' : '月亮已落下'));
-  const kpStr = Number.isFinite(h.kpFc) ? h.kpFc.toFixed(1) : escapeHtml(h.kpFc);
+  const kpVal = Number.isFinite(h.kpFc) ? h.kpFc : null;
+  const kpBadge = kpVal === null
+    ? `Kp ${escapeHtml(h.kpFc)}`
+    : (idx >= 3
+        ? (en ? `~Kp ${Math.round(kpVal)}` : `預估 Kp ${Math.round(kpVal)}`)
+        : `Kp ${kpVal.toFixed(1)}`);
   const tStr = formatHourLabel(h, en);
   const rawSkyZh = String(h.txt || '').replace(/^[^\p{L}\p{N}]+\s*/u, '');
   const skyZh = rawSkyZh === '縫' ? '多雲' : (rawSkyZh === '晴' ? '晴朗' : (rawSkyZh === '陰' ? '陰天' : rawSkyZh));
@@ -862,8 +867,8 @@ function selectForecastHour(idx) {
   const skyParenZh = h.isDay ? '' : `（${skyLabel}）`;
   const midMeta = h.isDay ? '' : ` · ${moonTxt}`;
   setHtml('hourDetail', en
-    ? `<span><strong>${tStr}</strong> · Score <strong style="color:${scCol}">${h.score}</strong> (${scTier}) · ${h.clear}% clear${skyParenEn}</span><span>${fmtTemp(tInt)}${wcTxt}${midMeta} · Kp ${kpStr}</span>`
-    : `<span><strong>${tStr}</strong> · 指數 <strong style="color:${scCol}">${h.score}</strong>（${scTier}）· 晴空率 ${h.clear}%${skyParenZh}</span><span>${fmtTemp(tInt)}${wcTxt}${midMeta} · Kp ${kpStr}</span>`);
+    ? `<span><strong>${tStr}</strong> · Score <strong style="color:${scCol}">${h.score}</strong> (${scTier}) · ${h.clear}% clear${skyParenEn}</span><span>${fmtTemp(tInt)}${wcTxt}${midMeta} · ${kpBadge}</span>`
+    : `<span><strong>${tStr}</strong> · 指數 <strong style="color:${scCol}">${h.score}</strong>（${scTier}）· 晴空率 ${h.clear}%${skyParenZh}</span><span>${fmtTemp(tInt)}${wcTxt}${midMeta} · ${kpBadge}</span>`);
 }
 
 function fmtMonthDay(iso, en) {
@@ -976,7 +981,11 @@ function render3NightOutlook(nights) {
     const clearTxt = n.bestClear !== null
       ? (en ? `${n.bestClear}% clear` : `${term(TERMS.clearSky, false)} ${n.bestClear}%`)
       : term(TERMS.status.noDarkSky, en);
-    const kpTxt = n.kpAvailable === false ? (en ? 'Kp --' : 'Kp 更新中') : `Kp ${Number(n.maxKp || 0).toFixed(1)}`;
+    const kpTxt = n.kpAvailable === false
+      ? (en ? 'Kp --' : 'Kp 更新中')
+      : (i > 0
+          ? (en ? `~Kp ${Math.round(Number(n.maxKp || 0))}` : `約 Kp ${Math.round(Number(n.maxKp || 0))}`)
+          : `Kp ${Number(n.maxKp || 0).toFixed(1)}`);
     const gTag = n.kpAvailable !== false && n.gScale >= 1 ? ` <span class="od-g">G${n.gScale}</span>` : '';
     const isBest = i === bestIdx;
     const winTxt = n.bestWindow ? `${term(TERMS.peak, en)} ${n.bestWindow}` : '';
@@ -1405,7 +1414,7 @@ async function refreshAll(manual, { forceNoaa = false } = {}) {
           cloudPoints: state.renderState.multiDayPts, kpForecast: state.renderState.kpForecast || [],
           currentKp: state.renderState.kp, lat: state.renderState.pos.lat, lon: state.renderState.pos.lon,
           timeZone: state.renderState.pos.tz, nowDate: state.renderState.fetchedAt || new Date(),
-          enlilForecast: parsed
+          enlilForecast: parsed, chartHours: state.renderState.scoredHours
         });
         render3NightOutlook(state.renderState.nights3);
       }
@@ -1704,6 +1713,46 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
   }
   setText('tsConfRow', `${exp.confidence.badgeText}${effTelemetry ? ` · ${effTelemetry}` : ''}`);
   const stLive = state.renderState;
+  const cd = $('tsConfDetail');
+  if (cd) {
+    let detailTxt = '';
+    if (exp.confidence.level !== 'high') {
+      const pr = exp.confidence.primaryReason;
+      const cc = stLive?.cloudConsensus;
+      const isMet = Boolean(stLive?.usedMet);
+      if ((pr === 'model-diverge' || pr === 'cloud-spread') && cc && Number.isFinite(cc.metAvg3h) && Number.isFinite(cc.omAvg3h)) {
+        const c1 = Math.max(0, Math.min(100, Math.round(100 - cc.metAvg3h)));
+        const c2 = Math.max(0, Math.min(100, Math.round(100 - cc.omAvg3h)));
+        detailTxt = en
+          ? `Clear-sky models disagree (${isMet ? 'MET Norway' : 'Primary'} ${c1}% vs ${isMet ? 'ECMWF' : 'Secondary'} ${c2}%) — check live cams.`
+          : `兩組晴空預報分歧（${isMet ? '挪威官方' : '主模型'} ${c1}%、${isMet ? 'ECMWF 全球模型' : '對照模型'} ${c2}%），建議看即時實拍確認。`;
+      } else if (pr === 'fast-clouds') {
+        detailTxt = en
+          ? 'Fast-moving clouds over the next 3h — clear windows may shift.'
+          : '未來 3 小時雲層移動很快，晴空空檔可能提前或延後。';
+      } else if (pr === 'sat-lag') {
+        const lag = Number.isFinite(stLive?.noaaLagMin) ? Math.round(stLive.noaaLagMin) : '--';
+        detailTxt = en
+          ? `NOAA satellite is ${lag} min behind — sudden surges may not show yet.`
+          : `NOAA 衛星延遲 ${lag} 分鐘，突發極光增強可能尚未顯示。`;
+      } else if (pr === 'noaa-offline') {
+        detailTxt = en
+          ? 'NOAA space-weather feed is offline — aurora score is approximate.'
+          : 'NOAA 太空天氣暫時斷線，極光指數僅供參考。';
+      } else if (pr === 'single-model') {
+        detailTxt = en
+          ? 'Single weather model only — double-check the sky or live cams.'
+          : '目前僅有單一氣象模型，出發前建議抬頭或看實拍確認。';
+      }
+    }
+    if (detailTxt) {
+      cd.style.display = 'block';
+      cd.textContent = detailTxt;
+    } else {
+      cd.style.display = 'none';
+      cd.textContent = '';
+    }
+  }
   const tzLive = stLive?.pos?.tz || state.pos.tz;
   const noaaStampRaw = stLive?.noaaAlert?.issueTime || stLive?.noaaScales?.updatedUtc || null;
   const noaaStampHM = noaaStampRaw ? utcTagToLocalHM(noaaStampRaw, tzLive) : '';
@@ -1928,15 +1977,7 @@ function bindPullToRefresh() {
 // ====== Event Binding & Bootstrap ======
 function bindEvents() {
   $('redBtn')?.addEventListener('click', toggleRedMode);
-  $('outlookInfoBtn')?.addEventListener('click', (e) => {
-    const btn = e.currentTarget;
-    const note = $('outlookNote');
-    if (!note) return;
-    const open = note.hidden;
-    note.hidden = !open;
-    btn.setAttribute('aria-expanded', String(open));
-    haptic(4);
-  });
+  $('outlookInfoBtn')?.addEventListener('click', (e) => openTrustSheet(e.currentTarget));
   $('langBtn')?.addEventListener('click', toggleLang);
   $('unitBtn')?.addEventListener('click', toggleTempUnit);
   $('alertBtn')?.addEventListener('click', toggleAlertMode);

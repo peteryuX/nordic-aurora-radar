@@ -95,7 +95,7 @@ export const STATIC_TEXT_MAP = {
   h2Energy: pair(TERMS.solarWind.title),
   swToggleTxt: ['顯示太陽風曲線', 'Show solar wind chart'],
   h2Outlook: pair(TERMS.nav.next3Nights),
-  outlookNote: ['預估觀測指數 0–99，綜合晴空率、極光活動與夜空暗度；越後面的夜晚越不確定。', 'Forecast score 0–99, combining clear sky, aurora activity and darkness. Later nights are less certain.'],
+  outlookNote: ['明後天雲量與 Kp 變動較大，出發前 3 小時請再確認。', 'Clouds & Kp shift — recheck 3h before going out.'],
   seoFootLbl: ['熱門極光地點攻略', 'Aurora destination guides'],
   h2Radar: pair(TERMS.nav.nearbyClear),
   roadLbl: ['冬季即時路況／封路查詢：', 'Winter road & closure status:'],

@@ -2966,23 +2966,57 @@ export function summarize3NightOutlook({
         ? Math.max(...chartHours.filter(h => h && Number.isFinite(h.dtMs)).map(h => h.dtMs)) + 1800000
         : -Infinity;
       let bestDtMs = null;
-      for (const h of chartDark) {
-        if (h.score > bestNightScore) { bestNightScore = h.score; bestDtMs = h.dtMs; }
-      }
-      for (const p of darkPts) {
-        if (p.dtMs <= chartEndMs) continue;
-        const dt = new Date(p.dtMs);
-        const hKp = lookupForecastKp(kpOnNight.length ? kpOnNight : kpForecast, dt, effMaxKp);
-        const moonH = getMoonState(dt, lat, lon);
-        const sunAltH = Number.isFinite(p.sunAlt) ? p.sunAlt : computeSolarElevation(dt, lat, lon);
-        const cloudH = Number.isFinite(p.block) ? p.block : Math.max(0, Math.min(100, 100 - p.clear));
-        const scH = computeAuroraScore({
-          lat, lon, cloudNow: cloudH, sunAlt: sunAltH,
-          bz: 0, speed: 400, kp: hKp, ovation: null,
-          mlt: computeMLT(dt, lat, lon), effMoonPct: moonH.effMoonPct
-        });
-        const hScore = Number.isFinite(scH?.total) ? scH.total : 0;
-        if (hScore > bestNightScore) { bestNightScore = hScore; bestDtMs = p.dtMs; }
+      if (offset === 0) {
+        // Tonight: keep 1h peak parity with the live 24h chart (a real 1h clear break tonight IS chaseable)
+        for (const h of chartDark) {
+          if (h.score > bestNightScore) { bestNightScore = h.score; bestDtMs = h.dtMs; }
+        }
+        for (const p of darkPts) {
+          if (p.dtMs <= chartEndMs) continue;
+          const dt = new Date(p.dtMs);
+          const hKp = lookupForecastKp(kpOnNight.length ? kpOnNight : kpForecast, dt, effMaxKp);
+          const moonH = getMoonState(dt, lat, lon);
+          const sunAltH = Number.isFinite(p.sunAlt) ? p.sunAlt : computeSolarElevation(dt, lat, lon);
+          const cloudH = Number.isFinite(p.block) ? p.block : Math.max(0, Math.min(100, 100 - p.clear));
+          const scH = computeAuroraScore({
+            lat, lon, cloudNow: cloudH, sunAlt: sunAltH,
+            bz: 0, speed: 400, kp: hKp, ovation: null,
+            mlt: computeMLT(dt, lat, lon), effMoonPct: moonH.effMoonPct
+          });
+          const hScore = Number.isFinite(scH?.total) ? scH.total : 0;
+          if (hScore > bestNightScore) { bestNightScore = hScore; bestDtMs = p.dtMs; }
+        }
+      } else {
+        // Night +1/+2 (+24-72h): use max 2h sustained rolling score (matching bestClear) so 1h NWP cloud flukes never spike the card
+        const scoredPts = [];
+        for (const h of chartDark) scoredPts.push({ dtMs: h.dtMs, score: h.score });
+        for (const p of darkPts) {
+          if (p.dtMs <= chartEndMs) continue;
+          const dt = new Date(p.dtMs);
+          const hKp = lookupForecastKp(kpOnNight.length ? kpOnNight : kpForecast, dt, effMaxKp);
+          const moonH = getMoonState(dt, lat, lon);
+          const sunAltH = Number.isFinite(p.sunAlt) ? p.sunAlt : computeSolarElevation(dt, lat, lon);
+          const cloudH = Number.isFinite(p.block) ? p.block : Math.max(0, Math.min(100, 100 - p.clear));
+          const scH = computeAuroraScore({
+            lat, lon, cloudNow: cloudH, sunAlt: sunAltH,
+            bz: 0, speed: 400, kp: hKp, ovation: null,
+            mlt: computeMLT(dt, lat, lon), effMoonPct: moonH.effMoonPct
+          });
+          scoredPts.push({ dtMs: p.dtMs, score: Number.isFinite(scH?.total) ? scH.total : 0 });
+        }
+        scoredPts.sort((a, b) => a.dtMs - b.dtMs);
+        if (scoredPts.length === 1) {
+          bestNightScore = scoredPts[0].score;
+          bestDtMs = scoredPts[0].dtMs;
+        } else if (scoredPts.length >= 2) {
+          for (let i = 0; i < scoredPts.length - 1; i++) {
+            const pairScore = Math.round((scoredPts[i].score + scoredPts[i + 1].score) / 2);
+            if (pairScore > bestNightScore) {
+              bestNightScore = pairScore;
+              bestDtMs = scoredPts[i].score >= scoredPts[i + 1].score ? scoredPts[i].dtMs : scoredPts[i + 1].dtMs;
+            }
+          }
+        }
       }
       // 3-hour peak viewing window (matches NOAA 3h forecast cadence without fake minute-level precision)
       let bestWindow = '';
