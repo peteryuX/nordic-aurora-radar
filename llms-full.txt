@@ -1,0 +1,127 @@
+# Nordic Aurora Radar (極光即時雷達) — Full Technical & Destination Reference
+
+> Free, open-source (MIT), zero-tracking real-time aurora forecast PWA for Northern Norway, Iceland, Lapland, Alaska, Canada, New Zealand, Tasmania, and global GPS locations.
+
+- Live App (繁體中文): https://peteryux.github.io/nordic-aurora-radar/
+- Live App (English): https://peteryux.github.io/nordic-aurora-radar/?lang=en
+- Source Repository: https://github.com/peteryuX/nordic-aurora-radar
+- Validation & Known Limitations: https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md
+- Last Updated: 2026-11-25
+
+## Core Architecture & User Experience
+
+1. **Unified 0–99 Viewing Score** (four tiers: `>=65` Excellent / 極佳, `40–64` Good / 適合觀測, `18–39` Fair / 普通, `<18` Low / 偏低):
+   - Multiplicative model combining effective layered clear sky, geomagnetic aurora activity, and twilight/lunar darkness.
+   - Single-metric 24-hour score bar chart with a separated monochrome clear-sky context strip (zero dual-axis ambiguity).
+   - 3-night outlook displaying unified peak score, 3-hour local peak viewing window (e.g., `21–00`), clear-sky %, and Kp/G-scale.
+2. **True 360° Continuous Polar Clear-Sky Radar**:
+   - Plots winter-road-verified backup destinations at their exact spherical compass bearing and proportional road distance.
+   - Flags gale wind (`>=12 m/s`), blowing snow, and ice hazards in red while keeping ordinary cloudy directions muted grey.
+3. **14 Live NOAA SWPC Space-Weather Feeds + Layered Clouds + METAR Ceilometers**:
+   - L1 solar wind (`Bz`, `By`, `Bt`, speed, density) with ballistic Earth-arrival ETA, Newell coupling, 60-min substorm preconditioning, Geospace 1h MHD Kp, 1m Kp, 72h Kp forecast, G1–G5 scales, SWPC warnings/CME shocks, OVATION grid, HPI (GW), dual GOES-East/West magnetometers, Kyoto Dst, Propagated Solar Wind, and WSA-ENLIL 96h.
+   - Official MET Norway (Yr.no) 2.5 km MEPS layered clouds in the Nordics + Dual-Model Open-Meteo (`ICON` in Iceland, `ECMWF IFS` globally) + live 61-airport METAR laser ceilometer Optimal Interpolation (`+0..3h`, `<=55 km`).
+4. **Field-Ready Design**:
+   - Auto `°C / °F` by locale with manual toggle, zero-leak deep-red scotopic night-vision mode, Wake Lock alert monitor, offline SWR PWA cache, zero cookies/analytics, and 50 automated unit tests (including bilingual zh-TW/EN copy & chart-clarity lint gate).
+
+## Supported Key Aurora Destinations (Direct Landing Pages)
+
+### Tromsø, Norway (特羅姆瑟)
+- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/tromso/
+- Coordinates: `69.6492, 18.9553` | Geomagnetic Latitude (IGRF-14): `67°N`
+- Typical Activity Threshold: Kp 0–1 (directly under the auroral oval)
+- Best Season: Sep – early Apr (darkest Nov – Feb)
+- Weather & Airport METAR: MET Norway (Yr.no) 2.5 km MEPS layered clouds + Open-Meteo cross-check + ENTC (4 km)
+- Field Note: Coastal marine clouds often cover Tromsø island while inland valleys (Skibotn, Lyngen Alps rain shadow) stay crystal clear — check the 360° clear-sky polar radar before booking or driving.
+- Road-Verified Corridors: NW · Grøtfjord (~42 km); SE · Skibotn (~118 km); South Balsfjord (~70 km); West Sommarøy (~58 km)
+- Official Road Authority: Norway Vegvesen Traffic (https://www.vegvesen.no/trafikk)
+
+### Lofoten Islands, Norway (羅浮敦群島)
+- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/lofoten/
+- Coordinates: `68.2342, 14.5683` | Geomagnetic Latitude (IGRF-14): `66°N`
+- Typical Activity Threshold: Kp 0–1 (directly under the auroral oval)
+- Best Season: Sep – early Apr (polar night Dec – Jan)
+- Weather & Airport METAR: MET Norway (Yr.no) 2.5 km MEPS layered clouds + Open-Meteo cross-check + ENSH (4 km)
+- Field Note: Fast-moving North Atlantic cloud fronts cross Lofoten along the E10 corridor; a 30–60 minute drive between Svolvær, Gimsøy, and Leknes frequently finds clear breaks.
+- Road-Verified Corridors: North Gimsøy (~35 km); East Lødingen (~102 km); South Henningsvær (~24 km); West Ramberg (~98 km)
+- Official Road Authority: Norway Vegvesen Traffic (https://www.vegvesen.no/trafikk)
+
+### Alta, Norway (阿爾塔)
+- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/alta/
+- Coordinates: `69.9689, 23.2716` | Geomagnetic Latitude (IGRF-14): `67°N`
+- Typical Activity Threshold: Kp 0–1 (directly under the auroral oval)
+- Best Season: Sep – early Apr
+- Weather & Airport METAR: MET Norway (Yr.no) 2.5 km MEPS layered clouds + Open-Meteo cross-check + ENAT (4 km)
+- Field Note: Known as the "City of the Northern Lights," Alta sits in a dry fjord microclimate protected by Finnmark plateau mountains — inland Kautokeino and Karasjok are prime cold-air clear-sky backups.
+- Road-Verified Corridors: NE · Skaidi (~85 km); East Lakselv (~165 km); South Kautokeino (~130 km); West Burfjord (~95 km)
+- Official Road Authority: Norway Vegvesen Traffic (https://www.vegvesen.no/trafikk)
+
+### Abisko, Sweden (阿比斯庫)
+- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/abisko/
+- Coordinates: `68.3495, 18.8312` | Geomagnetic Latitude (IGRF-14): `66°N`
+- Typical Activity Threshold: Kp 0–1 (directly under the auroral oval)
+- Best Season: Sep – early Apr
+- Weather & Airport METAR: MET Norway (Yr.no) 2.5 km MEPS layered clouds + Open-Meteo cross-check
+- Field Note: Abisko sits inside a renowned mountain rain shadow ("Blue Hole of Abisko") along Lake Torneträsk, giving it one of the highest clear-sky frequencies in Arctic Europe.
+- Road-Verified Corridors: East Torneträsk (~45 km); SE · Kiruna (~95 km); West Narvik (~75 km)
+- Official Road Authority: Sweden Trafikverket (https://www.trafikverket.se/trafikinformation/vag/)
+
+### Rovaniemi, Finland (羅瓦涅米)
+- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/rovaniemi/
+- Coordinates: `66.5039, 25.7294` | Geomagnetic Latitude (IGRF-14): `64°N`
+- Typical Activity Threshold: Kp ≥ 1.1
+- Best Season: Sep – early Apr
+- Weather & Airport METAR: MET Norway (Yr.no) 2.5 km MEPS layered clouds + Open-Meteo cross-check + EFRO (8 km)
+- Field Note: Rovaniemi sits right on the Arctic Circle: escape city light pollution by driving 15–30 minutes north or northwest toward Olkkajärvi or Ranua, and watch for northern horizon arcs on quiet Kp 2 nights.
+- Road-Verified Corridors: North Luosto (~112 km); East Kemijärvi (~86 km); South Ranua (~81 km); West Pello (~100 km)
+- Official Road Authority: Finland Fintraffic Roads (https://liikennetilanne.fintraffic.fi/)
+
+### Reykjavik, Iceland (雷克雅維克)
+- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/reykjavik/
+- Coordinates: `64.1466, -21.9426` | Geomagnetic Latitude (IGRF-14): `64°N`
+- Typical Activity Threshold: Kp ≥ 0.9
+- Best Season: Sep – mid Apr
+- Weather & Airport METAR: Dual-Model Open-Meteo (best_match + ICON) + live BIRK airport METAR + BIRK (2 km)
+- Field Note: Iceland weather shifts rapidly between the Reykjanes peninsula, Þingvellir, and Borgarnes. Always verify wind and ice warnings on Umferðin before chasing clear gaps outside Reykjavik.
+- Road-Verified Corridors: North Borgarnes (~75 km); East Þingvellir (~48 km); South Selfoss (~58 km); West Garður (~55 km)
+- Official Road Authority: Iceland Umferðin Road Status (https://umferdin.is/en)
+
+### Akureyri, Iceland (阿克雷里)
+- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/akureyri/
+- Coordinates: `65.6885, -18.1262` | Geomagnetic Latitude (IGRF-14): `65°N`
+- Typical Activity Threshold: Kp 0–1 (directly under the auroral oval)
+- Best Season: Sep – mid Apr
+- Weather & Airport METAR: Dual-Model Open-Meteo (best_match + ICON) + live BIAR airport METAR + BIAR (4 km)
+- Field Note: Northern Iceland enjoys drier fjord conditions than the southwest; Goðafoss and Lake Mývatn to the east are classic clear-sky dark corridors (note highland route F26 south is closed in winter).
+- Road-Verified Corridors: North Dalvík (~43 km); East Goðafoss (~35 km); West Varmahlíð (~94 km)
+- Official Road Authority: Iceland Umferðin Road Status (https://umferdin.is/en)
+
+### Fairbanks, Alaska, USA (費爾班克斯)
+- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/fairbanks/
+- Coordinates: `64.8378, -147.7164` | Geomagnetic Latitude (IGRF-14): `65°N`
+- Typical Activity Threshold: Kp 0–1 (directly under the auroral oval)
+- Best Season: Late Aug – mid Apr
+- Weather & Airport METAR: Dual-Model Open-Meteo (best_match + ECMWF IFS) + live PAFA airport METAR + PAFA (7 km)
+- Field Note: Fairbanks sits directly beneath the auroral oval in an interior continental climate with frequent clear sub-zero nights. Murphy Dome, Cleary Summit, and Chena Hot Springs offer dark horizons — prepare for extreme cold (°F supported).
+- Road-Verified Corridors: North Cleary Summit (~34 km); East Chena Springs (~96 km); South Salcha (~55 km); West Murphy Dome (~34 km)
+- Official Road Authority: Alaska 511 Road Conditions (https://511.alaska.gov/)
+
+### Yellowknife, Canada (黃刀鎮)
+- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/yellowknife/
+- Coordinates: `62.454, -114.3718` | Geomagnetic Latitude (IGRF-14): `68°N`
+- Typical Activity Threshold: Kp 0–1 (directly under the auroral oval)
+- Best Season: Mid Aug – mid Apr
+- Weather & Airport METAR: Dual-Model Open-Meteo (best_match + ECMWF IFS) + live CYZF airport METAR + CYZF (4 km)
+- Field Note: With 68° geomagnetic latitude and flat sub-Arctic terrain, Yellowknife sees overhead aurora even on quiet Kp 1–2 nights. Ingraham Trail (east) and Highway 3 (west) provide unobstructed dark-sky lakes.
+- Road-Verified Corridors: NE · Prelude Lake (~30 km); East Tibbitt Lake (~68 km); West Behchokǫ̀ (~105 km)
+- Official Road Authority: NWT Highway Conditions (https://www.inf.gov.nt.ca/en/services/highways/highway-conditions)
+
+### Queenstown, New Zealand (皇后鎮)
+- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/queenstown/
+- Coordinates: `-45.0312, 168.6626` | Geomagnetic Latitude (IGRF-14): `52°S`
+- Typical Activity Threshold: Kp ≥ 6.2
+- Best Season: Mar – Oct (southern autumn/winter storms)
+- Weather & Airport METAR: Dual-Model Open-Meteo (best_match + ECMWF IFS) + live NZQN airport METAR + NZQN (6 km)
+- Field Note: Queenstown watches the Southern Lights (Aurora Australis) toward the southern horizon. Because geomagnetic latitude is 52°S, strong geomagnetic activity (G1–G2+ / Kp ≥ 5–6 or strong southward Bz) is needed — monitor NOAA solar wind and face south with an open lake view.
+- Road-Verified Corridors: North Wanaka (~68 km); East Cromwell (~60 km); South Kingston (~47 km); West Glenorchy (~46 km)
+- Official Road Authority: NZTA Journeys Road Status (https://www.journeys.nzta.govt.nz/)
+

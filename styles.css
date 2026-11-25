@@ -894,6 +894,19 @@ body.red-mode.is-loading .skel-day .od-stat {
   background-size: 200% 100%;
 }
 
+/* Calm crawlable destination-guide footer below Overview cards */
+.seo-foot {
+  margin: 14px 4px 6px; padding-top: 12px; border-top: 1px solid var(--border);
+  text-align: center;
+}
+.seo-foot-lbl { font-size: 0.72rem; font-weight: 700; color: var(--muted); opacity: 0.78; margin-bottom: 7px; }
+.seo-foot-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px 10px; }
+.seo-foot-links a {
+  font-size: 0.72rem; font-weight: 650; color: var(--muted); text-decoration: none;
+  padding: 2px 3px; opacity: 0.82;
+}
+.seo-foot-links a:hover { color: var(--text); opacity: 1; }
+
 @media (prefers-reduced-motion: reduce) {
   .wrap, .hdr, .sheet-backdrop, .sheet-panel, .ring-btn, .ring-prog, .toast, .view, .icon-btn, .btn, .qa-btn, .sw-toggle-btn, .chip, .nav-btn, .monitor-pulse, .aur-anim, .skel-txt, .skel-val, .skel-sub, .skel-bar {
     transition: none !important; animation: none !important;

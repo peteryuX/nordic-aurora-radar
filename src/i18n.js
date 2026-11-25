@@ -92,6 +92,7 @@ export const STATIC_TEXT_MAP = {
   swToggleTxt: ['顯示太陽風曲線', 'Show solar wind chart'],
   h2Outlook: ['未來三晚', 'Next 3 nights'],
   outlookNote: ['預估觀測指數 0–99，綜合晴空率、極光活動與夜空暗度；越後面的夜晚越不確定。', 'Forecast score 0–99, combining clear sky, aurora activity and darkness. Later nights are less certain.'],
+  seoFootLbl: ['熱門極光地點攻略', 'Aurora destination guides'],
   h2Radar: ['周邊晴空', 'Clear skies nearby'],
   roadLbl: ['冬季即時路況／封路查詢：', 'Winter road & closure status:'],
   roadNo: ['挪威 Vegvesen ↗', 'Norway · Vegvesen ↗'],

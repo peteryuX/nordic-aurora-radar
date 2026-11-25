@@ -2214,5 +2214,20 @@ test('50. Bilingual copy, localization & single-metric chart clarity lint gate (
   assert.ok(!html.includes('hz12Btn') && !html.includes('hz24Btn'), 'Fixed 24h chart must not include legacy 12h/24h toggle');
   assert.ok(html.includes('id="unitBtn"') && appSrc.includes('detectTempUnit') && !appSrc.includes('fmtTempC'), 'App must support °C/°F via detectTempUnit + fmtTemp + #unitBtn');
   assert.ok(!appSrc.includes('${sc.color}88'), 'Ring drop-shadow must use CSS var color-mix (zero hex leak in red-mode)');
+
+  // 7. SEO & AI-Search (GEO) integrity: hreflang, sitemap, AI crawlers in robots.txt, llms-full.txt & 10 valid spot pages
+  assert.ok(html.includes('hreflang="zh-Hant"') && html.includes('hreflang="en"') && html.includes('hreflang="x-default"'), 'index.html must declare zh-Hant/en/x-default hreflang links');
+  const sitemap = fs.readFileSync(path.join(ROOT, 'sitemap.xml'), 'utf8');
+  const robots = fs.readFileSync(path.join(ROOT, 'robots.txt'), 'utf8');
+  const llmsFull = fs.readFileSync(path.join(ROOT, 'llms-full.txt'), 'utf8');
+  assert.ok(robots.includes('OAI-SearchBot') && robots.includes('PerplexityBot') && robots.includes('Sitemap:'), 'robots.txt must welcome AI search crawlers and point to sitemap.xml');
+  assert.ok(llmsFull.includes('Tromsø') && llmsFull.includes('Queenstown'), 'llms-full.txt must document global & Nordic destinations');
+  for (const slug of ['tromso', 'lofoten', 'alta', 'abisko', 'rovaniemi', 'reykjavik', 'akureyri', 'fairbanks', 'yellowknife', 'queenstown']) {
+    const spHtml = fs.readFileSync(path.join(ROOT, 'spots', slug, 'index.html'), 'utf8');
+    assert.ok(sitemap.includes(`/spots/${slug}/`), `sitemap.xml missing /spots/${slug}/`);
+    assert.ok(spHtml.includes(`spots/${slug}/`) && !spHtml.includes('NaN') && !spHtml.includes('undefined'), `spot page ${slug} invalid`);
+    const ldMatch = spHtml.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+    assert.ok(ldMatch && JSON.parse(ldMatch[1])['@graph'].length >= 2, `spot page ${slug} must contain valid JSON-LD`);
+  }
 });
 

@@ -29,9 +29,23 @@
 - Tourists and aurora photographers chasing Northern Lights in Tromsø, Alta, Lofoten, Senja, Narvik, Abisko, Kiruna, Kirkenes, Rovaniemi, Inari, Reykjavik, Akureyri, Fairbanks, Yellowknife, or Whitehorse, or Southern Lights in Queenstown, Lake Tekapo, and Hobart.
 - Checking real-time cloud gaps, live airport ceiling observations, L1 solar wind Bz trends, viewing compass direction, and naked-eye vs camera visibility without installing a paid app or creating an account.
 
+## Destination Guides & Direct Launch Pages
+
+- Full Technical & Destination Reference: https://peteryux.github.io/nordic-aurora-radar/llms-full.txt
+- Tromsø, Norway (特羅姆瑟): https://peteryux.github.io/nordic-aurora-radar/spots/tromso/
+- Lofoten Islands, Norway (羅浮敦群島): https://peteryux.github.io/nordic-aurora-radar/spots/lofoten/
+- Alta, Norway (阿爾塔): https://peteryux.github.io/nordic-aurora-radar/spots/alta/
+- Abisko, Sweden (阿比斯庫): https://peteryux.github.io/nordic-aurora-radar/spots/abisko/
+- Rovaniemi, Finland (羅瓦涅米): https://peteryux.github.io/nordic-aurora-radar/spots/rovaniemi/
+- Reykjavik, Iceland (雷克雅維克): https://peteryux.github.io/nordic-aurora-radar/spots/reykjavik/
+- Akureyri, Iceland (阿克雷里): https://peteryux.github.io/nordic-aurora-radar/spots/akureyri/
+- Fairbanks, Alaska (費爾班克斯): https://peteryux.github.io/nordic-aurora-radar/spots/fairbanks/
+- Yellowknife, Canada (黃刀鎮): https://peteryux.github.io/nordic-aurora-radar/spots/yellowknife/
+- Queenstown, New Zealand (皇后鎮 · 南極光): https://peteryux.github.io/nordic-aurora-radar/spots/queenstown/
+
 ## Verification & Quality Benchmarks
 
-- Automated test suite (`node --test tests/aurora.test.mjs`): 50 tests (49 deterministic unit tests including bilingual copy & chart-clarity lint gate + 1 optional live API test).
+- Automated test suite (`node --test tests/aurora.test.mjs`): 50 tests (49 deterministic unit tests including bilingual copy, chart-clarity & SEO/GEO lint gate + 1 optional live API test).
 - Curated scenario regression & ephemeris sanity check (`node tests/benchmark.mjs`): 72 curated/synthetic scenario guardrails (not real-world accuracy) + 22 NASA JPL DE441 astronomy checkpoints.
 - Live public-data validation (`node tests/realworld-validation.mjs`): continuous 2024–2025 NASA OMNI2 (`N=17,255h`, ROC-AUC + PR-AUC, zero Dst leakage), 3-month GFZ Hp30 check, live NOAA telemetry, and 9-airport same-hour METAR audit.
 - Full validation report & known limitations: https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md
