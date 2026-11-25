@@ -14,12 +14,14 @@ import {
   parseMagSeries, parseWindSeries, parseKpForecast, lookupForecastKp,
   parseLatestKp, lookupOvationProb, parseHemiPower, parseGoesSubstorm, mergeGoesSubstorm,
   parseGeospacePredKp1h, parseNoaaAlerts, parseNoaaGeomagneticScales,
-  parseKyotoDst, parsePropagatedSolarWind, parseEnlilForecast,
+  parseKyotoDst, parseGeospaceDst1h, resolveEffectiveDst, parsePropagatedSolarWind, parseEnlilForecast,
   parseMetNorwayHourly12, parseMetNorwayMultiDay,
   parseOpenMeteoHourly12, parseOpenMeteoMultiDay, evaluateCloudConsensus,
   findNearestMetarStation, parseIemMetarCurrent, parseMetNorwayMetarText,
+  findNearestSmhiCloudStation, parseSmhiCloudObs,
   assimilateMetarNowcast, parseMetNorwayNowcast, parseOpenMeteoCurrent, assimilateLiveGpsNowcast,
-  selectOpenMeteoModels, extractOpenMeteoModelHourly, blendHourlyForecasts, blendNordicHourlyForecasts,
+  selectOpenMeteoModels, extractOpenMeteoModelHourly, parseEcmwfCloudEnsemble,
+  blendHourlyForecasts, blendNordicHourlyForecasts,
   scoreHourlyForecast12, findBestDarkWindow, summarize3NightOutlook,
   normalizeChineseCityQuery, hasCjkChars, matchKnownCity, formatReverseGeo, traditionalRegionName
 } from './aurora-engine.js';
@@ -30,6 +32,10 @@ const metCache = new Map();
 const metInflight = new Map();
 const metarCache = new Map();
 const METAR_CACHE_TTL_MS = 10 * 60 * 1000;
+const smhiCache = new Map();
+const SMHI_CACHE_TTL_MS = 15 * 60 * 1000;
+const ensCache = new Map();
+const ENS_CACHE_TTL_MS = 15 * 60 * 1000;
 const nowcastCache = new Map();
 const NOWCAST_CACHE_TTL_MS = 4 * 60 * 1000;
 
@@ -118,12 +124,12 @@ export async function fetchEnlilBackground() {
 const NOAA_GLOBAL_TTL_MS = 2 * 60 * 1000;
 let noaaRawCache = null;
 
-/** Track 1: 13 parallel fault-isolated NOAA SWPC space-weather endpoints (+ 1 background cached WSA-ENLIL = 14 total) */
+/** Track 1: 14 parallel fault-isolated NOAA SWPC space-weather endpoints (+ 1 background cached WSA-ENLIL = 15 total) */
 export async function fetchNoaaBundle({ pos, now, signal, cachedEnlil = null, force = false, isCurrent = () => true, onProgress = null }) {
   const res = {
     bz: null, speed: null, kp: null, ovation: null, hpiGw: null,
     goesSub: null, noaaScales: null, geo1h: null, noaaAlert: null,
-    kyotoDst: null, propSw: null, enlilForecast: cachedEnlil,
+    kyotoDst: null, geoDst1h: null, propSw: null, enlilForecast: cachedEnlil,
     noaaOk: false, magSeries: [], windSeries: [], kpForecast: [], noaaLagMin: null
   };
   try {
@@ -132,7 +138,7 @@ export async function fetchNoaaBundle({ pos, now, signal, cachedEnlil = null, fo
     if (!force && noaaRawCache && (nowMs - noaaRawCache.ts) < NOAA_GLOBAL_TTL_MS) {
       raw = noaaRawCache.raw;
     } else {
-      const [mR, wR, k1R, oR, hpiR, g1R, g2R, kfcR, scR, geoR, alR, dstR, propR] = await Promise.all([
+      const [mR, wR, k1R, oR, hpiR, g1R, g2R, kfcR, scR, geoR, alR, dstR, geoDstR, propR] = await Promise.all([
         fetchWithTimeout('https://services.swpc.noaa.gov/json/rtsw/rtsw_mag_1m.json', { timeoutMs: 6500, signal }).catch(() => null),
         fetchWithTimeout('https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json', { timeoutMs: 6500, signal }).catch(() => null),
         fetchWithTimeout('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json', { timeoutMs: 5500, signal }).catch(() => null),
@@ -145,12 +151,13 @@ export async function fetchNoaaBundle({ pos, now, signal, cachedEnlil = null, fo
         fetchWithTimeout('https://services.swpc.noaa.gov/json/geospace/geospace_pred_est_kp_1_hour.json', { timeoutMs: 4200, signal }).catch(() => null),
         fetchWithTimeout('https://services.swpc.noaa.gov/products/alerts.json', { timeoutMs: 4200, signal }).catch(() => null),
         fetchWithTimeout('https://services.swpc.noaa.gov/products/kyoto-dst.json', { timeoutMs: 4200, signal }).catch(() => null),
+        fetchWithTimeout('https://services.swpc.noaa.gov/json/geospace/geospace_dst_1_hour.json', { timeoutMs: 4200, signal }).catch(() => null),
         fetchWithTimeout('https://services.swpc.noaa.gov/products/geospace/propagated-solar-wind-1-hour.json', { timeoutMs: 4200, signal }).catch(() => null)
       ]);
-      const [mJ, wJ, k1J, ovJson, hpiTxt, g1J, g2J, kfcJ, scJ, geoJ, alJ, dstJ, propJ] = await Promise.all([
+      const [mJ, wJ, k1J, ovJson, hpiTxt, g1J, g2J, kfcJ, scJ, geoJ, alJ, dstJ, geoDstJ, propJ] = await Promise.all([
         safeJson(mR), safeJson(wR), safeJson(k1R), safeJson(oR), safeText(hpiR),
         safeJson(g1R), safeJson(g2R), safeJson(kfcR), safeJson(scR), safeJson(geoR), safeJson(alR),
-        safeJson(dstR), safeJson(propR)
+        safeJson(dstR), safeJson(geoDstR), safeJson(propR)
       ]);
       if (!isCurrent()) return res;
 
@@ -174,6 +181,7 @@ export async function fetchNoaaBundle({ pos, now, signal, cachedEnlil = null, fo
         geo1h: (geoJ ? parseGeospacePredKp1h(geoJ, nowMs) : null) || prevRaw?.geo1h || null,
         noaaAlert: (alJ ? parseNoaaAlerts(alJ, nowMs) : null) || prevRaw?.noaaAlert || null,
         kyotoDst: (dstJ ? parseKyotoDst(dstJ, nowMs) : null) || prevRaw?.kyotoDst || null,
+        geoDst1h: (geoDstJ ? parseGeospaceDst1h(geoDstJ, nowMs) : null) || prevRaw?.geoDst1h || null,
         propSw: (propJ ? parsePropagatedSolarWind(propJ, nowMs) : null) || prevRaw?.propSw || null,
         kpObj: kpObj || prevRaw?.kpObj || null,
         ovJson: ovJson || noaaRawCache?.raw?.ovJson || null,
@@ -193,6 +201,7 @@ export async function fetchNoaaBundle({ pos, now, signal, cachedEnlil = null, fo
     res.geo1h = raw.geo1h;
     res.noaaAlert = raw.noaaAlert;
     res.kyotoDst = raw.kyotoDst;
+    res.geoDst1h = raw.geoDst1h;
     res.propSw = raw.propSw;
 
     const lastMag = res.magSeries.length ? res.magSeries[res.magSeries.length - 1] : null;
@@ -213,7 +222,8 @@ export async function fetchNoaaBundle({ pos, now, signal, cachedEnlil = null, fo
       onProgress({
         magSeries: res.magSeries, chartSeries: res.magSeries.slice(-120),
         speed: res.speed, bz: res.bz, hpiGw: res.hpiGw, goesSub: res.goesSub,
-        noaaScales: res.noaaScales, noaaAlert: res.noaaAlert, kyotoDst: res.kyotoDst, bal: progBal,
+        noaaScales: res.noaaScales, noaaAlert: res.noaaAlert, kyotoDst: res.kyotoDst,
+        geoDst1h: res.geoDst1h, bal: progBal,
         noaaOk: res.noaaOk, noaaLagMin: res.noaaLagMin, pos
       });
     }
@@ -264,6 +274,56 @@ export async function fetchLiveMetar(station, nowMs = Date.now(), signal = null)
   return null;
 }
 
+/** Fault-isolated SMHI Open Data automated laser-ceilometer fetch (15-min TTL + 60-min stale-on-error fallback) */
+export async function fetchSmhiCloudObs(station, nowMs = Date.now(), signal = null) {
+  if (!station?.id) return null;
+  const cached = smhiCache.get(station.id);
+  if (cached && nowMs - cached.ts < SMHI_CACHE_TTL_MS && Number.isFinite(cached.obs?.obsMs)) {
+    const liveAge = Math.max(0, Math.round((nowMs - cached.obs.obsMs) / 60000));
+    if (liveAge <= 90) return { ...cached.obs, ageMin: liveAge };
+  }
+  let obs = null;
+  try {
+    const r = await fetchWithTimeout(
+      `https://opendata-download-metobs.smhi.se/api/version/1.0/parameter/16/station/${encodeURIComponent(station.id)}/period/latest-hour/data.json`,
+      { timeoutMs: 3200, signal }
+    ).catch(() => null);
+    const j = await safeJson(r);
+    if (j) obs = parseSmhiCloudObs(j, nowMs, station.id);
+  } catch {}
+  if (obs) {
+    if (smhiCache.size >= 16) smhiCache.delete(smhiCache.keys().next().value);
+    smhiCache.set(station.id, { ts: nowMs, obs });
+    return obs;
+  }
+  if (cached && Number.isFinite(cached.obs?.obsMs)) {
+    const liveAge = Math.max(0, Math.round((nowMs - cached.obs.obsMs) / 60000));
+    if (liveAge <= 60) return { ...cached.obs, ageMin: liveAge };
+  }
+  return null;
+}
+
+/** Fault-isolated Open-Meteo ECMWF IFS 51-member layered cloud ensemble fetch (center point only, 15-min LRU) */
+export async function fetchEcmwfEnsemble(lat, lon, nowDate = new Date(), signal = null) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const nowMs = nowDate instanceof Date ? nowDate.getTime() : Date.now();
+  const k = `${lat.toFixed(2)},${lon.toFixed(2)}`;
+  const cached = ensCache.get(k);
+  if (cached && nowMs - cached.ts < ENS_CACHE_TTL_MS) return cached.hrs;
+  try {
+    const u = `https://ensemble-api.open-meteo.com/v1/ensemble?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&hourly=cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high&models=ecmwf_ifs025&timeformat=unixtime&forecast_hours=26`;
+    const r = await fetchWithTimeout(u, { timeoutMs: 4500, signal }).catch(() => null);
+    const json = await safeJson(r);
+    const hrs = json ? parseEcmwfCloudEnsemble(json, nowDate, 24) : [];
+    if (hrs.length) {
+      if (ensCache.size >= 25) ensCache.delete(ensCache.keys().next().value);
+      ensCache.set(k, { ts: nowMs, hrs });
+      return hrs;
+    }
+  } catch {}
+  return null;
+}
+
 /** Fault-isolated MET Norway Nowcast 2.0 (5-minute live Nordic Doppler radar precipitation + live surface temp/wind) */
 export async function fetchMetNorwayNowcast(lat, lon, nowMs = Date.now(), signal = null) {
   if (!isInNordicRadarBox(lat, lon)) return null;
@@ -286,12 +346,12 @@ export async function fetchMetNorwayNowcast(lat, lon, nowMs = Date.now(), signal
   return null;
 }
 
-/** Track 2: Parallel Elevation + MET Norway 2.5km + 5-min Radar Nowcast + Dual-Model Open-Meteo (with 15m current) + Live Station METAR */
+/** Track 2: Parallel Elevation + MET Norway 2.5km + 5-min Radar Nowcast + Dual-Model Open-Meteo + 51-member ECMWF Ensemble + Live METAR/SMHI */
 export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => true }) {
   const out = {
     metOk: false, hereHrs: [], multiDayPts: [], dirResults: [],
     weatherSourceLabel: '氣象', usedMet: false, cloudConsensus: null, resolvedTz: pos.tz,
-    metarObs: null, metarFusion: null, nowcastObs: null
+    metarObs: null, metarFusion: null, nowcastObs: null, ensMeta: null
   };
   try {
     const pts = computeCompassPoints(pos.lat, pos.lon, 60);
@@ -299,7 +359,34 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
     const inNordic = isInNordicMetBox(pos.lat, pos.lon);
     const inRadar = isInNordicRadarBox(pos.lat, pos.lon);
     const dualModels = selectOpenMeteoModels(pos.lat, pos.lon);
+    const isIceland = dualModels?.[1] === 'icon_seamless';
     const nearMetar = findNearestMetarStation(pos.lat, pos.lon, 55);
+    const nearSmhi = findNearestSmhiCloudStation(pos.lat, pos.lon, 55);
+
+    // Station precedence: Airport METAR wins when <=25km (layered + wx codes);
+    // SMHI wins when no METAR <=55km (e.g. Abisko!) or SMHI is >=10km closer while METAR is 26..55km away.
+    const preferSmhi = Boolean(nearSmhi && (!nearMetar || (nearMetar.distKm > 25 && nearSmhi.distKm + 10 < nearMetar.distKm)));
+    const fetchGroundStation = async () => {
+      const nowMs = now.getTime();
+      if (preferSmhi) {
+        const smhiObs = await fetchSmhiCloudObs(nearSmhi, nowMs, signal).catch(() => null);
+        if (smhiObs) return { obs: smhiObs, station: nearSmhi };
+        if (nearMetar) {
+          const mObs = await fetchLiveMetar(nearMetar, nowMs, signal).catch(() => null);
+          if (mObs) return { obs: mObs, station: nearMetar };
+        }
+        return null;
+      }
+      if (nearMetar) {
+        const mObs = await fetchLiveMetar(nearMetar, nowMs, signal).catch(() => null);
+        if (mObs) return { obs: mObs, station: nearMetar };
+      }
+      if (nearSmhi) {
+        const smhiObs = await fetchSmhiCloudObs(nearSmhi, nowMs, signal).catch(() => null);
+        if (smhiObs) return { obs: smhiObs, station: nearSmhi };
+      }
+      return null;
+    };
 
     // Inside Nordics, request independent ecmwf_ifs025 from Open-Meteo (instead of best_match, which mirrors MET Nordic)
     const modelParam = dualModels ? `&models=${dualModels.join(',')}` : (inNordic ? '&models=ecmwf_ifs025' : '');
@@ -311,15 +398,22 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
     const metPromise = inNordic
       ? Promise.all(pts.map(p => fetchMetNorwayPoint(p.lat, p.lon, signal)))
       : Promise.resolve(null);
-    const metarPromise = nearMetar
-      ? fetchLiveMetar(nearMetar, now.getTime(), signal).catch(() => null)
-      : Promise.resolve(null);
+    const stationPromise = (nearMetar || nearSmhi) ? fetchGroundStation() : Promise.resolve(null);
     const nowcastPromise = inRadar
       ? fetchMetNorwayNowcast(pos.lat, pos.lon, now.getTime(), signal).catch(() => null)
       : Promise.resolve(null);
+    const ensPromise = fetchEcmwfEnsemble(pos.lat, pos.lon, now, signal).catch(() => null);
 
-    const [elJson, omData, metList, metarRaw, radarNowcast] = await Promise.all([elevPromise, omPromise, metPromise, metarPromise, nowcastPromise]);
+    const [elJson, omData, metList, stationRes, radarNowcast, ensHrs] = await Promise.all([
+      elevPromise, omPromise, metPromise, stationPromise, nowcastPromise, ensPromise
+    ]);
     if (!isCurrent()) return out;
+
+    const metarRaw = stationRes?.obs || null;
+    const activeStation = stationRes?.station || null;
+    if (Array.isArray(ensHrs) && ensHrs.length) {
+      out.ensMeta = { members: ensHrs[0].ensMembers || 51, source: 'ECMWF' };
+    }
 
     if (Array.isArray(elJson?.elevation)) {
       pts.forEach((pt, i) => { if (i > 0 && Number(elJson.elevation[i]) <= 0) pt.isOcean = true; });
@@ -334,8 +428,11 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
         : ((pos.lon >= 20.6 && pos.lat < 69.15 && pos.lat >= 59.5) ? 'Europe/Helsinki' : 'Europe/Oslo');
     }
 
-    const parseOmPoint = (omObj, lat, lon, ptTz, horizon = 12) => {
+    const parseOmPoint = (omObj, lat, lon, ptTz, horizon = 12, pointEnsHrs = null) => {
       if (!omObj?.hourly) return { hrs: [], multiDay: [], hrs1: [], hrs2: [] };
+      const blendOpts = pointEnsHrs
+        ? { ensHrs: pointEnsHrs, replaceSecondaryFromIdx: isIceland ? Infinity : 4 }
+        : {};
       if (dualModels) {
         const h1 = extractOpenMeteoModelHourly(omObj.hourly, dualModels[0]);
         const h2 = extractOpenMeteoModelHourly(omObj.hourly, dualModels[1]);
@@ -345,15 +442,16 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
           const md1 = h1 ? parseOpenMeteoMultiDay(h1, lat, lon, ptTz, now, omObj.utc_offset_seconds) : [];
           const md2 = h2 ? parseOpenMeteoMultiDay(h2, lat, lon, ptTz, now, omObj.utc_offset_seconds) : [];
           return {
-            hrs: blendHourlyForecasts(hrs1, hrs2),
+            hrs: blendHourlyForecasts(hrs1, hrs2, blendOpts),
             multiDay: blendHourlyForecasts(md1, md2),
             hrs1, hrs2
           };
         }
       }
-      const hrs = parseOpenMeteoHourly12(omObj.hourly, lat, lon, ptTz, now, omObj.utc_offset_seconds, horizon);
+      const rawHrs = parseOpenMeteoHourly12(omObj.hourly, lat, lon, ptTz, now, omObj.utc_offset_seconds, horizon);
+      const hrs = pointEnsHrs ? blendHourlyForecasts(rawHrs, [], blendOpts) : rawHrs;
       const multiDay = parseOpenMeteoMultiDay(omObj.hourly, lat, lon, ptTz, now, omObj.utc_offset_seconds);
-      return { hrs, multiDay, hrs1: hrs, hrs2: [] };
+      return { hrs, multiDay, hrs1: rawHrs, hrs2: [] };
     };
 
     const summarizePoint = (pt, hrs) => {
@@ -378,27 +476,28 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
       out.usedMet = true; out.metOk = true; out.weatherSourceLabel = 'Yr.no 官方';
       out.hereHrs = metHereHrs;
       let metMulti = parseMetNorwayMultiDay(metList[0], pos.lat, pos.lon, out.resolvedTz, now);
-      if (omList[0]?.hourly) {
-        const omHere = parseOmPoint(omList[0], pos.lat, pos.lon, out.resolvedTz, 24);
-        if (omHere.hrs.length) {
-          out.cloudConsensus = evaluateCloudConsensus(metHereHrs.slice(0, 12), omHere.hrs.slice(0, 12));
-          // Preserve 2.5km MEPS fjord rain-shadow precision at +0..2h normally (unless live local obs <=25km proves
-          // ECMWF is >=20 pts closer), transition smoothly at +3h, and run 50/50 MEPS+ECMWF ensemble over +4..23h.
-          const metarConfirmsEcmwf = Boolean(
-            metarRaw && nearMetar && nearMetar.distKm <= 25 && (metarRaw.ageMin ?? 99) <= 60 &&
-            Number.isFinite(metarRaw.effCloud) &&
-            Number.isFinite(metHereHrs[0]?.block) && Number.isFinite(omHere.hrs[0]?.block) &&
-            (Math.abs(metarRaw.effCloud - metHereHrs[0].block) - Math.abs(metarRaw.effCloud - omHere.hrs[0].block)) >= 20
-          );
-          out.hereHrs = blendNordicHourlyForecasts(metHereHrs, omHere.hrs, { metarConfirmsEcmwf });
-        }
-        // Backfill MET Norway's coarse 6h steps after +48h with hourly ECMWF points so Night +2 gets true 1h resolution
-        if (omHere.multiDay.length && metMulti.some(p => (p.stepHrs || 1) > 1)) {
-          const fineMet = metMulti.filter(p => (p.stepHrs || 1) <= 1);
-          const lastFineMs = fineMet.length ? fineMet[fineMet.length - 1].dtMs : -Infinity;
-          const tailOm = omHere.multiDay.filter(p => Number.isFinite(p?.dtMs) && p.dtMs > lastFineMs + 30 * 60000);
-          if (tailOm.length) metMulti = [...fineMet, ...tailOm];
-        }
+      const omHere = omList[0]?.hourly ? parseOmPoint(omList[0], pos.lat, pos.lon, out.resolvedTz, 24) : { hrs: [], multiDay: [] };
+      if (omHere.hrs.length) {
+        out.cloudConsensus = evaluateCloudConsensus(metHereHrs.slice(0, 12), omHere.hrs.slice(0, 12));
+      }
+      if (omHere.hrs.length || (Array.isArray(ensHrs) && ensHrs.length)) {
+        // Preserve 2.5km MEPS fjord rain-shadow precision at +0..2h normally (unless live local obs <=25km proves
+        // ECMWF is closer: >=20 pts for METAR, >=25 pts for SMHI), transition at +3h, and fuse 51-member median over +4..23h.
+        const confirmGap = metarRaw?.source === 'SMHI' ? 25 : 20;
+        const metarConfirmsEcmwf = Boolean(
+          metarRaw && activeStation && activeStation.distKm <= 25 && (metarRaw.ageMin ?? 99) <= 60 &&
+          Number.isFinite(metarRaw.effCloud) &&
+          Number.isFinite(metHereHrs[0]?.block) && Number.isFinite(omHere.hrs[0]?.block) &&
+          (Math.abs(metarRaw.effCloud - metHereHrs[0].block) - Math.abs(metarRaw.effCloud - omHere.hrs[0].block)) >= confirmGap
+        );
+        out.hereHrs = blendNordicHourlyForecasts(metHereHrs, omHere.hrs, { metarConfirmsEcmwf, ensHrs });
+      }
+      // Backfill MET Norway's coarse 6h steps after +48h with hourly ECMWF points so Night +2 gets true 1h resolution
+      if (omHere.multiDay.length && metMulti.some(p => (p.stepHrs || 1) > 1)) {
+        const fineMet = metMulti.filter(p => (p.stepHrs || 1) <= 1);
+        const lastFineMs = fineMet.length ? fineMet[fineMet.length - 1].dtMs : -Infinity;
+        const tailOm = omHere.multiDay.filter(p => Number.isFinite(p?.dtMs) && p.dtMs > lastFineMs + 30 * 60000);
+        if (tailOm.length) metMulti = [...fineMet, ...tailOm];
       }
       // Sync all 24h blended cloud/clear values into multiDayPts so Tonight's 3-Night Outlook matches the 24h chart
       if (metMulti.length && out.hereHrs.length) {
@@ -421,14 +520,23 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
         out.dirResults.push(summarizePoint(pt, hrs));
       });
     } else if (omList[0]?.hourly) {
-      const p0 = parseOmPoint(omList[0], pos.lat, pos.lon, out.resolvedTz, 24);
+      const p0 = parseOmPoint(omList[0], pos.lat, pos.lon, out.resolvedTz, 24, ensHrs);
       if (p0.hrs.length) {
         out.metOk = true;
         out.weatherSourceLabel = p0.hrs1.length && p0.hrs2.length
-          ? (dualModels?.[1] === 'icon_seamless' ? 'Open-Meteo+ICON' : 'Open-Meteo+ECMWF')
+          ? (isIceland ? 'Open-Meteo+ICON' : 'Open-Meteo+ECMWF')
           : (inNordic ? 'ECMWF' : 'Open-Meteo');
         out.hereHrs = p0.hrs;
-        out.multiDayPts = p0.multiDay;
+        // Sync all 24h ensemble-blended cloud/clear values into multiDayPts for Tonight 3-Night parity
+        let gMulti = p0.multiDay;
+        if (gMulti.length) {
+          const blendedPts = out.hereHrs.filter(h => Number.isFinite(h?.dtMs));
+          gMulti = gMulti.map(p => {
+            const m = blendedPts.find(h => Math.abs(h.dtMs - p.dtMs) <= 15 * 60000);
+            return m ? { ...p, block: m.block, clear: m.clear } : p;
+          });
+        }
+        out.multiDayPts = gMulti;
         if (p0.hrs1.length && p0.hrs2.length) {
           out.cloudConsensus = evaluateCloudConsensus(p0.hrs1.slice(0, 12), p0.hrs2.slice(0, 12));
         }
@@ -441,14 +549,14 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
       }
     }
 
-    // Causal Optimal Interpolation with nearby live Airport METAR Laser Ceilometer (+0h..+3h)
-    if (metarRaw && nearMetar && out.hereHrs.length) {
-      const fusion = assimilateMetarNowcast(out.hereHrs, metarRaw, nearMetar.distKm);
+    // Causal Optimal Interpolation with nearby live ground laser ceilometer (METAR or SMHI, +0h..+3h)
+    if (metarRaw && activeStation && out.hereHrs.length) {
+      const fusion = assimilateMetarNowcast(out.hereHrs, metarRaw, activeStation.distKm);
       if (fusion.applied) {
         out.hereHrs = fusion.hours;
-        out.metarObs = { ...metarRaw, name: nearMetar.name, distKm: nearMetar.distKm };
+        out.metarObs = { ...metarRaw, name: activeStation.name, distKm: activeStation.distKm };
         out.metarFusion = fusion;
-        // Keep Tonight's multiDayPts synced with METAR-fused +0..3h cloud values
+        // Keep Tonight's multiDayPts synced with station-fused +0..3h cloud values
         if (out.multiDayPts.length) {
           const fusedHead = out.hereHrs.slice(0, 4).filter(h => Number.isFinite(h?.dtMs));
           out.multiDayPts = out.multiDayPts.map(p => {
@@ -459,10 +567,10 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
         if (out.dirResults[0]) {
           out.dirResults[0] = summarizePoint(pts[0], out.hereHrs);
         }
-        // Only apply airport METAR OI to same-basin corridors (<=20 km); never smear coastal stratus across fjord rain shadows
+        // Only apply ground station OI to same-basin corridors (<=20 km); never smear coastal stratus across fjord rain shadows
         for (let i = 1; i < pts.length; i++) {
           if (!dirHrsList[i]?.length || pts[i]?.isOcean) continue;
-          const dMetar = computeDistanceKm(pts[i].lat, pts[i].lon, nearMetar.lat, nearMetar.lon);
+          const dMetar = computeDistanceKm(pts[i].lat, pts[i].lon, activeStation.lat, activeStation.lon);
           if (Number.isFinite(dMetar) && dMetar <= 20) {
             const cFus = assimilateMetarNowcast(dirHrsList[i], metarRaw, dMetar);
             if (cFus.applied) out.dirResults[i] = summarizePoint(pts[i], cFus.hours);
@@ -507,18 +615,19 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
 
 /**
  * Pure forecast assembler: combines live NOAA telemetry & Weather bundle into
- * NOW score, +ETA forward score, 12h scored hours, and 3-Night Outlook.
+ * NOW score, +ETA forward score, 24h scored hours, and 3-Night Outlook.
  */
 export function computeLiveSnapshot({ pos, now, noaa, wx, moon }) {
   const {
     magSeries = [], windSeries = [], kpForecast = [], bz = null, speed = null, kp = null,
     ovation = null, hpiGw = null, goesSub = null, noaaScales = null, geo1h = null,
-    noaaAlert = null, kyotoDst = null, propSw = null, enlilForecast = null,
+    noaaAlert = null, kyotoDst = null, geoDst1h = null, propSw = null, enlilForecast = null,
     noaaOk = false, noaaLagMin = null
   } = noaa || {};
   const {
     hereHrs = [], multiDayPts = [], dirResults = [], weatherSourceLabel = '氣象',
-    usedMet = false, cloudConsensus = null, metarObs = null, metarFusion = null, nowcastObs = null
+    usedMet = false, cloudConsensus = null, metarObs = null, metarFusion = null,
+    nowcastObs = null, ensMeta = null
   } = wx || {};
   const nowMs = now.getTime();
   const bal = computeBallisticCoupling(magSeries, windSeries.length ? windSeries : speed, nowMs, propSw?.etaMin ?? null);
@@ -526,7 +635,7 @@ export function computeLiveSnapshot({ pos, now, noaa, wx, moon }) {
   const sunAltNow = computeSolarElevation(now, pos.lat, pos.lon);
   const mltNow = computeMLT(now, pos.lat, pos.lon);
   const predKp1h = geo1h?.maxNext60Kp ?? null;
-  const dstVal = kyotoDst?.dst ?? null;
+  const effectiveDst = resolveEffectiveDst(kyotoDst, geoDst1h);
 
   const scored12 = scoreHourlyForecast12(hereHrs, {
     lat: pos.lat, lon: pos.lon,
@@ -538,7 +647,7 @@ export function computeLiveSnapshot({ pos, now, noaa, wx, moon }) {
     substormJumpNt: goesSub ? goesSub.jumpNt : 0,
     pdyn: bal.nowPdyn, nextPdyn: bal.pdyn,
     shockJumpNpa: bal.nowShockJumpNpa, nextShockJumpNpa: bal.shockJumpNpa,
-    dst: dstVal,
+    dst: effectiveDst.dstNow, nextDst: effectiveDst.dstNext,
     nowOverride: { sunAlt: sunAltNow, moon, mlt: mltNow }
   });
   const bestDark = scored12.bestTonight || scored12.bestAurora || findBestDarkWindow(hereHrs);
@@ -546,7 +655,7 @@ export function computeLiveSnapshot({ pos, now, noaa, wx, moon }) {
     ? Math.max(0, scored12.hours.findIndex(h => (Number.isFinite(bestDark.dtMs) && Number.isFinite(h.dtMs)) ? h.dtMs === bestDark.dtMs : h.time === bestDark.time))
     : 0;
 
-  // NOW score uses Earth-arriving window (nowBz, nowNewell, nowPdyn) + Kyoto Dst ring current
+  // NOW score uses Earth-arriving window (nowBz, nowNewell, nowPdyn) + resolved Kyoto/MHD Dst ring current
   const sc = computeAuroraScore({
     lat: pos.lat, lon: pos.lon,
     cloudNow: c0, sunAlt: sunAltNow,
@@ -554,11 +663,11 @@ export function computeLiveSnapshot({ pos, now, noaa, wx, moon }) {
     hpiGw, substormJumpNt: goesSub ? goesSub.jumpNt : 0,
     pdyn: bal.nowPdyn, shockJumpNpa: bal.nowShockJumpNpa,
     newell: bal.nowNewell, preconditionedNewell60: bal.avgNewell60,
-    dst: dstVal,
+    dst: effectiveDst.dstNow,
     mlt: mltNow, effMoonPct: moon.effMoonPct
   });
 
-  // +ETA Forward score uses incoming L1 wind, symmetric Geospace 1h MHD blend, and nearest cloud hour
+  // +ETA Forward score uses incoming L1 wind, symmetric Geospace 1h MHD blend, forward MHD Dst, and nearest cloud hour
   const nextDt = new Date(nowMs + bal.etaMin * 60000);
   const nextTargetMs = nextDt.getTime();
   let nextHourIdx = 0;
@@ -591,7 +700,7 @@ export function computeLiveSnapshot({ pos, now, noaa, wx, moon }) {
     hpiGw, substormJumpNt: goesSub ? Math.round(goesSub.jumpNt * 0.5) : 0,
     pdyn: bal.pdyn, shockJumpNpa: bal.shockJumpNpa,
     newell: bal.nextNewell, preconditionedNewell60: bal.nextAvgNewell60 ?? bal.avgNewell60,
-    dst: dstVal,
+    dst: effectiveDst.dstNext,
     mlt: mltNext, effMoonPct: moonNext.effMoonPct
   });
 
@@ -607,8 +716,9 @@ export function computeLiveSnapshot({ pos, now, noaa, wx, moon }) {
     selectedHourIdx,
     renderState: {
       pos, magSeries, chartSeries: magSeries.slice(-120), speed, bz, kp, ovation, hpiGw, goesSub,
-      noaaScales, noaaAlert, kyotoDst, enlilForecast, predKp1h, bal, noaaOk, noaaLagMin, hereHrs, dirResults,
-      weatherSourceLabel, usedMet, cloudConsensus, metarObs, metarFusion, nowcastObs, sunAltNow, mltNow, moon, sc, scNext,
+      noaaScales, noaaAlert, kyotoDst, geoDst1h, effectiveDst, enlilForecast, predKp1h, bal, noaaOk, noaaLagMin,
+      hereHrs, dirResults, weatherSourceLabel, usedMet, cloudConsensus, metarObs, metarFusion,
+      nowcastObs, ensMeta, sunAltNow, mltNow, moon, sc, scNext,
       bestDark, nights3, multiDayPts, kpForecast, fetchedAt: now
     }
   };

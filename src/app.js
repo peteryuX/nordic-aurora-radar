@@ -985,8 +985,9 @@ function selectForecastHour(idx) {
   const trendTagHtml = (isTrend && !isGated)
     ? ` <span class="sb-tag">${term(TERMS.trendRef, en)}</span>`
     : '';
-  const showCloudRange = isTrend && Number.isFinite(h.cloudSpread) && h.cloudSpread >= 25
-    && Number.isFinite(h.clearLow) && Number.isFinite(h.clearHigh);
+  const showCloudRange = isTrend
+    && Number.isFinite(h.clearLow) && Number.isFinite(h.clearHigh)
+    && (h.clearHigh - h.clearLow) >= 25;
   const clearPart = showCloudRange
     ? (en ? `${h.clearLow}–${h.clearHigh}% clear` : `晴空 ${h.clearLow}%–${h.clearHigh}%`)
     : (en ? `${h.clear}% clear` : `晴空 ${h.clear}%`);
@@ -1491,7 +1492,7 @@ function renderFromState(st) {
     substormJumpNt: goesSub ? goesSub.jumpNt : 0,
     pdyn: safeBal.nowPdyn, shockJumpNpa: safeBal.nowShockJumpNpa,
     newell: safeBal.nowNewell, preconditionedNewell60: safeBal.avgNewell60,
-    dst: kyotoDst?.dst ?? null,
+    dst: st.effectiveDst?.dstNow ?? kyotoDst?.dst ?? null,
     mlt: mltNow, effMoonPct: moon.effMoonPct,
     moonPct: moon.pct, moonAltDeg: moon.altDeg,
     scNext, noaaOk, noaaLagMin, usedMet, cloudConsensus, hereHrs, noaaAlert, predKp1h, metarCalibrated
@@ -1514,23 +1515,39 @@ function renderFromState(st) {
   ];
   if (hpiGw !== null && Number.isFinite(hpiGw)) rawParts.push(`HPI ${Math.round(hpiGw)} GW`);
   if (safeBal.pdyn !== null && Number.isFinite(safeBal.pdyn)) rawParts.push(`${safeBal.pdyn} nPa`);
-  if (kyotoDst && Number.isFinite(kyotoDst.dst)) rawParts.push(`Dst ${kyotoDst.dst} nT`);
+  const effDstNow = st.effectiveDst?.dstNow ?? kyotoDst?.dst ?? null;
+  if (effDstNow !== null && Number.isFinite(effDstNow)) {
+    rawParts.push(`${st.effectiveDst?.usedMhd ? 'MHD Dst' : 'Dst'} ${effDstNow} nT`);
+  }
   if (metarObs && metarFusion?.applied) {
-    const ceilStr = metarObs.ceilingM ? ` ${metarObs.ceilingM}m` : '';
-    rawParts.push(`METAR ${metarObs.icao} ${metarObs.skyCode}${ceilStr} (${metarObs.ageMin}m)`);
+    if (metarObs.source === 'SMHI') {
+      rawParts.push(`SMHI ${metarObs.stationId || metarObs.icao} ${metarObs.clearPct}% clr (${metarObs.ageMin}m)`);
+    } else {
+      const ceilStr = metarObs.ceilingM ? ` ${metarObs.ceilingM}m` : '';
+      rawParts.push(`METAR ${metarObs.icao} ${metarObs.skyCode}${ceilStr} (${metarObs.ageMin}m)`);
+    }
   }
   if (nowcastObs?.source === 'radar-5m') {
     rawParts.push(nowcastObs.radarActive ? `Radar 5m (${nowcastObs.precipRate}mm/h)` : 'Radar 5m');
   } else if (nowcastObs?.source === 'gps-15m') {
     rawParts.push('GPS 15m');
   }
+  if (st.ensMeta?.members >= 15) {
+    rawParts.push(`ENS ${st.ensMeta.members}m`);
+  }
   const showMetarNote = Boolean(metarObs && metarFusion?.applied && (metarFusion.discrepancyFlag || cloudConsensus?.level === 'low'));
-  const stLabel = metarObs?.name ? `${metarObs.name} · ${metarObs.icao}` : (metarObs?.icao || '');
-  const metarNote = showMetarNote
-    ? (en
-        ? `Local weather station (${stLabel}, ${metarObs.distKm} km) observed ${metarObs.clearPct}% clear ${metarObs.ageMin} min ago${metarObs.ceilingM ? ` · cloud base ${metarObs.ceilingM} m` : ''} — short-term clouds adjusted.`
-        : `當地氣象站（${stLabel}，距 ${metarObs.distKm} km）${metarObs.ageMin} 分鐘前實測晴空率 ${metarObs.clearPct}%${metarObs.ceilingM ? ` · 雲底 ${metarObs.ceilingM} m` : ''}，已用於修正短時雲量預報。`)
-    : '';
+  let metarNote = '';
+  if (showMetarNote) {
+    const cleanStName = metarObs.name ? String(metarObs.name).replace(/\s+(Aut|A|Flygplats)$/i, '').trim() : '';
+    const stLabel = cleanStName || metarObs.icao || '';
+    const stDistInt = Math.max(1, Math.round(Number(metarObs.distKm) || 1));
+    const stAgeMin = Math.max(0, Math.round(Number(metarObs.ageMin) || 0));
+    const stAgeZh = stAgeMin <= 1 ? '剛剛' : `${stAgeMin} 分鐘前`;
+    const stAgeEn = stAgeMin <= 1 ? 'just now' : `${stAgeMin} min ago`;
+    metarNote = en
+      ? `Local weather station (${stLabel}, ${stDistInt} km) observed ${metarObs.clearPct}% clear ${stAgeEn}${metarObs.ceilingM ? ` · cloud base ${metarObs.ceilingM} m` : ''} — short-term clouds adjusted.`
+      : `當地氣象站（${stLabel}，距 ${stDistInt} km）${stAgeZh}實測晴空率 ${metarObs.clearPct}%${metarObs.ceilingM ? ` · 雲底 ${metarObs.ceilingM} m` : ''}，已用於修正短時雲量預報。`;
+  }
   renderTrustSheetLive(expNow, sc, rawParts.join(' · '), metarNote);
 
   setHtml('skySvg', buildSkySceneSVG({
@@ -2074,6 +2091,10 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
           : (en
               ? `Clear-sky models disagree (${isMet ? 'MET Norway' : 'Primary'} ${c1}% vs ${isMet ? 'ECMWF' : 'Secondary'} ${c2}%) — ${hasCam ? 'check live cams or the sky.' : 'check the cloud map or sky.'}`
               : `兩組晴空預報分歧（${isMet ? '挪威官方' : '主模型'} ${c1}%、${isMet ? 'ECMWF 全球模型' : '對照模型'} ${c2}%），${hasCam ? '建議查看天文台實拍或抬頭確認。' : '建議查看動態雲圖或抬頭確認。'}`);
+      } else if (pr === 'cloud-spread') {
+        detailTxt = en
+          ? `Cloud cover is uncertain over the next few hours — check ${hasCam ? 'live cams' : 'the cloud map'} or the sky.`
+          : `未來幾小時雲量變動區間較大，建議搭配${hasCam ? '天文台實拍' : '動態雲圖'}或抬頭確認。`;
       } else if (pr === 'fast-clouds') {
         detailTxt = en
           ? 'Fast-moving clouds over the next 3h — clear windows may shift.'

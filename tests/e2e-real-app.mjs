@@ -77,6 +77,12 @@ function buildInterceptorScript(sc) {
   }
 
   const SC = ${JSON.stringify(sc)};
+  window.addEventListener('error', (e) => {
+    try { window.parent.__E2E_ERRORS__.push(SC.id + ' ERR: ' + (e.message || e.error)); } catch {}
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    try { window.parent.__E2E_ERRORS__.push(SC.id + ' REJ: ' + (e.reason?.stack || e.reason)); } catch {}
+  });
 
   function makeMetSeries(baseMs, cloudFn, tempC = -1.2) {
     const out = [];
@@ -259,6 +265,35 @@ function buildInterceptorScript(sc) {
     if (url.includes('mesonet.agron.iastate.edu')) {
       return mkResp({ data: [] });
     }
+    if (url.includes('opendata-download-metobs.smhi.se')) {
+      if (SC.smhiCloud === undefined) return new Response('', { status: 404 });
+      return mkResp({
+        station: { key: '188790', name: 'Abisko Aut' },
+        value: [{ date: FIXED_MS - 15 * 60000, value: String(SC.smhiCloud), quality: 'G' }]
+      });
+    }
+    if (url.includes('ensemble-api.open-meteo.com/v1/ensemble')) {
+      if (!SC.ensRange) return new Response('', { status: 404 });
+      const [loB, hiB] = SC.ensRange;
+      const hourly = { time: Array.from({ length: 26 }, (_, h) => Math.floor((baseHourMs + h * 3600000) / 1000)) };
+      for (let m = 0; m < 51; m++) {
+        const sfx = m === 0 ? '' : '_member' + String(m).padStart(2, '0');
+        const val = Math.round(loB + (m / 50) * (hiB - loB));
+        hourly['cloud_cover' + sfx] = hourly.time.map(() => val);
+        hourly['cloud_cover_low' + sfx] = hourly.time.map(() => val);
+        hourly['cloud_cover_mid' + sfx] = hourly.time.map(() => 0);
+        hourly['cloud_cover_high' + sfx] = hourly.time.map(() => 0);
+      }
+      return mkResp({ hourly });
+    }
+    if (url.includes('geospace_dst_1_hour.json')) {
+      if (SC.mhdDst === undefined) return mkResp([]);
+      const rows = Array.from({ length: 90 }, (_, k) => ({
+        time_tag: new OrigDate(FIXED_MS - 40 * 60000 + k * 60000).toISOString().slice(0, 19),
+        dst: SC.mhdDst
+      }));
+      return mkResp(rows);
+    }
     if (url.includes('api.open-meteo.com/v1/elevation')) {
       const lats = (url.match(/latitude=([^&]+)/) || ['', ''])[1].split(',');
       return mkResp({ elevation: lats.map(() => 120) });
@@ -347,9 +382,8 @@ function buildInterceptorScript(sc) {
     const waveSvgHtml = document.getElementById('skyWaveChart')?.innerHTML || '';
     const homeBestText = document.getElementById('homeBest')?.textContent?.trim() || '';
     let hourDetailTrend = '';
-    const hit6 = document.querySelector('#skyWaveChart [data-hour-idx="6"]');
-    if (hit6) {
-      hit6.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    if (typeof window.__AURORA_APP__?.selectForecastHour === 'function') {
+      window.__AURORA_APP__.selectForecastHour(6);
       hourDetailTrend = document.getElementById('hourDetail')?.textContent?.replace(/\\s+/g, ' ').trim() || '';
       const sb = document.querySelector('.scrub-bar');
       if (sb) {
@@ -382,6 +416,7 @@ function buildInterceptorScript(sc) {
       fcConfBtn: document.getElementById('fcConfBtn')?.textContent?.trim() || '',
       pMet: document.getElementById('pMet')?.textContent?.trim() || '',
       tsConfRow: document.getElementById('tsConfRow')?.textContent?.trim() || '',
+      tsMetarNote: document.getElementById('tsMetarNote')?.textContent?.trim() || '',
       tsValSky: document.getElementById('tsValSky')?.textContent?.trim() || '',
       tsValAur: document.getElementById('tsValAur')?.textContent?.trim() || '',
       tsValDark: document.getElementById('tsValDark')?.textContent?.trim() || '',
@@ -550,6 +585,32 @@ const SCENARIOS = [
       if (!r.roadVisible || !r.roadText.includes('挪威 Vegvesen')) {
         errs.push(`Kirkenes must include 挪威 Vegvesen road link, got visible=${r.roadVisible} "${r.roadText}"`);
       }
+      return errs;
+    }
+  },
+  {
+    id: 'abisko-smhi-ens-mhd',
+    label: 'Abisko 19px: SMHI 188790 ground calibration + 51-member ECMWF Ensemble + Geospace 1h MHD Dst',
+    query: '?lat=68.3495&lon=18.8312&name=Abisko',
+    lat: 68.3495, lon: 18.8312, tz: 'Europe/Stockholm', utcOff: 3600, rootPx: 19, lang: 'zh',
+    nowMs: Date.UTC(2026, 10, 25, 20, 0, 0),
+    kpNow: 3.5, bz: -5.5, speed: 520, ov: 55, dst: -10, mhdDst: -58,
+    metCloud: 75, omCloud: 70, smhiCloud: 12, ensRange: [10, 90],
+    verify(r) {
+      const errs = [];
+      if (!r.tsConfRow.includes('MHD Dst')) errs.push(`Expected MHD Dst in Trust Sheet telemetry, got "${r.tsConfRow}"`);
+      if (!r.tsConfRow.includes('SMHI 188790 88% clr')) errs.push(`Expected SMHI 188790 88% clr in telemetry, got "${r.tsConfRow}"`);
+      if (!r.tsConfRow.includes('ENS 51m')) errs.push(`Expected ENS 51m in telemetry, got "${r.tsConfRow}"`);
+      if (!r.tsMetarNote.includes('當地氣象站（Abisko，距 1 km）')) {
+        errs.push(`Expected calm Abisko 1 km station note, got "${r.tsMetarNote}"`);
+      }
+      if (r.tsMetarNote.includes('SMHI') || r.tsMetarNote.includes('機場')) {
+        errs.push(`Station note must stay jargon-free, got "${r.tsMetarNote}"`);
+      }
+      if (!r.hourDetailTrend.includes('趨勢參考') || !r.hourDetailTrend.includes('晴空 18%–82%')) {
+        errs.push(`Expected +6h Trend scrub-bar to reflect 51-member P10..P90 clear range (18%–82%), got "${r.hourDetailTrend}"`);
+      }
+      if (r.issues.length) errs.push(...r.issues);
       return errs;
     }
   }

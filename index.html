@@ -9,7 +9,7 @@
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
   <meta name="google-site-verification" content="9uDTXgYt6cLyIyEW8tmFensPSWjd_Yc3Xj_U_BoEsS0" />
   <meta name="referrer" content="no-referrer" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://fox.phys.uit.no https://www.irf.se https://www.sgo.fi https://kho.unis.no https://cdn.fmi.fi https://optics.gi.alaska.edu https://auroramax.phys.ucalgary.ca https://services.swpc.noaa.gov; connect-src 'self' https://services.swpc.noaa.gov https://api.met.no https://api.open-meteo.com https://geocoding-api.open-meteo.com https://api.bigdatacloud.net https://mesonet.agron.iastate.edu; frame-src https://embed.windy.com; object-src 'none'; base-uri 'self'; form-action 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://fox.phys.uit.no https://www.irf.se https://www.sgo.fi https://kho.unis.no https://cdn.fmi.fi https://optics.gi.alaska.edu https://auroramax.phys.ucalgary.ca https://services.swpc.noaa.gov; connect-src 'self' https://services.swpc.noaa.gov https://api.met.no https://api.open-meteo.com https://ensemble-api.open-meteo.com https://geocoding-api.open-meteo.com https://api.bigdatacloud.net https://mesonet.agron.iastate.edu https://opendata-download-metobs.smhi.se; frame-src https://embed.windy.com; object-src 'none'; base-uri 'self'; form-action 'none';" />
   <meta name="theme-color" content="#08101c" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -457,9 +457,9 @@
           <h3 id="tsSciTitle" class="ts-h3">官方資料來源與驗證</h3>
           <div class="ts-stat-grid" id="tsStatGrid">
             <div class="ts-stat"><strong>太陽 0.006° · 地磁 0.24°</strong><span>JPL 日月曆（月 ≤0.74°） · IGRF-14</span></div>
-            <div class="ts-stat"><strong>14 項 NOAA 太空天氣</strong><span>1m 太陽風 · Kp · GOES · OVATION · Dst</span></div>
-            <div class="ts-stat"><strong>當地氣象站即時校正</strong><span>55 km 內實測雲量融合（+0–3h）</span></div>
-            <div class="ts-stat"><strong>分層雲量與共識比對</strong><span>北歐 Yr.no 2.5km · 全球雙模型</span></div>
+            <div class="ts-stat"><strong>15 項 NOAA 太空天氣</strong><span>1m 太陽風 · GOES · OVATION · MHD Dst</span></div>
+            <div class="ts-stat"><strong>當地氣象站即時校正</strong><span>55 km 內實測融合（METAR · SMHI）</span></div>
+            <div class="ts-stat"><strong>分層雲量與系集區間</strong><span>北歐 Yr.no 2.5km · ECMWF 51 成員</span></div>
           </div>
           <p id="tsNoaaSyncNote" class="ts-noaa-note">直連 NOAA 每 3 小時滾動更新 — 核對警報請看「NOAA 風暴警報」，今晚極光範圍請看「NOAA 極光總覽」。</p>
           <div class="ts-src-links">
@@ -474,7 +474,7 @@
             <a id="tsValReportLink" class="ts-seal ts-seal-link" target="_blank" rel="noopener noreferrer" href="https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md">完整驗證報告 ↗</a>
           </div>
           <p id="tsPwaTip" class="ts-pwa-tip">離線使用：Safari 點「分享 → 加入主畫面」或 Chrome 點「安裝」，極區無訊號時仍可開啟快取。</p>
-          <p id="tsLegalFoot" class="ts-legal-foot">氣象：MET Norway / Open-Meteo；太空天氣：NOAA SWPC。僅供觀星參考，冬季行車請以當地路況管制為準。</p>
+          <p id="tsLegalFoot" class="ts-legal-foot">氣象：MET Norway / SMHI / Open-Meteo；太空天氣：NOAA SWPC。僅供觀星參考，冬季行車請以當地路況管制為準。</p>
         </section>
       </div>
     </div>

@@ -148,8 +148,8 @@ export const STATIC_TEXT_MAP = {
     'Offline tip: Add to Home Screen (Safari Share / Chrome Install) for cached access with no signal.'
   ],
   tsLegalFoot: [
-    '氣象：MET Norway / Open-Meteo；太空天氣：NOAA SWPC。僅供觀星參考，冬季行車請以當地路況管制為準。',
-    'Weather: MET Norway / Open-Meteo; Space weather: NOAA SWPC. Reference only — obey local winter road closures.'
+    '氣象：MET Norway / SMHI / Open-Meteo；太空天氣：NOAA SWPC。僅供觀星參考，冬季行車請以當地路況管制為準。',
+    'Weather: MET Norway / SMHI / Open-Meteo; Space weather: NOAA SWPC. Reference only — obey local winter road closures.'
   ]
 };
 
@@ -240,13 +240,13 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
   if (tsG) {
     tsG.innerHTML = en
       ? `<div class="ts-stat"><strong>Sun 0.006° · Mag 0.24°</strong><span>JPL DE441 (Moon ≤0.74°) · IGRF-14</span></div>` +
-        `<div class="ts-stat"><strong>14 NOAA Space Feeds</strong><span>1m L1 Wind · Kp · GOES · OVATION · Dst</span></div>` +
-        `<div class="ts-stat"><strong>Local Station Nowcast</strong><span>Live sky-cover sensors ≤55 km (+0–3h)</span></div>` +
-        `<div class="ts-stat"><strong>Layered Cloud Check</strong><span>Yr.no 2.5km Nordics · Dual-NWP Global</span></div>`
+        `<div class="ts-stat"><strong>15 NOAA Space Feeds</strong><span>1m L1 Wind · GOES · OVATION · MHD Dst</span></div>` +
+        `<div class="ts-stat"><strong>Local Station Nowcast</strong><span>METAR &amp; SMHI sensors ≤55 km (+0–3h)</span></div>` +
+        `<div class="ts-stat"><strong>Layered Cloud Ensemble</strong><span>Yr.no 2.5km · ECMWF 51-member</span></div>`
       : `<div class="ts-stat"><strong>太陽 0.006° · 地磁 0.24°</strong><span>JPL 日月曆（月 ≤0.74°） · IGRF-14</span></div>` +
-        `<div class="ts-stat"><strong>14 項 NOAA 太空天氣</strong><span>1m 太陽風 · Kp · GOES · OVATION · Dst</span></div>` +
-        `<div class="ts-stat"><strong>當地氣象站即時校正</strong><span>55 km 內實測雲量融合（+0–3h）</span></div>` +
-        `<div class="ts-stat"><strong>分層雲量與共識比對</strong><span>北歐 Yr.no 2.5km · 全球雙模型</span></div>`;
+        `<div class="ts-stat"><strong>15 項 NOAA 太空天氣</strong><span>1m 太陽風 · GOES · OVATION · MHD Dst</span></div>` +
+        `<div class="ts-stat"><strong>當地氣象站即時校正</strong><span>55 km 內實測融合（METAR · SMHI）</span></div>` +
+        `<div class="ts-stat"><strong>分層雲量與系集區間</strong><span>北歐 Yr.no 2.5km · ECMWF 51 成員</span></div>`;
   }
 
   if (!hasLiveState) {

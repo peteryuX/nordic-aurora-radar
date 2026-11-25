@@ -2712,6 +2712,125 @@ test('53. v43 Dual-Model +4..23h Ensemble, Honest RSS Uncertainty Range & Live/T
   assert.ok(svgMid4.includes('>明天<'), 'Midnight label 明天 still renders cleanly');
 });
 
+test('54. v47 Route A Scientific Upgrades: 51-Member ECMWF Layered Ensemble, SMHI Lapland Stations & NOAA Geospace 1h MHD Dst', async () => {
+  const nowMs = Date.UTC(2026, 10, 25, 20, 15, 0);
+  const baseStartSec = Math.floor(Date.UTC(2026, 10, 25, 20, 0, 0) / 1000);
+
+  // (a) ECMWF 51-member layered cloud ensemble parser: thin cirrus vs opaque low stratus per member
+  const ensHourly = { time: Array.from({ length: 24 }, (_, i) => baseStartSec + i * 3600) };
+  for (let m = 0; m < 51; m++) {
+    const sfx = m === 0 ? '' : `_member${String(m).padStart(2, '0')}`;
+    // Spread members linearly from 0% to 100% low cloud on hr 6; pure thin high cirrus (100% high, 0% low/mid) on hr 0
+    ensHourly[`cloud_cover${sfx}`] = Array.from({ length: 24 }, (_, i) => i === 0 ? 100 : Math.round((m / 50) * 100));
+    ensHourly[`cloud_cover_low${sfx}`] = Array.from({ length: 24 }, (_, i) => i === 0 ? 0 : Math.round((m / 50) * 100));
+    ensHourly[`cloud_cover_mid${sfx}`] = Array.from({ length: 24 }, () => 0);
+    ensHourly[`cloud_cover_high${sfx}`] = Array.from({ length: 24 }, (_, i) => i === 0 ? 100 : 0);
+  }
+  const ensHrs = api.parseEcmwfCloudEnsemble({ hourly: ensHourly }, new Date(nowMs), 24);
+  assert.equal(ensHrs.length, 24);
+  assert.equal(ensHrs[0].ensMembers, 51);
+  // Thin cirrus (100% high, 0% low/mid) yields effective cloud 30% -> 70% clear across all 51 members!
+  assert.equal(ensHrs[0].ensBlockP50, 30, '100% high cirrus with 0% low/mid must yield 30% effective block');
+  assert.equal(ensHrs[0].ensClearP50, 70);
+  assert.equal(ensHrs[0].ensClearProb, 100, 'All 51 thin-cirrus members have clear=70% >= 55%');
+  // Uniform 0..100% low cloud across 51 members on hr 6: P10=10, P50=50, P90=90 -> clearP10=10, clearP50=50, clearP90=90
+  assert.equal(ensHrs[6].ensBlockP10, 10);
+  assert.equal(ensHrs[6].ensBlockP50, 50);
+  assert.equal(ensHrs[6].ensBlockP90, 90);
+  assert.equal(ensHrs[6].ensClearP10, 10);
+  assert.equal(ensHrs[6].ensClearP50, 50);
+  assert.equal(ensHrs[6].ensClearP90, 90);
+  assert.equal(ensHrs[6].ensSpread, 80);
+  assert.ok(ensHrs[6].ensClearProb >= 40 && ensHrs[6].ensClearProb <= 50, `Expected ~45% clearProb (block<=45), got ${ensHrs[6].ensClearProb}`);
+
+  // Reject hours with <15 valid members
+  const tinyEns = { hourly: { time: [baseStartSec], cloud_cover: [20], cloud_cover_member01: [30] } };
+  assert.equal(api.parseEcmwfCloudEnsemble(tinyEns, new Date(nowMs), 24).length, 0, '<15 members must be rejected');
+
+  // (b) Nordic & Global fusion with 51-member ensemble
+  const metHrs = Array.from({ length: 24 }, (_, i) => ({
+    dtMs: (baseStartSec + i * 3600) * 1000 + 1800000,
+    time: `${String((21 + i) % 24).padStart(2, '0')}:00`,
+    block: 20, clear: 80, temp: -6, windMs: 2, precip: 0, isDay: false, sunAlt: -20, txt: '🌟 晴'
+  }));
+  const omHrs = metHrs.map(h => ({ ...h, block: 90, clear: 10, precip: 0 }));
+  const nordicEns = api.blendNordicHourlyForecasts(metHrs, omHrs, { metarConfirmsEcmwf: false, ensHrs });
+  assert.equal(nordicEns[0].block, 20, '+0h preserves pure 2.5km MEPS');
+  assert.equal(nordicEns[2].block, 20, '+2h preserves pure 2.5km MEPS');
+  // At +6h: MEPS=20, 51-member median=50 -> 50/50 = 35 (NOT 55 from noisy single-run 90!)
+  assert.equal(nordicEns[6].block, 35, '+6h blends MEPS (20) with 51-member median (50) -> 35');
+  assert.equal(nordicEns[6].clearLow, 10, 'Outer clearLow captures min(detLow=10, ensClearP10=10)');
+  assert.equal(nordicEns[6].clearHigh, 90, 'Outer clearHigh expands to ensClearP90=90');
+  assert.equal(nordicEns[6].ensMembers, 51);
+
+  // Heavy-precip guard: when deterministic ECMWF has precip >= 0.5 and higher block than ENS median
+  const omWet = metHrs.map(h => ({ ...h, block: 90, clear: 10, precip: 1.2 }));
+  const nordicWet = api.blendNordicHourlyForecasts(metHrs, omWet, { metarConfirmsEcmwf: false, ensHrs });
+  // synopticBlock = 0.5*50 + 0.5*90 = 70 -> 0.5*20 + 0.5*70 = 45
+  assert.equal(nordicWet[6].block, 45, 'Heavy-precip guard prevents ENS median from undercutting deterministic storm');
+
+  // Iceland global mode (replaceSecondaryFromIdx: Infinity) preserves verified best_match+ICON point forecast while attaching P10..P90
+  const icelandBlend = api.blendHourlyForecasts(metHrs, omHrs, { ensHrs, replaceSecondaryFromIdx: Infinity });
+  assert.equal(icelandBlend[6].block, 55, 'Iceland preserves exact 50/50 best_match+ICON point forecast (0.5*20+0.5*90=55)');
+  assert.equal(icelandBlend[6].clearHigh, 90, 'Iceland still expands clearHigh to ensClearP90');
+  assert.equal(icelandBlend[6].ensMembers, 51);
+
+  // (c) SMHI Swedish Lapland ground stations + parser + 0.68 OI gain
+  const abiskoSmhi = api.findNearestSmhiCloudStation(68.3495, 18.8312, 55);
+  assert.ok(abiskoSmhi && abiskoSmhi.id === '188790' && abiskoSmhi.distKm < 2, `Abisko must match SMHI 188790 (<2km), got ${JSON.stringify(abiskoSmhi)}`);
+  assert.equal(api.findNearestMetarStation(68.3495, 18.8312, 55), null, 'Abisko has no airport METAR within 55km');
+
+  const smhiGood = api.parseSmhiCloudObs({ value: [{ date: nowMs - 15 * 60000, value: '12', quality: 'G' }] }, nowMs, '188790');
+  assert.ok(smhiGood && smhiGood.source === 'SMHI' && smhiGood.effCloud === 12 && smhiGood.clearPct === 88 && smhiGood.skyCode === 'FEW' && smhiGood.ageMin === 15);
+  assert.equal(api.parseSmhiCloudObs({ value: [{ date: nowMs - 15 * 60000, value: '12', quality: 'Y' }] }, nowMs, '188790'), null, 'Suspect quality Y must be rejected');
+  assert.equal(api.parseSmhiCloudObs({ value: [{ date: nowMs - 120 * 60000, value: '12', quality: 'G' }] }, nowMs, '188790'), null, 'Stale >90m SMHI obs must be rejected');
+  assert.equal(api.parseSmhiCloudObs({ value: [{ date: nowMs - 15 * 60000, value: '125', quality: 'G' }] }, nowMs, '188790'), null, 'Out-of-range >100% must be rejected');
+
+  const smhiFus = api.assimilateMetarNowcast(omHrs, smhiGood, 0.8);
+  const metarFus = api.assimilateMetarNowcast(omHrs, { ...smhiGood, source: 'MET Norway' }, 0.8);
+  assert.equal(smhiFus.applied, true);
+  assert.ok(smhiFus.weight0 < metarFus.weight0, `SMHI peak gain (0.68) must be slightly more conservative than METAR (0.72): ${smhiFus.weight0} vs ${metarFus.weight0}`);
+  assert.ok(smhiFus.hours[0].clear > 50, `Abisko SMHI 88% clear must lift false overcast NWP, got clear=${smhiFus.hours[0].clear}%`);
+
+  // (d) NOAA Geospace 1h Forward MHD Dst parser + despike + safe combination with Kyoto Dst
+  const mhdRows = Array.from({ length: 110 }, (_, k) => {
+    const t = new Date(nowMs - 55 * 60000 + k * 60000).toISOString().slice(0, 19);
+    // Steady -15 nT until now, then smooth CME drop to -65 nT ahead; inject single-minute -300 nT glitch at k=80
+    let dst = k < 55 ? -15 : Math.round(-15 - ((k - 55) / 54) * 50);
+    if (k === 80) dst = -300;
+    return { time_tag: t, dst };
+  });
+  const mhd = api.parseGeospaceDst1h(mhdRows, nowMs);
+  assert.ok(mhd && mhd.nowDst >= -20 && mhd.nowDst <= -12, `nowDst should be ~-15 nT, got ${JSON.stringify(mhd)}`);
+  assert.ok(mhd.nextDst <= -55 && mhd.nextDst >= -68, `10m rolling nextDst must capture smooth -65 nT CME drop while rejecting -300 nT spike, got ${mhd.nextDst}`);
+  assert.ok(mhd.minDst > -100, `3-pt median despiker must reject -300 nT 1m spike, got minDst=${mhd.minDst}`);
+  assert.equal(api.parseGeospaceDst1h([{ time_tag: new Date(nowMs - 45 * 60000).toISOString().slice(0, 19), dst: -40 }], nowMs), null, 'Stale >30m MHD Dst must return null');
+
+  const resQuiet = api.resolveEffectiveDst({ dst: -12 }, { nowDst: -18, nextDst: -60 });
+  assert.equal(resQuiet.dstNow, -12, 'NOW preserves ground-truth Kyoto when MHD within 20 nT');
+  assert.equal(resQuiet.dstNext, Math.round(0.25 * -12 + 0.75 * -60), '+ETA weights forward deepening MHD Dst 75%');
+  assert.equal(resQuiet.usedMhd, true);
+
+  const resSurge = api.resolveEffectiveDst({ dst: -10 }, { nowDst: -55, nextDst: -70 });
+  assert.equal(resSurge.dstNow, Math.round(0.30 * -10 + 0.70 * -55), 'NOW responds when MHD detects >20 nT rapid main-phase drop');
+
+  // (e) Live smoke verification of all 3 Route A endpoints when LIVE_TEST=1
+  if (process.env.LIVE_TEST === '1') {
+    const [rEns, rSmhi, rDst] = await Promise.all([
+      fetch('https://ensemble-api.open-meteo.com/v1/ensemble?latitude=69.65&longitude=18.96&hourly=cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high&models=ecmwf_ifs025&timeformat=unixtime&forecast_hours=26').then(r => r.json()),
+      fetch('https://opendata-download-metobs.smhi.se/api/version/1.0/parameter/16/station/188790/period/latest-hour/data.json').then(r => r.json()),
+      fetch('https://services.swpc.noaa.gov/json/geospace/geospace_dst_1_hour.json').then(r => r.json())
+    ]);
+    const liveEns = api.parseEcmwfCloudEnsemble(rEns, new Date(), 24);
+    assert.ok(liveEns.length >= 20 && liveEns[0].ensMembers >= 40, `Live ECMWF ensemble returned ${liveEns.length}h / ${liveEns[0]?.ensMembers}m`);
+    const liveDst = api.parseGeospaceDst1h(rDst, Date.now());
+    assert.ok(liveDst && Number.isFinite(liveDst.nowDst) && Number.isFinite(liveDst.nextDst), `Live Geospace MHD Dst failed: ${JSON.stringify(liveDst)}`);
+    // SMHI Abisko may have empty latest-hour briefly during top-of-hour rollover, so verify valid JSON schema or parsed obs
+    assert.ok(rSmhi && Array.isArray(rSmhi.value), 'Live SMHI Abisko 188790 returned valid JSON schema');
+  }
+});
+
+
 
 
 

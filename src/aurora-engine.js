@@ -2135,6 +2135,94 @@ export function parseKyotoDst(json, nowMs = Date.now()) {
 }
 
 /**
+ * Parse NOAA Geospace 1-hour forward MHD Dst (1-min cadence from ~now-60m to ~now+50m).
+ * Uses 3-point median despiking and a 10-min forward rolling minimum to capture rapid CME onset without 1m glitches.
+ */
+export function parseGeospaceDst1h(rows, nowMs = Date.now()) {
+  if (!Array.isArray(rows) || !rows.length) return null;
+  const rawPts = [];
+  for (const r of rows) {
+    if (!r || typeof r !== 'object') continue;
+    const ts = parseUtcMs(r.time_tag);
+    const dst = toFinite(r.dst);
+    if (!Number.isFinite(ts) || dst === null || dst < -1000 || dst > 200) continue;
+    rawPts.push({ ts, dst, timeTag: String(r.time_tag) });
+  }
+  if (!rawPts.length) return null;
+  rawPts.sort((a, b) => a.ts - b.ts);
+  const latest = rawPts[rawPts.length - 1];
+  if (nowMs - latest.ts > 30 * 60000) return null;
+
+  const cleanVals = medianSmooth3(rawPts.map(p => p.dst), 40);
+  const pts = rawPts.map((p, i) => ({ ...p, dst: cleanVals[i] }));
+
+  // Current-time window [now - 10m, now + 10m] (fallback: nearest sample within ±15m)
+  const nowWin = pts.filter(p => Math.abs(p.ts - nowMs) <= 10 * 60000);
+  let nowDst = null;
+  if (nowWin.length) {
+    nowDst = Math.round(nowWin.reduce((s, p) => s + p.dst, 0) / nowWin.length);
+  } else {
+    let best = null, bestD = Infinity;
+    for (const p of pts) {
+      const d = Math.abs(p.ts - nowMs);
+      if (d <= 15 * 60000 && d < bestD) { bestD = d; best = p; }
+    }
+    if (best) nowDst = Math.round(best.dst);
+  }
+
+  // Forward window [now, now + 70m]
+  const fwd = pts.filter(p => p.ts >= nowMs && p.ts <= nowMs + 70 * 60000);
+  const minDst = fwd.length ? Math.round(Math.min(...fwd.map(p => p.dst))) : null;
+
+  // 10-minute rolling average minimum in [now + 5m, now + 70m]
+  let nextDst = null;
+  const fwd5 = pts.filter(p => p.ts >= nowMs + 5 * 60000 && p.ts <= nowMs + 70 * 60000);
+  if (fwd5.length >= 5) {
+    let bestRoll = Infinity;
+    for (let i = 0; i < fwd5.length; i++) {
+      const tEnd = fwd5[i].ts;
+      const tStart = tEnd - 10 * 60000;
+      const win = pts.filter(p => p.ts >= tStart && p.ts <= tEnd);
+      if (win.length >= 3) {
+        const avg = win.reduce((s, p) => s + p.dst, 0) / win.length;
+        if (avg < bestRoll) bestRoll = avg;
+      }
+    }
+    if (Number.isFinite(bestRoll)) nextDst = Math.round(bestRoll);
+  }
+  if (nextDst === null) nextDst = minDst;
+  if (nowDst === null && minDst === null) return null;
+
+  return {
+    nowDst: nowDst ?? minDst,
+    nextDst: nextDst ?? minDst ?? nowDst,
+    minDst: minDst ?? nowDst,
+    timeTag: latest.timeTag
+  };
+}
+
+/**
+ * Safely combine ground-truth Kyoto Dst (1–3h lag) with real-time NOAA Geospace 1h MHD Dst.
+ * NOW preserves Kyoto ground truth unless MHD detects a rapid main-phase drop (>20 nT deeper);
+ * +ETA / +1h weights forward MHD Dst (75% on deepening, 50% on recovery).
+ */
+export function resolveEffectiveDst(kyotoDst, geoDst1h) {
+  const kDst = toFinite(kyotoDst?.dst);
+  const gNow = toFinite(geoDst1h?.nowDst);
+  const gNext = toFinite(geoDst1h?.nextDst);
+  const dstNow = (kDst !== null && gNow !== null)
+    ? (gNow < kDst - 20 ? Math.round(0.30 * kDst + 0.70 * gNow) : kDst)
+    : (kDst ?? gNow);
+  const dstNext = (kDst !== null && gNext !== null)
+    ? (gNext < kDst ? Math.round(0.25 * kDst + 0.75 * gNext) : Math.round(0.50 * kDst + 0.50 * gNext))
+    : (gNext ?? kDst);
+  const usedMhd = Boolean(
+    gNow !== null && (kDst === null || gNow < kDst - 20 || (gNext !== null && gNext !== kDst))
+  );
+  return { dstNow, dstNext, usedMhd };
+}
+
+/**
  * Parse NOAA Geospace official bow-shock propagated solar wind (1-hour JSON).
  * Provides live L1-to-bow-shock propagation ETA accounting for DSCOVR/ACE GSE orbit & Parker spiral tilt.
  */
@@ -2707,9 +2795,77 @@ export function parseMetNorwayMetarText(text, nowMs = Date.now()) {
   };
 }
 
+/** Active SMHI Open Data automated laser-ceilometer cloud stations (parameter 16) in Swedish Lapland */
+export const SMHI_CLOUD_STATIONS = [
+  { id: '188790', name: 'Abisko',               lat: 68.3538, lon: 18.8164 },
+  { id: '179960', name: 'Nikkaluokta',          lat: 67.8527, lon: 19.0212 },
+  { id: '191910', name: 'Naimakka',             lat: 68.6762, lon: 21.5229 },
+  { id: '183750', name: 'Pajala',               lat: 67.2036, lon: 23.3899 },
+  { id: '167990', name: 'Kvikkjokk-Årrenjarka', lat: 66.8874, lon: 18.0198 },
+  { id: '167710', name: 'Arjeplog',             lat: 66.0513, lon: 17.8396 },
+  { id: '171790', name: 'Lakaträsk',            lat: 66.2789, lon: 21.1285 },
+  { id: '170930', name: 'Nattavaara',           lat: 66.7516, lon: 20.9238 },
+  { id: '182910', name: 'Parkalompolo',         lat: 67.7301, lon: 22.8219 },
+  { id: '173900', name: 'Ylinenjärvi',          lat: 66.6223, lon: 23.4635 },
+  { id: '172770', name: 'Överkalix-Svartbyn',   lat: 66.2618, lon: 22.8427 }
+];
+
+export function findNearestSmhiCloudStation(lat, lon, maxDistKm = 55) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  let best = null;
+  let bestDist = Infinity;
+  for (const s of SMHI_CLOUD_STATIONS) {
+    const d = computeDistanceKm(lat, lon, s.lat, s.lon);
+    if (Number.isFinite(d) && d <= maxDistKm && d < bestDist) {
+      bestDist = d;
+      best = { ...s, distKm: +d.toFixed(1) };
+    }
+  }
+  return best;
+}
+
 /**
- * Strictly causal Optimal Interpolation (Daley 1991) airport laser ceilometer nowcast assimilation.
- * Decays innovation [METAR(t0) - NWP(t0)] exponentially across distance (Lc=40km), lead time (tau=1.6h),
+ * Parse SMHI Open Data parameter 16 (total cloud cover %) from automated Vaisala laser ceilometers.
+ * Strictly requires quality === 'G' (approved), finite 0..100 %, and freshness <= 90 min.
+ */
+export function parseSmhiCloudObs(json, nowMs = Date.now(), stationId = '') {
+  const vals = json?.value;
+  if (!Array.isArray(vals) || !vals.length) return null;
+  let best = null;
+  for (const v of vals) {
+    if (!v || typeof v !== 'object') continue;
+    if (String(v.quality || '').trim().toUpperCase() !== 'G') continue;
+    let obsMs = toFinite(v.date);
+    if (obsMs === null) continue;
+    if (obsMs > 0 && obsMs < 1e12) obsMs *= 1000;
+    const rawPct = toFinite(v.value);
+    if (rawPct === null || rawPct < 0 || rawPct > 100) continue;
+    if (!best || obsMs > best.obsMs) best = { obsMs, rawPct };
+  }
+  if (!best) return null;
+  const ageMin = Math.round((nowMs - best.obsMs) / 60000);
+  if (ageMin > 90 || ageMin < -15) return null;
+  const effCloud = Math.max(0, Math.min(100, Math.round(best.rawPct)));
+  const clearPct = 100 - effCloud;
+  const skyCode = effCloud === 0 ? 'CLR' : (effCloud <= 25 ? 'FEW' : (effCloud <= 50 ? 'SCT' : (effCloud <= 88 ? 'BKN' : 'OVC')));
+  const stId = String(stationId || json?.station?.key || '').trim();
+  return {
+    icao: stId ? `SMHI-${stId}` : 'SMHI',
+    stationId: stId,
+    obsMs: best.obsMs,
+    ageMin: Math.max(0, ageMin),
+    source: 'SMHI',
+    effCloud,
+    clearPct,
+    skyCode,
+    ceilingM: null,
+    hasPrecipFog: false
+  };
+}
+
+/**
+ * Strictly causal Optimal Interpolation (Daley 1991) ground laser ceilometer nowcast assimilation.
+ * Decays innovation [OBS(t0) - NWP(t0)] exponentially across distance (Lc=40km), lead time (tau=1.6h),
  * and observation age (tau_a=90m) over hours +0h..+3h. Verified on 60,693 unbiased dark hours across
  * 2 winters (20 hubs): +1h clear-sky AUC 0.81 -> 0.90, MAE -5 to -6 pts, false-clear alarms cut >50%.
  */
@@ -2723,7 +2879,8 @@ export function assimilateMetarNowcast(hereHrs, metarObs, distKm) {
   if (d > 55 || age > 90 || !Number.isFinite(rawNwpCloud0)) return { hours: hereHrs, applied: false };
 
   const delta0 = metarObs.effCloud - rawNwpCloud0;
-  const baseW = 0.72 * Math.exp(-d / 40) * Math.exp(-age / 90);
+  const peakGain = metarObs.source === 'SMHI' ? 0.68 : 0.72;
+  const baseW = peakGain * Math.exp(-d / 40) * Math.exp(-age / 90);
   const hours = hereHrs.map((h, idx) => {
     if (idx > 3 || !Number.isFinite(h?.block)) return h;
     const w = baseW * Math.exp(-idx / 1.6);
@@ -2937,23 +3094,112 @@ export function extractOpenMeteoModelHourly(hourly, modelName) {
   };
 }
 
-/** Equal 50/50 physical blend of two aligned hourly forecast arrays (zero fitted weights) with per-hour spread */
-export function blendHourlyForecasts(primaryHrs, secondaryHrs) {
-  if (!Array.isArray(primaryHrs) || !primaryHrs.length) return secondaryHrs || [];
-  if (!Array.isArray(secondaryHrs) || !secondaryHrs.length) return primaryHrs;
-  const hasSecDt = secondaryHrs.some(s => Number.isFinite(s?.dtMs));
+const ENS_MEMBER_SUFFIXES = ['', ...Array.from({ length: 50 }, (_, k) => `_member${String(k + 1).padStart(2, '0')}`)];
+
+function quantileType7(sortedAsc, p) {
+  if (!sortedAsc.length) return null;
+  if (sortedAsc.length === 1) return sortedAsc[0];
+  const idx = Math.max(0, Math.min(1, p)) * (sortedAsc.length - 1);
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  return lo === hi ? sortedAsc[lo] : (sortedAsc[lo] + (idx - lo) * (sortedAsc[hi] - sortedAsc[lo]));
+}
+
+/**
+ * Parse Open-Meteo ECMWF IFS 51-member layered cloud ensemble (`ensemble-api.open-meteo.com`).
+ * Evaluates exact `computeEffectiveCloud(low, mid, high, 0, total, 0)` on all 51 physical realizations
+ * to obtain true per-hour P10/P50/P90 clear-sky quantiles and usable-sky probability (clear >= 55%).
+ */
+export function parseEcmwfCloudEnsemble(ensJson, nowDate = new Date(), horizonHours = 24) {
+  const h = ensJson?.hourly;
+  if (!h || !Array.isArray(h.time) || !h.time.length) return [];
+  const nowMs = nowDate instanceof Date ? nowDate.getTime() : (Number(nowDate) || Date.now());
+  const out = [];
+  for (let i = 0; i < h.time.length && out.length < horizonHours; i++) {
+    const tRaw = h.time[i];
+    const startMs = typeof tRaw === 'number' ? tRaw * 1000 : parseUtcMs(tRaw);
+    if (!Number.isFinite(startMs) || startMs <= nowMs - 3600000) continue;
+    const blocks = [];
+    for (const sfx of ENS_MEMBER_SUFFIXES) {
+      const low = toFinite(h[`cloud_cover_low${sfx}`]?.[i]);
+      const mid = toFinite(h[`cloud_cover_mid${sfx}`]?.[i]);
+      const high = toFinite(h[`cloud_cover_high${sfx}`]?.[i]);
+      const tot = toFinite(h[`cloud_cover${sfx}`]?.[i]);
+      if (low === null && mid === null && high === null && tot === null) continue;
+      const hasLayers = low !== null || mid !== null || high !== null;
+      const b = hasLayers
+        ? computeEffectiveCloud(low ?? 0, mid ?? 0, high ?? 0, 0, tot, 0)
+        : computeEffectiveCloud(tot, 0, 0, 0, tot, 0);
+      if (Number.isFinite(b)) blocks.push(Math.max(0, Math.min(100, b)));
+    }
+    if (blocks.length < 15) continue;
+    blocks.sort((a, b) => a - b);
+    const ensBlockP10 = Math.max(0, Math.min(100, Math.round(quantileType7(blocks, 0.10))));
+    const ensBlockP50 = Math.max(0, Math.min(100, Math.round(quantileType7(blocks, 0.50))));
+    const ensBlockP90 = Math.max(0, Math.min(100, Math.round(quantileType7(blocks, 0.90))));
+    const ensClearP10 = 100 - ensBlockP90;
+    const ensClearP50 = 100 - ensBlockP50;
+    const ensClearP90 = 100 - ensBlockP10;
+    const ensSpread = ensClearP90 - ensClearP10;
+    const clearCnt = blocks.filter(b => (100 - b) >= 55).length;
+    const ensClearProb = Math.round((100 * clearCnt) / blocks.length);
+    out.push({
+      dtMs: startMs + 1800000,
+      ensBlockP10, ensBlockP50, ensBlockP90,
+      ensClearP10, ensClearP50, ensClearP90,
+      ensSpread, ensClearProb,
+      ensMembers: blocks.length
+    });
+  }
+  return out;
+}
+
+/**
+ * Equal 50/50 physical blend of two aligned hourly forecast arrays (zero fitted weights) with per-hour spread.
+ * Optionally integrates 51-member ECMWF cloud ensemble median from `replaceSecondaryFromIdx` onward (default +4h;
+ * pass `Infinity` for Iceland to preserve verified best_match+ICON point forecast while keeping P10..P90 envelope).
+ */
+export function blendHourlyForecasts(primaryHrs, secondaryHrs, { ensHrs = null, replaceSecondaryFromIdx = 4 } = {}) {
+  const hasPrim = Array.isArray(primaryHrs) && primaryHrs.length > 0;
+  const hasSec = Array.isArray(secondaryHrs) && secondaryHrs.length > 0;
+  const hasEns = Array.isArray(ensHrs) && ensHrs.length > 0;
+  if (!hasPrim) return hasSec ? secondaryHrs : [];
+  if (!hasSec && !hasEns) return primaryHrs;
+  const hasSecDt = hasSec && secondaryHrs.some(s => Number.isFinite(s?.dtMs));
   return primaryHrs.map((h, i) => {
-    const match = (Number.isFinite(h?.dtMs) && hasSecDt)
-      ? secondaryHrs.find(s => s && Number.isFinite(s.dtMs) && Math.abs(s.dtMs - h.dtMs) <= 15 * 60000)
-      : secondaryHrs[i];
-    if (!match || !Number.isFinite(match.block) || !Number.isFinite(h?.block)) {
+    const match = hasSec
+      ? ((Number.isFinite(h?.dtMs) && hasSecDt)
+          ? secondaryHrs.find(s => s && Number.isFinite(s.dtMs) && Math.abs(s.dtMs - h.dtMs) <= 15 * 60000)
+          : secondaryHrs[i])
+      : null;
+    const ensM = (hasEns && Number.isFinite(h?.dtMs))
+      ? ensHrs.find(e => e && Number.isFinite(e.dtMs) && Math.abs(e.dtMs - h.dtMs) <= 15 * 60000)
+      : null;
+    const ensMeta = ensM
+      ? {
+          ensClearP10: ensM.ensClearP10, ensClearP50: ensM.ensClearP50, ensClearP90: ensM.ensClearP90,
+          ensSpread: ensM.ensSpread, ensClearProb: ensM.ensClearProb, ensMembers: ensM.ensMembers
+        }
+      : {};
+    const validMatch = Boolean(match && Number.isFinite(match.block));
+    if (!Number.isFinite(h?.block) || (!validMatch && !ensM)) {
       return { ...h, cloudSpread: null, clearLow: null, clearHigh: null };
     }
-    const m1 = h.block, m2 = match.block;
-    const cloudSpread = Math.round(Math.abs(m1 - m2));
-    const clearLow = Math.max(0, Math.min(100, Math.round(100 - Math.max(m1, m2))));
-    const clearHigh = Math.max(0, Math.min(100, Math.round(100 - Math.min(m1, m2))));
-    const block = Math.max(0, Math.min(100, Math.round(0.5 * m1 + 0.5 * m2)));
+    const m1 = h.block;
+    const useEnsPoint = Boolean(ensM && i >= replaceSecondaryFromIdx);
+    const synopticBlock = useEnsPoint
+      ? ((validMatch && (match.precip || 0) >= 0.5 && match.block > ensM.ensBlockP50)
+          ? Math.round(0.5 * ensM.ensBlockP50 + 0.5 * match.block)
+          : ensM.ensBlockP50)
+      : (validMatch ? match.block : null);
+    const detLow = validMatch ? Math.min(100 - m1, 100 - match.block) : (100 - m1);
+    const detHigh = validMatch ? Math.max(100 - m1, 100 - match.block) : (100 - m1);
+    const clearLow = ensM ? Math.max(0, Math.min(detLow, ensM.ensClearP10)) : detLow;
+    const clearHigh = ensM ? Math.min(100, Math.max(detHigh, ensM.ensClearP90)) : detHigh;
+    const cloudSpread = Math.round(clearHigh - clearLow);
+    if (synopticBlock === null) {
+      return { ...h, cloudSpread, clearLow, clearHigh, ...ensMeta };
+    }
+    const block = Math.max(0, Math.min(100, Math.round(0.5 * m1 + 0.5 * synopticBlock)));
     const clear = 100 - block;
     let txt = h.txt;
     if (!h.isDay && txt !== undefined) {
@@ -2961,38 +3207,62 @@ export function blendHourlyForecasts(primaryHrs, secondaryHrs) {
       const tp = Number(h.temp || 0);
       txt = pr >= 0.1 ? (tp <= 0 ? '❄️ 雪' : '🌧️ 雨雪') : (block <= 25 ? '🌟 晴' : block <= 65 ? '⛅ 縫' : '☁️ 陰');
     }
-    return { ...h, block, clear, cloudSpread, clearLow, clearHigh, ...(txt !== undefined ? { txt } : {}) };
+    return { ...h, block, clear, cloudSpread, clearLow, clearHigh, ...ensMeta, ...(txt !== undefined ? { txt } : {}) };
   });
 }
 
 /**
- * Nordic horizon-aware dual-model ensemble (MET Norway 2.5km MEPS + independent ECMWF IFS 0.25°):
- * - +0..2h: preserve 2.5km fjord rain-shadow precision (omW = 0), unless live METAR proves ECMWF >=20 pts closer (omW = 0.50)
- * - +3h: smooth transition (omW = 0.25, or 0.50 if METAR confirms ECMWF)
- * - +4..23h: 50/50 synoptic ensemble to curb single-model frontal-timing error
+ * Nordic horizon-aware dual-model & 51-member ensemble (MET Norway 2.5km MEPS + ECMWF IFS 0.25° + 51-member ENS):
+ * - +0..2h: preserve 2.5km fjord rain-shadow precision (omW = 0), unless live obs proves ECMWF closer (omW = 0.50)
+ * - +3h: smooth transition (omW = 0.25, or 0.50 if live obs confirms ECMWF)
+ * - +4..23h: 50/50 synoptic ensemble (MEPS + 51-member ECMWF median) with outer P10..P90 clear-sky envelope
  * Always preserves surface temp/wind/precip from 2.5km MEPS and attaches raw pre-blend spread metadata.
  */
-export function blendNordicHourlyForecasts(metHrs, omHrs, { metarConfirmsEcmwf = false } = {}) {
+export function blendNordicHourlyForecasts(metHrs, omHrs, { metarConfirmsEcmwf = false, ensHrs = null } = {}) {
   if (!Array.isArray(metHrs) || !metHrs.length) return metHrs || [];
-  if (!Array.isArray(omHrs) || !omHrs.length) return metHrs;
+  const hasOm = Array.isArray(omHrs) && omHrs.length > 0;
+  const hasEns = Array.isArray(ensHrs) && ensHrs.length > 0;
+  if (!hasOm && !hasEns) return metHrs;
   return metHrs.map((h, idx) => {
     if (!Number.isFinite(h?.dtMs) || !Number.isFinite(h?.block)) {
       return { ...h, cloudSpread: null, clearLow: null, clearHigh: null };
     }
-    const omM = omHrs.find(s => s && Number.isFinite(s.dtMs) && Number.isFinite(s.block) && Math.abs(s.dtMs - h.dtMs) <= 15 * 60000);
-    if (!omM) {
+    const omM = hasOm
+      ? omHrs.find(s => s && Number.isFinite(s.dtMs) && Number.isFinite(s.block) && Math.abs(s.dtMs - h.dtMs) <= 15 * 60000)
+      : null;
+    const ensM = hasEns
+      ? ensHrs.find(e => e && Number.isFinite(e.dtMs) && Math.abs(e.dtMs - h.dtMs) <= 15 * 60000)
+      : null;
+    if (!omM && !ensM) {
       return { ...h, cloudSpread: null, clearLow: null, clearHigh: null };
     }
-    const m1 = h.block, m2 = omM.block;
-    const cloudSpread = Math.round(Math.abs(m1 - m2));
-    const clearLow = Math.max(0, Math.min(100, Math.round(100 - Math.max(m1, m2))));
-    const clearHigh = Math.max(0, Math.min(100, Math.round(100 - Math.min(m1, m2))));
+    const ensMeta = ensM
+      ? {
+          ensClearP10: ensM.ensClearP10, ensClearP50: ensM.ensClearP50, ensClearP90: ensM.ensClearP90,
+          ensSpread: ensM.ensSpread, ensClearProb: ensM.ensClearProb, ensMembers: ensM.ensMembers
+        }
+      : {};
+    const m1 = h.block;
+    const detLow = omM ? Math.min(100 - m1, 100 - omM.block) : (100 - m1);
+    const detHigh = omM ? Math.max(100 - m1, 100 - omM.block) : (100 - m1);
+    const clearLow = ensM ? Math.max(0, Math.min(detLow, ensM.ensClearP10)) : detLow;
+    const clearHigh = ensM ? Math.min(100, Math.max(detHigh, ensM.ensClearP90)) : detHigh;
+    const cloudSpread = Math.round(clearHigh - clearLow);
     const omW = idx <= 2
-      ? (metarConfirmsEcmwf ? 0.50 : 0)
-      : (idx === 3 ? (metarConfirmsEcmwf ? 0.50 : 0.25) : 0.50);
+      ? (metarConfirmsEcmwf && omM ? 0.50 : 0)
+      : (idx === 3 ? (metarConfirmsEcmwf && omM ? 0.50 : 0.25) : 0.50);
     if (omW === 0) {
-      return { ...h, cloudSpread, clearLow, clearHigh };
+      return { ...h, cloudSpread, clearLow, clearHigh, ...ensMeta };
     }
+    // +0..3h METAR-confirmed damping uses deterministic omM (what local obs directly validated);
+    // +3..23h synoptic blend prefers 51-member ECMWF median (with heavy-precip guard)
+    const m2 = (metarConfirmsEcmwf && idx <= 3 && omM)
+      ? omM.block
+      : (ensM
+          ? ((omM && (omM.precip || 0) >= 0.5 && omM.block > ensM.ensBlockP50)
+              ? Math.round(0.5 * ensM.ensBlockP50 + 0.5 * omM.block)
+              : ensM.ensBlockP50)
+          : omM.block);
     const block = Math.max(0, Math.min(100, Math.round((1 - omW) * m1 + omW * m2)));
     const clear = 100 - block;
     let txt = h.txt;
@@ -3001,7 +3271,7 @@ export function blendNordicHourlyForecasts(metHrs, omHrs, { metarConfirmsEcmwf =
       const tp = Number(h.temp || 0);
       txt = pr >= 0.1 ? (tp <= 0 ? '❄️ 雪' : '🌧️ 雨雪') : (block <= 25 ? '🌟 晴' : block <= 65 ? '⛅ 縫' : '☁️ 陰');
     }
-    return { ...h, block, clear, cloudSpread, clearLow, clearHigh, ...(txt !== undefined ? { txt } : {}) };
+    return { ...h, block, clear, cloudSpread, clearLow, clearHigh, ...ensMeta, ...(txt !== undefined ? { txt } : {}) };
   });
 }
 
@@ -3012,7 +3282,7 @@ export function scoreHourlyForecast12(hrs, {
   hpiGw = null, bz = 0, nextBz = null, speed = 400, newell = null, nextNewell = null,
   predKp1h = null, preconditionedNewell60 = null, nextPreconditionedNewell60 = null,
   substormJumpNt = 0, pdyn = null, nextPdyn = null, shockJumpNpa = 0, nextShockJumpNpa = null,
-  dst = null, nowOverride = null
+  dst = null, nextDst = null, nowOverride = null
 } = {}) {
   if (!Array.isArray(hrs) || !hrs.length) return { hours: [], bestAurora: null };
   const absMag = Math.abs(computeGeomagneticLat(lat, lon));
@@ -3045,12 +3315,13 @@ export function scoreHourlyForecast12(hrs, {
     const rawNw = (i >= 1 && Number.isFinite(nextNewell)) ? nextNewell : newell;
     const rawPdyn = i === 0 ? pdyn : effNextPdyn;
     const rawShock = i === 0 ? shockJumpNpa : effNextShock;
+    const rawDst = i === 0 ? dst : (Number.isFinite(nextDst) ? nextDst : dst);
     const bzH = liveW > 0 && Number.isFinite(rawBz) ? rawBz * liveW : 0;
     const spdH = liveW > 0 && Number.isFinite(speed) ? Math.round(speed * liveW + 400 * (1 - liveW)) : 400;
     const nwH = liveW > 0 && Number.isFinite(rawNw) ? Math.round(rawNw * liveW + 1500 * (1 - liveW)) : null;
     const hpiH = liveW > 0 && Number.isFinite(hpiGw) ? Math.round(hpiGw * liveW + 15 * (1 - liveW)) : null;
     const pdynH = liveW > 0 && Number.isFinite(rawPdyn) ? +(rawPdyn * liveW + 2.0 * (1 - liveW)).toFixed(2) : null;
-    const dstH = liveW > 0 && Number.isFinite(dst) ? Math.round(dst * liveW) : null;
+    const dstH = liveW > 0 && Number.isFinite(rawDst) ? Math.round(rawDst * liveW) : null;
     const precondH = i === 0
       ? preconditionedNewell60
       : (i === 1 ? (Number.isFinite(nextPreconditionedNewell60) ? nextPreconditionedNewell60 : preconditionedNewell60) : null);
