@@ -804,28 +804,30 @@ function renderWaveCard(focusBest = false) {
   const bestText = isOutOfZone
     ? (outZoneKind === 'need-storm'
         ? (en
-            ? `Needs a stronger storm · score <strong>0</strong> next ${hz}h`
-            : `活動偏弱，需更強地磁暴 · 未來 ${hz}h 指數 <strong>0</strong>`)
+            ? `Activity is too weak for this latitude — needs a stronger storm over the next ${hz}h.`
+            : `目前活動偏弱，此緯度需要更強的地磁暴才會出現極光。`)
         : (en
-            ? `Outside auroral zone · tap location above to switch`
-            : `不在極光帶 · 點上方地名切換極光熱點`))
+            ? `Outside the auroral zone — tap the location above to explore aurora hotspots.`
+            : `此地不在極光帶，點上方地名可切換北歐或北美極光熱點。`))
     : (bestInVis
-        ? (bestInVis.score >= 35
+        ? (bestInVis.score >= 65
             ? (en
-                ? `${bestIsNextNight ? 'Peak' : 'Peak tonight'} <strong>${bestTimeLbl}</strong> · Score <strong>${bestInVis.score}</strong> · ${bestInVis.clear}% clear`
-                : `${bestIsNextNight ? '最看好' : '今晚最看好'} <strong>${bestTimeLbl}</strong> · 指數 <strong>${bestInVis.score}</strong> · 晴空 ${bestInVis.clear}%`)
-            : (bestInVis.block <= 40
-                ? (en ? `Clearest at <strong>${bestTimeLbl}</strong> · <strong>${bestInVis.clear}%</strong> clear · Score ${bestInVis.score}` : `最晴時段 <strong>${bestTimeLbl}</strong> · 晴空 <strong>${bestInVis.clear}%</strong> · 指數 ${bestInVis.score}`)
-                : (bestInVis.clear >= 25 || bestInVis.score >= 18
-                    ? (en ? `Clouds thin at <strong>${bestTimeLbl}</strong> · <strong>${bestInVis.clear}%</strong> clear` : `<strong>${bestTimeLbl}</strong> 雲層稍散 · 晴空 <strong>${bestInVis.clear}%</strong>`)
-                    : (en ? `Cloudy next ${hz}h (max <strong>${bestInVis.clear}%</strong>) · try Find clear skies` : `未來 ${hz}h 偏多雲（最高 <strong>${bestInVis.clear}%</strong>）· 可看找晴空`))))
-        : (en ? `Too bright for the next ${hz}h · check back after dark` : `未來 ${hz}h 天色偏亮 · 天黑後再查看`));
+                ? `${bestIsNextNight ? 'Best chance around' : 'Best chance tonight around'} <strong>${bestTimeLbl}</strong>, with <strong>${bestInVis.clear}%</strong> clear sky.`
+                : `${bestIsNextNight ? '最佳時機在' : '今晚'} <strong>${bestTimeLbl}</strong> 前後機會最佳，晴空率達 <strong>${bestInVis.clear}%</strong>。`)
+            : (bestInVis.score >= 35
+                ? (en
+                    ? `${bestIsNextNight ? 'Most promising around' : 'Most promising tonight around'} <strong>${bestTimeLbl}</strong>, with <strong>${bestInVis.clear}%</strong> clear sky.`
+                    : `${bestIsNextNight ? '較佳時機在' : '今晚'} <strong>${bestTimeLbl}</strong> 前後最有機會，晴空率 <strong>${bestInVis.clear}%</strong>。`)
+                : (bestInVis.block <= 40
+                    ? (en ? `Clearest sky around <strong>${bestTimeLbl}</strong> (${bestInVis.clear}% clear) — watch for faint aurora.` : `<strong>${bestTimeLbl}</strong> 前後天空最晴（${bestInVis.clear}%），可留意微弱極光。`)
+                    : (bestInVis.clear >= 25 || bestInVis.score >= 18
+                        ? (en ? `Clouds thin around <strong>${bestTimeLbl}</strong>, with about ${bestInVis.clear}% clear sky.` : `<strong>${bestTimeLbl}</strong> 前後雲層較薄，晴空率約 ${bestInVis.clear}%。`)
+                        : (en ? `Mostly cloudy for the next ${hz}h (max ${bestInVis.clear}% clear) — try Find clear skies.` : `未來 ${hz} 小時偏多雲（最高 ${bestInVis.clear}%），建議查看「找晴空」。`)))))
+        : (en ? `Sky stays too bright for the next ${hz}h — check back after dark.` : `未來 ${hz} 小時天色偏亮，天黑後再查看。`));
   const hb = $('homeBest');
   if (hb) {
-    const isGood = !isOutOfZone && bestInVis && (bestInVis.score >= 35 || bestInVis.block <= 40);
-    const dotCol = isOutOfZone ? 'var(--muted)' : (isGood ? (bestInVis.score >= 65 ? 'var(--green)' : 'var(--good)') : 'var(--amber)');
     hb.className = 'wave-peak';
-    hb.innerHTML = `<span class="wp-dot" style="background:${dotCol};" aria-hidden="true"></span><span class="wp-txt">${bestText}</span>`;
+    hb.innerHTML = bestText;
   }
   let targetIdx = state.selectedHourIdx;
   if (focusBest || targetIdx < 0 || targetIdx >= vis.length) {
@@ -2032,7 +2034,7 @@ function bindEvents() {
   });
 
   // Scroll-reactive frosted glass sticky header
-  const syncScrollHdr = () => document.body.classList.toggle('is-scrolled', window.scrollY > 10);
+  const syncScrollHdr = () => document.body.classList.toggle('is-scrolled', window.scrollY > 4);
   window.addEventListener('scroll', syncScrollHdr, { passive: true });
   syncScrollHdr();
 
