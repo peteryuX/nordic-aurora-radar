@@ -2229,5 +2229,15 @@ test('50. Bilingual copy, localization & single-metric chart clarity lint gate (
     const ldMatch = spHtml.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
     assert.ok(ldMatch && JSON.parse(ldMatch[1])['@graph'].length >= 2, `spot page ${slug} must contain valid JSON-LD`);
   }
+
+  // 8. Central glossary (src/glossary.js) is the single source of truth & precached in sw.js
+  const { TERMS } = await import('../src/glossary.js');
+  const swSrc = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
+  assert.ok(swSrc.includes('./src/glossary.js'), 'sw.js SHELL_ASSETS must precache ./src/glossary.js');
+  assert.equal(TERMS.clearSky.zh, '晴空率', 'Central glossary clearSky zh term must stay 晴空率');
+  for (const rel of ['src/aurora-engine.js', 'src/charts.js', 'src/i18n.js', 'src/app.js']) {
+    const modSrc = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+    assert.ok(modSrc.includes('./glossary.js'), `${rel} must import central TERMS from ./glossary.js`);
+  }
 });
 

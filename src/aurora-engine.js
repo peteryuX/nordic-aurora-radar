@@ -5,6 +5,9 @@
  * (given explicit timestamps) and directly testable under Node.js.
  */
 
+import { TERMS, term } from './glossary.js';
+export { TERMS, term };
+
 // ====== Bilingual Formatting State & Helpers ======
 let currentLang = 'zh';
 
@@ -69,18 +72,19 @@ export function tDirLabel(lbl, lang) {
 
 // Internal grade keys (emoji + ZH) are stable identifiers used by tests & validation fixtures.
 // Displayed words follow the single UI glossary: Excellent / Good / Fair (+ plain-language blockers).
+const pair = (e) => [e.zh, e.en];
 export const GRADE_DISPLAY = {
-  '🌏 緯度過低': ['不在極光帶', 'Out of zone'],
-  '🌍 極光帶偏北': ['需更強活動', 'Needs storm'],
-  '🌍 極光帶偏南': ['需更強活動', 'Needs storm'],
-  '☀️ 天色過亮': ['天色過亮', 'Too bright'],
-  '🌅 暮光漸暗': ['暮光漸暗', 'Twilight'],
-  '🌟 極佳條件': ['極佳', 'Excellent'],
-  '🟢 適合觀測': ['適合觀測', 'Good'],
-  '✨ 有機會看見': ['普通', 'Fair'],
-  '⚡ 雲縫極光': ['雲縫極光', 'Cloud gaps'],
-  '🌌 晴朗但極光弱': ['極光偏弱', 'Low activity'],
-  '☁️ 雲層過厚': ['雲層過厚', 'Cloudy']
+  '🌏 緯度過低': pair(TERMS.status.outOfZone),
+  '🌍 極光帶偏北': pair(TERMS.status.needsStorm),
+  '🌍 極光帶偏南': pair(TERMS.status.needsStorm),
+  '☀️ 天色過亮': pair(TERMS.status.tooBright),
+  '🌅 暮光漸暗': pair(TERMS.status.twilightFull),
+  '🌟 極佳條件': pair(TERMS.tier.excellent),
+  '🟢 適合觀測': pair(TERMS.tier.good),
+  '✨ 有機會看見': pair(TERMS.tier.fair),
+  '⚡ 雲縫極光': pair(TERMS.status.cloudGaps),
+  '🌌 晴朗但極光弱': pair(TERMS.status.lowActivity),
+  '☁️ 雲層過厚': pair(TERMS.status.cloudy)
 };
 
 export function tGrade(zhGrade, lang) {
@@ -1414,7 +1418,7 @@ export function explainAuroraScore(params = {}) {
 
   if (sc.outOfZone === 'low-lat') {
     statusTier = 'gated'; bKey = 'gate-low-lat'; limitingPillar = 'gate';
-    bLabel = en ? 'Out of zone' : '不在極光帶';
+    bLabel = term(TERMS.status.outOfZone, en);
     bHeadline = en
       ? `Score is 0: geomagnetic latitude is ${bd.magLat}°, below the 32° physical floor.`
       : `指數歸零：此地地磁緯度僅 ${bd.magLat}°，低於 32° 物理門檻。`;
@@ -1423,7 +1427,7 @@ export function explainAuroraScore(params = {}) {
       : '極光帶平時位於地磁 60° 以上，低於 32° 幾乎不可能觀測到極光。';
   } else if (sc.outOfZone === 'need-storm') {
     statusTier = 'gated'; bKey = 'gate-need-storm'; limitingPillar = 'gate';
-    bLabel = en ? 'Needs storm' : '需更強活動';
+    bLabel = term(TERMS.status.needsStorm, en);
     bHeadline = en
       ? `Score is 0: auroral oval is poleward — effective Kp ${bd.effKp} is below the Kp ≥ ${bd.neededKp} reach threshold.`
       : `指數歸零：極光帶仍在高緯度，目前有效 Kp ${bd.effKp} 未達此地門檻（需 Kp ≥ ${bd.neededKp}）。`;
@@ -1432,7 +1436,7 @@ export function explainAuroraScore(params = {}) {
       : `地磁 ${bd.magLat}° 計入 +1.8 Kp 地平線視野寬容後仍距極光帶太遠，且頭頂 OVATION 機率為 ${ovStr}%（< 5%）。`;
   } else if (sc.isTooBright) {
     statusTier = 'gated'; bKey = 'gate-daylight'; limitingPillar = 'gate';
-    bLabel = en ? 'Too bright' : '天色過亮';
+    bLabel = term(TERMS.status.tooBright, en);
     bHeadline = en
       ? `Score is 0: Sun is at ${sunAltStr}° elevation and must drop below -4° for aurora contrast.`
       : `指數歸零：目前太陽仰角 ${sunAltStr}°，需降至 -4° 以下才能觀測極光。`;
@@ -1475,7 +1479,7 @@ export function explainAuroraScore(params = {}) {
       limitingPillar = 'sky';
       if ((bd.cloudExp < 0.80 && bd.skyScore >= 15 && bd.skyScore <= 42) || sc.grade === '⚡ 雲縫極光') {
         bKey = 'cloud-gaps';
-        bLabel = en ? 'Cloud gaps' : '雲縫極光';
+        bLabel = term(TERMS.status.cloudGaps, en);
         bHeadline = en
           ? `Score (${sc.total}) is capped by ${bd.cloudNow}% effective cloud, yet strong aurora (${bd.auroraScore}) can pierce breaks.`
           : `目前指數 ${sc.total} 主要受雲層壓抑（有效雲量 ${bd.cloudNow}%），但極光夠強（${bd.auroraScore}），雲隙有機會透出綠光。`;
@@ -2934,15 +2938,15 @@ export function summarize3NightOutlook({
     let scoreAvailable = false;
     let tone = '', badge = '', badgeColor = 'var(--muted)';
     if (absMag < 32) {
-      badge = en ? 'Out of zone' : '不在極光帶'; badgeColor = '#8ea6c4';
+      badge = term(TERMS.status.outOfZone, en); badgeColor = '#8ea6c4';
     } else if (pts.length > 0 && darkPts.length === 0) {
-      badge = en ? 'Too bright' : '天色過亮'; badgeColor = '#66bdff';
+      badge = term(TERMS.status.tooBright, en); badgeColor = '#66bdff';
     } else if (maxKp === null && bestClear === null) {
-      badge = en ? 'Updating' : '更新中'; badgeColor = '#8ea6c4';
+      badge = term(TERMS.status.updating, en); badgeColor = '#8ea6c4';
     } else if (maxKp !== null && neededKpMidnight >= 2.5 && (effMaxKp + 1.8) < neededKpMidnight) {
       badge = en ? `Needs Kp ${neededKpMidnight}` : `需 Kp ${neededKpMidnight}`; badgeColor = '#8ea6c4';
     } else if (maxKp === null && neededKpMidnight >= 2.5) {
-      badge = en ? 'Updating' : '更新中'; badgeColor = '#8ea6c4';
+      badge = term(TERMS.status.updating, en); badgeColor = '#8ea6c4';
     } else if (bestClear === null) {
       badge = gScale >= 1 ? (en ? `Storm G${gScale}` : `地磁暴 G${gScale}`) : (en ? 'Updating' : '更新中'); badgeColor = gScale >= 1 ? '#ffcf5c' : '#8ea6c4';
     } else {
@@ -2989,15 +2993,15 @@ export function summarize3NightOutlook({
       }
       // Map strictly onto the app-wide 0-99 tiers (65 Excellent / 40 Good / 18 Fair / <18 Low or Cloudy)
       if (bestNightScore >= 65) {
-        tone = 'good'; badge = en ? 'Excellent' : '極佳'; badgeColor = '#34f0b0';
+        tone = 'good'; badge = term(TERMS.tier.excellent, en); badgeColor = '#34f0b0';
       } else if (bestNightScore >= 40) {
-        tone = 'good'; badge = en ? 'Good' : '適合觀測'; badgeColor = '#25b88a';
+        tone = 'good'; badge = term(TERMS.tier.good, en); badgeColor = '#25b88a';
       } else if (bestNightScore >= 18) {
-        tone = 'warn'; badge = en ? 'Fair' : '普通'; badgeColor = '#f4c350';
+        tone = 'warn'; badge = term(TERMS.tier.fair, en); badgeColor = '#f4c350';
       } else if (bestClear < 35) {
-        badge = en ? 'Cloudy' : '雲層過厚'; badgeColor = '#8b94a5';
+        badge = term(TERMS.status.cloudy, en); badgeColor = '#8b94a5';
       } else {
-        badge = en ? 'Low' : '偏低'; badgeColor = '#8b94a5';
+        badge = term(TERMS.tier.low, en); badgeColor = '#8b94a5';
       }
       scoreAvailable = true;
       return { key, label, dayLabel, dateLabel, bestClear, clearDarkHrs, bestNightScore, bestWindow, scoreAvailable, maxKp: maxKp ?? 0, kpAvailable: maxKp !== null, gScale, darkCount: darkPts.length, tone, badge, badgeColor, enlilTag, enlilMaxSpeed };
@@ -3175,7 +3179,7 @@ export function synthesizeTonightAction({
       : `「${dirName}」${distTag} 未來 3 小時晴空率 ${comp.bestClear}%（比原地高 ${comp.diff}%），出發前請先確認路況。`;
     return {
       ...base, title, lead, actionType: 'drive',
-      ctaView: 'dir', ctaLabel: en ? 'Find clear skies →' : '找晴空 →'
+      ctaView: 'dir', ctaLabel: `${term(TERMS.nav.findClear, en)} →`
     };
   }
 
@@ -3196,7 +3200,7 @@ export function synthesizeTonightAction({
       : `但原地雲層偏厚（指數預估僅 ${scNext.total}），建議先用「找晴空」看看周邊雲縫。`;
     return {
       ...base, title, lead, actionType: 'drive',
-      ctaView: 'dir', ctaLabel: en ? 'Find clear skies →' : '找晴空 →'
+      ctaView: 'dir', ctaLabel: `${term(TERMS.nav.findClear, en)} →`
     };
   }
   if (sc.total < 18 && sc.skyScore < 45 && bestDark && bestDark.clear >= 55) {

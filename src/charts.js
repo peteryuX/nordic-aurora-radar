@@ -8,6 +8,7 @@
 import {
   isEn, getZoneParts, parseUtcMs, utcTagToLocalHM, computeL1EtaMin, bzToEnergy
 } from './aurora-engine.js';
+import { TERMS, term } from './glossary.js';
 
 function clampNum(v, lo, hi, fb = 0) {
   const n = typeof v === 'number' ? v : (v === null || v === undefined || v === '' ? NaN : Number(v));
@@ -136,7 +137,7 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
   const lastE = energies[energies.length - 1];
   const lx = xOf(energies.length - 1), ly = yOf(lastE);
   const col = lastE >= 62 ? 'var(--green)' : lastE >= 25 ? 'var(--amber)' : 'var(--muted)';
-  const stateWord = lastE >= 62 ? (en ? 'Active' : '活躍') : lastE >= 25 ? (en ? 'Building' : '增強中') : (en ? 'Low' : '偏弱');
+  const stateWord = lastE >= 62 ? term(TERMS.solarWind.active, en) : lastE >= 25 ? term(TERMS.solarWind.building, en) : term(TERMS.solarWind.low, en);
 
   const areaSvg = segments.filter(seg => seg.length >= 2).map(seg => {
     const sPts = seg.map(i => `${xOf(i).toFixed(1)},${yOf(energies[i]).toFixed(1)}`).join(' ');
@@ -205,7 +206,7 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
         <stop offset="100%" stop-color="var(--text)" stop-opacity="0.01"/>
       </linearGradient>
     </defs>
-    <text x="${padL}" y="17" data-role="y-title" fill="var(--muted)" font-size="11" font-weight="700">${en ? 'Solar wind energy (rel.)' : '太陽風能量（相對）'}</text>
+    <text x="${padL}" y="17" data-role="y-title" fill="var(--muted)" font-size="11" font-weight="700">${term(TERMS.solarWind.axisTitle, en)}</text>
     <rect x="${padL}" y="${padT}" width="${plotW}" height="${(yBurst - padT).toFixed(1)}" fill="var(--green)" fill-opacity="0.06"/>
     <rect x="${padL}" y="${yBurst.toFixed(1)}" width="${plotW}" height="${(yWarm - yBurst).toFixed(1)}" fill="var(--amber)" fill-opacity="0.04"/>
     ${futureBandSvg}
@@ -214,9 +215,9 @@ export function buildBzChartSVG(series, timeZone, speed, balOpt, lang) {
     <line x1="${padL}" y1="${yBurst.toFixed(1)}" x2="${W - padR}" y2="${yBurst.toFixed(1)}" stroke="var(--green)" stroke-dasharray="4 4" stroke-width="1.1" opacity="0.55"/>
     <line x1="${padL}" y1="${yWarm.toFixed(1)}" x2="${W - padR}" y2="${yWarm.toFixed(1)}" stroke="rgba(255,255,255,0.14)" stroke-dasharray="3 4" stroke-width="1"/>
     <line x1="${padL}" y1="${baseY}" x2="${W - padR}" y2="${baseY}" stroke="rgba(255,255,255,0.16)"/>
-    <text x="${padL - 8}" y="${(padT + (yBurst - padT) / 2 + 4).toFixed(1)}" text-anchor="end" fill="var(--green)" font-size="12.5" font-weight="800">${en ? 'Active' : '活躍'}</text>
-    <text x="${padL - 8}" y="${(yBurst + (yWarm - yBurst) / 2 + 4).toFixed(1)}" text-anchor="end" fill="var(--amber)" font-size="12.5" font-weight="700">${en ? 'Building' : '增強中'}</text>
-    <text x="${padL - 8}" y="${(yWarm + (padT + plotH - yWarm) / 2 + 4).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="12.5" font-weight="700">${en ? 'Low' : '偏弱'}</text>
+    <text x="${padL - 8}" y="${(padT + (yBurst - padT) / 2 + 4).toFixed(1)}" text-anchor="end" fill="var(--green)" font-size="12.5" font-weight="800">${term(TERMS.solarWind.active, en)}</text>
+    <text x="${padL - 8}" y="${(yBurst + (yWarm - yBurst) / 2 + 4).toFixed(1)}" text-anchor="end" fill="var(--amber)" font-size="12.5" font-weight="700">${term(TERMS.solarWind.building, en)}</text>
+    <text x="${padL - 8}" y="${(yWarm + (padT + plotH - yWarm) / 2 + 4).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="12.5" font-weight="700">${term(TERMS.solarWind.low, en)}</text>
     ${areaSvg}
     ${gapSvg}
     ${lineSvg}
@@ -269,7 +270,7 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     const dx2 = Math.min(W - padR, xOf(bestRun[1]) + stepW / 2);
     if (dx2 - dx1 >= 46) {
       dayLabelX = (dx1 + dx2) / 2;
-      dayLabelSvg = `<text x="${dayLabelX.toFixed(1)}" y="${padT + 15}" text-anchor="middle" fill="var(--blue)" fill-opacity="0.72" font-size="10.5" font-weight="700">${en ? 'Too bright' : '天色過亮'}</text>`;
+      dayLabelSvg = `<text x="${dayLabelX.toFixed(1)}" y="${padT + 15}" text-anchor="middle" fill="var(--blue)" fill-opacity="0.72" font-size="10.5" font-weight="700">${term(TERMS.status.tooBright, en)}</text>`;
     }
   }
 
@@ -282,7 +283,7 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     : -1;
   const bestX = bestIdx >= 0 ? xOf(bestIdx) : -1;
   const titleOnRight = bestIdx >= 0 && bestX < 210;
-  const titleTxt = en ? 'Score (0–99)' : '觀測指數（0–99）';
+  const titleTxt = en ? `${term(TERMS.score, true)} (0–99)` : `${term(TERMS.score, false)}（0–99）`;
   const titleSvg = titleOnRight
     ? `<text x="${W - padR}" y="16" data-role="y-title" text-anchor="end" fill="var(--muted)" font-size="11" font-weight="700">${titleTxt}</text>`
     : `<text x="${padL}" y="16" data-role="y-title" fill="var(--muted)" font-size="11" font-weight="700">${titleTxt}</text>`;
@@ -295,7 +296,7 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     const tooCloseToBest = bestX >= 0 && Math.abs(mx - bestX) < 48;
     const tooCloseToDay = Math.abs(mx - dayLabelX) < 38;
     const midLbl = (!tooCloseToBest && !tooCloseToDay)
-      ? `<text x="${Math.min(W - padR - 14, mx + 4).toFixed(1)}" y="${padT + 12}" text-anchor="start" fill="rgba(255,255,255,0.45)" font-size="10" font-weight="700">${en ? 'Tomorrow' : '明天'}</text>`
+      ? `<text x="${Math.min(W - padR - 14, mx + 4).toFixed(1)}" y="${padT + 12}" text-anchor="start" fill="rgba(255,255,255,0.45)" font-size="10" font-weight="700">${term(TERMS.tomorrow, en)}</text>`
       : '';
     midnightSvg = `<line x1="${mx.toFixed(1)}" y1="${padT}" x2="${mx.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}" stroke="rgba(255,255,255,0.22)" stroke-dasharray="3 3" stroke-width="1"/>${midLbl}`;
   }
@@ -307,7 +308,7 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
   const tileW = Math.max(4, stepW - 2.2);
 
   const scoreBars = allOutOfZone
-    ? `<text x="${(padL + plotW / 2).toFixed(1)}" y="${(padT + plotH / 2 + 4).toFixed(1)}" text-anchor="middle" fill="var(--muted)" font-size="12" font-weight="700">${en ? 'Outside auroral zone' : '不在極光帶'}</text>`
+    ? `<text x="${(padL + plotW / 2).toFixed(1)}" y="${(padT + plotH / 2 + 4).toFixed(1)}" text-anchor="middle" fill="var(--muted)" font-size="12" font-weight="700">${term(TERMS.status.outOfZoneLong, en)}</text>`
     : hrs.map((h, i) => {
         if (!h || h.isDay) return '';
         const scVal = clampNum(h?.score, 0, 100, 0);
@@ -349,7 +350,7 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
       : '';
     let bestSvg = '';
     if (isBest) {
-      const starTxt = en ? `★ ${hhmm} Best` : `★ ${hhmm} 最佳`;
+      const starTxt = `★ ${hhmm} ${term(TERMS.best, en)}`;
       const pillW = en ? 88 : 86;
       const pillX = Math.max(padL, Math.min(W - padR - pillW, x - pillW / 2));
       const pillCx = pillX + pillW / 2;
@@ -377,10 +378,10 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
     <line x1="${padL}" y1="${y40.toFixed(1)}" x2="${W - padR}" y2="${y40.toFixed(1)}" stroke="var(--good)" stroke-opacity="0.22" stroke-dasharray="3 4"/>
     <line x1="${padL}" y1="${y18.toFixed(1)}" x2="${W - padR}" y2="${y18.toFixed(1)}" stroke="rgba(255,255,255,0.08)" stroke-dasharray="2 4"/>
     <line x1="${padL}" y1="${baseY.toFixed(1)}" x2="${W - padR}" y2="${baseY.toFixed(1)}" stroke="rgba(255,255,255,0.16)"/>
-    <text x="${padL - 7}" y="${(y65 + 3.5).toFixed(1)}" text-anchor="end" fill="var(--green)" font-size="10.5" font-weight="700">${en ? 'Excellent' : '極佳'}</text>
-    <text x="${padL - 7}" y="${(y40 + 3.5).toFixed(1)}" text-anchor="end" fill="var(--good)" font-size="10.5" font-weight="700">${en ? 'Good' : '適合'}</text>
-    <text x="${padL - 7}" y="${(y18 + 3.5).toFixed(1)}" text-anchor="end" fill="var(--amber)" font-size="10.5" font-weight="700">${en ? 'Fair' : '普通'}</text>
-    <text x="${padL - 7}" y="${(stripY + 9.5).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="10.5" font-weight="700">${en ? 'Clear' : '晴空'}</text>
+    <text x="${padL - 7}" y="${(y65 + 3.5).toFixed(1)}" text-anchor="end" fill="var(--green)" font-size="10.5" font-weight="700">${term(TERMS.tier.excellent, en)}</text>
+    <text x="${padL - 7}" y="${(y40 + 3.5).toFixed(1)}" text-anchor="end" fill="var(--good)" font-size="10.5" font-weight="700">${term(TERMS.tier.goodShort, en)}</text>
+    <text x="${padL - 7}" y="${(y18 + 3.5).toFixed(1)}" text-anchor="end" fill="var(--amber)" font-size="10.5" font-weight="700">${term(TERMS.tier.fair, en)}</text>
+    <text x="${padL - 7}" y="${(stripY + 9.5).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="10.5" font-weight="700">${term(TERMS.clearShort, en)}</text>
     ${scoreBars}
     ${clearStrip}
     ${overlays}
@@ -440,7 +441,7 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
               .replace('往北 ', 'N ').replace('往南 ', 'S ').replace('往東 ', 'E ').replace('往西 ', 'W ').replace(/\s+km$/, 'km')
           : cleanLbl.replace(/^往/, '').replace(/\s+km$/, 'km'))
       : cleanLbl.replace(/^往[東西南北]+\s*/, '');
-    return { d, deg, km, unavail, clearPct, hazard, shortLbl: escSvg(d.isOcean ? (en ? 'Sea' : '海面') : shortLblRaw) };
+    return { d, deg, km, unavail, clearPct, hazard, shortLbl: escSvg(d.isOcean ? term(TERMS.status.sea, en) : shortLblRaw) };
   });
 
   const maxKmRaw = Math.max(60, ...plotted.map(p => p.km));
@@ -489,7 +490,7 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
     const cy = CY + 98 * Math.sin(rad);
     return `<g class="radar-sector radar-closed">
       <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.2" fill="var(--muted)" fill-opacity="0.45"/>
-      <text x="${cx.toFixed(1)}" y="${(cy + 14).toFixed(1)}" text-anchor="middle" fill="var(--muted)" font-size="9.5" font-weight="700" opacity="0.78">${en ? 'Closed in winter' : '冬季封閉'}</text>
+      <text x="${cx.toFixed(1)}" y="${(cy + 14).toFixed(1)}" text-anchor="middle" fill="var(--muted)" font-size="9.5" font-weight="700" opacity="0.78">${term(TERMS.status.closedWinter, en)}</text>
     </g>`;
   }).join('');
 

@@ -5,6 +5,10 @@
  * metadata so DOM strings never drift between Traditional Chinese and English.
  */
 
+import { TERMS, term } from './glossary.js';
+
+const pair = (e) => [e.zh, e.en];
+
 export const SKY_CAMS = {
   uit: {
     region: 'nordic',
@@ -67,7 +71,7 @@ export const SKY_CAMS = {
 /** Declarative [zh, en] text map for every static element ID in index.html */
 export const STATIC_TEXT_MAP = {
   langBtn: ['English', '繁體中文'],
-  waveRange: ['24 小時', '24 hours'],
+  waveRange: pair(TERMS.nav.range24h),
   ptrText: ['下拉更新', 'Pull to refresh'],
   lineTipTxt: [
     '若在 App 內建瀏覽器無法使用 GPS，請改用 Safari / Chrome 開啟，或點上方地名切換。',
@@ -75,25 +79,25 @@ export const STATIC_TEXT_MAP = {
   ],
   offlineRetryBtn: ['重試', 'Retry'],
   pickerSheetTitle: ['切換觀測地點', 'Choose location'],
-  gpsBtnTxt: ['使用目前位置', 'Use my location'],
+  gpsBtnTxt: pair(TERMS.location.useMyLoc),
   refBtnTxt: ['立即同步', 'Sync now'],
   shareBtnTxt: ['分享預報', 'Share'],
   pickerGrpNordic: ['北歐極光帶', 'Nordic aurora belt'],
   pickerGrpNa: ['北美與冰島', 'North America & Iceland'],
   pickerGrpSouth: ['南半球極光', 'Southern Hemisphere'],
   searchBtn: ['搜尋', 'Search'],
-  ringSubLbl: ['觀測指數', 'Score'],
-  fSkyLbl: ['晴空率', 'Clear sky'],
-  fAurLbl: ['極光活動', 'Aurora'],
-  fDarkLbl: ['夜空暗度', 'Darkness'],
-  h2Wave: ['逐時趨勢', 'Hourly trend'],
+  ringSubLbl: pair(TERMS.score),
+  fSkyLbl: pair(TERMS.clearSky),
+  fAurLbl: pair(TERMS.aurora),
+  fDarkLbl: pair(TERMS.darkness),
+  h2Wave: pair(TERMS.nav.hourlyTrend),
   hrLegRight: ['滑動查看各時段', 'Drag to explore'],
-  h2Energy: ['太陽風', 'Solar wind'],
+  h2Energy: pair(TERMS.solarWind.title),
   swToggleTxt: ['顯示太陽風曲線', 'Show solar wind chart'],
-  h2Outlook: ['未來三晚', 'Next 3 nights'],
+  h2Outlook: pair(TERMS.nav.next3Nights),
   outlookNote: ['預估觀測指數 0–99，綜合晴空率、極光活動與夜空暗度；越後面的夜晚越不確定。', 'Forecast score 0–99, combining clear sky, aurora activity and darkness. Later nights are less certain.'],
   seoFootLbl: ['熱門極光地點攻略', 'Aurora destination guides'],
-  h2Radar: ['周邊晴空', 'Clear skies nearby'],
+  h2Radar: pair(TERMS.nav.nearbyClear),
   roadLbl: ['冬季即時路況／封路查詢：', 'Winter road & closure status:'],
   roadNo: ['挪威 Vegvesen ↗', 'Norway · Vegvesen ↗'],
   roadSe: ['瑞典 Trafikverket ↗', 'Sweden Trafikverket ↗'],
@@ -115,9 +119,9 @@ export const STATIC_TEXT_MAP = {
   h2Windy: ['即時動態雲圖', 'Live cloud map'],
   subWindy: ['已自動對準目前位置，按左下角 ▶ 可播放接下來幾小時雲層移動趨勢：', 'Centered on your location — press ▶ bottom-left to animate cloud movement:'],
   subOv: ['查看綠色／黃色極光帶目前是否覆蓋所在區域（每 5 分鐘自動更新）：', 'Check if the auroral oval covers your region (updates every 5 min):'],
-  navHome: ['總覽', 'Overview'],
-  navDir: ['找晴空', 'Clear skies'],
-  navSat: ['實拍雲圖', 'Live map'],
+  navHome: pair(TERMS.nav.overview),
+  navDir: pair(TERMS.nav.findClearShort),
+  navSat: pair(TERMS.nav.liveMap),
   trustSheetTitle: ['指數說明與設定', 'Score & settings'],
   tsLblSky: ['晴空率', 'Clear sky'],
   tsLblAur: ['極光活動', 'Aurora'],
@@ -212,8 +216,8 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
   const hrl = $('hrLegLeft');
   if (hrl) {
     hrl.innerHTML = en
-      ? `<span class="leg-dot" style="background:var(--green);"></span>Bars = score (0–99)<span class="leg-strip"></span>Strip = clear sky`
-      : `<span class="leg-dot" style="background:var(--green);"></span>柱＝指數（0–99）<span class="leg-strip"></span>灰條＝晴空率`;
+      ? `<span class="leg-dot" style="background:var(--green);"></span>Bars = ${term(TERMS.scoreShort, true).toLowerCase()} (0–99)<span class="leg-strip"></span>Strip = ${term(TERMS.clearSky, true).toLowerCase()}`
+      : `<span class="leg-dot" style="background:var(--green);"></span>柱＝${term(TERMS.scoreShort, false)}（0–99）<span class="leg-strip"></span>灰條＝${term(TERMS.clearSky, false)}`;
   }
 
   const rl = $('radarLeg');

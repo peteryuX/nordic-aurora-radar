@@ -7,6 +7,7 @@
  */
 
 import * as Engine from './aurora-engine.js';
+import { TERMS, term } from './glossary.js';
 import * as Charts from './charts.js';
 import {
   loadSavedPos, savePos, loadRedMode, saveRedMode, saveLangPref,
@@ -673,11 +674,11 @@ function updateClockAndPhoto() {
 const barColor = (pct) => (pct >= 65 ? 'var(--green)' : pct >= 35 ? 'var(--amber)' : 'var(--muted)');
 const tierColor = (score) => (score >= 65 ? 'var(--green)' : score >= 40 ? 'var(--good)' : score >= 18 ? 'var(--amber)' : 'var(--muted)');
 function scoreTierWord(score, isDay, en) {
-  if (isDay) return en ? 'Too bright' : '天色過亮';
-  if (score >= 65) return en ? 'Excellent' : '極佳';
-  if (score >= 40) return en ? 'Good' : '適合觀測';
-  if (score >= 18) return en ? 'Fair' : '普通';
-  return en ? 'Low' : '偏低';
+  if (isDay) return term(TERMS.status.tooBright, en);
+  if (score >= 65) return term(TERMS.tier.excellent, en);
+  if (score >= 40) return term(TERMS.tier.good, en);
+  if (score >= 18) return term(TERMS.tier.fair, en);
+  return term(TERMS.tier.low, en);
 }
 function scoreCssColor(hex) {
   if (hex === '#34f0b0' || hex === '#2ed39e') return 'var(--green)';
@@ -750,7 +751,7 @@ function renderGauge(sc, details) {
   };
   setFactor('fSkyVal', 'fSkyBar', 'fSkySub', sc.skyScore, `${sc.skyScore}%`, details.skySubHtml ?? escapeHtml(details.skySub || ''));
   setFactor('fAurVal', 'fAurBar', 'fAurSub', sc.auroraScore, `${sc.auroraScore}`, details.aurSubHtml ?? escapeHtml(details.aurSub || ''));
-  setFactor('fDarkVal', 'fDarkBar', 'fDarkSub', sc.darkScore, details.isTooBright ? (en ? 'Too bright' : '天色過亮') : `${sc.darkScore}%`, details.darkSubHtml ?? escapeHtml(details.darkSub || ''), details.isTooBright ? 'var(--blue)' : null);
+  setFactor('fDarkVal', 'fDarkBar', 'fDarkSub', sc.darkScore, details.isTooBright ? term(TERMS.status.tooBright, en) : `${sc.darkScore}%`, details.darkSubHtml ?? escapeHtml(details.darkSub || ''), details.isTooBright ? 'var(--blue)' : null);
 }
 
 function getVisibleHours() {
@@ -973,18 +974,18 @@ function render3NightOutlook(nights) {
     const dayTxt = n.dayLabel || n.label || '';
     const dateTxt = fmtNightDate(n, en);
     const clearTxt = n.bestClear !== null
-      ? (en ? `${n.bestClear}% clear` : `晴空率 ${n.bestClear}%`)
-      : (en ? 'No dark sky' : '無暗空');
+      ? (en ? `${n.bestClear}% clear` : `${term(TERMS.clearSky, false)} ${n.bestClear}%`)
+      : term(TERMS.status.noDarkSky, en);
     const kpTxt = n.kpAvailable === false ? (en ? 'Kp --' : 'Kp 更新中') : `Kp ${Number(n.maxKp || 0).toFixed(1)}`;
     const gTag = n.kpAvailable !== false && n.gScale >= 1 ? ` <span class="od-g">G${n.gScale}</span>` : '';
     const isBest = i === bestIdx;
-    const winTxt = n.bestWindow ? (en ? `Peak ${n.bestWindow}` : `約 ${n.bestWindow}`) : '';
+    const winTxt = n.bestWindow ? `${term(TERMS.peak, en)} ${n.bestWindow}` : '';
     const winHtml = winTxt ? `<div class="od-win nowrap">${escapeHtml(winTxt)}</div>` : '';
     const aria = hasScore
       ? (en ? `${dayTxt} ${dateTxt}: forecast score ${scoreVal}, ${n.badge}${winTxt ? `, ${winTxt}` : ''}` : `${dayTxt} ${dateTxt}：預估觀測指數 ${scoreVal}，${n.badge}${winTxt ? `，${winTxt}` : ''}`)
       : `${dayTxt} ${dateTxt}: ${n.badge}`;
     return `<div class="outlook-day${isBest ? ' od-best' : ''}" role="group" aria-label="${escapeHtml(aria)}${isBest ? (en ? ' (best night)' : '（最佳）') : ''}">
-      ${isBest ? `<span class="od-flag-pill">★ ${en ? 'Best' : '最佳'}</span>` : ''}
+      ${isBest ? `<span class="od-flag-pill">★ ${term(TERMS.best, en)}</span>` : ''}
       <div class="od-day">${escapeHtml(dayTxt)}</div>
       <div class="od-date">${escapeHtml(dateTxt)}</div>
       <div class="od-score${hasScore ? '' : ' od-na'}" style="${hasScore ? `color:${bCol};` : ''}">${hasScore ? scoreVal : '--'}</div>
@@ -1007,16 +1008,16 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales,
       ? bal.cleanLatestBz
       : (chartSeries?.length && Number.isFinite(chartSeries[chartSeries.length - 1]?.bz) ? chartSeries[chartSeries.length - 1].bz : null);
     if (goesSub?.active || bal?.shockActive) {
-      bzBadge.textContent = en ? 'Strong' : '強烈';
+      bzBadge.textContent = term(TERMS.solarWind.strong, en);
       bzBadge.className = 'sw-badge sw-good';
     } else if (enSum.good) {
-      bzBadge.textContent = en ? 'Active' : '活躍';
+      bzBadge.textContent = term(TERMS.solarWind.active, en);
       bzBadge.className = 'sw-badge sw-good';
     } else if ((liveBz !== null && liveBz <= -2.5) || (enSum.raw && enSum.raw.includes('增強'))) {
-      bzBadge.textContent = en ? 'Building' : '增強中';
+      bzBadge.textContent = term(TERMS.solarWind.building, en);
       bzBadge.className = 'sw-badge sw-warn';
     } else if (enSum.raw) {
-      bzBadge.textContent = en ? 'Low' : '偏弱';
+      bzBadge.textContent = term(TERMS.solarWind.low, en);
       bzBadge.className = 'sw-badge';
     } else {
       bzBadge.textContent = '';
