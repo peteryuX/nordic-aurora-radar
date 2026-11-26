@@ -13,7 +13,7 @@ export const TERMS = Object.freeze({
   aurora:        Object.freeze({ zh: '極光活動', en: 'Aurora' }),
   darkness:      Object.freeze({ zh: '夜空暗度', en: 'Darkness' }),
   darkShort:     Object.freeze({ zh: '暗度',     en: 'Dark' }),
-  darkFull:      Object.freeze({ zh: '全暗',     en: 'Full dark' }),
+  darkFull:      Object.freeze({ zh: '天文暗空', en: 'Astro dark' }),
 
   // Unified 4 Score Tiers (65 / 40 / 18)
   tier: Object.freeze({

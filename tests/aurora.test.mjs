@@ -3034,11 +3034,11 @@ test('57. v51 UX & Product Fixes: Layered Clouds, FMI Mag SVG, Iceland Cams, Reg
 test('58. v53 Clear-Sky Navigation Safety: No Generic Drive Links, EXTENDED_CORRIDORS, Radar 60km Dedup & Stay-Local Guard', async () => {
   const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
 
-  // (a) EXTENDED_CORRIDORS preserves legacy counts (10 Nordic + 8 Global) + adds 7 verified winter hubs with >=0.30° separation
+  // (a) EXTENDED_CORRIDORS preserves legacy counts (10 Nordic + 8 Global) + adds 8 verified winter hubs (incl. Oslo) with >=0.30° separation
   assert.equal(api.NORDIC_CORRIDORS.length, 10);
   assert.equal(api.GLOBAL_CORRIDORS.length, 8);
-  assert.equal(api.EXTENDED_CORRIDORS.length, 7);
-  assert.equal(api.CHASE_CORRIDORS.length, 25);
+  assert.equal(api.EXTENDED_CORRIDORS.length, 8);
+  assert.equal(api.CHASE_CORRIDORS.length, 26);
   for (const c of api.EXTENDED_CORRIDORS) {
     assert.ok(c.pts.length >= 2 && c.pts.length <= 4, `Extended hub ${c.match} must have 2..4 routes`);
     const keys = new Set();
@@ -3512,7 +3512,7 @@ test('66. v61 System-Level Cross-Card Consistency (Quiet-Aurora Drive Gate, 24h<
   const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const swSrc = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
 
-  assert.ok(swSrc.includes('aurora-radar-shell-v61'), 'sw.js CACHE_NAME must be bumped to v61');
+  assert.ok(/aurora-radar-shell-v\d+/.test(swSrc), 'sw.js CACHE_NAME must be versioned');
   assert.ok(!htmlSrc.includes('<div class="od-day">今晚</div>'), 'Loading skeleton must not flash hardcoded Chinese weekday in EN');
   assert.ok(appSrc.includes('resolveStormEvent') && appSrc.includes('allCloudyNearby'), 'app.js must use shared resolveStormEvent and demote all-cloudy corridors');
 
@@ -3546,6 +3546,48 @@ test('66. v61 System-Level Cross-Card Consistency (Quiet-Aurora Drive Gate, 24h<
   assert.ok(det.kpBadge.includes('約 Kp 3.7'), `Expected 1-decimal Kp 3.7 parity, got: ${det.kpBadge}`);
 
   assert.equal(resolveStormEvent({ scales: { active: false }, noaaAlert: { active: false } }), null);
+});
+
+test('67. v62 Urban Skyglow Hybrid (Additive Luminance, Azimuthal Dome, Zero Fake Bortle, Honest Astro Dark & Oslo Corridors)', async () => {
+  const { formatLightPollutionNote, buildHeroViewModel } = await import('../src/copy-formatters.js');
+  const { TERMS } = await import('../src/glossary.js');
+  const htmlSrc = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const swSrc = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+
+  assert.ok(swSrc.includes('aurora-radar-shell-v62'), 'sw.js CACHE_NAME must be bumped to v62');
+  assert.ok(htmlSrc.includes('id="tsLightNote"'), 'index.html must mount #tsLightNote inside #trustSheet');
+  assert.equal(TERMS.darkFull.zh, '天文暗空');
+  assert.equal(TERMS.darkFull.en, 'Astro dark');
+
+  // (a) Azimuthal dome asymmetry: Kolbotn (11km south of Oslo looking NORTH through Oslo) vs Maridalen (11km north of Oslo)
+  const osloGeom = api.computeViewingGeometry({ lat: 59.91, lon: 10.75, kp: 5.0, mlt: 23, lang: 'zh' });
+  const kolbotn = api.estimateUrbanSkyglow({ lat: 59.81, lon: 10.80, geom: osloGeom, auroraScore: 55, effMoonPct: 0, lang: 'zh' });
+  const maridalen = api.estimateUrbanSkyglow({ lat: 60.01, lon: 10.77, geom: osloGeom, auroraScore: 55, effMoonPct: 0, lang: 'zh' });
+  assert.equal(kolbotn.domeImpact, 'blocking-horizon', `South of Oslo must detect blocking-horizon dome, got ${kolbotn.domeImpact}`);
+  assert.equal(maridalen.domeImpact, 'behind', `North of Oslo must detect city dome behind observer, got ${maridalen.domeImpact}`);
+  assert.ok(kolbotn.effectiveL > maridalen.effectiveL * 2, `Looking through Oslo dome (${kolbotn.effectiveL}) must vastly exceed looking away (${maridalen.effectiveL})`);
+
+  // (b) Additive luminance: full moon reduces marginal city extraMagLoss (zero multiplicative double-counting)
+  const osloMoonless = api.estimateUrbanSkyglow({ lat: 59.9127, lon: 10.7461, geom: osloGeom, auroraScore: 55, effMoonPct: 0, lang: 'en' });
+  const osloFullMoon = api.estimateUrbanSkyglow({ lat: 59.9127, lon: 10.7461, geom: osloGeom, auroraScore: 55, effMoonPct: 100, lang: 'en' });
+  assert.equal(osloMoonless.level, 'strong');
+  assert.ok(osloFullMoon.extraMagLoss < osloMoonless.extraMagLoss, `Additive luminance must yield smaller extraMagLoss under full moon (${osloFullMoon.extraMagLoss} < ${osloMoonless.extraMagLoss})`);
+
+  // (c) Unmapped coordinates: strictly unknown (never claims dark sky / Bortle 2!)
+  const unmapped = api.estimateUrbanSkyglow({ lat: 61.50, lon: 8.50, geom: osloGeom, auroraScore: 40, effMoonPct: 0, lang: 'zh' });
+  assert.equal(unmapped.level, 'unknown');
+  assert.equal(unmapped.knownDark, false);
+  const unmappedNote = formatLightPollutionNote({ urbanGlare: unmapped, pos: { mode: 'manual' }, sc: {}, en: false });
+  assert.ok(unmappedNote.text.includes('未扣除') && !/Bortle/i.test(unmappedNote.text));
+
+  // (d) Hero viewing geometry fix: sub-auroral Oslo mid-elevation evening must say 北方低空, NEVER 朝頭頂
+  const osloSc = api.computeAuroraScore({ lat: 59.9127, lon: 10.7461, cloudNow: 5, sunAlt: -20, kp: 4.0, bz: -4, speed: 440, ovation: 42, hpiGw: 48, mlt: 19 });
+  const osloVmZh = buildHeroViewModel({ pos: { lat: 59.9127, lon: 10.7461 }, sc: osloSc, kp: 4.0, mltNow: 19, act: { actionType: 'go', title: 'go' }, en: false });
+  assert.ok(!osloVmZh.heroCue.includes('頭頂') && osloVmZh.heroCue.includes('北方低空'), `Sub-auroral Oslo mid-elevation must point to northern low horizon, not overhead: "${osloVmZh.heroCue}"`);
+
+  // (e) Oslo curated northern dark-sky corridors present
+  const osloCorridor = api.EXTENDED_CORRIDORS.find(c => Math.abs(c.match[0] - 59.91) < 0.1 && Math.abs(c.match[1] - 10.75) < 0.1);
+  assert.ok(osloCorridor && osloCorridor.pts.some(p => p.label.includes('Maridalen')), 'Oslo must have curated northern dark-sky corridors');
 });
 
 

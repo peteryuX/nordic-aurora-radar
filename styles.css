@@ -1191,6 +1191,15 @@ body.sheet-open { overflow: hidden; overscroll-behavior-y: none; }
   background: var(--blue-bg); border: 0.5px solid var(--blue-border);
   color: var(--blue-text); font-size: 0.78rem; font-weight: 600; line-height: 1.42;
 }
+.ts-light-note {
+  margin-top: 8px; padding: 7px 10px; border-radius: 10px;
+  background: var(--surface-recessed); border: 0.5px solid var(--border);
+  color: var(--muted); font-size: 0.77rem; font-weight: 500; line-height: 1.46;
+}
+.ts-light-note.is-urban {
+  background: var(--amber-bg); border-color: var(--amber-border);
+  color: var(--text); font-weight: 600;
+}
 .ts-conf-row {
   margin-top: 8px; padding-top: 8px; border-top: 0.5px solid var(--border);
   font-size: 0.79rem; color: var(--muted); line-height: 1.48; font-variant-numeric: tabular-nums;

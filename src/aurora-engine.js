@@ -241,6 +241,12 @@ export const EXTENDED_CORRIDORS = [
     { key: 'N', label: '往北 Palmerston', lat: -45.4839, lon: 170.7158, roadKm: 55, roadNote: 'SH1 主要幹道', roadNoteEn: 'Main highway SH1', isOcean: false },
     { key: 'S', label: '往西南 Balclutha', lat: -46.2414, lon: 169.7347, roadKm: 79, roadNote: 'SH1 幹道·南向視野開闊', roadNoteEn: 'SH1 · open southern horizon', isOcean: false },
     { key: 'W', label: '往西北 Middlemarch', lat: -45.5067, lon: 170.1197, roadKm: 79, roadNote: '內陸晴空暗區·留意黑冰', roadNoteEn: 'Inland dark sky · watch black ice', isOcean: false }
+  ]},
+  { match: [59.91, 10.75], pts: [ // Oslo (Norway — poleward northern lookouts keeping Oslo's light dome behind you)
+    { key: 'N', label: '往北 Maridalen', lat: 60.0050, lon: 10.7680, roadKm: 12, roadNote: '市區北緣暗空·把奧斯陸光害留身後', roadNoteEn: 'North edge dark sky · Oslo glow behind you', isOcean: false },
+    { key: 'E', label: '往東北 Nittedal', lat: 60.1230, lon: 10.8750, roadKm: 28, roadNote: 'Rv4 主幹道·北方視野開闊', roadNoteEn: 'Rv4 main road · open northern horizon', isOcean: false },
+    { key: 'W', label: '往西北 Sundvollen', lat: 60.0620, lon: 10.3100, roadKm: 42, roadNote: 'E16 主幹道·高地暗空區', roadNoteEn: 'E16 main road · elevated dark sky', isOcean: false },
+    { key: 'S', label: '往東 Ask', lat: 60.0640, lon: 11.0360, roadKm: 32, roadNote: '鄉間低光害·北方地平線開闊', roadNoteEn: 'Rural low glare · open northern sky', isOcean: false }
   ]}
 ];
 
@@ -4322,10 +4328,10 @@ export function summarizeCompass(dirResults, lang) {
   if (here.avg3h <= 35) {
     const clearZh = hereClear >= 85
       ? `目前所在地已晴空（未來 3 小時晴空率 ${hereClear}%），無需驅車遠行；若市區光害明顯，就近避開路燈即可。`
-      : `原地未來 3 小時偏晴（晴空率 ${hereClear}%），就近觀測即可，無需遠行。`;
+      : `原地未來 3 小時偏晴（晴空率 ${hereClear}%），無需遠行；若在市區建議就近避開路燈並朝開闊處觀察。`;
     const clearEn = hereClear >= 85
       ? `Already clear right here (${hereClear}% clear over the next 3h) — no need to drive. Step away from city lights if needed.`
-      : `Mostly clear right here for the next 3h (${hereClear}% clear) — no need to drive.`;
+      : `Mostly clear right here for the next 3h (${hereClear}% clear) — no need to drive; step away from city lights if needed.`;
     return {
       bestKey: 'here', bestClear: hereClear, hereClear, diff: 0, good: true,
       text: en ? clearEn : clearZh
@@ -4426,4 +4432,157 @@ export function evaluateSilentGpsDecision({
   }
   return { action: 'ignore', distKm };
 }
+
+// ====== Urban Artificial Skyglow Advisory Model (Additive Luminance + Azimuthal Dome) ======
+// Strictly advisory & qualitative — NEVER fabricates Bortle integers, NEVER claims "dark sky"
+// for unmapped coordinates, and NEVER alters astronomical darkScore or regional 0-99 scores.
+export const URBAN_GLARE_CENTERS = Object.freeze([
+  // Nordic & Iceland metros / aurora hubs
+  { id: 'oslo',         name: '奧斯陸',     nameEn: 'Oslo',         lat: 59.9127, lon: 10.7461,  coreKm: 9,  domeKm: 32, peakL: 24 },
+  { id: 'stockholm',    name: '斯德哥爾摩', nameEn: 'Stockholm',    lat: 59.3293, lon: 18.0686,  coreKm: 12, domeKm: 38, peakL: 28 },
+  { id: 'helsinki',     name: '赫爾辛基',   nameEn: 'Helsinki',     lat: 60.1699, lon: 24.9384,  coreKm: 11, domeKm: 34, peakL: 24 },
+  { id: 'copenhagen',   name: '哥本哈根',   nameEn: 'Copenhagen',   lat: 55.6761, lon: 12.5683,  coreKm: 12, domeKm: 36, peakL: 28 },
+  { id: 'gothenburg',   name: '哥德堡',     nameEn: 'Gothenburg',   lat: 57.7089, lon: 11.9746,  coreKm: 8,  domeKm: 26, peakL: 16 },
+  { id: 'malmo',        name: '馬爾默',     nameEn: 'Malmö',        lat: 55.6050, lon: 13.0038,  coreKm: 7,  domeKm: 22, peakL: 14 },
+  { id: 'bergen',       name: '卑爾根',     nameEn: 'Bergen',       lat: 60.3913, lon: 5.3221,   coreKm: 6,  domeKm: 20, peakL: 12 },
+  { id: 'trondheim',    name: '特隆赫姆',   nameEn: 'Trondheim',    lat: 63.4305, lon: 10.3951,  coreKm: 5,  domeKm: 18, peakL: 10 },
+  { id: 'stavanger',    name: '斯塔萬格',   nameEn: 'Stavanger',    lat: 58.9700, lon: 5.7331,   coreKm: 6,  domeKm: 20, peakL: 12 },
+  { id: 'tampere',      name: '坦佩雷',     nameEn: 'Tampere',      lat: 61.4978, lon: 23.7610,  coreKm: 6,  domeKm: 20, peakL: 11 },
+  { id: 'oulu',         name: '奧盧',       nameEn: 'Oulu',         lat: 65.0121, lon: 25.4651,  coreKm: 5,  domeKm: 18, peakL: 9  },
+  { id: 'aarhus',       name: '奧胡斯',     nameEn: 'Aarhus',       lat: 56.1629, lon: 10.2039,  coreKm: 6,  domeKm: 20, peakL: 12 },
+  { id: 'reykjavik',    name: '雷克雅維克', nameEn: 'Reykjavik',    lat: 64.1466, lon: -21.9426, coreKm: 5,  domeKm: 18, peakL: 10 },
+  { id: 'tromso',       name: 'Tromsø',     nameEn: 'Tromsø',       lat: 69.6492, lon: 18.9553,  coreKm: 3,  domeKm: 10, peakL: 4.5 },
+  { id: 'rovaniemi',    name: 'Rovaniemi',  nameEn: 'Rovaniemi',    lat: 66.5039, lon: 25.7294,  coreKm: 3,  domeKm: 10, peakL: 4.0 },
+  // UK & Continental Europe
+  { id: 'london',       name: '倫敦',       nameEn: 'London',       lat: 51.5074, lon: -0.1278,  coreKm: 22, domeKm: 55, peakL: 36 },
+  { id: 'berlin',       name: '柏林',       nameEn: 'Berlin',       lat: 52.5200, lon: 13.4050,  coreKm: 16, domeKm: 45, peakL: 30 },
+  { id: 'edinburgh',    name: '愛丁堡',     nameEn: 'Edinburgh',    lat: 55.9533, lon: -3.1883,  coreKm: 8,  domeKm: 26, peakL: 16 },
+  { id: 'glasgow',      name: '格拉斯哥',   nameEn: 'Glasgow',      lat: 55.8642, lon: -4.2518,  coreKm: 10, domeKm: 30, peakL: 20 },
+  { id: 'manchester',   name: '曼徹斯特',   nameEn: 'Manchester',   lat: 53.4808, lon: -2.2426,  coreKm: 14, domeKm: 38, peakL: 26 },
+  { id: 'aberdeen',     name: '亞伯丁',     nameEn: 'Aberdeen',     lat: 57.1497, lon: -2.0943,  coreKm: 6,  domeKm: 20, peakL: 11 },
+  // North America
+  { id: 'anchorage',    name: '安克拉治',   nameEn: 'Anchorage',    lat: 61.2181, lon: -149.9003,coreKm: 7,  domeKm: 24, peakL: 14 },
+  { id: 'fairbanks',    name: '費爾班克斯', nameEn: 'Fairbanks',    lat: 64.8378, lon: -147.7164,coreKm: 3.5,domeKm: 12, peakL: 4.5 },
+  { id: 'calgary',      name: '卡加利',     nameEn: 'Calgary',      lat: 51.0447, lon: -114.0719,coreKm: 13, domeKm: 38, peakL: 26 },
+  { id: 'edmonton',     name: '艾德蒙頓',   nameEn: 'Edmonton',     lat: 53.5461, lon: -113.4938,coreKm: 12, domeKm: 36, peakL: 24 },
+  { id: 'vancouver',    name: '溫哥華',     nameEn: 'Vancouver',    lat: 49.2827, lon: -123.1207,coreKm: 15, domeKm: 42, peakL: 28 },
+  { id: 'seattle',      name: '西雅圖',     nameEn: 'Seattle',      lat: 47.6062, lon: -122.3321,coreKm: 16, domeKm: 45, peakL: 30 },
+  { id: 'minneapolis',  name: '明尼阿波利斯', nameEn: 'Minneapolis',lat: 44.9778, lon: -93.2650, coreKm: 16, domeKm: 45, peakL: 28 },
+  { id: 'toronto',      name: '多倫多',     nameEn: 'Toronto',      lat: 43.6532, lon: -79.3832, coreKm: 20, domeKm: 55, peakL: 36 },
+  { id: 'montreal',     name: '蒙特婁',     nameEn: 'Montreal',     lat: 45.5017, lon: -73.5673, coreKm: 16, domeKm: 45, peakL: 30 },
+  // East Asia & Southern Hemisphere
+  { id: 'sapporo',      name: '札幌',       nameEn: 'Sapporo',      lat: 43.0618, lon: 141.3545, coreKm: 13, domeKm: 38, peakL: 28 },
+  { id: 'melbourne',    name: '墨爾本',     nameEn: 'Melbourne',    lat: -37.8136,lon: 144.9631, coreKm: 18, domeKm: 50, peakL: 32 },
+  { id: 'christchurch', name: '基督城',     nameEn: 'Christchurch', lat: -43.5321,lon: 172.6362, coreKm: 8,  domeKm: 24, peakL: 14 },
+  { id: 'hobart',       name: '荷巴特',     nameEn: 'Hobart',       lat: -42.8821,lon: 147.3272, coreKm: 6,  domeKm: 20, peakL: 10 },
+  { id: 'dunedin',      name: '但尼丁',     nameEn: 'Dunedin',      lat: -45.8788,lon: 170.5028, coreKm: 5,  domeKm: 16, peakL: 8  },
+  { id: 'capetown',     name: '開普敦',     nameEn: 'Cape Town',    lat: -33.9249,lon: 18.4241,  coreKm: 14, domeKm: 40, peakL: 26 }
+]);
+
+function computeBearingDeg(lat1, lon1, lat2, lon2) {
+  const toRad = Math.PI / 180;
+  const p1 = lat1 * toRad, p2 = lat2 * toRad, dLon = (lon2 - lon1) * toRad;
+  const y = Math.sin(dLon) * Math.cos(p2);
+  const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dLon);
+  return (Math.atan2(y, x) * (180 / Math.PI) + 360) % 360;
+}
+
+/**
+ * Estimate urban artificial skyglow impact using additive background luminance
+ * (L_bg = 1 + L_moon + L_city) and azimuthal horizon-dome geometry relative to
+ * the auroral viewing azimuth.
+ *
+ * Guardrails:
+ * - Never returns synthetic Bortle integers or SQM numbers.
+ * - Never returns 'dark' for coordinates outside the catalog ('unknown', knownDark: false).
+ */
+export function estimateUrbanSkyglow({
+  lat, lon, geom = null, auroraScore = 30, effMoonPct = 0, lang
+} = {}) {
+  const en = isEn(lang);
+  const escapeDirZh = (Number.isFinite(lat) && lat < 0) ? '南方' : '北方';
+  const escapeDirEn = (Number.isFinite(lat) && lat < 0) ? 'south' : 'north';
+  const fallback = {
+    level: 'unknown',
+    knownDark: false,
+    cityName: '',
+    distKm: null,
+    domeImpact: 'none',
+    excessL: 0,
+    effectiveL: 0,
+    extraMagLoss: 0,
+    stormPierces: auroraScore >= 82,
+    escapeDir: en ? escapeDirEn : escapeDirZh,
+    tagText: ''
+  };
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return fallback;
+
+  const hits = [];
+  for (const c of URBAN_GLARE_CENTERS) {
+    const d = computeDistanceKm(lat, lon, c.lat, c.lon);
+    if (d <= c.domeKm) {
+      const L = c.peakL / (1 + Math.pow(d / c.coreKm, 2.3));
+      hits.push({ c, d, L });
+    }
+  }
+  if (!hits.length) return fallback;
+  hits.sort((a, b) => b.L - a.L);
+  const primary = hits[0];
+  const excessL = +(primary.L + (hits[1] ? hits[1].L : 0)).toFixed(2);
+  if (excessL < 1.2) return fallback;
+
+  // Additive sky background luminance (never double-penalizes full moon + city lights)
+  const lMoon = 6.0 * Math.max(0, Math.min(100, Number(effMoonPct) || 0)) / 100;
+  const extraMagLoss = +(2.5 * Math.log10((1 + lMoon + excessL) / (1 + lMoon))).toFixed(2);
+
+  // Azimuthal horizon-dome check: looking THROUGH city dome vs city dome BEHIND you
+  // Applies whenever aurora is at low/mid elevation OR observer is at sub-auroral latitudes (<62° magLat)
+  let domeImpact = primary.d < 2 ? 'core' : 'overhead';
+  let effectiveL = excessL;
+  const az = Number.isFinite(geom?.azimuthDeg) ? geom.azimuthDeg : computeAuroraBearing(lat, lon);
+  const subAuroral = Math.abs(computeGeomagneticLat(lat, lon)) < 62;
+  const checkAzimuth = Number.isFinite(az) && primary.d >= 2 && (
+    subAuroral || (geom && (geom.mode === 'low' || geom.mode === 'mid' || geom.mode === 'below'))
+  );
+  if (checkAzimuth) {
+    const brgToCity = computeBearingDeg(lat, lon, primary.c.lat, primary.c.lon);
+    const rawDiff = Math.abs(((brgToCity - az + 540) % 360) - 180);
+    if (rawDiff <= 45 && primary.d <= primary.c.domeKm) {
+      domeImpact = 'blocking-horizon';
+      effectiveL = +(excessL * 1.8).toFixed(2);
+    } else if (rawDiff >= 120 && primary.d >= primary.c.coreKm) {
+      domeImpact = 'behind';
+      effectiveL = +(excessL * 0.5).toFixed(2);
+    }
+  }
+
+  let level = 'unknown';
+  if (effectiveL >= 10 || (domeImpact === 'blocking-horizon' && excessL >= 4)) {
+    level = 'strong';
+  } else if (effectiveL >= 2.5) {
+    level = 'moderate';
+  }
+  if (level === 'unknown') return fallback;
+
+  const stormPierces = Number(auroraScore) >= 82;
+  const cityName = en ? primary.c.nameEn : primary.c.name;
+  const tagText = level === 'strong'
+    ? (en ? 'Est. urban glare' : '估計市區光害')
+    : (en ? 'Est. local glare' : '估計郊區光害');
+
+  return {
+    level,
+    knownDark: false,
+    cityName,
+    distKm: Math.round(primary.d),
+    domeImpact,
+    excessL,
+    effectiveL,
+    extraMagLoss,
+    stormPierces,
+    escapeDir: en ? escapeDirEn : escapeDirZh,
+    tagText
+  };
+}
+
 

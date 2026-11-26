@@ -381,15 +381,26 @@ export function buildHeroViewModel({
       kp: Math.max(kp ?? 0, sc.effKp ?? 0), mlt: mltNow, lang: en ? 'en' : 'zh'
     });
     const lookSouth = pos.lat < 0 || geom.mode === 'overhead-eq';
+    const isOverhead = geom.mode === 'overhead' || geom.mode === 'overhead-eq';
+    const dirZh = lookSouth ? '南方' : '北方';
+    const dirEn = lookSouth ? 'south' : 'north';
     const dirCueZh = (sc.total ?? 0) >= 65
-      ? (lookSouth ? '現在適合出門，肉眼可見，朝頭頂與南方觀察' : '現在適合出門，肉眼可見，朝頭頂與北方觀察')
+      ? (isOverhead
+          ? (lookSouth ? '現在適合出門，肉眼可見，朝頭頂與南方觀察' : '現在適合出門，肉眼可見，朝頭頂與北方觀察')
+          : `現在適合出門，避開光害肉眼可見，朝${dirZh}低空觀察`)
       : ((sc.total ?? 0) >= 40
-          ? (lookSouth ? '適合出門，肉眼可見、手機更亮，留意南方' : '適合出門，肉眼可見、手機更亮，留意北方')
+          ? (isOverhead
+              ? (lookSouth ? '適合出門，肉眼可見、手機更亮，留意南方' : '適合出門，肉眼可見、手機更亮，留意北方')
+              : `適合出門，肉眼可見、手機更亮，留意${dirZh}低空`)
           : '極光爆發中，留意雲縫與手機夜拍');
     const dirCueEn = (sc.total ?? 0) >= 65
-      ? (lookSouth ? 'Go out now — visible to eye, look overhead and south' : 'Go out now — visible to eye, look overhead and north')
+      ? (isOverhead
+          ? (lookSouth ? 'Go out now — visible to eye, look overhead and south' : 'Go out now — visible to eye, look overhead and north')
+          : `Go out now — visible to eye away from city lights, look ${dirEn}`)
       : ((sc.total ?? 0) >= 40
-          ? 'Good to go — visible to eye, brighter on camera'
+          ? (isOverhead
+              ? 'Good to go — visible to eye, brighter on camera'
+              : `Good to go — look ${dirEn} away from city lights, brighter on camera`)
           : 'Aurora burst — watch cloud gaps & try camera');
     heroCue = en ? dirCueEn : dirCueZh;
   } else if (act.actionType === 'wait' && (sc.total ?? 0) < 18 && (sc.skyScore ?? 0) < 45) {
@@ -460,5 +471,52 @@ export function formatDarkCountdownSub({
   }
   return moonBright ? moonLbl : term(TERMS.darkFull, en);
 }
+
+/**
+ * Format the honest astronomical-darkness & urban-glare advisory note (#tsLightNote).
+ * Always visible in #trustSheet so users know Darkness = Sun + Moon only, and upgrades with
+ * azimuthal light-dome & storm punch-through guidance when inside a known urban glare zone.
+ * Never fabricates Bortle integers or claims unmapped coordinates are dark sky.
+ */
+export function formatLightPollutionNote({
+  urbanGlare = null, pos = null, sc = null, en = false
+} = {}) {
+  const baseZh = '「夜空暗度」僅計太陽暮光與月光，未扣除當地路燈與市區光害；實際觀測建議避開直射路燈並面向開闊地平線。';
+  const baseEn = 'Darkness reflects twilight & moonlight only — local streetlights and city glow are not deducted; move away from direct lamps with an open horizon.';
+  if (!urbanGlare || urbanGlare.level === 'unknown' || sc?.outOfZone === 'low-lat') {
+    return { text: en ? baseEn : baseZh, isUrban: false };
+  }
+
+  const city = urbanGlare.cityName || '';
+  const dir = urbanGlare.escapeDir || (en ? 'north' : '北方');
+  const isManual = pos?.mode !== 'gps';
+  if (urbanGlare.stormPierces) {
+    const text = en
+      ? `Darkness excludes city glare (est. near ${city}). Strong storms can pierce urban skyglow — step away from direct streetlights for best contrast.`
+      : `「夜空暗度」未扣除市區光害（估計接近${city}光害區）。強磁暴仍可穿透市區天光，就近避開直射路燈即可提升反差。`;
+    return { text, isUrban: true };
+  }
+  if (urbanGlare.domeImpact === 'blocking-horizon') {
+    const text = en
+      ? `Darkness excludes city glare — ${city}’s light dome lies directly toward the ${dir} auroral horizon here, washing out weak arcs. Move ${dir} of ${city} to put the glow behind you.`
+      : `「夜空暗度」未扣除市區光害：此處朝${dir}極光方向正對${city}市區光穹，低空微弱極光易被淹沒；建議移至${city}${dir}側把光害留在身後。`;
+    return { text, isUrban: true };
+  }
+  if (urbanGlare.domeImpact === 'behind') {
+    const text = en
+      ? `Darkness excludes local glare — ${city}’s light dome sits behind you here, giving a clearer ${dir} horizon; stay away from nearby streetlamps.`
+      : `「夜空暗度」未扣除當地光害：此處位在${city}${dir}側、市區光穹在身後，朝${dir}視野較佳，就近避開路燈即可。`;
+    return { text, isUrban: false };
+  }
+  const text = isManual
+    ? (en
+        ? `Darkness excludes city glare — coordinates are near ${city} center. Weak-to-moderate aurora fades in city light; head toward the ${dir} edge away from the light dome.`
+        : `「夜空暗度」僅計太陽與月光，未扣除市區光害；目前座標接近${city}市中心，弱至中度極光易被光害吃掉，出發建議往${dir}側郊區避開光穹。`)
+    : (en
+        ? `Darkness excludes city glare — you appear near ${city}’s urban glow, so naked-eye visibility will be lower than the regional score. Move ${dir} away from streetlights.`
+        : `「夜空暗度」僅計太陽與月光，未扣除市區光害；目前接近${city}光害區，實際肉眼可見度會低於上方區域指數，建議往${dir}側避開路燈。`);
+  return { text, isUrban: urbanGlare.level === 'strong' };
+}
+
 
 

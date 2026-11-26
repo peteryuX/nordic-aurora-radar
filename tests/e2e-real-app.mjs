@@ -487,11 +487,11 @@ function buildInterceptorScript(sc) {
       }
     }
 
-    // Universal Real-DOM Invariant 3: Interactive click on Hero storm tag opens visible #tsStormNote with NOAA link
+    // Universal Real-DOM Invariant 3: Interactive click on Hero storm / urban-glare tags opens visible Trust Sheet cards
     let stormClickOk = null;
     let tsStormNoteText = '';
     let tsStormLinkHref = '';
-    const stormBtn = document.querySelector('#heroTags [data-open-trust]');
+    const stormBtn = document.querySelector('#heroTags [data-open-trust="storm"]');
     if (stormBtn && getComputedStyle(stormBtn).display !== 'none') {
       stormBtn.click();
       const sheet = document.getElementById('trustSheet');
@@ -511,6 +511,25 @@ function buildInterceptorScript(sc) {
       }
     }
 
+    let lightClickOk = null;
+    let tsLightNoteText = (document.getElementById('tsLightNote')?.textContent || '').replace(/\\s+/g, ' ').trim();
+    const lightBtn = document.querySelector('#heroTags [data-open-trust="light"]');
+    if (lightBtn && getComputedStyle(lightBtn).display !== 'none') {
+      lightBtn.click();
+      const sheet = document.getElementById('trustSheet');
+      const ln = document.getElementById('tsLightNote');
+      const lnOpen = Boolean(sheet && sheet.classList.contains('open'));
+      const lnVis = Boolean(ln && getComputedStyle(ln).display !== 'none' && ln.getBoundingClientRect().height > 10);
+      tsLightNoteText = (ln?.textContent || '').replace(/\\s+/g, ' ').trim();
+      lightClickOk = Boolean(lnOpen && lnVis && tsLightNoteText.length > 15 && !/Bortle|SQM/i.test(tsLightNoteText));
+      if (!lightClickOk) {
+        issues.push('DOM_LIGHT_CLICK_INVALID: open=' + lnOpen + ' vis=' + lnVis + ' txt="' + tsLightNoteText.slice(0, 60) + '"');
+      }
+      if (typeof window.__AURORA_APP__?.closeTrustSheet === 'function') {
+        window.__AURORA_APP__.closeTrustSheet();
+      }
+    }
+
     const out = {
       locName: document.getElementById('locName')?.textContent?.trim() || '',
       ringGrade: document.getElementById('ringGrade')?.textContent?.trim() || '',
@@ -524,6 +543,8 @@ function buildInterceptorScript(sc) {
       stormClickOk,
       tsStormNoteText,
       tsStormLinkHref,
+      lightClickOk,
+      tsLightNoteText,
       fcConfBtn: document.getElementById('fcConfBtn')?.textContent?.trim() || '',
       pMet: document.getElementById('pMet')?.textContent?.trim() || '',
       pMetHref: document.getElementById('pMet')?.getAttribute('href') || '',
@@ -600,7 +621,7 @@ const SCENARIOS = [
   },
   {
     id: 'oslo-search-mismatch',
-    label: 'Oslo 19px: English search -> 挪威 · Oslo + Thu 11/26 強極光時雲厚 + honest 動態雲圖 + safe generic 看區域',
+    label: 'Oslo 19px: English search -> 挪威 · Oslo + Thu 11/26 強極光時雲厚 + honest 動態雲圖 + curated northern dark-sky spots (stay-local 看地圖)',
     query: '?lat=69.6492&lon=18.9553',
     runSearchQuery: 'Oslo',
     searchResultName: 'Oslo', searchResultCountry: 'Norway', searchResultCC: 'NO',
@@ -613,11 +634,9 @@ const SCENARIOS = [
       if (r.navSat !== '動態雲圖') errs.push(`Oslo (outside Arctic observatory cam range) navSat must be 動態雲圖, got "${r.navSat}"`);
       if (!r.outlookText.includes('強極光時雲厚')) errs.push(`Expected 強極光時雲厚 on Oslo Thu 11/26, got "${r.outlookText}"`);
       if (!r.outlookText.includes('強光時晴空 0%')) errs.push(`Expected 強光時晴空 0% on Oslo Thu 11/26, got "${r.outlookText}"`);
-      if (r.compassHtml.includes('travelmode=driving')) errs.push('Generic Oslo 60km points must NEVER emit turn-by-turn travelmode=driving links');
-      if (!r.compassHtml.includes('google.com/maps/search/?api=1&amp;query=') && !r.compassHtml.includes('google.com/maps/search/?api=1&query=')) {
-        errs.push('Generic Oslo 60km points must open Google Maps area search');
-      }
-      if (!r.compassHtml.includes('看區域')) errs.push('Generic Oslo 60km points must label button 看區域');
+      if (r.compassHtml.includes('travelmode=driving')) errs.push('Already-clear Oslo must NEVER emit turn-by-turn travelmode=driving links');
+      if (!r.compassHtml.includes('Maridalen')) errs.push('Oslo compass must surface curated northern dark-sky spot Maridalen / Sognsvann');
+      if (!r.compassHtml.includes('看地圖')) errs.push('Already-clear Oslo must demote corridor button to 看地圖');
       if (r.issues.length) errs.push(...r.issues);
       return errs;
     }
@@ -861,6 +880,29 @@ const SCENARIOS = [
       if (r.issues.length) errs.push(...r.issues);
       return errs;
     }
+  },
+  {
+    id: 'oslo-urban-glare-geometry',
+    label: 'Oslo Sentrum 19px evening storm: clickable 估計市區光害 -> #tsLightNote (zero Bortle) + 北方低空 (never 朝頭頂) + curated Maridalen',
+    query: '?lat=59.9127&lon=10.7461&name=Oslo',
+    lat: 59.9127, lon: 10.7461, tz: 'Europe/Oslo', utcOff: 3600, rootPx: 19, lang: 'zh',
+    nowMs: Date.UTC(2026, 10, 26, 17, 0, 0), // 18:00 CET dark evening in Oslo Sentrum (MLT ~19, mid-elevation horizon)
+    kpNow: 4.0, bz: -4, speed: 440, ov: 42, hpi: 48, metCloud: 5, omCloud: 5,
+    gDate0: '2026-11-26', gNow: '1', gDate1: '2026-11-27', gTomorrow: '0',
+    verify(r) {
+      const errs = [];
+      if (!r.heroTagsText.includes('估計市區光害')) errs.push(`Oslo Sentrum night must show 估計市區光害 tag in #heroTags, got "${r.heroTagsText}"`);
+      if (r.lightClickOk !== true) errs.push(`Clicking 估計市區光害 must open visible #tsLightNote without Bortle numbers (got lightClickOk=${r.lightClickOk})`);
+      if (!r.tsLightNoteText.includes('未扣除市區光害') || /Bortle/i.test(r.tsLightNoteText)) {
+        errs.push(`#tsLightNote must honestly explain Sun+Moon boundary without fake Bortle integer, got "${r.tsLightNoteText}"`);
+      }
+      if (r.vTitle.includes('頭頂') || !r.vTitle.includes('北方低空')) {
+        errs.push(`Sub-auroral Oslo evening go-cue must say 北方低空 (never falsely 朝頭頂), got "${r.vTitle}"`);
+      }
+      if (!r.compassHtml.includes('Maridalen')) errs.push('Oslo compass must include Maridalen / Sognsvann');
+      if (r.issues.length) errs.push(...r.issues);
+      return errs;
+    }
   }
 ];
 
@@ -879,7 +921,7 @@ window.__E2E_ERRORS__ = [];
 let tries = 0;
 function pollDone() {
   tries++;
-  if (Object.keys(window.__E2E_RESULTS__).length >= ${SCENARIOS.length} || tries > 85) {
+  if (Object.keys(window.__E2E_RESULTS__).length >= ${SCENARIOS.length} || tries > 95) {
     const pre = document.createElement('pre');
     pre.id = '__E2E_ALL__';
     pre.textContent = JSON.stringify({ results: window.__E2E_RESULTS__, errors: window.__E2E_ERRORS__ });
@@ -926,9 +968,9 @@ let totalFails = 0;
 try {
   const { stdout: dom } = await execFileAsync(chrome, [
     '--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
-    '--window-size=1200,900', '--virtual-time-budget=5500', '--dump-dom',
+    '--window-size=1200,900', '--virtual-time-budget=6500', '--dump-dom',
     `http://127.0.0.1:${port}/harness`
-  ], { encoding: 'utf8', timeout: 35000, maxBuffer: 20 * 1024 * 1024 });
+  ], { encoding: 'utf8', timeout: 40000, maxBuffer: 20 * 1024 * 1024 });
 
   const m = dom.match(/<pre id="__E2E_ALL__">([\s\S]*?)<\/pre>/);
   if (!m) throw new Error('E2E harness did not emit __E2E_ALL__');

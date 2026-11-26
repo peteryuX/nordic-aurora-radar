@@ -19,7 +19,8 @@ import { buildShareCardPayload, exportShareCardPng } from './share-card.js';
 import { trackPageview, trackEvent, normalizeCitySlug } from './analytics.js';
 import {
   formatWavePeakSummary, formatHourScrubDetail, formatOutlookRowStats,
-  resolveStormEvent, formatStormAlertDetail, buildHeroViewModel, formatDarkCountdownSub
+  resolveStormEvent, formatStormAlertDetail, buildHeroViewModel,
+  formatDarkCountdownSub, formatLightPollutionNote
 } from './copy-formatters.js';
 import { SKY_CAMS, renderSkyCamCaption, renderTrustStatGrid, applyStaticI18n as applyStaticI18nDom } from './i18n.js';
 import {
@@ -34,7 +35,7 @@ const {
   computeDarkWindow, getMoonState, computeViewingGeometry,
   computeMLT, explainAuroraScore, summarize3NightOutlook, evaluateVerdict,
   isCorridorHazard, synthesizeTonightAction, summarizeEnergyTrend, summarizeCompass,
-  shouldTriggerAuroraAlert, evaluateSilentGpsDecision, utcTagToLocalHM
+  shouldTriggerAuroraAlert, evaluateSilentGpsDecision, utcTagToLocalHM, estimateUrbanSkyglow
 } = Engine;
 
 const {
@@ -1567,6 +1568,15 @@ function renderFromState(st) {
     skyParts.push(`<span class="nowrap">${t0Int <= 1 ? (en ? 'Snow' : '降雪') : (en ? 'Rain' : '降雨')}</span>`);
   }
 
+  const geomNow = computeViewingGeometry({
+    lat: pos.lat, lon: pos.lon,
+    kp: Math.max(kp ?? 0, sc.effKp ?? 0), mlt: mltNow, lang: getLang()
+  });
+  const urbanGlare = estimateUrbanSkyglow({
+    lat: pos.lat, lon: pos.lon, geom: geomNow,
+    auroraScore: sc.auroraScore, effMoonPct: moon.effMoonPct, lang: getLang()
+  });
+
   // Frameless monochrome 1.5px SVG footnote items (traveler-relevant alerts only; local station calibration lives cleanly in Trust Sheet & confidence link)
   const heroTags = [];
   if (isExtremeCold) {
@@ -1576,7 +1586,10 @@ function renderFromState(st) {
     heroTags.push(`<span class="meta-item t-amber">${SVG_ICO_WARN}<span>${en ? 'Blowing snow' : '吹雪強風'}</span></span>`);
   }
   if (state.bannerState.stormMinorTag && sc.outOfZone !== 'low-lat') {
-    heroTags.push(`<button type="button" class="meta-item meta-btn t-amber" data-open-trust="1" aria-haspopup="dialog" aria-controls="trustSheet">${SVG_ICO_BOLT}<span>${escapeHtml(state.bannerState.stormMinorTag)}</span></button>`);
+    heroTags.push(`<button type="button" class="meta-item meta-btn t-amber" data-open-trust="storm" aria-haspopup="dialog" aria-controls="trustSheet">${SVG_ICO_BOLT}<span>${escapeHtml(state.bannerState.stormMinorTag)}</span></button>`);
+  }
+  if (urbanGlare.level === 'strong' && !sc.isTooBright && !sc.outOfZone && !urbanGlare.stormPierces) {
+    heroTags.push(`<button type="button" class="meta-item meta-btn t-muted" data-open-trust="light" aria-haspopup="dialog" aria-controls="trustSheet">${SVG_ICO_WARN}<span>${escapeHtml(urbanGlare.tagText)}</span></button>`);
   }
   if (!heroTags.length && scNext && !sc.outOfZone) {
     const diff = scNext.total - sc.total;
@@ -2364,8 +2377,24 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
       mn.textContent = '';
     }
   }
-  setText('tsConfRow', `${exp.confidence.badgeText}${effTelemetry ? ` · ${effTelemetry}` : ''}`);
   const stLive = stOpt || state.renderState;
+  const ln = $('tsLightNote');
+  if (ln) {
+    const posLive = stLive?.pos || state.pos;
+    const geomLive = computeViewingGeometry({
+      lat: posLive.lat, lon: posLive.lon,
+      kp: Math.max(stLive?.kp ?? 0, sc.effKp ?? 0), mlt: stLive?.mltNow ?? null, lang: getLang()
+    });
+    const glareLive = estimateUrbanSkyglow({
+      lat: posLive.lat, lon: posLive.lon, geom: geomLive,
+      auroraScore: sc.auroraScore, effMoonPct: stLive?.moon?.effMoonPct ?? 0, lang: getLang()
+    });
+    const lightNote = formatLightPollutionNote({ urbanGlare: glareLive, pos: posLive, sc, en });
+    ln.style.display = 'block';
+    ln.className = `ts-light-note${lightNote.isUrban ? ' is-urban' : ''}`;
+    ln.textContent = lightNote.text;
+  }
+  setText('tsConfRow', `${exp.confidence.badgeText}${effTelemetry ? ` · ${effTelemetry}` : ''}`);
   const sn = $('tsStormNote');
   if (sn) {
     const stormInfo = formatStormAlertDetail({

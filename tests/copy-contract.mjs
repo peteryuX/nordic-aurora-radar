@@ -1,7 +1,7 @@
 /**
  * Nordic Aurora Radar — Systematic Number-to-Copy Semantic Contract Suite
  *
- * Exhaustively tests 15 universal physical-to-copy & cross-card invariants across thousands
+ * Exhaustively tests 16 universal physical-to-copy & cross-card invariants across thousands
  * of cartesian combinations (8 latitudes × sky states × Kp × daylight/twilight/moon × ZH/EN)
  * directly against ALL production engine & UI copy formatters.
  *
@@ -16,7 +16,8 @@ import * as Engine from '../src/aurora-engine.js';
 import * as Charts from '../src/charts.js';
 import {
   formatWavePeakSummary, formatHourScrubDetail, formatOutlookRowStats,
-  resolveStormEvent, formatStormAlertDetail, buildHeroViewModel, formatDarkCountdownSub
+  resolveStormEvent, formatStormAlertDetail, buildHeroViewModel,
+  formatDarkCountdownSub, formatLightPollutionNote
 } from '../src/copy-formatters.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -188,7 +189,7 @@ for (const c of CITIES) {
 
             // INV-7: Lunar honesty
             if (mCase.label === 'high-full-moon') {
-              check(!/全暗|Full dark/i.test(det.darkTxt), 'INV-7', `High full moon labeled full dark in ${ctx}: "${det.darkTxt}"`);
+              check(!/全暗|Full dark|天文暗空|Astro dark/i.test(det.darkTxt), 'INV-7', `High full moon labeled dark in ${ctx}: "${det.darkTxt}"`);
             }
             if (mCase.label === 'low-full-moon') {
               check(/低月|Low moon/i.test(det.darkTxt), 'INV-7', `Low-horizon 93% moon missing Low moon clarity in ${ctx}: "${det.darkTxt}"`);
@@ -461,6 +462,45 @@ check(
   check(ev && !ev.useAlert && ev.level === 1 && ev.isWarn && !ev.isSevere, 'INV-15', `resolveStormEvent G1 watch mismatch: ${JSON.stringify(ev)}`);
 }
 
+// =========================================================================
+// 8. Urban Artificial Skyglow Physics & Anti-False-Precision Contract (INV-16)
+// =========================================================================
+{
+  const osloGeom = Engine.computeViewingGeometry({ lat: 59.91, lon: 10.75, kp: 5.0, mlt: 23, lang: 'zh' });
+  const testPts = [
+    { name: 'Oslo Sentrum', lat: 59.9127, lon: 10.7461, geom: osloGeom, expectLevel: 'strong', expectDome: 'core' },
+    { name: 'Kolbotn (S of Oslo)', lat: 59.81, lon: 10.80, geom: osloGeom, expectLevel: 'strong', expectDome: 'blocking-horizon' },
+    { name: 'Maridalen (N of Oslo)', lat: 60.01, lon: 10.77, geom: osloGeom, expectLevel: 'moderate', expectDome: 'behind' },
+    { name: 'Unmapped mountain', lat: 61.50, lon: 8.50, geom: osloGeom, expectLevel: 'unknown', expectDome: 'none' }
+  ];
+  for (const pt of testPts) {
+    for (const lang of ['zh', 'en']) {
+      const en = lang === 'en';
+      for (const mode of ['manual', 'gps']) {
+        for (const aur of [35, 88]) {
+          const glare = Engine.estimateUrbanSkyglow({ lat: pt.lat, lon: pt.lon, geom: pt.geom, auroraScore: aur, effMoonPct: 0, lang });
+          const note = formatLightPollutionNote({ urbanGlare: glare, pos: { mode }, sc: {}, en });
+          const ctx = `INV-16(${pt.name}, ${mode}, aur=${aur}, ${lang})`;
+          check(glare.level === pt.expectLevel, 'INV-16', `${ctx} expected level=${pt.expectLevel}, got ${glare.level}`);
+          check(glare.domeImpact === pt.expectDome, 'INV-16', `${ctx} expected dome=${pt.expectDome}, got ${glare.domeImpact}`);
+          check(glare.knownDark === false, 'INV-16', `${ctx} must never fabricate knownDark=true without global VIIRS`);
+          check(!/Bortle|SQM|mag\/arcsec/i.test(`${glare.tagText} ${note.text}`), 'INV-16',
+            `${ctx} must NEVER output fabricated Bortle/SQM numbers: "${note.text}"`);
+          checkHygiene(`${glare.tagText} ${note.text}`, lang, ctx);
+        }
+      }
+    }
+  }
+  // Sub-auroral Oslo evening go-cue (mid/low elevation) must point to northern low horizon (never falsely "overhead")
+  const osloGoSc = Engine.computeAuroraScore({ lat: 59.9127, lon: 10.7461, cloudNow: 5, sunAlt: -20, kp: 4.5, bz: -4, speed: 440, ovation: 35, hpiGw: 45, mlt: 20 });
+  for (const lang of ['zh', 'en']) {
+    const en = lang === 'en';
+    const vm = buildHeroViewModel({ pos: { lat: 59.9127, lon: 10.7461 }, sc: osloGoSc, kp: 4.5, mltNow: 20, act: { actionType: 'go', title: 'go' }, en });
+    checkHygiene(vm.heroCue, lang, `INV-16(Oslo Hero go ${lang})`);
+    check(!/頭頂|overhead/i.test(vm.heroCue), 'INV-16', `Sub-auroral Oslo mid-elevation (${lang}) must NOT claim overhead: "${vm.heroCue}"`);
+  }
+}
+
 console.log(`=== COPY & SEMANTIC CONTRACT AUDIT ===`);
 console.log(`Total invariant checks executed : ${checksRun}`);
 console.log(`Violations found                : ${violations.length}`);
@@ -468,4 +508,4 @@ if (violations.length) {
   for (const v of violations.slice(0, 25)) console.error('  ✗', v);
   process.exit(1);
 }
-console.log('ALL 15 SEMANTIC & NUMBER-TO-COPY INVARIANTS PASSED (0 VIOLATIONS).');
+console.log('ALL 16 SEMANTIC & NUMBER-TO-COPY INVARIANTS PASSED (0 VIOLATIONS).');

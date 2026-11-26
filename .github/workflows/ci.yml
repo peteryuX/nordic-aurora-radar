@@ -29,7 +29,7 @@ jobs:
         run: for f in src/*.js sw.js tests/*.mjs; do node --check "$f"; done
       - name: Run automated physics, chaos, nowcast, storage, glossary, SVG fuzz & security tests
         run: node --test tests/aurora.test.mjs
-      - name: Run systematic 15-invariant number-to-copy & cross-card semantic contract suite
+      - name: Run systematic 16-invariant number-to-copy & cross-card semantic contract suite
         run: node tests/copy-contract.mjs
       - name: Run quantitative calibration (72 storms) & NASA JPL DE441 (22 checkpoints) benchmark
         run: node tests/benchmark.mjs
