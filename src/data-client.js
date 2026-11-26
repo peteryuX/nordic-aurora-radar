@@ -417,7 +417,7 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
   };
   try {
     const pts = computeCompassPoints(pos.lat, pos.lon, 60);
-    const needElev = pts.slice(1).some(p => p.label.includes('60 km'));
+    const needElev = pts.slice(1).some(p => p.isGeneric || p.label.includes('60 km'));
     const inNordic = isInNordicMetBox(pos.lat, pos.lon);
     const inRadar = isInNordicRadarBox(pos.lat, pos.lon);
     const inFinland = isInFinlandCloudBox(pos.lat, pos.lon);

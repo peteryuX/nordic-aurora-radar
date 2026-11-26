@@ -241,6 +241,7 @@ body.is-syncing .sync-bar::after { animation: syncSlide 1.15s ease-in-out infini
 .btn-ghost { background: var(--surface-2); border-color: var(--border); color: var(--text); padding: 7px 12px; min-height: 44px; font-size: 0.82rem; border-radius: 11px; }
 .btn-blue { background: var(--blue-bg); border-color: var(--blue-border); color: var(--blue-text); }
 .btn-hazard { background: var(--red-bg); border-color: var(--red-border); color: var(--red); }
+.btn-area { background: var(--surface-2); border-color: var(--border); color: var(--text-soft); font-weight: 600; }
 
 .btn-gps-primary {
   width: 100%; min-height: 48px;
@@ -815,6 +816,8 @@ body.red-mode .sb-tag-warn {
 .dir.best { border-color: var(--green-border); background: var(--green-bg); }
 .dir.hazard { border-color: var(--red-border); background: var(--red-bg); }
 .dir.sea { opacity: 0.78; border-style: dashed; }
+.dir.ref-only { opacity: 0.86; }
+.dir-ref-hd { font-size: 0.76rem; color: var(--muted); font-weight: 500; margin: 2px 2px 2px; }
 @keyframes dirPulse {
   0% { box-shadow: 0 0 0 0 rgba(88, 219, 164, 0.55); border-color: var(--green); }
   70% { box-shadow: 0 0 0 6px rgba(88, 219, 164, 0); border-color: var(--green); }

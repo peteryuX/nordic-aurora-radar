@@ -3029,6 +3029,61 @@ test('57. v51 UX & Product Fixes: Layered Clouds, FMI Mag SVG, Iceland Cams, Reg
   assert.equal(haloCount, 1, `24h chart should show range halo ONLY on the selected Trend bar, got ${haloCount}`);
 });
 
+test('58. v53 Clear-Sky Navigation Safety: No Generic Drive Links, EXTENDED_CORRIDORS, Radar 60km Dedup & Stay-Local Guard', async () => {
+  const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+
+  // (a) EXTENDED_CORRIDORS preserves legacy counts (10 Nordic + 8 Global) + adds 7 verified winter hubs with >=0.30° separation
+  assert.equal(api.NORDIC_CORRIDORS.length, 10);
+  assert.equal(api.GLOBAL_CORRIDORS.length, 8);
+  assert.equal(api.EXTENDED_CORRIDORS.length, 7);
+  assert.equal(api.CHASE_CORRIDORS.length, 25);
+  for (const c of api.EXTENDED_CORRIDORS) {
+    assert.ok(c.pts.length >= 2 && c.pts.length <= 4, `Extended hub ${c.match} must have 2..4 routes`);
+    const keys = new Set();
+    for (const p of c.pts) {
+      assert.ok(['N', 'E', 'S', 'W'].includes(p.key), `Invalid key ${p.key}`);
+      assert.ok(!keys.has(p.key), `Duplicate key ${p.key}`);
+      keys.add(p.key);
+      assert.ok(Number.isFinite(p.lat) && Number.isFinite(p.lon) && p.roadKm > 0 && p.isOcean === false);
+      const shortName = p.label.replace(/^往[東西南北]+\s*/, '');
+      assert.ok(shortName.length <= 13, `Radar pill name too long: ${shortName}`);
+    }
+  }
+  for (let i = 0; i < api.CHASE_CORRIDORS.length; i++) {
+    for (let j = i + 1; j < api.CHASE_CORRIDORS.length; j++) {
+      const a = api.CHASE_CORRIDORS[i].match, b = api.CHASE_CORRIDORS[j].match;
+      const d = Math.hypot(a[0] - b[0], (a[1] - b[1]) * Math.cos(a[0] * Math.PI / 180));
+      assert.ok(d >= 0.30, `Hubs ${a} and ${b} overlap too closely (${d.toFixed(2)}°)`);
+    }
+  }
+  // Svalbard MUST stay generic (never offer 60 km road driving in polar-bear backcountry)
+  const svalPts = api.computeCompassPoints(78.2232, 15.6267, 60);
+  assert.equal(svalPts[1].isGeneric, true);
+
+  // (b) Radar SVG pill deduplicates "60km · 60km" on generic points
+  const genDirs = svalPts.map((p, idx) => ({ ...p, avg3h: idx === 0 ? 80 : 20, nowC: 50, temp: -8, maxWind3h: 4, maxPrecip3h: 0 }));
+  const radarZh = api.buildCompassRadarSVG(genDirs, { lat: 78.2232, lon: 15.6267 }, 'zh');
+  const radarEn = api.buildCompassRadarSVG(genDirs, { lat: 78.2232, lon: 15.6267 }, 'en');
+  assert.ok(!radarZh.includes('60km<tspan') && !radarEn.includes('60km<tspan'), 'Radar SVG must never render duplicate 60km · 60km');
+  assert.ok(radarZh.includes('>北<tspan') && radarEn.includes('>N<tspan'), 'Generic radar pills must render clean 北 · 60km / N · 60km');
+
+  // (c) summarizeCompass: 100% clear says 已晴空 / Already clear; generic best says 看區域 / View area without quoting distance
+  const clearDirs = svalPts.map((p) => ({ ...p, avg3h: 0, nowC: 0, temp: -10, maxWind3h: 2, maxPrecip3h: 0 }));
+  const sumClearZh = api.summarizeCompass(clearDirs, 'zh');
+  const sumClearEn = api.summarizeCompass(clearDirs, 'en');
+  assert.ok(sumClearZh.bestKey === 'here' && sumClearZh.text.includes('已晴空'));
+  assert.ok(sumClearEn.bestKey === 'here' && sumClearEn.text.includes('Already clear'));
+  const sumGenZh = api.summarizeCompass(genDirs, 'zh');
+  const sumGenEn = api.summarizeCompass(genDirs, 'en');
+  assert.ok(sumGenZh.text.includes('看區域') && !sumGenZh.text.includes('「往北 60 km」'));
+  assert.ok(sumGenEn.text.includes('View area') && !sumGenEn.text.includes('"North 60 km"'));
+
+  // (d) Hero CTA guards against bestKey === 'here' & generic panel uses area search instead of travelmode=driving
+  assert.ok(appSrc.includes("compassSum.bestKey !== 'here'"), 'Hero CTA must never match dirResults[0] (here)');
+  assert.ok(appSrc.includes('google.com/maps/search/?api=1&query='), 'Generic & stay-local compass cards must open area map search');
+});
+
+
 
 
 

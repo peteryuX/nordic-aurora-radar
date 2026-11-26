@@ -507,11 +507,11 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
     const clearPct = Math.round(100 - clampNum(d.avg3h, 0, 100, 100));
     const hazard = !d.isOcean && !unavail && ((d.maxWind3h || 0) >= 12 || ((d.maxWind3h || 0) >= 9 && (d.maxPrecip3h || 0) >= 0.2 && (d.temp ?? 5) <= 1.5));
     const cleanLbl = String(d.label || d.key).replace(/^[⬆️⬇️➡️⬅️]+\s*/, '');
-    const shortLblRaw = cleanLbl.includes('km')
+    const shortLblRaw = (d.isGeneric || cleanLbl.includes('km'))
       ? (en
-          ? cleanLbl.replace('往東北 ', 'NE ').replace('往西北 ', 'NW ').replace('往東南 ', 'SE ').replace('往西南 ', 'SW ')
-              .replace('往北 ', 'N ').replace('往南 ', 'S ').replace('往東 ', 'E ').replace('往西 ', 'W ').replace(/\s+km$/, 'km')
-          : cleanLbl.replace(/^往/, '').replace(/\s+km$/, 'km'))
+          ? cleanLbl.replace('往東北', 'NE').replace('往西北', 'NW').replace('往東南', 'SE').replace('往西南', 'SW')
+              .replace('往北', 'N').replace('往南', 'S').replace('往東', 'E').replace('往西', 'W').replace(/\s*\d+\s*km$/i, '').trim()
+          : cleanLbl.replace(/^往/, '').replace(/\s*\d+\s*km$/i, '').trim())
       : cleanLbl.replace(/^往[東西南北]+\s*/, '');
     return { d, deg, km, unavail, clearPct, hazard, shortLbl: escSvg(d.isOcean ? term(TERMS.status.sea, en) : shortLblRaw) };
   });

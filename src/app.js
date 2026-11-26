@@ -1410,6 +1410,7 @@ function renderRoadLinks(pos, en) {
   if (pos.lat >= 55 && pos.lat <= 72 && pos.lon >= -26 && pos.lon <= 35) {
     if (pos.lon <= -10) {
       links.push({ id: 'roadIs', url: 'https://umferdin.is/en', zh: '冰島 Umferðin ↗', en: 'Iceland Umferðin ↗' });
+      links.push({ id: 'roadIsSafe', url: 'https://safetravel.is/', zh: '冰島 SafeTravel ↗', en: 'SafeTravel.is ↗' });
     } else if (pos.lon >= 4) {
       if (pos.lon < 26 || pos.lat >= 69.0) links.push({ id: 'roadNo', url: 'https://www.vegvesen.no/trafikk', zh: '挪威 Vegvesen ↗', en: 'Norway Vegvesen ↗' });
       if (pos.lon >= 11 && pos.lon <= 25) links.push({ id: 'roadSe', url: 'https://www.trafikverket.se/trafikinformation/vag/', zh: '瑞典 Trafikverket ↗', en: 'Sweden Trafikverket ↗' });
@@ -1419,6 +1420,8 @@ function renderRoadLinks(pos, en) {
     if (pos.lon <= -130) links.push({ id: 'roadAk', url: 'https://511.alaska.gov/', zh: '阿拉斯加 511 ↗', en: 'Alaska 511 ↗' });
     if (pos.lat >= 59 && pos.lon >= -142 && pos.lon <= -123) links.push({ id: 'roadYk', url: 'https://511yukon.ca/', zh: '育空 511 ↗', en: 'Yukon 511 ↗' });
     if (pos.lat >= 59 && pos.lon >= -126 && pos.lon <= -102) links.push({ id: 'roadNwt', url: 'https://www.inf.gov.nt.ca/en/services/highways/highway-conditions', zh: '黃刀公路路況 ↗', en: 'NWT Highways ↗' });
+  } else if (pos.lat >= 49 && pos.lat < 54 && pos.lon >= -120 && pos.lon <= -110) {
+    links.push({ id: 'roadAb', url: 'https://511.alberta.ca/', zh: '亞伯達 511 路況 ↗', en: '511 Alberta ↗' });
   } else if (pos.lat <= -34 && pos.lon >= 143) {
     if (pos.lon >= 165) links.push({ id: 'roadNz', url: 'https://www.journeys.nzta.govt.nz/', zh: '紐西蘭 NZTA 路況 ↗', en: 'NZTA Journeys ↗' });
     else if (pos.lat <= -40 && pos.lon <= 149) links.push({ id: 'roadTas', url: 'https://www.police.tas.gov.au/community-alerts/', zh: '塔斯馬尼亞路況 ↗', en: 'Tasmania Alerts ↗' });
@@ -1445,17 +1448,23 @@ function renderCompassPanel(dirResults, pos, en) {
 
   const cBox = $('compassBox');
   if (!cBox || !Array.isArray(dirResults)) return;
-  cBox.innerHTML = dirResults.slice(1).map(d => {
-    const isBest = sum && sum.bestKey === d.key;
+  const hereIsClear = sum?.bestKey === 'here';
+  const hereClear = Number.isFinite(sum?.hereClear) ? sum.hereClear : 0;
+  const refHeader = hereIsClear
+    ? `<div class="dir-ref-hd">${en ? 'Nearby skies for reference · no need to drive' : '周邊晴空參考 · 目前無需遠行'}</div>`
+    : '';
+  cBox.innerHTML = refHeader + dirResults.slice(1).map(d => {
+    const isBest = Boolean(sum && sum.bestKey === d.key);
+    const isGeneric = Boolean(d.isGeneric);
     const unavail = Boolean(d.unavailable) || !Number.isFinite(d.avg3h);
     const hazard = isCorridorHazard(d);
     const clear3h = unavail ? null : Math.max(0, Math.min(100, Math.round(100 - d.avg3h)));
     const clearNow = unavail ? null : Math.max(0, Math.min(100, Math.round(100 - d.nowC)));
     const col = unavail ? '' : (d.isOcean ? 'c-blue' : (hazard ? 'c-red' : (clear3h >= 65 ? 'c-green' : clear3h >= 35 ? 'c-amber' : 'c-muted')));
     const kmVal = Number.isFinite(d.roadKm) ? d.roadKm : (Number.isFinite(d.distKm) ? d.distKm : Math.round(computeDistanceKm(pos.lat, pos.lon, d.lat, d.lon)));
-    const driveEst = (!d.isOcean && !d.isGeneric && Number.isFinite(kmVal) && kmVal > 0) ? fmtWinterDrive(kmVal, en) : '';
-    const distTag = d.isGeneric
-      ? (en ? ' · straight-line (verify road)' : ' · 直線參考（請確認路況）')
+    const driveEst = (!d.isOcean && !isGeneric && Number.isFinite(kmVal) && kmVal > 0) ? fmtWinterDrive(kmVal, en) : '';
+    const distTag = isGeneric
+      ? (en ? ' · area reference' : ' · 區域參考')
       : (Number.isFinite(kmVal) && kmVal > 0
           ? (en ? ` · ~${kmVal} km${driveEst ? ` (${driveEst})` : ''}` : ` · ~${kmVal} km${driveEst ? `（${driveEst}）` : ''}`)
           : '');
@@ -1477,18 +1486,35 @@ function renderCompassPanel(dirResults, pos, en) {
       ? (en ? ' · Rain' : ' · 降雨')
       : '';
     const hazardHtml = hazards.length ? `<div class="dir-hazards">${escapeHtml(hazards.join(' · '))}</div>` : '';
-    const noteText = en ? (d.roadNoteEn || '') : (d.roadNote || '');
+    const baseNote = en ? (d.roadNoteEn || '') : (d.roadNote || '');
+    const noteText = baseNote || (isGeneric && isBest && !hereIsClear
+      ? (en ? 'Weather sample point — tap View area to pick a main-road town or pullout' : '直線氣象採樣點，點「看區域」挑選主幹道城鎮或停靠處')
+      : '');
     const isPositiveNote = /雨影|晴空|暗空|主幹道|rain shadow|dark sky|main highway|paved/i.test(noteText);
     const noteHtml = noteText ? `<div class="${isPositiveNote ? 'dir-tip' : 'dir-note'}">${escapeHtml(noteText)}</div>` : '';
-    const nav = (d.isOcean || unavail)
-      ? (d.isOcean
-          ? `<span class="dir-ref c-blue">${en ? 'Open Sea' : '海域參考'}</span>`
-          : `<span class="dir-ref c-muted">${en ? 'Unavailable' : '暫無資料'}</span>`)
-      : `<a class="btn ${hazard ? 'btn-hazard' : 'btn-blue'}" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/dir/?api=1&origin=${pos.lat},${pos.lon}&destination=${d.lat},${d.lon}&travelmode=driving">${en ? (hazard ? 'Drive anyway' : 'Drive') : (hazard ? '仍要導航' : '導航')}</a>`;
+    const areaHref = `https://www.google.com/maps/search/?api=1&query=${d.lat},${d.lon}`;
+    const driveHref = `https://www.google.com/maps/dir/?api=1&origin=${pos.lat},${pos.lon}&destination=${d.lat},${d.lon}&travelmode=driving`;
+    const worthDriving = !hereIsClear && (isBest || (clear3h !== null && clear3h >= 65 && (clear3h - hereClear) >= 15));
+    let nav;
+    if (d.isOcean || unavail) {
+      nav = d.isOcean
+        ? `<span class="dir-ref c-blue">${en ? 'Open Sea' : '海域參考'}</span>`
+        : `<span class="dir-ref c-muted">${en ? 'Unavailable' : '暫無資料'}</span>`;
+    } else if (isGeneric) {
+      const cls = hazard ? 'btn-hazard' : (isBest && !hereIsClear ? 'btn-blue' : 'btn-area');
+      const lbl = en ? (hazard ? 'View area ⚠' : 'View area') : (hazard ? '看區域 ⚠' : '看區域');
+      nav = `<a class="btn ${cls}" target="_blank" rel="noopener noreferrer" href="${areaHref}">${lbl}</a>`;
+    } else if (hereIsClear) {
+      nav = `<a class="btn btn-area" target="_blank" rel="noopener noreferrer" href="${areaHref}">${en ? 'Map' : '看地圖'}</a>`;
+    } else {
+      const cls = hazard ? 'btn-hazard' : (worthDriving ? 'btn-blue' : 'btn-area');
+      const lbl = en ? (hazard ? 'Drive anyway' : 'Drive') : (hazard ? '仍要導航' : '導航');
+      nav = `<a class="btn ${cls}" target="_blank" rel="noopener noreferrer" href="${driveHref}">${lbl}</a>`;
+    }
     const statLine = unavail
       ? (en ? 'Forecast temporarily unavailable' : '此方向氣象暫時無法取得')
       : `${en ? 'Next 3h' : '3 小時晴空率'} <strong class="${col}">${clear3h}%</strong> · ${en ? 'now' : '目前'} ${clearNow}% · ${fmtTemp(d.temp)}${rainTag}`;
-    return `<div class="dir ${isBest ? 'best' : ''} ${hazard ? 'hazard' : ''} ${d.isOcean ? 'sea' : ''}" data-dir-card="${escapeHtml(d.key)}">
+    return `<div class="dir ${isBest ? 'best' : ''} ${hazard ? 'hazard' : ''} ${d.isOcean ? 'sea' : ''} ${hereIsClear ? 'ref-only' : ''}" data-dir-card="${escapeHtml(d.key)}">
       <div class="dir-main"><div class="dir-title">${escapeHtml(tDirLabel(d.label))}${isBest ? ` <span class="dir-best-tag">${en ? 'Best' : '最佳'}</span>` : ''}<span class="dir-dist">${distTag}</span></div>
       <div class="dir-stat">${statLine}</div>${hazardHtml}${noteHtml}</div>
       ${nav}
@@ -1716,7 +1742,7 @@ function renderFromState(st) {
   const actBtn = $('vActionBtn');
   if (actBtn) {
     const compassSum = summarizeCompass(dirResults);
-    const bestDir = (compassSum?.good && Array.isArray(dirResults))
+    const bestDir = (compassSum?.good && compassSum.bestKey && compassSum.bestKey !== 'here' && Array.isArray(dirResults))
       ? dirResults.find(d => d && d.key === compassSum.bestKey)
       : null;
     const isCloudyNight = !sc.isTooBright && !sc.outOfZone && sc.skyScore < 45;

@@ -444,6 +444,7 @@ function buildInterceptorScript(sc) {
       bzBadge: document.getElementById('bzBadge')?.textContent?.trim() || '',
       energyBanner: document.getElementById('energyBanner')?.textContent?.trim() || '',
       navSat: document.getElementById('navSat')?.textContent?.trim() || '',
+      compassHtml: document.getElementById('compassBox')?.innerHTML || '',
       outlookText: document.getElementById('outlookGrid')?.textContent?.replace(/\\s+/g, ' ').trim() || '',
       waveSvgHtml,
       homeBestText,
@@ -503,7 +504,7 @@ const SCENARIOS = [
   },
   {
     id: 'oslo-search-mismatch',
-    label: 'Oslo 19px: English search -> 挪威 · Oslo + Thu 11/26 強極光時雲厚 + honest 動態雲圖 nav',
+    label: 'Oslo 19px: English search -> 挪威 · Oslo + Thu 11/26 強極光時雲厚 + honest 動態雲圖 + safe generic 看區域',
     query: '?lat=69.6492&lon=18.9553',
     runSearchQuery: 'Oslo',
     searchResultName: 'Oslo', searchResultCountry: 'Norway', searchResultCC: 'NO',
@@ -516,13 +517,18 @@ const SCENARIOS = [
       if (r.navSat !== '動態雲圖') errs.push(`Oslo (outside Arctic observatory cam range) navSat must be 動態雲圖, got "${r.navSat}"`);
       if (!r.outlookText.includes('強極光時雲厚')) errs.push(`Expected 強極光時雲厚 on Oslo Thu 11/26, got "${r.outlookText}"`);
       if (!r.outlookText.includes('強光時晴空 0%')) errs.push(`Expected 強光時晴空 0% on Oslo Thu 11/26, got "${r.outlookText}"`);
+      if (r.compassHtml.includes('travelmode=driving')) errs.push('Generic Oslo 60km points must NEVER emit turn-by-turn travelmode=driving links');
+      if (!r.compassHtml.includes('google.com/maps/search/?api=1&amp;query=') && !r.compassHtml.includes('google.com/maps/search/?api=1&query=')) {
+        errs.push('Generic Oslo 60km points must open Google Maps area search');
+      }
+      if (!r.compassHtml.includes('看區域')) errs.push('Generic Oslo 60km points must label button 看區域');
       if (r.issues.length) errs.push(...r.issues);
       return errs;
     }
   },
   {
     id: 'queenstown-south-zh',
-    label: 'Queenstown ZH: Southern Hemisphere prime storm points SOUTH + NZTA road + region-honest Trust Sheet',
+    label: 'Queenstown ZH: Southern Hemisphere prime storm points SOUTH + NZTA road + region-honest Trust Sheet + stay-local Map demotion',
     query: '?lat=-45.0312&lon=168.6626',
     lat: -45.0312, lon: 168.6626, tz: 'Pacific/Auckland', utcOff: 46800, rootPx: 17, lang: 'zh',
     nowMs: Date.UTC(2026, 5, 15, 12, 0, 0), // Southern winter midnight (00:00 NZST)
@@ -537,6 +543,9 @@ const SCENARIOS = [
       if (r.pMetHref.includes('open-meteo.com/en/docs')) errs.push(`Dead Open-Meteo API docs link leaked: "${r.pMetHref}"`);
       if (!r.pMetHref.includes('windy.com')) errs.push(`Non-Nordic pMet must link to Windy cloud map, got "${r.pMetHref}"`);
       if (r.tsStatText.includes('FMI') || r.tsStatText.includes('Yr.no')) errs.push(`Queenstown Trust Sheet must NOT claim Nordic FMI/Yr.no, got "${r.tsStatText}"`);
+      if (!r.compassHtml.includes('周邊晴空參考') || r.compassHtml.includes('travelmode=driving')) {
+        errs.push('Already-clear Queenstown (95% clear) must demote compass cards to calm reference map instead of shouting Drive');
+      }
       return errs;
     }
   },
@@ -583,7 +592,7 @@ const SCENARIOS = [
   },
   {
     id: 'svalbard-arome-cta',
-    label: 'Svalbard 78.22°N: Yr.no AROME Arctic + no mainland roads + honest 直線 generic CTA',
+    label: 'Svalbard 78.22°N: Yr.no AROME Arctic + no mainland roads + honest 直線 generic CTA + safe area map',
     query: '?lat=78.2232&lon=15.6267&name=Svalbard',
     lat: 78.2232, lon: 15.6267, tz: 'Arctic/Longyearbyen', utcOff: 3600, rootPx: 17, lang: 'zh',
     nowMs: Date.UTC(2026, 10, 25, 20, 0, 0),
@@ -594,6 +603,7 @@ const SCENARIOS = [
       if (r.roadVisible) errs.push(`Svalbard must NOT show mainland highway links, got "${r.roadText}"`);
       if (!r.vActionBtn.includes('直線 ~')) errs.push(`Generic Svalbard compass CTA must say 直線 ~, got "${r.vActionBtn}"`);
       if (r.vActionBtn.includes('公路')) errs.push(`Generic Svalbard compass CTA must NEVER claim 公路, got "${r.vActionBtn}"`);
+      if (r.compassHtml.includes('travelmode=driving')) errs.push('Svalbard generic points must NEVER emit travelmode=driving');
       return errs;
     }
   },
