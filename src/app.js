@@ -997,7 +997,18 @@ function renderWaveCard(focusBest = false) {
     } else if (bestInVis.score >= 18) {
       const win = findContiguous(h => h && !h.isDay && h.score >= 18);
       const startIdx = win ? win.s : bIdx;
-      if (startIdx >= 4) {
+      const clearNotCloudy = bestInVis.clear >= 60;
+      if (clearNotCloudy) {
+        if (win && win.len >= 2 && win.range) {
+          bestText = en
+            ? `Clear <strong>${win.range}</strong> · faint aurora`
+            : `${dayPrefixZh} <strong>${win.range}</strong> 晴朗但極光偏弱`;
+        } else {
+          bestText = en
+            ? `Clear ~<strong>${bestTimeLbl}</strong> · faint aurora`
+            : `${dayPrefixZh} <strong>${bestTimeLbl}</strong> 晴朗但極光偏弱`;
+        }
+      } else if (startIdx >= 4) {
         if (win && win.len >= 2 && win.range) {
           bestText = en
             ? `Fair trend <strong>${win.range}</strong>`
@@ -1058,19 +1069,41 @@ function selectForecastHour(idx) {
   const isGated = Boolean(h.isDay || h.outOfZone);
   const darkPct = Number.isFinite(h.darkScore) ? Math.round(h.darkScore) : (h.isDay ? 0 : (h.moonUp ? Math.max(20, 100 - Math.round((h.moonPct || 0) * 0.4)) : 100));
   const brightMoonUp = Boolean(h.moonUp && (h.moonPct || 0) >= 60 && (h.moonAlt || 0) >= 10);
+  const lowHorizonMoon = Boolean(brightMoonUp && (h.moonAlt || 0) < 18 && darkPct >= 90);
   const darkTxt = h.isDay
     ? ''
     : (darkPct >= 95 && !brightMoonUp
         ? term(TERMS.darkFull, en)
         : (brightMoonUp
-            ? (en ? `Dark ${darkPct}% · Moon ${Math.round(h.moonPct)}%` : `暗度 ${darkPct}% · 月 ${Math.round(h.moonPct)}%`)
+            ? (lowHorizonMoon
+                ? (en ? `Dark ${darkPct}% · Low moon ${Math.round(h.moonPct)}%` : `暗度 ${darkPct}% · 低月 ${Math.round(h.moonPct)}%`)
+                : (en ? `Dark ${darkPct}% · Moon ${Math.round(h.moonPct)}%` : `暗度 ${darkPct}% · 月 ${Math.round(h.moonPct)}%`))
             : `${term(TERMS.darkShort, en)} ${darkPct}%`));
   const kpVal = Number.isFinite(h.kpFc) ? h.kpFc : null;
-  const kpBadge = kpVal === null
+  const baseKpBadge = kpVal === null
     ? `Kp ${escapeHtml(h.kpFc)}`
     : (isTrend
         ? (en ? `~Kp ${Math.round(kpVal)}` : `約 Kp ${Math.round(kpVal)}`)
         : `Kp ${kpVal.toFixed(1)}`);
+  const hNeededKp = Number.isFinite(h.neededKp) ? h.neededKp : state.lastScore?.neededKp;
+  const hMagLat = Number.isFinite(h.magLat) ? h.magLat : state.lastScore?.magLat;
+  let kpBadge = baseKpBadge;
+  if (h.outOfZone === 'low-lat') {
+    kpBadge = en ? `Mag ${hMagLat ?? '--'}° (too low)` : `地磁 ${hMagLat ?? '--'}°（緯度過低）`;
+  } else if (h.outOfZone === 'need-storm') {
+    kpBadge = en
+      ? `${baseKpBadge} (need ${hNeededKp ?? '--'}+ here)`
+      : `${baseKpBadge}（此地需 ≥ ${hNeededKp ?? '--'}）`;
+  } else if (!h.isDay && h.clear >= 50 && Number.isFinite(h.auroraScore) && h.auroraScore < 45) {
+    if (Number.isFinite(hNeededKp) && hNeededKp >= 2.0) {
+      const strongKp = Math.min(9, Math.ceil(hNeededKp + 1.2));
+      kpBadge = (kpVal !== null && kpVal >= hNeededKp - 0.3)
+        ? (en ? `${baseKpBadge} (low horizon, need ${strongKp}+)` : `${baseKpBadge}（此地低空微弱，需 ${strongKp}+）`)
+        : (en ? `${baseKpBadge} (faint here, need ${hNeededKp}+)` : `${baseKpBadge}（此地偏弱，需 ≥ ${hNeededKp}）`);
+    } else {
+      kpBadge = en ? `${baseKpBadge} (quiet aurora)` : `${baseKpBadge}（極光偏弱）`;
+    }
+  }
   const tStr = formatHourLabel(h, en);
   const scCol = h.isDay ? 'var(--blue)' : tierColor(h.score);
   const scTier = scoreTierWord(h.score, h.isDay, en);
@@ -1755,9 +1788,10 @@ function renderFromState(st) {
   setHtml('heroTags', heroTags.join('<span class="meta-sep" aria-hidden="true"></span>'));
 
   const kpShort = kp !== null ? kp.toFixed(1) : '--';
+  const showNeedKp = sc.outOfZone === 'need-storm' || (Number.isFinite(sc.neededKp) && sc.neededKp >= 2.5 && sc.auroraScore < 55);
   const aurSubHtml = sc.outOfZone === 'low-lat'
     ? `<span class="nowrap">${en ? `Mag ${sc.magLat}°` : `地磁 ${sc.magLat}°`}</span>`
-    : (sc.outOfZone === 'need-storm'
+    : (showNeedKp
         ? `<span class="nowrap">Kp ${kpShort} · ${en ? `need ${sc.neededKp}` : `需 ${sc.neededKp}`}</span>`
         : `<span class="nowrap">Kp ${kpShort}${sc.auroraScore >= 55 ? (en ? ' · Active' : ' · 活躍') : ''}</span>`);
   const darkWin = computeDarkWindow(refNow, pos.lat, pos.lon, pos.tz);

@@ -3362,5 +3362,61 @@ test('62. v57 Zero-Script Cookieless GoatCounter Analytics (Prod-Only Guard, Pri
   assert.ok(swSrc.includes('./src/analytics.js'), 'sw.js must precache ./src/analytics.js');
 });
 
+test('63. v58 576-Scenario Copy-Truth Matrix Audit & Sub-Auroral Clarity (Ask/Oslo, Edinburgh, Banff, Queenstown)', () => {
+  const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const cities = [
+    ['Tromsø', 69.65, 18.96],
+    ['Svalbard', 78.22, 15.63],
+    ['Reykjavik', 64.15, -21.94],
+    ['Ask/Oslo', 60.06, 11.04],
+    ['Edinburgh', 55.95, -3.19],
+    ['Banff', 51.18, -115.57],
+    ['Queenstown', -45.03, 168.66],
+    ['Taipei', 25.03, 121.56]
+  ];
+  for (const [name, lat, lon] of cities) {
+    for (const kp of [0.7, 2.5, 4.0, 6.5]) {
+      for (const cloud of [10, 50, 90]) {
+        for (const sunAlt of [5, -6, -20]) {
+          for (const lang of ['zh', 'en']) {
+            const exp = api.explainAuroraScore({ lat, lon, cloudNow: cloud, sunAlt, kp, bz: -1, speed: 400, mlt: 22, effMoonPct: 20, lang });
+            const hl = exp.bottleneck.headline;
+            const dt = exp.bottleneck.detail;
+            assert.ok(!(exp.breakdown.effKp >= exp.breakdown.neededKp && /仍有落差|below the Kp/.test(hl)),
+              `Self-contradicting Kp copy for ${name} kp=${kp} ${lang}: ${hl}`);
+            assert.ok(!/NaN|undefined|null/.test(hl + dt), `Invalid token in ${name}: ${hl}`);
+            if (lang === 'zh') {
+              assert.ok(!/數據|信息|屏幕|貼士|分佈|持平|天頂|後晚/.test(hl + dt), `ZH lint leak in ${name}: ${hl}`);
+            }
+            if (name === 'Queenstown' && lang === 'zh') {
+              assert.ok(!/北方低空/.test(hl), `Queenstown must say 南方低空, got: ${hl}`);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // scoreHourlyForecast12 exposes auroraScore, neededKp & magLat so 24h scrub-bar explains Ask/Oslo 24-pt clear nights
+  const hrs = Array.from({ length: 6 }, (_, i) => ({
+    dtMs: Date.UTC(2026, 10, 26, 17 + i, 0, 0),
+    time: `${String(18 + i).padStart(2, '0')}:00`,
+    block: 17, clear: 83, temp: -10, windChill: -13, windMs: 3, precip: 0
+  }));
+  const scored = api.scoreHourlyForecast12(hrs, {
+    lat: 60.06, lon: 11.04, kp: 4.0, bz: 0, speed: 400, ovation: null,
+    kpForecast: [{ ts: Date.UTC(2026, 10, 26, 18, 0, 0), kp: 4.0 }]
+  });
+  assert.ok(Number.isFinite(scored.hours[1].auroraScore) && scored.hours[1].auroraScore < 45);
+  assert.ok(Number.isFinite(scored.hours[1].neededKp) && scored.hours[1].neededKp >= 3.0);
+  assert.ok(Number.isFinite(scored.hours[1].magLat) && scored.hours[1].magLat <= 59);
+
+  // App UI guards: clear-sky homeBest never says 雲層稍薄 when clear>=60, low-moon label, Hero neededKp & scrub-bar hint
+  assert.ok(appSrc.includes('晴朗但極光偏弱') && appSrc.includes('此地低空微弱，需'), 'App must explain clear-sky weak-aurora hours');
+  assert.ok(appSrc.includes('低月') && appSrc.includes('Low moon'), 'App must clarify low-horizon bright moon');
+  assert.ok(appSrc.includes('const showNeedKp ='), 'Hero aurora pill must display neededKp for mid-lat locations');
+});
+
+
 
 

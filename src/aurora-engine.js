@@ -1555,9 +1555,18 @@ export function explainAuroraScore(params = {}) {
       if (bd.reachFactor < 0.85) {
         bKey = 'oval-reach';
         bLabel = en ? 'Aurora too far' : '極光帶距離';
-        bHeadline = en
-          ? `${tierPrefixEn}main bottleneck is oval distance: effective Kp ${bd.effKp} vs Kp ${bd.neededKp} attenuates solar-wind boosts to ${reachPct}%.`
-          : `${tierPrefixZh}主要瓶頸是極光帶尚未擴張到位：有效 Kp ${bd.effKp} 距門檻 Kp ${bd.neededKp} 仍有落差，太陽風增益已衰減至 ${reachPct}%。`;
+        const poleZh = (params.lat ?? 69.97) >= 0 ? '北方' : '南方';
+        const poleEn = (params.lat ?? 69.97) >= 0 ? 'northern' : 'southern';
+        const strongKp = Math.min(9, Math.ceil(bd.neededKp + 1.2));
+        if (bd.effKp >= bd.neededKp) {
+          bHeadline = en
+            ? `${tierPrefixEn}main bottleneck is oval distance: at ${bd.magLat}° mag lat, Kp ${bd.effKp} barely clears the Kp ${bd.neededKp} ${poleEn}-horizon threshold (Kp ${strongKp}+ needed for bright aurora).`
+            : `${tierPrefixZh}主要瓶頸是極光帶仍在${poleZh}低空：此地地磁 ${bd.magLat}°，有效 Kp ${bd.effKp} 剛過門檻（Kp ${bd.neededKp}），需 Kp ${strongKp}+ 才會高掛明顯。`;
+        } else {
+          bHeadline = en
+            ? `${tierPrefixEn}main bottleneck is oval distance: effective Kp ${bd.effKp} is below the Kp ${bd.neededKp}+ threshold here (boosts scaled to ${reachPct}%).`
+            : `${tierPrefixZh}主要瓶頸是極光帶尚未擴張到位：有效 Kp ${bd.effKp} 尚未達此地門檻（需 Kp ${bd.neededKp}+），太陽風增益衰減至 ${reachPct}%。`;
+        }
         bDetail = en
           ? `At ${bd.magLat}° mag lat with overhead OVATION at ${ovStr}%, poleward storm surges are scaled smoothly; sky is ${bd.skyScore}% clear.`
           : `此地地磁 ${bd.magLat}° 且頭頂 OVATION 為 ${ovStr}%，高緯度太陽風訊號會依距離平滑衰減；晴空 ${bd.skyScore}%。`;
@@ -3718,6 +3727,7 @@ export function scoreHourlyForecast12(hrs, {
     }
     return {
       ...h, isDay: isDayH, sunAlt: sunAltH, score: scH.total, scoreLow, scoreHigh,
+      auroraScore: scH.auroraScore, neededKp: scH.neededKp, magLat: scH.magLat,
       darkScore: scH.darkScore, kpFc: +Number(kpFc).toFixed(2),
       moonUp: moonH.up, moonPct: moonH.pct, moonAlt: moonH.altDeg,
       mlt: +mltH.toFixed(1), outOfZone: scH.outOfZone
