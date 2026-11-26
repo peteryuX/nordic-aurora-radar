@@ -1,7 +1,7 @@
 /**
  * Nordic Aurora Radar — Systematic Number-to-Copy Semantic Contract Suite
  *
- * Exhaustively tests 14 universal physical-to-copy invariants across thousands
+ * Exhaustively tests 15 universal physical-to-copy & cross-card invariants across thousands
  * of cartesian combinations (8 latitudes × sky states × Kp × daylight/twilight/moon × ZH/EN)
  * directly against ALL production engine & UI copy formatters.
  *
@@ -16,7 +16,7 @@ import * as Engine from '../src/aurora-engine.js';
 import * as Charts from '../src/charts.js';
 import {
   formatWavePeakSummary, formatHourScrubDetail, formatOutlookRowStats,
-  formatStormAlertDetail, buildHeroViewModel
+  resolveStormEvent, formatStormAlertDetail, buildHeroViewModel, formatDarkCountdownSub
 } from '../src/copy-formatters.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -381,6 +381,86 @@ check(
   }
 }
 
+// =========================================================================
+// 7. System-Level Cross-Card Contracts (INV-15)
+// =========================================================================
+{
+  // (A) Quiet-Aurora Drive Gate & Hero-Ring <-> Trust-Sheet Bottleneck Parity
+  const clearDirs = [
+    { key: 'here', label: '原地', avg3h: 72, nowC: 72, isOcean: false },
+    { key: 'S', label: '往南 Balsfjord', avg3h: 14, nowC: 15, roadKm: 70, temp: -6, maxWind3h: 3, maxPrecip3h: 0, isOcean: false }
+  ];
+  for (const city of CITIES.filter(c => Math.abs(c.lat) > 40)) {
+    const scQuietCloudy = Engine.computeAuroraScore({
+      lat: city.lat, lon: city.lon, cloudNow: 72, sunAlt: -15, kp: 0.3, bz: 1.0, speed: 320, ovation: 5, hpiGw: 12
+    });
+    if (!scQuietCloudy.outOfZone && scQuietCloudy.auroraScore < 25 && scQuietCloudy.auroraScore < scQuietCloudy.skyScore) {
+      for (const lang of ['zh', 'en']) {
+        const g = Engine.tGrade(scQuietCloudy.grade, lang);
+        check(/極光偏弱|Low activity/.test(g), 'INV-15',
+          `${city.name}(${lang}) ring grade must match Low Activity bottleneck (sky=${scQuietCloudy.skyScore}, aur=${scQuietCloudy.auroraScore}), got "${g}"`);
+        const act = Engine.synthesizeTonightAction({
+          lat: city.lat, lon: city.lon, sc: scQuietCloudy, dirResults: clearDirs, kp: 0.3, lang
+        });
+        check(act.actionType !== 'drive', 'INV-15',
+          `${city.name}(${lang}) must NEVER recommend DRIVE 70km when auroraScore=${scQuietCloudy.auroraScore}<30`);
+      }
+    }
+  }
+
+  // (B) 24h Chart <-> 3-Night Outlook Tonight Identity (tied peak tie-breaker + exact contiguous window + sub-18 peak parity)
+  const tromsoChart = [
+    { dtMs: Date.UTC(2026, 10, 26, 20, 0, 0), time: '21:00', isDay: false, clear: 45, block: 55, score: 32, kpFc: 3.7, outOfZone: null },
+    { dtMs: Date.UTC(2026, 10, 26, 21, 0, 0), time: '22:00', isDay: false, clear: 52, block: 48, score: 42, kpFc: 5.0, outOfZone: null },
+    { dtMs: Date.UTC(2026, 10, 26, 22, 0, 0), time: '23:00', isDay: false, clear: 57, block: 43, score: 46, kpFc: 5.0, outOfZone: null },
+    { dtMs: Date.UTC(2026, 10, 26, 23, 0, 0), time: '00:00', isDay: false, clear: 59, block: 41, score: 46, kpFc: 5.0, outOfZone: null }
+  ];
+  const tromsoNights = Engine.summarize3NightOutlook({
+    cloudPoints: tromsoChart.map(h => ({ dtMs: h.dtMs, clear: h.clear, block: h.block, isDay: false })),
+    kpForecast: [{ ts: Date.UTC(2026, 10, 26, 21, 0, 0), kp: 5.0 }],
+    currentKp: 0.7, lat: 69.65, lon: 18.96, timeZone: 'Europe/Oslo',
+    nowDate: new Date(Date.UTC(2026, 10, 26, 13, 50, 0)),
+    chartHours: tromsoChart, lang: 'zh'
+  });
+  check(tromsoNights[0].peakClear === 59, 'INV-15', `Tromsø Tonight tied-46 tie-breaker must pick 59% (00:00), got ${tromsoNights[0].peakClear}`);
+  check(tromsoNights[0].bestWindow === '22–01', 'INV-15', `Tromsø Tonight window must match 24h contiguous 22–01, got ${tromsoNights[0].bestWindow}`);
+
+  const rkRow = formatOutlookRowStats({
+    n: { bestNightScore: 17, bestClear: 18, peakClear: 27, peakKp: 3.7, maxKp: 5.0, bestWindow: '', kpAvailable: true },
+    idx: 0, en: false
+  });
+  check(rkRow.clearTxt.includes('27%') && rkRow.kpTxt.includes('3.7') && rkRow.kpTxt.includes('5.0'), 'INV-15',
+    `Sub-18 Tonight row must still preserve 24h peak clear 27% & split Kp 3.7(5.0), got "${rkRow.clearTxt} | ${rkRow.kpTxt}"`);
+
+  // (C) Evening Twilight Darkening Honesty (never jump to tomorrow morning's sunrise while sun is going down)
+  for (const lang of ['zh', 'en']) {
+    const en = lang === 'en';
+    const sub = formatDarkCountdownSub({
+      darkWin: { state: 'dark', darkEndHM: '09:15' },
+      moon: { up: false, pct: 20, effMoonPct: 0, altDeg: -10 },
+      en, sunAltNow: -5.6, sunAltNext30: -8.2, darkScore: 49
+    });
+    checkHygiene(sub, lang, `INV-15(Twilight ${lang})`);
+    check(!/天亮|Light/.test(sub) && /轉暗中|Darkening/.test(sub), 'INV-15',
+      `Descending evening twilight (49% dark) must say darkening, NOT sunrise: "${sub}"`);
+  }
+
+  // (D) Zero-Clear Compass Honesty (#homeBest must not push "Find clear skies" when compassGood=false)
+  const noClearBestZh = formatWavePeakSummary({
+    vis: [{ time: '22:00', isDay: false, clear: 12, score: 8 }],
+    bestInVis: { time: '22:00', isDay: false, clear: 12, score: 8 },
+    bestTimeLbl: '22:00', compassGood: false, en: false
+  });
+  check(!noClearBestZh.includes('找晴空'), 'INV-15', `When compassGood=false, #homeBest must not tell users to open 找晴空: "${noClearBestZh}"`);
+
+  // (E) Single Storm Priority Source (resolveStormEvent)
+  const ev = resolveStormEvent({
+    scales: { active: true, currentScale: 0, maxForecastScale: 1, peakDate: '2026-11-26' },
+    noaaAlert: { active: false }
+  });
+  check(ev && !ev.useAlert && ev.level === 1 && ev.isWarn && !ev.isSevere, 'INV-15', `resolveStormEvent G1 watch mismatch: ${JSON.stringify(ev)}`);
+}
+
 console.log(`=== COPY & SEMANTIC CONTRACT AUDIT ===`);
 console.log(`Total invariant checks executed : ${checksRun}`);
 console.log(`Violations found                : ${violations.length}`);
@@ -388,4 +468,4 @@ if (violations.length) {
   for (const v of violations.slice(0, 25)) console.error('  ✗', v);
   process.exit(1);
 }
-console.log('ALL 14 SEMANTIC & NUMBER-TO-COPY INVARIANTS PASSED (0 VIOLATIONS).');
+console.log('ALL 15 SEMANTIC & NUMBER-TO-COPY INVARIANTS PASSED (0 VIOLATIONS).');

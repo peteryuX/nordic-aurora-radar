@@ -19,7 +19,7 @@ import { buildShareCardPayload, exportShareCardPng } from './share-card.js';
 import { trackPageview, trackEvent, normalizeCitySlug } from './analytics.js';
 import {
   formatWavePeakSummary, formatHourScrubDetail, formatOutlookRowStats,
-  formatStormAlertDetail, buildHeroViewModel
+  resolveStormEvent, formatStormAlertDetail, buildHeroViewModel, formatDarkCountdownSub
 } from './copy-formatters.js';
 import { SKY_CAMS, renderSkyCamCaption, renderTrustStatGrid, applyStaticI18n as applyStaticI18nDom } from './i18n.js';
 import {
@@ -830,7 +830,7 @@ const fmtTemp = (t) => {
   if (t === null || t === undefined || !Number.isFinite(Number(t))) return '--';
   if (state.tempUnit === 'F') return `${Math.round(Number(t) * 9 / 5 + 32) || 0}°F`;
   const n = Math.round(Number(t)) || 0;
-  return `${n > 0 ? '+' : ''}${n}°C`;
+  return `${n}°C`;
 };
 function syncTempUnitBtn() {
   const btn = $('unitBtn');
@@ -940,8 +940,10 @@ function renderWaveCard(focusBest = false) {
   const bestInVis = isOutOfZone ? null : pickBestInSlice(vis);
   const bestTimeLbl = bestInVis ? formatHourLabel(bestInVis, en) : '';
   const bestIsNextNight = bestInVis ? isNextNightHour(bestInVis) : false;
+  const dirs = state.renderState?.dirResults;
+  const compassGood = !Array.isArray(dirs) || dirs.length < 2 || Boolean(summarizeCompass(dirs)?.good);
   const bestText = formatWavePeakSummary({
-    vis, bestInVis, outZoneKind, isOutOfZone, bestTimeLbl, bestIsNextNight, en
+    vis, bestInVis, outZoneKind, isOutOfZone, bestTimeLbl, bestIsNextNight, compassGood, en
   });
   const hb = $('homeBest');
   if (hb) {
@@ -1000,60 +1002,51 @@ function renderStormBanner(scales, noaaAlert) {
   state.bannerState.stormMinorTag = '';
   if (!el) return;
   const en = isEn();
-  const hasAlert = noaaAlert && noaaAlert.active;
-  const hasScale = scales && scales.active;
-  if (!hasAlert && !hasScale) {
+  const ev = resolveStormEvent({ scales, noaaAlert });
+  if (!ev) {
     syncBannerBudget();
     return;
   }
 
   const gNamesZh = { 1: '輕度', 2: '中度', 3: '強烈', 4: '嚴重', 5: '極端' };
   const gNamesEn = { 1: 'Minor', 2: 'Moderate', 3: 'Strong', 4: 'Severe', 5: 'Extreme' };
-  if (hasAlert && (noaaAlert.kind === 'cme-shock' || noaaAlert.gScale >= (scales?.currentScale || 0))) {
-    const lvl = Math.max(1, noaaAlert.gScale || 1);
-    const isShock = noaaAlert.kind === 'cme-shock';
-    const isWarn = Boolean(noaaAlert.isWarning);
-    const isSevere = lvl >= 3 || isShock;
-    if (!isSevere) {
+  const { useAlert, isShock, level: lvl, isWarn, isActiveNow: isNow, isSevere, peakDate } = ev;
+  const dStr = fmtMonthDay(peakDate, en);
+
+  if (!isSevere) {
+    if (useAlert) {
       state.bannerState.stormMinorTag = isWarn
         ? (en ? `G${lvl} storm likely` : `可能發生 G${lvl} 地磁暴`)
         : (en ? `G${lvl} storm now` : `G${lvl} 地磁暴進行中`);
-      syncBannerBudget();
-      return;
+    } else {
+      state.bannerState.stormMinorTag = isNow
+        ? (en ? `G${lvl} storm now` : `G${lvl} 地磁暴進行中`)
+        : (en ? `G${lvl} storm likely${dStr ? ` · ${dStr}` : ''}` : `${dStr ? `${dStr} ` : ''}可能發生 G${lvl} 地磁暴`);
     }
-    el.className = 'storm-banner severe';
-    const pill = isShock
-      ? (isWarn ? (en ? 'Solar storm' : '太陽風暴') : (en ? 'Shock arrived' : '衝擊抵達'))
-      : (isWarn ? (en ? `G${lvl} likely` : `預計 G${lvl}`) : `NOAA G${lvl}`);
-    const txt = isShock
-      ? (isWarn
-          ? (en ? 'Solar storm on the way — aurora may brighten suddenly' : '太陽風暴即將抵達，極光可能突然增強')
-          : (en ? 'Solar storm arrived — aurora may brighten suddenly' : '太陽風暴剛抵達地球，極光可能突然增強'))
-      : (isWarn
-          ? (en ? `${gNamesEn[lvl] || ''} geomagnetic storm (G${lvl}) likely` : `可能發生${gNamesZh[lvl] || ''}地磁暴（G${lvl}）`)
-          : (en ? `${gNamesEn[lvl] || ''} geomagnetic storm (G${lvl}) now` : `${gNamesZh[lvl] || ''}地磁暴（G${lvl}）進行中`));
-    el.innerHTML = `<span class="storm-pill">${escapeHtml(pill)}</span><span class="storm-txt">${escapeHtml(txt)}</span><span class="storm-arr">↗</span>`;
-    state.bannerState.stormSevere = true;
     syncBannerBudget();
     return;
   }
-  const isNow = scales.currentScale >= 1;
-  const lvl = isNow ? scales.currentScale : scales.maxForecastScale;
-  if (lvl < 3) {
-    const dStr = fmtMonthDay(scales.peakDate, en);
-    state.bannerState.stormMinorTag = isNow
-      ? (en ? `G${lvl} storm now` : `G${lvl} 地磁暴進行中`)
-      : (en ? `G${lvl} storm likely${dStr ? ` · ${dStr}` : ''}` : `${dStr ? `${dStr} ` : ''}可能發生 G${lvl} 地磁暴`);
-    syncBannerBudget();
-    return;
-  }
+
   el.className = 'storm-banner severe';
   const desc = en ? (gNamesEn[lvl] || 'Geomagnetic') : (gNamesZh[lvl] || '');
-  const dStr = fmtMonthDay(scales.peakDate, en);
-  const txt = isNow
-    ? (en ? `${desc} geomagnetic storm now — aurora reaching further` : `${desc}地磁暴進行中 · 極光範圍擴大`)
-    : (en ? `${desc} geomagnetic storm likely${dStr ? ` · ${dStr}` : ''}` : `${dStr ? `${dStr} ` : ''}可能發生${desc}地磁暴`);
-  el.innerHTML = `<span class="storm-pill">NOAA G${lvl}</span><span class="storm-txt">${escapeHtml(txt)}</span><span class="storm-arr">↗</span>`;
+  const pill = isShock
+    ? (isWarn ? (en ? 'Solar storm' : '太陽風暴') : (en ? 'Shock arrived' : '衝擊抵達'))
+    : (useAlert && isWarn ? (en ? `G${lvl} likely` : `預計 G${lvl}`) : `NOAA G${lvl}`);
+  let txt;
+  if (isShock) {
+    txt = isWarn
+      ? (en ? 'Solar storm on the way — aurora may brighten suddenly' : '太陽風暴即將抵達，極光可能突然增強')
+      : (en ? 'Solar storm arrived — aurora may brighten suddenly' : '太陽風暴剛抵達地球，極光可能突然增強');
+  } else if (useAlert) {
+    txt = isWarn
+      ? (en ? `${desc} geomagnetic storm (G${lvl}) likely` : `可能發生${desc}地磁暴（G${lvl}）`)
+      : (en ? `${desc} geomagnetic storm (G${lvl}) now` : `${desc}地磁暴（G${lvl}）進行中`);
+  } else {
+    txt = isNow
+      ? (en ? `${desc} geomagnetic storm now — aurora reaching further` : `${desc}地磁暴進行中 · 極光範圍擴大`)
+      : (en ? `${desc} geomagnetic storm likely${dStr ? ` · ${dStr}` : ''}` : `${dStr ? `${dStr} ` : ''}可能發生${desc}地磁暴`);
+  }
+  el.innerHTML = `<span class="storm-pill">${escapeHtml(pill)}</span><span class="storm-txt">${escapeHtml(txt)}</span><span class="storm-arr">↗</span>`;
   state.bannerState.stormSevere = true;
   syncBannerBudget();
 }
@@ -1323,37 +1316,6 @@ function fmtWinterDrive(km, en) {
   return en ? `~${dur} drive` : `約 ${dur}`;
 }
 
-function formatDarkCountdownSub(darkWin, moon, en, sunAltNow = null) {
-  if (darkWin?.state === 'midnight-sun') return en ? 'Midnight sun' : '極晝偏亮';
-  if (darkWin?.state === 'twilight-wait' && darkWin.nextDarkHM) {
-    return en ? `Dark ${escapeHtml(darkWin.nextDarkHM)}` : `${escapeHtml(darkWin.nextDarkHM)} 天黑`;
-  }
-  const moonBright = Boolean(moon.up && (moon.effMoonPct >= 40 || ((moon.pct ?? 0) >= 75 && (moon.altDeg ?? 0) >= 15)));
-  const moonLbl = (moon.pct ?? 0) >= 85
-    ? (en ? 'Full moon' : '滿月')
-    : (en ? 'Moonlit' : '有亮月');
-  if (darkWin?.state === 'polar-night') {
-    const polarTwilight = Number.isFinite(sunAltNow) && sunAltNow > -10;
-    if (polarTwilight) {
-      return moonBright
-        ? (en ? `Polar twilight · ${moonLbl}` : `極夜微光 · ${moonLbl}`)
-        : (en ? 'Polar twilight' : '極夜微光');
-    }
-    return moonBright
-      ? (en ? `Polar night · ${moonLbl}` : `極夜 · ${moonLbl}`)
-      : (en ? 'Polar night' : '極夜全暗');
-  }
-  if (darkWin?.state === 'dark' && darkWin.darkEndHM) {
-    if (moonBright) {
-      return en
-        ? `<span class="nowrap">${moonLbl}</span><span class="sub-dot" aria-hidden="true">·</span><span class="nowrap">Light ${escapeHtml(darkWin.darkEndHM)}</span>`
-        : `<span class="nowrap">${moonLbl}</span><span class="sub-dot" aria-hidden="true">·</span><span class="nowrap">${escapeHtml(darkWin.darkEndHM)} 天亮</span>`;
-    }
-    return en ? `<span class="nowrap">Light ${escapeHtml(darkWin.darkEndHM)}</span>` : `<span class="nowrap">${escapeHtml(darkWin.darkEndHM)} 天亮</span>`;
-  }
-  return moonBright ? moonLbl : term(TERMS.darkFull, en);
-}
-
 function renderRoadLinks(pos, en) {
   const wrap = $('roadLinks');
   if (!wrap || !pos) return;
@@ -1401,9 +1363,13 @@ function renderCompassPanel(dirResults, pos, en) {
   if (!cBox || !Array.isArray(dirResults)) return;
   const hereIsClear = sum?.bestKey === 'here';
   const hereClear = Number.isFinite(sum?.hereClear) ? sum.hereClear : 0;
+  const landDirs = dirResults.slice(1).filter(d => d && !d.isOcean && !d.unavailable && Number.isFinite(d.avg3h));
+  const allCloudyNearby = !hereIsClear && !sum?.good && landDirs.length > 0 && landDirs.every(d => Math.round(100 - d.avg3h) < 30);
   const refHeader = hereIsClear
     ? `<div class="dir-ref-hd">${en ? 'Nearby skies for reference · no need to drive' : '周邊晴空參考 · 目前無需遠行'}</div>`
-    : '';
+    : (allCloudyNearby
+        ? `<div class="dir-ref-hd">${en ? 'Nearby skies are also cloudy · no need to drive' : '周邊同樣多雲 · 目前不建議遠行'}</div>`
+        : '');
   cBox.innerHTML = refHeader + dirResults.slice(1).map(d => {
     const isBest = Boolean(sum && sum.bestKey === d.key);
     const isGeneric = Boolean(d.isGeneric);
@@ -1445,7 +1411,8 @@ function renderCompassPanel(dirResults, pos, en) {
     const noteHtml = noteText ? `<div class="${isPositiveNote ? 'dir-tip' : 'dir-note'}">${escapeHtml(noteText)}</div>` : '';
     const areaHref = `https://www.google.com/maps/search/?api=1&query=${d.lat},${d.lon}`;
     const driveHref = `https://www.google.com/maps/dir/?api=1&origin=${pos.lat},${pos.lon}&destination=${d.lat},${d.lon}&travelmode=driving`;
-    const worthDriving = !hereIsClear && (isBest || (clear3h !== null && clear3h >= 65 && (clear3h - hereClear) >= 15));
+    const worthDriving = !hereIsClear && !allCloudyNearby && (isBest || (clear3h !== null && clear3h >= 65 && (clear3h - hereClear) >= 15));
+    const demoteToMap = hereIsClear || allCloudyNearby || (clear3h !== null && clear3h < 25);
     let nav;
     if (d.isOcean || unavail) {
       nav = d.isOcean
@@ -1455,7 +1422,7 @@ function renderCompassPanel(dirResults, pos, en) {
       const cls = hazard ? 'btn-hazard' : (isBest && !hereIsClear ? 'btn-blue' : 'btn-area');
       const lbl = en ? (hazard ? 'View area ⚠' : 'View area') : (hazard ? '看區域 ⚠' : '看區域');
       nav = `<a class="btn ${cls}" target="_blank" rel="noopener noreferrer" href="${areaHref}">${lbl}</a>`;
-    } else if (hereIsClear) {
+    } else if (demoteToMap) {
       nav = `<a class="btn btn-area" target="_blank" rel="noopener noreferrer" href="${areaHref}">${en ? 'Map' : '看地圖'}</a>`;
     } else {
       const cls = hazard ? 'btn-hazard' : (worthDriving ? 'btn-blue' : 'btn-area');
@@ -1465,7 +1432,7 @@ function renderCompassPanel(dirResults, pos, en) {
     const statLine = unavail
       ? (en ? 'Forecast temporarily unavailable' : '此方向氣象暫時無法取得')
       : `${en ? 'Next 3h' : '3 小時晴空率'} <strong class="${col}">${clear3h}%</strong> · ${en ? 'now' : '目前'} ${clearNow}% · ${fmtTemp(d.temp)}${rainTag}`;
-    return `<div class="dir ${isBest ? 'best' : ''} ${hazard ? 'hazard' : ''} ${d.isOcean ? 'sea' : ''} ${hereIsClear ? 'ref-only' : ''}" data-dir-card="${escapeHtml(d.key)}">
+    return `<div class="dir ${isBest ? 'best' : ''} ${hazard ? 'hazard' : ''} ${d.isOcean ? 'sea' : ''} ${demoteToMap ? 'ref-only' : ''}" data-dir-card="${escapeHtml(d.key)}">
       <div class="dir-main"><div class="dir-title">${escapeHtml(tDirLabel(d.label))}${isBest ? ` <span class="dir-best-tag">${en ? 'Best' : '最佳'}</span>` : ''}<span class="dir-dist">${distTag}</span></div>
       <div class="dir-stat">${statLine}</div>${hazardHtml}${noteHtml}</div>
       ${nav}
@@ -1608,7 +1575,7 @@ function renderFromState(st) {
   if (isBlowingSnow) {
     heroTags.push(`<span class="meta-item t-amber">${SVG_ICO_WARN}<span>${en ? 'Blowing snow' : '吹雪強風'}</span></span>`);
   }
-  if (state.bannerState.stormMinorTag) {
+  if (state.bannerState.stormMinorTag && sc.outOfZone !== 'low-lat') {
     heroTags.push(`<button type="button" class="meta-item meta-btn t-amber" data-open-trust="1" aria-haspopup="dialog" aria-controls="trustSheet">${SVG_ICO_BOLT}<span>${escapeHtml(state.bannerState.stormMinorTag)}</span></button>`);
   }
   if (!heroTags.length && scNext && !sc.outOfZone) {
@@ -1619,6 +1586,7 @@ function renderFromState(st) {
   setHtml('heroTags', heroTags.join('<span class="meta-sep" aria-hidden="true"></span>'));
 
   const darkWin = computeDarkWindow(refNow, pos.lat, pos.lon, pos.tz);
+  const sunAltNext30 = computeSolarElevation(new Date(refNow.getTime() + 30 * 60000), pos.lat, pos.lon);
   const localizedNights3 = multiDayPts
     ? summarize3NightOutlook({
         cloudPoints: multiDayPts, kpForecast: kpForecast || [], currentKp: kp,
@@ -1646,7 +1614,7 @@ function renderFromState(st) {
     moon,
     skySubHtml: skyParts.join('<span class="sub-dot" aria-hidden="true">·</span>'),
     aurSubHtml,
-    darkSubHtml: formatDarkCountdownSub(darkWin, moon, en, sunAltNow)
+    darkSubHtml: formatDarkCountdownSub({ darkWin, moon, en, sunAltNow, sunAltNext30, darkScore: sc.darkScore })
   });
 
   setText('vTitle', heroCue);
@@ -1662,7 +1630,8 @@ function renderFromState(st) {
       ? dirResults.find(d => d && d.key === compassSum.bestKey)
       : null;
     const isCloudyNight = !sc.isTooBright && !sc.outOfZone && sc.skyScore < 45;
-    if (bestDir && isCloudyNight) {
+    const worthDriveNow = Boolean(act.auroraWorthDriving || act.actionType === 'drive');
+    if (bestDir && isCloudyNight && worthDriveNow) {
       const clear3h = Math.max(0, Math.min(100, Math.round(100 - bestDir.avg3h)));
       const kmVal = Number.isFinite(bestDir.roadKm) ? bestDir.roadKm : (Number.isFinite(bestDir.distKm) ? bestDir.distKm : Math.round(computeDistanceKm(pos.lat, pos.lon, bestDir.lat, bestDir.lon)));
       const drv = bestDir.isGeneric ? '' : fmtWinterDrive(kmVal, en);
@@ -1681,7 +1650,7 @@ function renderFromState(st) {
       actBtn.innerHTML = `<span class="cta-txt"><strong>${escapeHtml(act.ctaLabel)}</strong></span>${SVG_ICO_ARR_R}`;
       actBtn.dataset.targetView = act.ctaView;
       actBtn.style.display = 'flex';
-    } else if (isCloudyNight) {
+    } else if (isCloudyNight && worthDriveNow && compassSum?.good) {
       const fallbackLbl = en ? 'Check 360° clear skies' : '查看 360° 周邊晴空';
       actBtn.innerHTML = `<span class="cta-txt"><strong>${fallbackLbl}</strong></span>${SVG_ICO_ARR_R}`;
       actBtn.dataset.targetView = 'dir';

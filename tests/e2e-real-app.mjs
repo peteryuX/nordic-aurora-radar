@@ -248,6 +248,12 @@ function buildInterceptorScript(sc) {
       if (iso < '2026-11-27T06:00') return 88;  // 21:00-06:00 CET: 12% clear (22:00 G1 Kp 5.0 under clouds)
       return 30;
     };
+    const tromsoLaterCloudAt = (ts) => {
+      const iso = new OrigDate(ts).toISOString();
+      if (iso < '2026-11-26T20:30') return 72;  // 14:00-21:00 CET: 28% clear (cloudy now)
+      if (iso < '2026-11-27T00:00') return 41;  // 22:00-01:00 CET: 59% clear (better later)
+      return 80;
+    };
 
     if (url.includes('api.met.no/weatherapi/locationforecast/2.0/complete')) {
       const mLat = parseFloat((url.match(/lat=([^&]+)/) || [])[1] || SC.lat);
@@ -255,6 +261,7 @@ function buildInterceptorScript(sc) {
       const fn = (h, ts) => {
         if (!isCenter && SC.corridorClear !== undefined) return 100 - SC.corridorClear;
         if (SC.askDaytimeG1) return askCloudAt(ts);
+        if (SC.tromsoQuietLaterGood) return tromsoLaterCloudAt(ts);
         if (SC.osloMismatch) {
           // Tonight clear (0% cloud), Thu 11/26 early evening clear, Thu 11/26 19:00..06:00 CET overcast (100% cloud)
           const d = new OrigDate(ts);
@@ -329,6 +336,7 @@ function buildInterceptorScript(sc) {
         (h, ts) => {
           if (idx > 0 && SC.corridorClear !== undefined) return 100 - SC.corridorClear;
           if (SC.askDaytimeG1) return askCloudAt(ts);
+          if (SC.tromsoQuietLaterGood) return tromsoLaterCloudAt(ts);
           if (SC.osloMismatch) {
             const iso = new OrigDate(ts).toISOString();
             if (iso >= '2026-11-26T18:00' && iso < '2026-11-27T06:00') return 100;
@@ -339,7 +347,7 @@ function buildInterceptorScript(sc) {
         SC.tz,
         SC.utcOff ?? 3600,
         SC.tempC ?? -1,
-        SC.askDaytimeG1 ? 2 : (SC.omCloud ?? SC.metCloud ?? 20)
+        SC.askDaytimeG1 ? 2 : (SC.tromsoQuietLaterGood ? 72 : (SC.omCloud ?? SC.metCloud ?? 20))
       ));
       return mkResp(arr);
     }
@@ -468,6 +476,17 @@ function buildInterceptorScript(sc) {
       issues.push('DOM_EN_CJK_LEAK in #v-home');
     }
 
+    // Universal Real-DOM Invariant 4: Quiet-Aurora Drive Gate (Hero must NEVER tell users to drive when bottleneck is Low Activity)
+    const tsBadgeTxt = document.getElementById('tsLiveBadge')?.textContent?.trim() || '';
+    const fAurValTxt = document.getElementById('fAurVal')?.textContent?.trim() || '';
+    const actBtnEl = document.getElementById('vActionBtn');
+    const vActionBtnVisible = Boolean(actBtnEl && getComputedStyle(actBtnEl).display !== 'none');
+    if (/極光偏弱|Low activity/i.test(tsBadgeTxt) && /偏弱|Quiet/i.test(fAurValTxt)) {
+      if (/周邊有晴空可轉移|drive to clear|clearer skies nearby/i.test(vTitleTxt) || vActionBtnVisible) {
+        issues.push('DOM_QUIET_DRIVE_CONTRADICTION: badge="' + tsBadgeTxt + '" aur="' + fAurValTxt + '" but vTitle="' + vTitleTxt + '" btnVis=' + vActionBtnVisible);
+      }
+    }
+
     // Universal Real-DOM Invariant 3: Interactive click on Hero storm tag opens visible #tsStormNote with NOAA link
     let stormClickOk = null;
     let tsStormNoteText = '';
@@ -494,7 +513,10 @@ function buildInterceptorScript(sc) {
 
     const out = {
       locName: document.getElementById('locName')?.textContent?.trim() || '',
+      ringGrade: document.getElementById('ringGrade')?.textContent?.trim() || '',
       vTitle: vTitleTxt,
+      vActionBtnVisible,
+      tsLiveBadge: tsBadgeTxt,
       fSkyVal: document.getElementById('fSkyVal')?.textContent?.trim() || '',
       fAurSub: document.getElementById('fAurSub')?.textContent?.trim() || '',
       fDarkSub: document.getElementById('fDarkSub')?.textContent?.trim() || '',
@@ -805,6 +827,40 @@ const SCENARIOS = [
       if (r.issues.length) errs.push(...r.issues);
       return errs;
     }
+  },
+  {
+    id: 'tromso-quiet-cloudy-twilight',
+    label: 'Tromsø 19px twilight: Quiet aurora (Kp 0.3) blocks 70km Drive CTA + Ring=Trust 極光偏弱 + 暮光轉暗中 + 24h<->3-Night 22–01/59% exact identity',
+    query: '?lat=69.6492&lon=18.9553',
+    lat: 69.6492, lon: 18.9553, tz: 'Europe/Oslo', utcOff: 3600, rootPx: 19, lang: 'zh',
+    nowMs: Date.UTC(2026, 10, 26, 13, 50, 0), // 14:50 CET evening twilight in Tromsø (sun ~ -5.6° descending)
+    tromsoQuietLaterGood: true, corridorClear: 86, kpNow: 0.3, bz: 0.5, speed: 320, ov: 6, hpi: 15,
+    gDate0: '2026-11-26', gNow: '0', gDate1: '2026-11-26', gTomorrow: '1',
+    kpForecast: [
+      ['2026-11-26 12:00:00', '0.33', 'observed', null],
+      ['2026-11-26 15:00:00', '1.67', 'predicted', null],
+      ['2026-11-26 18:00:00', '3.00', 'predicted', null],
+      ['2026-11-26 21:00:00', '5.00', 'predicted', 'G1'],
+      ['2026-11-27 00:00:00', '4.33', 'predicted', null],
+      ['2026-11-27 03:00:00', '3.00', 'predicted', null],
+      ['2026-11-27 18:00:00', '3.33', 'predicted', null],
+      ['2026-11-28 18:00:00', '2.67', 'predicted', null]
+    ],
+    verify(r) {
+      const errs = [];
+      if (r.ringGrade !== '極光偏弱') errs.push(`Ring grade must match Trust Sheet bottleneck 極光偏弱 (not 雲層過厚), got "${r.ringGrade}"`);
+      if (r.vActionBtnVisible) errs.push(`Hero must NOT push 70km Drive CTA when aurora is quiet (Kp 0.3), got "${r.vActionBtn}"`);
+      if (/周邊有晴空可轉移|drive to clear/i.test(r.vTitle)) errs.push(`Hero title must NOT shout drive when aurora is quiet, got "${r.vTitle}"`);
+      if (!r.fDarkSub.includes('暮光轉暗中') || r.fDarkSub.includes('天亮')) {
+        errs.push(`Descending evening twilight must say 暮光轉暗中 (never tomorrow's 天亮), got "${r.fDarkSub}"`);
+      }
+      if (!r.homeBestText.includes('22:00–01:00')) errs.push(`Expected 24h peak window 22:00–01:00, got "${r.homeBestText}"`);
+      if (!r.outlookText.includes('22–01') || !r.outlookText.includes('晴空率 59%')) {
+        errs.push(`Tonight 3-Night row must exactly match 24h peak window 22–01 & 59% clear, got "${r.outlookText}"`);
+      }
+      if (r.issues.length) errs.push(...r.issues);
+      return errs;
+    }
   }
 ];
 
@@ -823,7 +879,7 @@ window.__E2E_ERRORS__ = [];
 let tries = 0;
 function pollDone() {
   tries++;
-  if (Object.keys(window.__E2E_RESULTS__).length >= ${SCENARIOS.length} || tries > 60) {
+  if (Object.keys(window.__E2E_RESULTS__).length >= ${SCENARIOS.length} || tries > 85) {
     const pre = document.createElement('pre');
     pre.id = '__E2E_ALL__';
     pre.textContent = JSON.stringify({ results: window.__E2E_RESULTS__, errors: window.__E2E_ERRORS__ });
@@ -870,9 +926,9 @@ let totalFails = 0;
 try {
   const { stdout: dom } = await execFileAsync(chrome, [
     '--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
-    '--window-size=1200,900', '--virtual-time-budget=3500', '--dump-dom',
+    '--window-size=1200,900', '--virtual-time-budget=5500', '--dump-dom',
     `http://127.0.0.1:${port}/harness`
-  ], { encoding: 'utf8', timeout: 25000, maxBuffer: 20 * 1024 * 1024 });
+  ], { encoding: 'utf8', timeout: 35000, maxBuffer: 20 * 1024 * 1024 });
 
   const m = dom.match(/<pre id="__E2E_ALL__">([\s\S]*?)<\/pre>/);
   if (!m) throw new Error('E2E harness did not emit __E2E_ALL__');

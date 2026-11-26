@@ -18,7 +18,7 @@ function fmtNextHr(h) {
 /** Format the 24h wave card peak headline (#homeBest) */
 export function formatWavePeakSummary({
   vis = [], bestInVis = null, outZoneKind = null, isOutOfZone = false,
-  bestTimeLbl = '', bestIsNextNight = false, en = false
+  bestTimeLbl = '', bestIsNextNight = false, compassGood = true, en = false
 } = {}) {
   const hz = vis.length || 24;
   if (isOutOfZone) {
@@ -110,6 +110,11 @@ export function formatWavePeakSummary({
       ? `Clearest ~<strong>${bestTimeLbl}</strong>, quiet aurora`
       : `<strong>${bestTimeLbl}</strong> 最晴，極光偏弱`;
   }
+  if (compassGood === false) {
+    return en
+      ? `Mostly cloudy next ${hz}h — check back later`
+      : `未來 ${hz} 小時偏多雲，建議先休息稍後再看`;
+  }
   return en
     ? `Mostly cloudy next ${hz}h`
     : `未來 ${hz} 小時偏多雲，可看「找晴空」`;
@@ -146,7 +151,7 @@ export function formatHourScrubDetail({
   const baseKpBadge = kpVal === null
     ? `Kp ${escapeHtml(h?.kpFc)}`
     : (isTrend
-        ? (en ? `~Kp ${Math.round(kpVal)}` : `約 Kp ${Math.round(kpVal)}`)
+        ? (en ? `~Kp ${kpVal.toFixed(1)}` : `約 Kp ${kpVal.toFixed(1)}`)
         : `Kp ${kpVal.toFixed(1)}`);
   const hNeededKp = Number.isFinite(h?.neededKp) ? h.neededKp : lastScore?.neededKp;
   const hMagLat = Number.isFinite(h?.magLat) ? h.magLat : lastScore?.magLat;
@@ -198,17 +203,17 @@ export function formatHourScrubDetail({
 }
 
 /**
- * Format 3-Night Outlook row metrics with strict Co-Temporal Parity (INV-13):
- * - When a peak window exists (score >= 18), display the clear-sky % and Kp OF THAT PEAK HOUR
- *   so Tonight's card matches the 24h chart above, and if another (cloudier) hour reaches a much
- *   higher Kp (diff >= 0.8), explicitly label it as night max instead of pretending it happens at peak!
+ * Format 3-Night Outlook row metrics with strict Co-Temporal Parity (INV-13 / INV-15):
+ * - Tonight (idx === 0) ALWAYS displays the peak hour's clear-sky % and Kp (matching the 24h chart above),
+ *   and if another (cloudier) hour reaches a much higher Kp (diff >= 0.8), explicitly splits peak vs night max.
  */
 export function formatOutlookRowStats({ n, idx = 0, en = false } = {}) {
   const isMismatch = Boolean(n?.peakCloudMismatch && Number.isFinite(n?.kpPeakClear));
   const hasPeakWindow = Boolean(n?.bestWindow && (n?.bestNightScore ?? 0) >= 18);
+  const usePeakHour = Boolean((hasPeakWindow || idx === 0) && Number.isFinite(n?.peakClear));
   const displayClear = isMismatch
     ? n.kpPeakClear
-    : (hasPeakWindow && Number.isFinite(n?.peakClear) ? n.peakClear : n?.bestClear);
+    : (usePeakHour ? n.peakClear : n?.bestClear);
   const clearTxt = isMismatch
     ? (en ? `${n.kpPeakClear}% clear at peak` : `強光時晴空 ${n.kpPeakClear}%`)
     : (displayClear !== null && displayClear !== undefined
@@ -217,7 +222,7 @@ export function formatOutlookRowStats({ n, idx = 0, en = false } = {}) {
 
   const maxKp = Number(n?.maxKp || 0);
   const peakKp = Number.isFinite(n?.peakKp) ? Number(n.peakKp) : null;
-  const kpSplit = Boolean(hasPeakWindow && peakKp !== null && (maxKp - peakKp) >= 0.8);
+  const kpSplit = Boolean((hasPeakWindow || idx === 0) && peakKp !== null && (maxKp - peakKp) >= 0.8);
   let kpTxt;
   if (n?.kpAvailable === false) {
     kpTxt = en ? 'Kp --' : 'Kp 更新中';
@@ -235,6 +240,26 @@ export function formatOutlookRowStats({ n, idx = 0, en = false } = {}) {
 }
 
 /**
+ * Single Source of Truth for NOAA storm priority (shared by Hero storm banner/tag and Trust Sheet #tsStormNote).
+ * Guarantees Hero banner/tag and Trust Sheet storm card always agree 100% on source, G-level, and active vs watch state.
+ */
+export function resolveStormEvent({ scales = null, noaaAlert = null } = {}) {
+  const hasAlert = Boolean(noaaAlert && noaaAlert.active);
+  const hasScale = Boolean(scales && scales.active);
+  if (!hasAlert && !hasScale) return null;
+  const useAlert = hasAlert && (noaaAlert.kind === 'cme-shock' || (noaaAlert.gScale || 0) >= (scales?.currentScale || 0));
+  const isShock = Boolean(useAlert && noaaAlert.kind === 'cme-shock');
+  const level = useAlert
+    ? Math.max(1, Math.min(5, Number(noaaAlert.gScale) || 1))
+    : Math.max(0, Math.min(5, Number((scales?.currentScale >= 1 ? scales.currentScale : scales?.maxForecastScale) || 0)));
+  if (!isShock && level < 1) return null;
+  const isWarn = useAlert ? Boolean(noaaAlert.isWarning) : !((scales?.currentScale || 0) >= 1);
+  const isSevere = level >= 3 || isShock;
+  const peakDate = useAlert ? null : (scales?.peakDate || null);
+  return { useAlert, isShock, level, isWarn, isActiveNow: !isWarn, isSevere, peakDate };
+}
+
+/**
  * Format actionable NOAA G1–G5 / CME storm details for #tsStormNote inside #trustSheet.
  * Ensures tapping the Hero storm tag always opens concrete local-latitude storm details
  * plus a direct official NOAA Alerts link.
@@ -242,18 +267,12 @@ export function formatOutlookRowStats({ n, idx = 0, en = false } = {}) {
 export function formatStormAlertDetail({
   scales = null, noaaAlert = null, sc = null, lat = 69.97, en = false, fmtDateFn = null
 } = {}) {
-  const hasAlert = Boolean(noaaAlert && noaaAlert.active);
-  const hasScale = Boolean(scales && scales.active);
-  if (!hasAlert && !hasScale) return null;
+  const ev = resolveStormEvent({ scales, noaaAlert });
+  if (!ev) return null;
 
   const gNamesZh = { 1: '輕度', 2: '中度', 3: '強烈', 4: '嚴重', 5: '極端' };
   const gNamesEn = { 1: 'Minor', 2: 'Moderate', 3: 'Strong', 4: 'Severe', 5: 'Extreme' };
-  const useAlert = hasAlert && (noaaAlert.kind === 'cme-shock' || (noaaAlert.gScale || 0) >= (scales?.currentScale || 0));
-  const isShock = Boolean(useAlert && noaaAlert.kind === 'cme-shock');
-  const lvl = useAlert
-    ? Math.max(1, Math.min(5, Number(noaaAlert.gScale) || 1))
-    : Math.max(0, Math.min(5, Number((scales?.currentScale >= 1 ? scales.currentScale : scales?.maxForecastScale) || 0)));
-  if (!isShock && lvl < 1) return null;
+  const { useAlert, isShock, level: lvl } = ev;
 
   const stormKp = Math.min(9, 4 + Math.max(1, lvl));
   const dirZh = lat >= 0 ? '北方' : '南方';
@@ -378,8 +397,11 @@ export function buildHeroViewModel({
     const firstGood = upcoming.find(h => h && !h.isDay && h.score >= 40)
       || upcoming.find(h => h && !h.isDay && h.clear >= 55);
     const startT = firstGood?.time || '';
+    const quietNow = act.auroraWorthDriving === false || (sc.auroraScore ?? 0) < 30;
     heroCue = startT
-      ? (en ? `Rest for now — skies improve after ${startT}` : `先休息，預計 ${startT} 後有望轉佳`)
+      ? (quietNow
+          ? (en ? `Quiet & cloudy now — better after ${startT}` : `目前極光偏弱且多雲，預計 ${startT} 後轉佳`)
+          : (en ? `Rest for now — skies improve after ${startT}` : `先休息，預計 ${startT} 後有望轉佳`))
       : (act.title || '');
   } else if (act.actionType === 'sleep') {
     const futureBest = (localizedNights3 || []).slice(1)
@@ -392,4 +414,51 @@ export function buildHeroViewModel({
 
   return { aurSubHtml, heroCue, heroSub };
 }
+
+/**
+ * Pure Darkness Pillar sub-label formatter (#fDarkSub).
+ * Handles evening twilight darkening vs morning dawn so partial twilight (e.g., 49% dark while sun is descending)
+ * NEVER jumps confusingly to tomorrow morning's sunrise time ("09:15 天亮").
+ */
+export function formatDarkCountdownSub({
+  darkWin = null, moon = {}, en = false, sunAltNow = null, sunAltNext30 = null, darkScore = null
+} = {}) {
+  if (darkWin?.state === 'midnight-sun') return en ? 'Midnight sun' : '極晝偏亮';
+  if (darkWin?.state === 'twilight-wait' && darkWin.nextDarkHM) {
+    return en ? `Dark ${escapeHtml(darkWin.nextDarkHM)}` : `${escapeHtml(darkWin.nextDarkHM)} 天黑`;
+  }
+  const moonBright = Boolean(moon?.up && ((moon.effMoonPct ?? 0) >= 40 || ((moon.pct ?? 0) >= 75 && (moon.altDeg ?? 0) >= 15)));
+  const moonLbl = (moon?.pct ?? 0) >= 85
+    ? (en ? 'Full moon' : '滿月')
+    : (en ? 'Moonlit' : '有亮月');
+  if (darkWin?.state === 'polar-night') {
+    const polarTwilight = Number.isFinite(sunAltNow) && sunAltNow > -10;
+    if (polarTwilight) {
+      return moonBright
+        ? (en ? `Polar twilight · ${moonLbl}` : `極夜微光 · ${moonLbl}`)
+        : (en ? 'Polar twilight' : '極夜微光');
+    }
+    return moonBright
+      ? (en ? `Polar night · ${moonLbl}` : `極夜 · ${moonLbl}`)
+      : (en ? 'Polar night' : '極夜全暗');
+  }
+  // Partial twilight (darkScore < 85% and sun still above -10°): show darkening vs dawn honestly!
+  const isPartialTwilight = Number.isFinite(sunAltNow) && sunAltNow > -10 && Number.isFinite(darkScore) && darkScore < 85;
+  const isDarkening = isPartialTwilight && Number.isFinite(sunAltNext30) && sunAltNext30 < sunAltNow;
+  if (isDarkening) {
+    return moonBright
+      ? (en ? `<span class="nowrap">Darkening</span><span class="sub-dot" aria-hidden="true">·</span><span class="nowrap">${moonLbl}</span>` : `<span class="nowrap">暮光轉暗中</span><span class="sub-dot" aria-hidden="true">·</span><span class="nowrap">${moonLbl}</span>`)
+      : (en ? '<span class="nowrap">Darkening</span>' : '<span class="nowrap">暮光轉暗中</span>');
+  }
+  if (darkWin?.state === 'dark' && darkWin.darkEndHM) {
+    if (moonBright) {
+      return en
+        ? `<span class="nowrap">${moonLbl}</span><span class="sub-dot" aria-hidden="true">·</span><span class="nowrap">Light ${escapeHtml(darkWin.darkEndHM)}</span>`
+        : `<span class="nowrap">${moonLbl}</span><span class="sub-dot" aria-hidden="true">·</span><span class="nowrap">${escapeHtml(darkWin.darkEndHM)} 天亮</span>`;
+    }
+    return en ? `<span class="nowrap">Light ${escapeHtml(darkWin.darkEndHM)}</span>` : `<span class="nowrap">${escapeHtml(darkWin.darkEndHM)} 天亮</span>`;
+  }
+  return moonBright ? moonLbl : term(TERMS.darkFull, en);
+}
+
 

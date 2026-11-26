@@ -1374,7 +1374,7 @@ function computeAuroraScoreInternal({
     grade = '🌅 暮光漸暗'; color = '#ffcf5c';
   } else if (auroraScore >= 70 && skyScore >= 15) {
     grade = '⚡ 雲縫極光'; color = '#ffcf5c';
-  } else if (skyScore >= 55) {
+  } else if (skyScore >= 55 || (auroraScore < 25 && auroraScore < skyScore)) {
     grade = '🌌 晴朗但極光弱'; color = '#66bdff';
   }
 
@@ -3895,15 +3895,32 @@ export function summarize3NightOutlook({
         kpPeakClearSum += Math.max(0, Math.min(100, Math.round(clrVal)));
         kpPeakClearCnt += 1;
       };
+      let chartBestWindow = '';
       if (offset === 0) {
-        // Tonight: keep 1h peak parity with the live 24h chart (a real 1h clear break tonight IS chaseable)
-        for (const h of chartDark) {
+        // Tonight: single-source-of-truth 1h peak parity with the live 24h chart (same score + clear tie-breaker)
+        let bestChartIdx = -1;
+        for (let ci = 0; ci < chartDark.length; ci++) {
+          const h = chartDark[ci];
           trackKpPeakClear(h.clear, h.kpFc, h.outOfZone ? 0 : 35);
-          if (h.score > bestNightScore) {
+          const hClr = Number.isFinite(h.clear) ? Math.round(h.clear) : 0;
+          if (h.score > bestNightScore || (h.score === bestNightScore && bestNightScore > 0 && hClr > (peakClear ?? -1))) {
             bestNightScore = h.score;
             bestDtMs = h.dtMs;
-            peakClear = Number.isFinite(h.clear) ? Math.round(h.clear) : null;
+            peakClear = hClr;
             peakKp = Number.isFinite(h.kpFc) ? +Number(h.kpFc).toFixed(1) : null;
+            bestChartIdx = ci;
+          }
+        }
+        // Derive Tonight's contiguous viewing window from the exact same hours as the 24h wave headline
+        if (bestChartIdx >= 0 && bestNightScore >= 18) {
+          const thresh = bestNightScore >= 40 ? 40 : 18;
+          let s = bestChartIdx, e = bestChartIdx;
+          while (s > 0 && (chartDark[s - 1].score ?? 0) >= thresh && (chartDark[s].dtMs - chartDark[s - 1].dtMs) <= 4500000) s--;
+          while (e < chartDark.length - 1 && (chartDark[e + 1].score ?? 0) >= thresh && (chartDark[e + 1].dtMs - chartDark[e].dtMs) <= 4500000) e++;
+          const zStart = getZoneParts(new Date(chartDark[s].dtMs), timeZone);
+          const zEnd = getZoneParts(new Date(chartDark[e].dtMs + 3600000), timeZone);
+          if (zStart?.hourStr && zEnd?.hourStr) {
+            chartBestWindow = `${zStart.hourStr}–${zEnd.hourStr}`;
           }
         }
         for (const p of darkPts) {
@@ -3920,11 +3937,13 @@ export function summarize3NightOutlook({
           });
           trackKpPeakClear(p.clear, hKp, scH?.auroraScore ?? 0);
           const hScore = Number.isFinite(scH?.total) ? scH.total : 0;
-          if (hScore > bestNightScore) {
+          const pClr = Number.isFinite(p.clear) ? Math.round(p.clear) : 0;
+          if (hScore > bestNightScore || (hScore === bestNightScore && bestNightScore > 0 && pClr > (peakClear ?? -1))) {
             bestNightScore = hScore;
             bestDtMs = p.dtMs;
-            peakClear = Number.isFinite(p.clear) ? Math.round(p.clear) : null;
+            peakClear = pClr;
             peakKp = Number.isFinite(hKp) ? +Number(hKp).toFixed(1) : null;
+            chartBestWindow = '';
           }
         }
       } else {
@@ -3969,9 +3988,9 @@ export function summarize3NightOutlook({
         }
       }
       const kpPeakClear = kpPeakClearCnt > 0 ? Math.round(kpPeakClearSum / kpPeakClearCnt) : null;
-      // 3-hour peak viewing window (matches NOAA 3h forecast cadence without fake minute-level precision)
-      let bestWindow = '';
-      if (bestNightScore >= 18 && Number.isFinite(bestDtMs)) {
+      // Tonight matches the 24h wave's exact contiguous window; Night +1/+2 use coarse 3h forecast cadence
+      let bestWindow = chartBestWindow;
+      if (!bestWindow && bestNightScore >= 18 && Number.isFinite(bestDtMs)) {
         const zp = getZoneParts(new Date(bestDtMs), timeZone);
         const hr = parseInt(zp.hourStr, 10);
         if (Number.isFinite(hr)) {
@@ -4174,9 +4193,14 @@ export function synthesizeTonightAction({
     return { ...base, actionType: 'go', ctaView: null, ctaLabel: '' };
   }
 
-  // 3. DRIVE (overcast locally, but 360° Clear-Sky Radar finds a safe, clear drivable corridor!)
+  // 3. DRIVE (overcast locally, aurora actually active/incoming, AND 360° Radar finds a safe clear corridor)
+  const auroraWorthDriving = Boolean(
+    (sc.auroraScore ?? 0) >= 30 ||
+    (scNext && !scNext.isTooBright && !scNext.outOfZone && (scNext.auroraScore ?? 0) >= 40) ||
+    bal?.shockActive || goesSub?.active || fmiMag?.active
+  );
   const comp = Array.isArray(dirResults) && dirResults.length >= 2 ? summarizeCompass(dirResults, lang) : null;
-  if (sc.skyScore < 45 && comp && comp.good && comp.bestKey && comp.bestKey !== 'here') {
+  if (sc.skyScore < 45 && auroraWorthDriving && comp && comp.good && comp.bestKey && comp.bestKey !== 'here') {
     const dest = dirResults.find(d => d && d.key === comp.bestKey);
     const roadKm = (dest && Number.isFinite(dest.roadKm)) ? dest.roadKm : ((dest && Number.isFinite(dest.distKm)) ? dest.distKm : null);
     const distTag = roadKm !== null
@@ -4185,19 +4209,20 @@ export function synthesizeTonightAction({
           : (en ? ` (~${roadKm} km road)` : `（公路約 ${roadKm} km）`))
       : '';
     const dirName = en ? tDirLabel(dest?.label || comp.bestKey, 'en') : (dest?.label || comp.bestKey);
+    const diffVsNow = Math.max(1, comp.bestClear - Math.round(sc.skyScore));
     const title = sc.auroraScore >= 50
       ? (en ? 'Aurora active above — drive to clear sky' : '頭頂極光活躍，建議開車找雲縫')
       : (en ? 'Cloudy here — clearer skies nearby' : '原地雲層偏厚，周邊有晴空可轉移');
     const lead = en
-      ? `${dirName}${distTag} is ${comp.bestClear}% clear (${comp.diff}% clearer than here). Check road conditions first.`
-      : `「${dirName}」${distTag} 未來 3 小時晴空率 ${comp.bestClear}%（比原地高 ${comp.diff}%），出發前請先確認路況。`;
+      ? `${dirName}${distTag} is ${comp.bestClear}% clear (${diffVsNow}% clearer than here). Check road conditions first.`
+      : `「${dirName}」${distTag}未來 3 小時晴空率 ${comp.bestClear}%（比原地高 ${diffVsNow}%），出發前請先確認路況。`;
     return {
-      ...base, title, lead, actionType: 'drive',
+      ...base, title, lead, actionType: 'drive', auroraWorthDriving,
       ctaView: 'dir', ctaLabel: `${term(TERMS.nav.findClear, en)} →`
     };
   }
 
-  // 4. WAIT (incoming solar wind surge/shock OR clouds clearing later tonight)
+  // 4. WAIT (incoming solar wind surge/shock OR clouds/activity improving later tonight)
   const risingEnough = Boolean(scNext && !scNext.outOfZone && !scNext.isTooBright && scNext.total >= Math.max(20, sc.total + 5));
   const incomingStrong = Boolean(scNext && !scNext.outOfZone && !scNext.isTooBright && (scNext.total >= 35 || (bal?.shockActive && risingEnough)));
   if (incomingStrong && bal?.etaMin) {
@@ -4205,7 +4230,7 @@ export function synthesizeTonightAction({
     const lead = en
       ? `Incoming solar wind is strengthening (score may reach ${scNext.total}). Stay ready with the screen-on monitor.`
       : `太陽風正在增強（指數預估升到 ${scNext.total}），建議原地稍等並開啟螢幕常亮監測。`;
-    return { ...base, title, lead, actionType: 'wait', ctaView: null, ctaLabel: '' };
+    return { ...base, title, lead, actionType: 'wait', auroraWorthDriving, ctaView: null, ctaLabel: '' };
   }
   if (bal?.shockActive && bal?.etaMin && scNext && !scNext.outOfZone && !scNext.isTooBright && sc.skyScore < 45) {
     const title = en ? `Solar storm arrives in about ${bal.etaMin} min` : `太陽風暴約 ${bal.etaMin} 分鐘後抵達`;
@@ -4213,38 +4238,41 @@ export function synthesizeTonightAction({
       ? `Heavy clouds here (score may reach only ${scNext.total}) — try Find clear skies for nearby gaps.`
       : `但原地雲層偏厚（指數預估僅 ${scNext.total}），建議先用「找晴空」看看周邊雲縫。`;
     return {
-      ...base, title, lead, actionType: 'drive',
+      ...base, title, lead, actionType: 'drive', auroraWorthDriving: true,
       ctaView: 'dir', ctaLabel: `${term(TERMS.nav.findClear, en)} →`
     };
   }
-  if (sc.total < 18 && sc.skyScore < 45 && bestDark && bestDark.clear >= 55) {
-    const title = en ? `Cloudy now — clears around ${bestDark.time}` : `現在雲厚，預計 ${bestDark.time} 轉晴`;
+  if (sc.total < 18 && sc.skyScore < 45 && bestDark && (bestDark.clear >= 55 || (bestDark.score ?? 0) >= 40)) {
+    const quietNow = !auroraWorthDriving;
+    const title = quietNow
+      ? (en ? `Quiet & cloudy now — better around ${bestDark.time}` : `目前極光偏弱且多雲，預計 ${bestDark.time} 後轉佳`)
+      : (en ? `Cloudy now — clears around ${bestDark.time}` : `現在雲厚，預計 ${bestDark.time} 轉晴`);
     const lead = en
-      ? `Clear sky rises to ${bestDark.clear}% around ${bestDark.time} (score ${bestDark.score}). Rest until then.`
-      : `預計 ${bestDark.time} 晴空率升到 ${bestDark.clear}%（指數 ${bestDark.score}），可先休息等雲散。`;
-    return { ...base, title, lead, actionType: 'wait', ctaView: null, ctaLabel: '' };
+      ? `Forecast improves around ${bestDark.time} (${bestDark.clear}% clear, score ${bestDark.score}). Rest until then.`
+      : `預計 ${bestDark.time} 晴空率 ${bestDark.clear}%（指數 ${bestDark.score}），可先休息稍後再出發。`;
+    return { ...base, title, lead, actionType: 'wait', auroraWorthDriving, ctaView: null, ctaLabel: '' };
   }
 
-  // 5. SLEEP (overcast here + overcast nearby + no clearing window + quiet wind -> point to best future night)
+  // 5. SLEEP (overcast/quiet here + no near-term clearing window -> point to best future night)
   if (sc.total < 18 && sc.skyScore < 40 && sc.auroraScore < 50) {
     const futureNights = Array.isArray(nights3) ? nights3.slice(1).filter(n => n && (n.tone === 'good' || n.tone === 'warn')) : [];
     futureNights.sort((a, b) => (b.bestNightScore || 0) - (a.bestNightScore || 0));
     const bestFuture = futureNights[0];
     const lead = bestFuture
       ? (en
-          ? `Overcast locally and nearby with weak activity — save your energy for ${bestFuture.label} (${bestFuture.badge}).`
-          : `原地與周邊皆厚雲且地磁偏弱，建議先休息養足體力，${bestFuture.label}（${bestFuture.badge}）機會較佳。`)
+          ? `Overcast with weak activity right now — save your energy for ${bestFuture.label} (${bestFuture.badge}).`
+          : `目前多雲且極光偏弱，建議先休息養足體力，${bestFuture.label}（${bestFuture.badge}）機會較佳。`)
       : (en
-          ? 'Overcast locally and nearby with weak solar wind — good time to rest and check back later.'
-          : '原地與周邊皆厚雲且太陽風偏弱，建議先休息，稍後或明晚再看。');
+          ? 'Overcast with weak solar wind right now — good time to rest and check back later.'
+          : '目前多雲且太陽風偏弱，建議先休息，稍後或明晚再看。');
     return {
       ...base,
       title: en ? 'Low chance right now — save your energy' : '目前機率偏低，建議先休息',
-      lead, actionType: 'sleep', ctaView: null, ctaLabel: ''
+      lead, actionType: 'sleep', auroraWorthDriving, ctaView: null, ctaLabel: ''
     };
   }
 
-  return { ...base, actionType: sc.total >= 18 ? 'wait' : 'sleep', ctaView: null, ctaLabel: '' };
+  return { ...base, actionType: sc.total >= 18 ? 'wait' : 'sleep', auroraWorthDriving, ctaView: null, ctaLabel: '' };
 }
 
 export function summarizeEnergyTrend(series, speed, langOrBal, maybeLang) {

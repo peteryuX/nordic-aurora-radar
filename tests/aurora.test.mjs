@@ -2451,7 +2451,7 @@ test('51. Norway live weather & Kp audit: Svalbard AROME Arctic, 45m 0Z bin guar
   const fmtSrc = fs.readFileSync(new URL('../src/copy-formatters.js', import.meta.url), 'utf8');
   const uiCopySrc = appSrc + '\n' + fmtSrc;
   assert.ok(!uiCopySrc.includes('機場') && !htmlSrc.includes('機場') && !i18nSrc.includes('機場'), 'UI copy must use plain 當地氣象站 wording instead of cryptic 機場');
-  assert.ok(appSrc.includes("'滿月'") && appSrc.includes("'有亮月'"), 'Darkness pillar moon sub-label must clearly distinguish 滿月 / 有亮月');
+  assert.ok(uiCopySrc.includes("'滿月'") && uiCopySrc.includes("'有亮月'"), 'Darkness pillar moon sub-label must clearly distinguish 滿月 / 有亮月');
   assert.ok(uiCopySrc.includes('朝頭頂與南方觀察') && uiCopySrc.includes('look overhead and south'), 'Southern Hemisphere hero cue must point south, not north');
   assert.ok(appSrc.includes('bestDir.isGeneric') && appSrc.includes('直線 ~'), 'Generic GPS compass CTA must label straight-line distance honestly');
   assert.ok(appSrc.includes('else if (pos.lon >= 4)') && appSrc.includes('pos.lon < 26 || pos.lat >= 69.0'), 'Nordic road links must cover Finnmark/Kirkenes and exclude UK/Scotland');
@@ -3477,7 +3477,7 @@ test('65. v60 Trust Sheet Storm Detail Card (#tsStormNote) & Pure Hero ViewModel
 
   assert.ok(htmlSrc.includes('id="tsStormNote"') && htmlSrc.includes('class="ts-storm-note"'), 'index.html must mount #tsStormNote inside #trustSheet');
   assert.ok(appSrc.includes('formatStormAlertDetail') && appSrc.includes("const sn = $('tsStormNote')"), 'app.js must render #tsStormNote via formatStormAlertDetail');
-  assert.ok(swSrc.includes('aurora-radar-shell-v60'), 'sw.js CACHE_NAME must be bumped to v60');
+  assert.ok(/aurora-radar-shell-v\d+/.test(swSrc), 'sw.js CACHE_NAME must be versioned');
 
   const askSc = api.computeAuroraScore({ lat: 60.06, lon: 11.04, cloudNow: 2, sunAlt: 3, kp: 0.7, ovation: 5, hpiGw: 10 });
   const g1Zh = formatStormAlertDetail({
@@ -3504,6 +3504,48 @@ test('65. v60 Trust Sheet Storm Detail Card (#tsStormNote) & Pure Hero ViewModel
   });
   assert.ok(vm.aurSubHtml.includes('Kp 0.7') && vm.aurSubHtml.includes('需 '), `Ask Hero aurSubHtml must show Kp 0.7 + needed threshold: ${vm.aurSubHtml}`);
   assert.equal(vm.heroCue, '今晚維持晴朗，極光偏弱');
+});
+
+test('66. v61 System-Level Cross-Card Consistency (Quiet-Aurora Drive Gate, 24h<->3-Night Identity, Twilight Honesty & Safe Compass)', async () => {
+  const { formatDarkCountdownSub, formatHourScrubDetail, resolveStormEvent } = await import('../src/copy-formatters.js');
+  const htmlSrc = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const swSrc = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+
+  assert.ok(swSrc.includes('aurora-radar-shell-v61'), 'sw.js CACHE_NAME must be bumped to v61');
+  assert.ok(!htmlSrc.includes('<div class="od-day">今晚</div>'), 'Loading skeleton must not flash hardcoded Chinese weekday in EN');
+  assert.ok(appSrc.includes('resolveStormEvent') && appSrc.includes('allCloudyNearby'), 'app.js must use shared resolveStormEvent and demote all-cloudy corridors');
+
+  // Quiet aurora in Tromsø (auroraScore 15 < skyScore 28) -> grade is Low Activity, NOT Cloudy, and NEVER recommends DRIVE 70 km!
+  const troQuiet = api.computeAuroraScore({ lat: 69.65, lon: 18.96, cloudNow: 72, sunAlt: -5.6, kp: 0.3, bz: 0.5, speed: 320, ovation: 6, hpiGw: 15 });
+  assert.equal(api.tGrade(troQuiet.grade, 'zh'), '極光偏弱');
+  assert.equal(api.tGrade(troQuiet.grade, 'en'), 'Low activity');
+  const dirs = [
+    { key: 'here', label: '原地', avg3h: 72, nowC: 72, isOcean: false },
+    { key: 'S', label: '往南 Balsfjord', avg3h: 14, nowC: 15, roadKm: 70, temp: -6, maxWind3h: 3, maxPrecip3h: 0, isOcean: false }
+  ];
+  const actQuiet = api.synthesizeTonightAction({
+    lat: 69.65, lon: 18.96, sc: troQuiet, dirResults: dirs, kp: 0.3,
+    bestDark: { time: '00:00', clear: 59, score: 46 }, lang: 'zh'
+  });
+  assert.notEqual(actQuiet.actionType, 'drive', 'Must NEVER recommend driving 70 km when aurora is quiet (15/100)');
+  assert.equal(actQuiet.auroraWorthDriving, false);
+
+  // Active aurora in Tromsø with exact diff math (86% - 28% = 58%, never 57%)
+  const troActive = api.computeAuroraScore({ lat: 69.65, lon: 18.96, cloudNow: 72, sunAlt: -18, kp: 4.0, bz: -6, speed: 500, ovation: 55, hpiGw: 65 });
+  const actDrive = api.synthesizeTonightAction({ lat: 69.65, lon: 18.96, sc: troActive, dirResults: dirs, kp: 4.0, lang: 'zh' });
+  assert.equal(actDrive.actionType, 'drive');
+  assert.ok(actDrive.lead.includes('比原地高 58%'), `Drive lead diff must match 86% - 28% = 58%, got: ${actDrive.lead}`);
+
+  // Descending twilight 49% dark -> 暮光轉暗中 / Darkening (never 09:15 天亮)
+  const darkSubZh = formatDarkCountdownSub({ darkWin: { state: 'dark', darkEndHM: '09:15' }, moon: { up: false }, en: false, sunAltNow: -5.6, sunAltNext30: -8.0, darkScore: 49 });
+  assert.ok(darkSubZh.includes('暮光轉暗中') && !darkSubZh.includes('天亮'), `Unexpected evening twilight sub: ${darkSubZh}`);
+
+  // 1-decimal Trend Kp parity (3.67 -> 約 Kp 3.7, matching Tonight 3-Night Kp 3.7)
+  const det = formatHourScrubDetail({ h: { clear: 78, score: 23, kpFc: 3.67, isDay: false, darkScore: 94 }, idx: 6, tStr: '19:00', tierWord: '普通', en: false });
+  assert.ok(det.kpBadge.includes('約 Kp 3.7'), `Expected 1-decimal Kp 3.7 parity, got: ${det.kpBadge}`);
+
+  assert.equal(resolveStormEvent({ scales: { active: false }, noaaAlert: { active: false } }), null);
 });
 
 
