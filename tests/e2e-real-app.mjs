@@ -325,6 +325,12 @@ function buildInterceptorScript(sc) {
       }));
       return mkResp(rows);
     }
+    if (url.includes('geomag.usgs.gov/ws/data/')) {
+      if (!SC.usgsBayDrop) return mkResp({ times: [], values: [] });
+      const times = Array.from({ length: 60 }, (_, k) => new OrigDate(FIXED_MS - (59 - k) * 60000).toISOString());
+      const vals = Array.from({ length: 60 }, (_, k) => (k >= 58 ? null : (k < 42 ? 12750 : Math.round(12750 - ((k - 41) / 16) * SC.usgsBayDrop))));
+      return mkResp({ times, values: [{ id: 'H', values: vals }] });
+    }
     if (url.includes('api.open-meteo.com/v1/elevation')) {
       const lats = (url.match(/latitude=([^&]+)/) || ['', ''])[1].split(',');
       return mkResp({ elevation: lats.map(() => 120) });
@@ -334,6 +340,11 @@ function buildInterceptorScript(sc) {
       const arr = lats.map((_, idx) => makeOmPoint(
         baseHourMs,
         (h, ts) => {
+          if (SC.etaClosingTrap) {
+            if (idx === 0) return 85; // Center overcast
+            if (idx === 1) return h === 0 ? 10 : 92; // Corridor 1: clear NOW (10%), CLOSES to 92% on arrival!
+            return h === 0 ? 60 : 12; // Corridor 2+: clears to 12% by arrival!
+          }
           if (idx > 0 && SC.corridorClear !== undefined) return 100 - SC.corridorClear;
           if (SC.askDaytimeG1) return askCloudAt(ts);
           if (SC.tromsoQuietLaterGood) return tromsoLaterCloudAt(ts);
@@ -918,6 +929,29 @@ const SCENARIOS = [
       if (r.issues.length) errs.push(...r.issues);
       return errs;
     }
+  },
+  {
+    id: 'fairbanks-usgs-eta-chase',
+    label: 'Fairbanks 19px: USGS CMO live substorm (-210 nT) + ETA arrival-sky avoids closing cloud trap (picks clearing corridor)',
+    query: '?lat=64.8378&lon=-147.7164',
+    lat: 64.8378, lon: -147.7164, tz: 'America/Anchorage', utcOff: -32400, rootPx: 19, lang: 'zh',
+    nowMs: Date.UTC(2026, 10, 26, 8, 0, 0), // 23:00 AKST dark night
+    kpNow: 3.5, bz: -5.5, speed: 500, ov: 55, hpi: 62, usgsBayDrop: 210, etaClosingTrap: true,
+    verify(r) {
+      const errs = [];
+      if (!r.tsConfRow.includes('USGS CMO -')) errs.push(`Expected USGS CMO substorm telemetry in Trust Sheet, got "${r.tsConfRow}"`);
+      if (!r.tsStatText.includes('USGS')) errs.push(`Expected USGS ground mag in Fairbanks Trust Sheet stat grid, got "${r.tsStatText}"`);
+      if (!r.tsProHtml.includes('ts-pro-mag-svg') || !r.tsProHtml.includes('ΔH')) {
+        errs.push(`Expected USGS ΔH magnetometer SVG in Fairbanks Trust Sheet Pro panel`);
+      }
+      if (!r.compassHtml.includes('抵達後 3h')) errs.push(`Expected ETA arrival-window label 抵達後 3h on long Fairbanks corridors`);
+      if (!r.compassHtml.includes('↗')) errs.push(`Expected clearing arrival trend arrow ↗ on corridor clearing by ETA`);
+      if (r.compassSummaryText.includes('Cleary Summit')) {
+        errs.push(`ETA arrival sky must REJECT Cleary Summit closing trap (10% now -> 92% on arrival), got "${r.compassSummaryText}"`);
+      }
+      if (r.issues.length) errs.push(...r.issues);
+      return errs;
+    }
   }
 ];
 
@@ -983,7 +1017,7 @@ let totalFails = 0;
 try {
   const { stdout: dom } = await execFileAsync(chrome, [
     '--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
-    '--window-size=1200,900', '--virtual-time-budget=6500', '--dump-dom',
+    '--window-size=1200,900', '--virtual-time-budget=9500', '--dump-dom',
     `http://127.0.0.1:${port}/harness`
   ], { encoding: 'utf8', timeout: 40000, maxBuffer: 20 * 1024 * 1024 });
 

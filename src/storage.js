@@ -7,7 +7,8 @@
  */
 
 import {
-  matchKnownCity, hasCjkChars, getMoonState, scoreHourlyForecast12, computeDistanceKm
+  matchKnownCity, hasCjkChars, getMoonState, scoreHourlyForecast12, computeDistanceKm,
+  computeSolarElevation, computeMLT, computeAuroraScore
 } from './aurora-engine.js';
 
 export const STORAGE_KEYS = {
@@ -22,7 +23,7 @@ export const STORAGE_KEYS = {
 
 export const SWR_MAX_LOCATIONS = 5;
 export const WATCHLIST_MAX = 5;
-export const SWR_MAX_AGE_MS = 6 * 3600 * 1000;
+export const SWR_MAX_AGE_MS = 18 * 3600 * 1000;
 export const ENLIL_TTL_MS = 6 * 3600 * 1000;
 
 function getStorage(storeOpt) {
@@ -130,26 +131,37 @@ export function writeSwrCacheEntry(pos, entry, storeOpt) {
   return ok;
 }
 
-export function findMatchingOfflineCache(pos, nowMs = Date.now(), storeOpt) {
+export function findMatchingOfflineCache(pos, nowMs = Date.now(), storeOpt, opts = null) {
   const map = readSwrCacheMap(storeOpt);
+  const maxFallbackKm = Number.isFinite(opts?.maxFallbackKm) ? Math.max(20, opts.maxFallbackKm) : 20;
   let best = null;
   let bestDistKm = Infinity;
+  let fallback = null;
+  let fallbackDistKm = Infinity;
   for (const entry of Object.values(map)) {
     if (!entry || typeof entry !== 'object' || !entry.score || typeof entry.score.total !== 'number') continue;
     if (!Number.isFinite(entry.ts) || nowMs - entry.ts >= SWR_MAX_AGE_MS) continue;
     if (!Number.isFinite(entry.lat) || !Number.isFinite(entry.lon)) continue;
     const distKm = computeDistanceKm(entry.lat, entry.lon, pos.lat, pos.lon);
     if (distKm <= 20 && distKm < bestDistKm) { bestDistKm = distKm; best = entry; }
+    else if (maxFallbackKm > 20 && distKm <= maxFallbackKm && distKm < fallbackDistKm) {
+      fallbackDistKm = distKm;
+      fallback = entry;
+    }
   }
   if (best) return best;
+  if (fallback) return { ...fallback, _fallbackDistKm: Math.round(fallbackDistKm) };
 
   // Backward-compatible read of legacy aurora_cache_v4 ONLY when coordinates match
   const legacy = safeReadJson(STORAGE_KEYS.LEGACY_CACHE, storeOpt);
   if (legacy && legacy.score && typeof legacy.score.total === 'number'
     && Number.isFinite(legacy.ts) && nowMs - legacy.ts < SWR_MAX_AGE_MS
-    && Number.isFinite(legacy.lat) && Number.isFinite(legacy.lon)
-    && computeDistanceKm(legacy.lat, legacy.lon, pos.lat, pos.lon) <= 20) {
-    return legacy;
+    && Number.isFinite(legacy.lat) && Number.isFinite(legacy.lon)) {
+    const legDist = computeDistanceKm(legacy.lat, legacy.lon, pos.lat, pos.lon);
+    if (legDist <= 20) return legacy;
+    if (maxFallbackKm > 20 && legDist <= maxFallbackKm) {
+      return { ...legacy, _fallbackDistKm: Math.round(legDist) };
+    }
   }
   return null;
 }
@@ -187,8 +199,28 @@ export function hydrateOfflineState(cached, pos, nowMs = Date.now()) {
   if (!cached || !Array.isArray(cached.hereHrs) || !cached.hereHrs.length) return null;
   const minsAgo = Math.max(1, Math.round((nowMs - cached.ts) / 60000));
   const cachedPos = { ...pos, tz: cached.tz || pos.tz };
-  const cachedMoon = cached.moon || getMoonState(new Date(cached.ts), cachedPos.lat, cachedPos.lon);
-  const cachedScored = scoreHourlyForecast12(cached.hereHrs, {
+
+  // Advance cached hourly forecast pointer to actual current time (dtMs is hour midpoint = start + 30m!)
+  let startIdx = 0;
+  for (let i = 0; i < cached.hereHrs.length; i++) {
+    const dt = cached.hereHrs[i]?.dtMs;
+    if (Number.isFinite(dt) && dt >= nowMs - 15 * 60000) { startIdx = i; break; }
+    if (i === cached.hereHrs.length - 1) startIdx = i;
+  }
+  const shifted = startIdx > 0 && (nowMs - cached.ts) >= 45 * 60000;
+  const activeHereHrs = shifted ? cached.hereHrs.slice(startIdx) : cached.hereHrs;
+  const refDate = shifted ? new Date(nowMs) : new Date(cached.ts);
+  const liveSunAlt = shifted
+    ? computeSolarElevation(refDate, cachedPos.lat, cachedPos.lon)
+    : (cached.sunAltNow ?? -15);
+  const liveMlt = shifted
+    ? computeMLT(refDate, cachedPos.lon)
+    : (cached.mlt ?? null);
+  const cachedMoon = shifted
+    ? getMoonState(refDate, cachedPos.lat, cachedPos.lon)
+    : (cached.moon || getMoonState(refDate, cachedPos.lat, cachedPos.lon));
+
+  const cachedScored = scoreHourlyForecast12(activeHereHrs, {
     lat: cachedPos.lat, lon: cachedPos.lon,
     kpForecast: Array.isArray(cached.kpForecast) ? cached.kpForecast : [],
     fallbackKp: cached.kp ?? 0, ovation: cached.ovation ?? null, hpiGw: cached.hpiGw ?? null,
@@ -200,12 +232,37 @@ export function hydrateOfflineState(cached, pos, nowMs = Date.now()) {
     pdyn: cached.bal?.nowPdyn ?? null, nextPdyn: cached.bal?.pdyn ?? null,
     shockJumpNpa: cached.bal?.nowShockJumpNpa ?? 0, nextShockJumpNpa: cached.bal?.shockJumpNpa ?? 0,
     dst: cached.kyotoDst?.dst ?? null,
-    nowOverride: Number.isFinite(cached.sunAltNow)
-      ? { sunAlt: cached.sunAltNow, moon: cachedMoon, mlt: cached.mlt ?? null }
+    nowOverride: Number.isFinite(liveSunAlt)
+      ? { sunAlt: liveSunAlt, moon: cachedMoon, mlt: liveMlt }
       : null
   });
-  const selectedHourIdx = cached.bestDark
-    ? Math.max(0, cachedScored.hours.findIndex(h => (Number.isFinite(cached.bestDark.dtMs) && Number.isFinite(h.dtMs)) ? h.dtMs === cached.bestDark.dtMs : h.time === cached.bestDark.time))
+
+  // When offline cache aged >=45m into a later forecast hour, advance the hero score to that forecast hour!
+  const h0 = activeHereHrs[0];
+  const shiftedSc = shifted && h0
+    ? computeAuroraScore({
+        lat: cachedPos.lat, lon: cachedPos.lon,
+        cloudNow: h0.block, sunAlt: liveSunAlt,
+        kp: cachedScored.hours[0]?.kp ?? cached.kp ?? 0,
+        mlt: liveMlt, effMoonPct: cachedMoon.effMoonPct,
+        precipMm: h0.precip ?? 0
+      })
+    : cached.score;
+  const shiftedScNext = shifted && activeHereHrs[1]
+    ? computeAuroraScore({
+        lat: cachedPos.lat, lon: cachedPos.lon,
+        cloudNow: activeHereHrs[1].block,
+        sunAlt: computeSolarElevation(new Date(nowMs + 3600000), cachedPos.lat, cachedPos.lon),
+        kp: cachedScored.hours[1]?.kp ?? cached.kp ?? 0,
+        mlt: computeMLT(new Date(nowMs + 3600000), cachedPos.lon),
+        effMoonPct: cachedMoon.effMoonPct,
+        precipMm: activeHereHrs[1].precip ?? 0
+      })
+    : (cached.scNext || cached.score);
+
+  const effectiveBest = shifted ? (cachedScored.bestAurora || null) : (cached.bestDark || cachedScored.bestAurora || null);
+  const selectedHourIdx = effectiveBest
+    ? Math.max(0, cachedScored.hours.findIndex(h => (Number.isFinite(effectiveBest.dtMs) && Number.isFinite(h.dtMs)) ? h.dtMs === effectiveBest.dtMs : h.time === effectiveBest.time))
     : 0;
   return {
     scoredHours: cachedScored.hours,
@@ -216,14 +273,14 @@ export function hydrateOfflineState(cached, pos, nowMs = Date.now()) {
       kp: cached.kp ?? null, ovation: cached.ovation ?? null, hpiGw: cached.hpiGw ?? null,
       goesSub: null, noaaScales: null, noaaAlert: null, kyotoDst: cached.kyotoDst ?? null,
       enlilForecast: null, predKp1h: cached.predKp1h ?? null, bal: cached.bal || { etaMin: 45, energy120: [], arrivingIdx: -1 },
-      noaaOk: false, noaaLagMin: minsAgo, hereHrs: cached.hereHrs, dirResults: cached.dirResults || [],
+      noaaOk: false, noaaLagMin: minsAgo, hereHrs: activeHereHrs, dirResults: cached.dirResults || [],
       weatherSourceLabel: cached.weatherSourceLabel || 'Cached', usedMet: Boolean(cached.usedMet),
-      cloudConsensus: cached.cloudConsensus || null, sunAltNow: cached.sunAltNow ?? -15, mltNow: cached.mlt ?? null,
+      cloudConsensus: cached.cloudConsensus || null, sunAltNow: liveSunAlt, mltNow: liveMlt,
       moon: cachedMoon,
-      sc: cached.score, scNext: cached.scNext || cached.score,
-      bestDark: cached.bestDark || cachedScored.bestAurora || null,
+      sc: shiftedSc, scNext: shiftedScNext,
+      bestDark: effectiveBest,
       nights3: cached.nights3 || [], multiDayPts: cached.multiDayPts || null,
-      kpForecast: Array.isArray(cached.kpForecast) ? cached.kpForecast : [], fetchedAt: new Date(cached.ts)
+      kpForecast: Array.isArray(cached.kpForecast) ? cached.kpForecast : [], fetchedAt: refDate
     }
   };
 }

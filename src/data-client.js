@@ -20,7 +20,8 @@ import {
   parseOpenMeteoHourly12, parseOpenMeteoMultiDay, evaluateCloudConsensus,
   findNearestMetarStation, parseIemMetarCurrent, parseMetNorwayMetarText,
   findNearestSmhiCloudStation, parseSmhiCloudObs,
-  parseFmiMagnetometerWfs, parseFmiCloudObs, computeAdaptiveBmaWeight, computeSubstormPhase,
+  parseFmiMagnetometerWfs, findNearestUsgsMagStation, parseUsgsMagnetometerJson,
+  parseFmiCloudObs, computeAdaptiveBmaWeight, computeSubstormPhase,
   assimilateMetarNowcast, parseMetNorwayNowcast, parseOpenMeteoCurrent, assimilateLiveGpsNowcast,
   selectOpenMeteoModels, extractOpenMeteoModelHourly, parseEcmwfCloudEnsemble,
   blendHourlyForecasts, blendNordicHourlyForecasts,
@@ -40,6 +41,8 @@ const fmiCloudCache = new Map();
 const FMI_CLOUD_CACHE_TTL_MS = 10 * 60 * 1000;
 let fmiMagCache = null;
 const FMI_MAG_CACHE_TTL_MS = 5 * 60 * 1000;
+const usgsMagCache = new Map();
+const USGS_MAG_CACHE_TTL_MS = 5 * 60 * 1000;
 const ensCache = new Map();
 const ENS_CACHE_TTL_MS = 15 * 60 * 1000;
 const nowcastCache = new Map();
@@ -150,7 +153,29 @@ export async function fetchFmiMagnetometerXml(nowMs = Date.now(), signal = null)
   return null;
 }
 
-/** Track 1: 14 parallel fault-isolated NOAA SWPC endpoints + FMI Nordic ground magnetometers (+ background WSA-ENLIL) */
+/** Fault-isolated USGS Geomagnetism real-time 1-min magnetometer (Alaska / Rockies / US, CORS *, ~0.8m lag) */
+export async function fetchUsgsMagnetometerJson(station, nowMs = Date.now(), signal = null) {
+  if (!station?.code) return null;
+  const cached = usgsMagCache.get(station.code);
+  if (cached && (nowMs - cached.ts) < USGS_MAG_CACHE_TTL_MS) {
+    return cached.json;
+  }
+  try {
+    const start = new Date(nowMs - 180 * 60000).toISOString().slice(0, 19) + 'Z';
+    const end = new Date(nowMs).toISOString().slice(0, 19) + 'Z';
+    const u = `https://geomag.usgs.gov/ws/data/?id=${encodeURIComponent(station.code)}&elements=H&sampling_period=60&type=variation&format=json&starttime=${start}&endtime=${end}`;
+    const r = await fetchWithTimeout(u, { timeoutMs: 4200, signal }).catch(() => null);
+    const json = await safeJson(r);
+    if (json && Array.isArray(json.times) && Array.isArray(json.values)) {
+      usgsMagCache.set(station.code, { ts: nowMs, json });
+      return json;
+    }
+  } catch {}
+  if (cached && (nowMs - cached.ts) <= 20 * 60 * 1000) return cached.json;
+  return null;
+}
+
+/** Track 1: 14 parallel fault-isolated NOAA SWPC endpoints + FMI/USGS ground magnetometers (+ background WSA-ENLIL) */
 export async function fetchNoaaBundle({ pos, now, signal, cachedEnlil = null, force = false, isCurrent = () => true, onProgress = null }) {
   const res = {
     bz: null, speed: null, kp: null, ovation: null, hpiGw: null,
@@ -160,8 +185,13 @@ export async function fetchNoaaBundle({ pos, now, signal, cachedEnlil = null, fo
   };
   try {
     const nowMs = now.getTime();
-    const fmiMagPromise = isInFmiNordicBox(pos?.lat, pos?.lon)
+    const inFmi = isInFmiNordicBox(pos?.lat, pos?.lon);
+    const usgsStation = !inFmi ? findNearestUsgsMagStation(pos?.lat, pos?.lon) : null;
+    const fmiMagPromise = inFmi
       ? fetchFmiMagnetometerXml(nowMs, signal).catch(() => null)
+      : Promise.resolve(null);
+    const usgsMagPromise = usgsStation
+      ? fetchUsgsMagnetometerJson(usgsStation, nowMs, signal).catch(() => null)
       : Promise.resolve(null);
     let raw = null;
     if (!force && noaaRawCache && (nowMs - noaaRawCache.ts) < NOAA_GLOBAL_TTL_MS) {
@@ -223,9 +253,10 @@ export async function fetchNoaaBundle({ pos, now, signal, cachedEnlil = null, fo
       }
     }
 
-    const fmiMagXml = await fmiMagPromise;
+    const [fmiMagXml, usgsMagJson] = await Promise.all([fmiMagPromise, usgsMagPromise]);
     if (!isCurrent()) return res;
     if (fmiMagXml) res.fmiMag = parseFmiMagnetometerWfs(fmiMagXml, pos.lat, pos.lon, nowMs);
+    else if (usgsMagJson && usgsStation) res.fmiMag = parseUsgsMagnetometerJson(usgsMagJson, usgsStation, nowMs);
 
     res.magSeries = raw.magSeries;
     res.windSeries = raw.windSeries;
@@ -460,7 +491,7 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
 
     // Inside Nordics, request independent ecmwf_ifs025 from Open-Meteo (instead of best_match, which mirrors MET Nordic)
     const modelParam = dualModels ? `&models=${dualModels.join(',')}` : (inNordic ? '&models=ecmwf_ifs025' : '');
-    const omUrl = `https://api.open-meteo.com/v1/forecast?latitude=${pts.map(p => p.lat).join(',')}&longitude=${pts.map(p => p.lon).join(',')}&current=cloud_cover,temperature_2m,wind_speed_10m,precipitation,weather_code&hourly=temperature_2m,wind_speed_10m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,precipitation,weather_code,visibility&timezone=auto&timeformat=unixtime&forecast_days=4${modelParam}`;
+    const omUrl = `https://api.open-meteo.com/v1/forecast?latitude=${pts.map(p => p.lat).join(',')}&longitude=${pts.map(p => p.lon).join(',')}&current=cloud_cover,temperature_2m,wind_speed_10m,precipitation,weather_code&hourly=temperature_2m,dew_point_2m,wind_speed_10m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,precipitation,weather_code,visibility&timezone=auto&timeformat=unixtime&forecast_days=4${modelParam}`;
     const elevPromise = needElev
       ? fetchWithTimeout(`https://api.open-meteo.com/v1/elevation?latitude=${pts.map(p => p.lat).join(',')}&longitude=${pts.map(p => p.lon).join(',')}`, { timeoutMs: 3500, signal }).then(safeJson).catch(() => null)
       : Promise.resolve(null);
@@ -532,16 +563,29 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
     const summarizePoint = (pt, hrs) => {
       const distKm = pt.key === 'here' ? 0 : Math.round(computeDistanceKm(pos.lat, pos.lon, pt.lat, pt.lon));
       if (!hrs.length) {
-        return { ...pt, distKm, unavailable: true, nowC: null, avg3h: null, min12: null, temp: null, maxPrecip3h: 0, maxWind3h: 0 };
+        return { ...pt, distKm, unavailable: true, nowC: null, avg3h: null, min12: null, temp: null, maxPrecip3h: 0, maxWind3h: 0, etaHours: 0, arrivalTrend: 'steady', iceFogRisk: false };
       }
-      const first3 = hrs.slice(0, 3);
+      // ETA-Adjusted Arrival Sky: score the 3-hour window AFTER winter driving ETA (65 km/h) instead of hours spent driving!
+      const kmForDrive = Number.isFinite(pt.roadKm) ? pt.roadKm : distKm;
+      const driveMin = (pt.key === 'here' || pt.isOcean) ? 0 : Math.round((kmForDrive / 65) * 60);
+      const etaHours = (pt.key === 'here' || pt.isOcean) ? 0 : Math.min(3, Math.max(0, Math.round(driveMin / 60)));
+      const winStart = Math.min(etaHours, Math.max(0, hrs.length - 1));
+      const arrWin = hrs.slice(winStart, winStart + 3);
+      const win = arrWin.length ? arrWin : hrs.slice(-Math.min(3, hrs.length));
       const first12 = hrs.slice(0, 12);
-      const avg3h = Math.round(first3.reduce((s, h) => s + h.block, 0) / first3.length);
-      const maxPrecip3h = Math.max(...first3.map(h => Number(h.precip || 0)));
-      const maxWind3h = Math.max(...first3.map(h => Number(h.windMs || 0)));
+      const avg3h = Math.round(win.reduce((s, h) => s + h.block, 0) / win.length);
+      const nowC = hrs[0].block;
+      const clearDelta = (100 - avg3h) - (100 - nowC);
+      const arrivalTrend = etaHours >= 1
+        ? (clearDelta >= 15 ? 'clearing' : (clearDelta <= -15 ? 'closing' : 'steady'))
+        : 'steady';
+      const maxPrecip3h = Math.max(...win.map(h => Number(h.precip || 0)));
+      const maxWind3h = Math.max(...win.map(h => Number(h.windMs || 0)));
+      const iceFogRisk = win.some(h => Boolean(h.iceFogRisk));
       return {
-        ...pt, distKm, unavailable: false, nowC: hrs[0].block, avg3h,
-        min12: Math.min(...first12.map(h => h.block)), temp: hrs[0].temp, maxPrecip3h, maxWind3h
+        ...pt, distKm, unavailable: false, nowC, avg3h,
+        min12: Math.min(...first12.map(h => h.block)), temp: win[0].temp, maxPrecip3h, maxWind3h,
+        etaHours, arrivalTrend, iceFogRisk
       };
     };
 
@@ -849,35 +893,53 @@ export async function reverseGeocodeSingle(lat, lon, lang) {
   }
 }
 
-/** Search city by Chinese alias or Latin spelling via Open-Meteo geocoding */
-export async function geocodeCityQuery(rawQuery) {
+/** Search up to 5 deduplicated candidate cities by Chinese alias or Latin spelling via Open-Meteo geocoding */
+export async function geocodeCityCandidates(rawQuery, maxCount = 5) {
   const qNorm = normalizeChineseCityQuery(rawQuery);
+  if (!qNorm) return [];
+  const count = Math.max(1, Math.min(8, maxCount));
   const queryLang = hasCjkChars(qNorm) ? 'zh' : 'en';
   let r = await fetchWithTimeout(
-    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(qNorm)}&count=1&language=${queryLang}`,
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(qNorm)}&count=${count}&language=${queryLang}`,
     { timeoutMs: 4500 }
   );
   let d = await safeJson(r);
   if (!d?.results?.length && queryLang === 'zh') {
     r = await fetchWithTimeout(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(qNorm)}&count=1&language=en`,
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(qNorm)}&count=${count}&language=en`,
       { timeoutMs: 4500 }
     );
     d = await safeJson(r);
   }
-  if (!d?.results?.length) return null;
-  const g = d.results[0];
-  const matched = matchKnownCity(g.latitude, g.longitude);
-  const countryZh = traditionalRegionName(g.country_code, g.country || '');
-  const fallbackZh = (countryZh && countryZh !== g.name) ? `${countryZh} · ${g.name}` : g.name;
-  const fallbackEn = (g.country && g.country !== g.name) ? `${g.country} · ${g.name}` : g.name;
-  return {
-    name: matched ? matched.zh : fallbackZh,
-    nameEn: matched ? matched.en : (hasCjkChars(fallbackEn) ? `${g.latitude.toFixed(2)}°, ${g.longitude.toFixed(2)}°` : fallbackEn),
-    lat: g.latitude,
-    lon: g.longitude,
-    tz: g.timezone || matched?.tz || 'UTC',
-    mode: 'manual',
-    accuracy: null
-  };
+  if (!Array.isArray(d?.results) || !d.results.length) return [];
+  const out = [];
+  for (const g of d.results) {
+    if (!Number.isFinite(g?.latitude) || !Number.isFinite(g?.longitude)) continue;
+    // Deduplicate near-identical geocoder hits within 15 km
+    if (out.some(p => computeDistanceKm(p.lat, p.lon, g.latitude, g.longitude) < 15)) continue;
+    const matched = matchKnownCity(g.latitude, g.longitude);
+    const countryZh = traditionalRegionName(g.country_code, g.country || '');
+    const fallbackZh = (countryZh && countryZh !== g.name) ? `${countryZh} · ${g.name}` : g.name;
+    const fallbackEn = (g.country && g.country !== g.name) ? `${g.country} · ${g.name}` : g.name;
+    out.push({
+      name: matched ? matched.zh : fallbackZh,
+      nameEn: matched ? matched.en : (hasCjkChars(fallbackEn) ? `${g.latitude.toFixed(2)}°, ${g.longitude.toFixed(2)}°` : fallbackEn),
+      admin1: g.admin1 || '',
+      country: g.country || '',
+      countryZh: countryZh || g.country || '',
+      lat: g.latitude,
+      lon: g.longitude,
+      tz: g.timezone || matched?.tz || 'UTC',
+      mode: 'manual',
+      accuracy: null
+    });
+    if (out.length >= count) break;
+  }
+  return out;
+}
+
+/** Search city by Chinese alias or Latin spelling via Open-Meteo geocoding (top result) */
+export async function geocodeCityQuery(rawQuery) {
+  const list = await geocodeCityCandidates(rawQuery, 1);
+  return list[0] || null;
 }

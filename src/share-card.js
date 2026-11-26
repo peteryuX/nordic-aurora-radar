@@ -57,12 +57,28 @@ export function buildShareCardPayload({
         : `${bestIsNextNight ? '24 小時最佳時段' : '今晚最佳時段'}：${bestAurora.time}（指數 ${bestAurora.score}/99）`)
     : '';
 
-  const outlook = (Array.isArray(nights3) ? nights3 : []).slice(0, 3).map(n => ({
+  const rawNights = (Array.isArray(nights3) ? nights3 : []).slice(0, 3);
+  const hasExplicitBest = rawNights.some(n => Boolean(n?.isBest));
+  let bestNightIdx = -1;
+  if (!hasExplicitBest) {
+    let topScore = 17;
+    let topClear = -1;
+    rawNights.forEach((n, idx) => {
+      const s = Number.isFinite(n?.bestNightScore) ? n.bestNightScore : -1;
+      const c = Number.isFinite(n?.bestClearPct) ? n.bestClearPct : (Number.isFinite(n?.bestClear) ? n.bestClear : -1);
+      if (s > topScore || (s === topScore && s >= 18 && c > topClear)) {
+        topScore = s;
+        topClear = c;
+        bestNightIdx = idx;
+      }
+    });
+  }
+  const outlook = rawNights.map((n, idx) => ({
     day: String(n?.dayLabel || '--'),
     score: Number.isFinite(n?.bestNightScore) ? `${n.bestNightScore}` : '--',
-    clear: Number.isFinite(n?.bestClearPct) ? `${n.bestClearPct}%` : '--',
+    clear: Number.isFinite(n?.bestClearPct) ? `${n.bestClearPct}%` : (Number.isFinite(n?.bestClear) ? `${n.bestClear}%` : '--'),
     tone: n?.tone || 'muted',
-    isBest: Boolean(n?.isBest)
+    isBest: hasExplicitBest ? Boolean(n?.isBest) : (idx === bestNightIdx)
   }));
 
   return {

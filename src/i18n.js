@@ -6,7 +6,7 @@
  */
 
 import { TERMS, term } from './glossary.js';
-import { isInNordicMetBox, isInFmiNordicBox } from './aurora-engine.js';
+import { isInNordicMetBox, isInFmiNordicBox, findNearestUsgsMagStation } from './aurora-engine.js';
 
 const pair = (e) => [e.zh, e.en];
 
@@ -153,6 +153,9 @@ export const STATIC_TEXT_MAP = {
   h2Windy: ['動態雲量預報（Windy）', 'Cloud forecast (Windy)'],
   subWindy: ['已對準目前位置（ECMWF 數值雲層預報），按左下角 ▶ 可播放未來幾小時移動趨勢：', 'Centered here (ECMWF cloud forecast) — press ▶ bottom-left to animate cloud movement:'],
   subOv: ['NOAA OVATION 30 分鐘極光預報模型（每 5 分鐘更新），查看綠／黃色極光帶覆蓋範圍：', 'NOAA OVATION 30-min aurora forecast model (updates every 5 min) — check green/yellow coverage:'],
+  windyLayerClouds: ['綜合雲量', 'All clouds'],
+  windyLayerLow: ['低層厚雲', 'Low clouds'],
+  windyLayerSat: ['衛星雲圖', 'Satellite IR'],
   navHome: pair(TERMS.nav.overview),
   navDir: pair(TERMS.nav.findClearShort),
   navSat: pair(TERMS.nav.liveMap),
@@ -240,12 +243,15 @@ export function renderTrustStatGrid($, pos, en) {
   const lat = Number(pos?.lat), lon = Number(pos?.lon);
   const inNordic = isInNordicMetBox(lat, lon);
   const inFmiMag = isInFmiNordicBox(lat, lon);
+  const usgsMag = !inFmiMag ? findNearestUsgsMagStation(lat, lon) : null;
   if (en) {
     tsG.innerHTML =
       `<div class="ts-stat"><strong>Sun 0.006° · Mag 0.24°</strong><span>JPL DE441 (Moon ≤0.74°) · IGRF-14</span></div>` +
       (inFmiMag
         ? `<div class="ts-stat"><strong>NOAA + FMI Ground Mag</strong><span>L1 Wind · GOES · MHD Dst · Nordic Bx</span></div>`
-        : `<div class="ts-stat"><strong>15 NOAA Space Feeds</strong><span>1m L1 Wind · GOES · OVATION · MHD Dst</span></div>`) +
+        : (usgsMag
+            ? `<div class="ts-stat"><strong>NOAA + USGS Ground Mag</strong><span>L1 Wind · GOES · MHD Dst · ${usgsMag.code} 1m H</span></div>`
+            : `<div class="ts-stat"><strong>15 NOAA Space Feeds</strong><span>1m L1 Wind · GOES · OVATION · MHD Dst</span></div>`)) +
       (inNordic
         ? `<div class="ts-stat"><strong>Tri-Nation Sky Sensors</strong><span>METAR · SMHI · FMI ≤55 km (+0–3h)</span></div>`
         : `<div class="ts-stat"><strong>Local Sky Stations</strong><span>Live METAR sensors ≤55 km (+0–3h)</span></div>`) +
@@ -257,7 +263,9 @@ export function renderTrustStatGrid($, pos, en) {
       `<div class="ts-stat"><strong>太陽 0.006° · 地磁 0.24°</strong><span>JPL 日月曆（月 ≤0.74°） · IGRF-14</span></div>` +
       (inFmiMag
         ? `<div class="ts-stat"><strong>NOAA + 北歐 FMI 地磁網</strong><span>1m 太陽風 · GOES · MHD Dst · 當地磁力儀</span></div>`
-        : `<div class="ts-stat"><strong>15 項 NOAA 太空天氣</strong><span>1m 太陽風 · GOES · OVATION · MHD Dst</span></div>`) +
+        : (usgsMag
+            ? `<div class="ts-stat"><strong>NOAA + 美國 USGS 地磁</strong><span>1m 太陽風 · GOES · MHD Dst · ${usgsMag.code} 實測</span></div>`
+            : `<div class="ts-stat"><strong>15 項 NOAA 太空天氣</strong><span>1m 太陽風 · GOES · OVATION · MHD Dst</span></div>`)) +
       (inNordic
         ? `<div class="ts-stat"><strong>北歐三國地面雲量實測</strong><span>METAR · SMHI · FMI 55 km 內校正</span></div>`
         : `<div class="ts-stat"><strong>當地氣象站即時校正</strong><span>55 km 內 METAR 雲量實測融合</span></div>`) +

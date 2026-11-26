@@ -25,13 +25,13 @@ import {
 import { SKY_CAMS, renderSkyCamCaption, renderTrustStatGrid, applyStaticI18n as applyStaticI18nDom } from './i18n.js';
 import {
   fetchEnlilBackground, fetchNoaaBundle, fetchWeatherBundle,
-  computeLiveSnapshot, reverseGeocodeBilingual, reverseGeocodeSingle, geocodeCityQuery
+  computeLiveSnapshot, reverseGeocodeBilingual, reverseGeocodeSingle, geocodeCityCandidates
 } from './data-client.js';
 
 const {
   detectDefaultLang, getLang, setLang, isEn, escapeHtml, tSky, tDirLabel, tGrade,
   isInNordicMetBox, getZoneParts, matchKnownCity, hasCjkChars, resolveCityDisplayName,
-  parseUrlLocation, buildShareUrl, computeSolarElevation, computeDistanceKm, effectiveCloud,
+  parseUrlLocation, buildShareUrl, computeSolarElevation, computeDistanceKm, computeEffectiveCloud,
   computeDarkWindow, getMoonState, computeViewingGeometry,
   computeMLT, explainAuroraScore, summarize3NightOutlook, evaluateVerdict,
   isCorridorHazard, isAuroraWorthViewing, synthesizeTonightAction, summarizeEnergyTrend, summarizeCompass,
@@ -74,6 +74,7 @@ const state = {
   bestAurora: null,
   selectedHourIdx: 0,
   renderState: null,
+  localizedNights3: null,
   explainState: null,
   alertEnabled: false,
   wakeLockFailed: false,
@@ -88,6 +89,10 @@ const state = {
   camKey: 'uit',
   camUserPicked: false,
   camFullBright: false,
+  windyOverlay: 'clouds',
+  lastBestDirKey: null,
+  lastBestDirPosKey: '',
+  searchCandidates: [],
   activeView: 'home',
   tabScrollY: { home: 0, dir: 0, sat: 0 },
   trustTriggerEl: null,
@@ -555,6 +560,12 @@ function updateSkyCamDayNotice(key) {
     const nowCam = new Date();
     const zCam = getZoneParts(nowCam, cam.tz || 'UTC');
     const localHM = `${zCam.hourStr}:${zCam.minStr}`;
+    const camDistKm = (!cam.isMag && Number.isFinite(state.pos?.lat) && Number.isFinite(state.pos?.lon))
+      ? Math.round(computeDistanceKm(state.pos.lat, state.pos.lon, cam.lat, cam.lon))
+      : 0;
+    const distNote = camDistKm > 50
+      ? (en ? ` · ~${camDistKm} km away` : ` · 距目前位置約 ${camDistKm} km`)
+      : '';
     if (cam.isMag) {
       setText('subCam', en
         ? `Nordic magnetometer network · Local ${localHM} (auto-updated)`
@@ -565,16 +576,16 @@ function updateSkyCamDayNotice(key) {
         ? (en ? 'Night' : '夜間')
         : (sunCam <= 0 ? (en ? 'Twilight' : '暮光') : (en ? 'Daylight' : '白天'));
       setText('subCam', en
-        ? `Local ${localHM} · ${skyState} road & horizon camera (updates every ~10m)`
-        : `當地時間 ${localHM} · ${skyState}公路與天際線實拍（約每 10 分鐘更新）`);
+        ? `Local ${localHM} · ${skyState} road & horizon camera${distNote} (~10m)`
+        : `當地時間 ${localHM} · ${skyState}公路與天際線實拍${distNote}（約每 10 分鐘更新）`);
     } else {
       const sunCam = computeSolarElevation(nowCam, cam.lat, cam.lon);
       const skyState = sunCam <= -6
         ? (en ? 'Dark sky' : '目前黑夜')
         : (sunCam <= 0 ? (en ? 'Twilight' : '目前暮光') : (en ? 'Daylight' : '目前白天'));
       setText('subCam', en
-        ? `Local ${localHM} · ${skyState} (check stars or cloud gaps directly)`
-        : `當地時間 ${localHM} · ${skyState}（畫面直接看星星或雲縫）`);
+        ? `Local ${localHM} · ${skyState}${distNote} (check stars or cloud gaps directly)`
+        : `當地時間 ${localHM} · ${skyState}${distNote}（畫面直接看星星或雲縫）`);
     }
   }
   if (!notice) return;
@@ -636,7 +647,7 @@ function getActiveSkyCamRegion(lat, lon) {
   const nearNordic = findNearestCamInRegion(lat, lon, 'nordic');
   if (nearNordic.distKm <= 650) return { region: 'nordic', key: nearNordic.key };
   const nearIceland = findNearestCamInRegion(lat, lon, 'iceland');
-  if (nearIceland.distKm <= 450) return { region: 'iceland', key: nearIceland.key };
+  if (nearIceland.distKm <= 500) return { region: 'iceland', key: nearIceland.key };
   const nearNa = findNearestCamInRegion(lat, lon, 'na');
   if (nearNa.distKm <= 1800) return { region: 'na', key: nearNa.key };
   return null;
@@ -646,6 +657,21 @@ function syncNavSatLabel() {
   setText('navSat', term(TERMS.nav.liveMap, isEn()));
   const camCard = $('skyCamCard');
   if (camCard) camCard.style.display = getActiveSkyCamRegion(state.pos.lat, state.pos.lon) ? 'block' : 'none';
+}
+
+function selectWindyOverlay(overlay, btn) {
+  const valid = ['clouds', 'lclouds', 'satellite'];
+  if (!valid.includes(overlay)) return;
+  state.windyOverlay = overlay;
+  document.querySelectorAll('#windyLayerChips .chip').forEach(c => {
+    c.classList.toggle('on', btn ? c === btn : c.dataset.overlay === overlay);
+  });
+  const we = $('windyExtLink');
+  if (we) {
+    we.href = `https://www.windy.com/${state.pos.lat.toFixed(3)}/${state.pos.lon.toFixed(3)}?${overlay},${state.pos.lat.toFixed(3)},${state.pos.lon.toFixed(3)},8`;
+  }
+  if ($('v-sat')?.classList.contains('on')) syncSatTab();
+  haptic(5);
 }
 
 function syncSatTab() {
@@ -673,9 +699,13 @@ function syncSatTab() {
   } else {
     if (offBox) offBox.style.display = 'none';
     wf.style.display = '';
-    const target = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&overlay=clouds&lat=${state.pos.lat.toFixed(3)}&lon=${state.pos.lon.toFixed(3)}&zoom=7`;
+    const ov = state.windyOverlay || 'clouds';
+    const target = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&overlay=${ov}&lat=${state.pos.lat.toFixed(3)}&lon=${state.pos.lon.toFixed(3)}&zoom=7`;
     if (wf.src !== target) wf.src = target;
   }
+  document.querySelectorAll('#windyLayerChips .chip').forEach(c => {
+    c.classList.toggle('on', c.dataset.overlay === (state.windyOverlay || 'clouds'));
+  });
   const hemi = state.pos.lat >= 0 ? 'north' : 'south';
   setText('ovHeading', state.pos.lat >= 0
     ? (en ? 'Northern aurora forecast (NOAA)' : '北半球極光範圍預報（NOAA）')
@@ -1408,6 +1438,9 @@ function renderCompassPanel(dirResults, pos, en, compassOpts = null) {
     if (!d.isOcean && !unavail && Number.isFinite(d.temp) && d.temp <= -25) {
       hazards.push(en ? '⚠ Extreme cold' : '⚠ 極寒凍傷風險');
     }
+    if (!d.isOcean && !unavail && d.iceFogRisk) {
+      hazards.push(en ? 'Local fog / ice mist' : '局部凍霧／低霧');
+    }
     const rainTag = (!d.isOcean && !unavail && precipMm >= 0.2 && d.temp > 1.5)
       ? (en ? ' · Rain' : ' · 降雨')
       : '';
@@ -1448,9 +1481,16 @@ function renderCompassPanel(dirResults, pos, en, compassOpts = null) {
       const lbl = en ? (hazard ? 'Drive anyway' : 'Drive') : (hazard ? '仍要導航' : '導航');
       nav = `<a class="btn ${cls}" target="_blank" rel="noopener noreferrer" href="${driveHref}">${lbl}</a>`;
     }
+    const isEtaShifted = !d.isOcean && Number.isFinite(d.etaHours) && d.etaHours >= 1;
+    const trendArrow = isEtaShifted && d.arrivalTrend === 'clearing'
+      ? ' ↗'
+      : (isEtaShifted && d.arrivalTrend === 'closing' ? ' ↘' : '');
+    const winLbl = isEtaShifted
+      ? (en ? 'On arrival' : '抵達後 3h')
+      : (en ? 'Next 3h' : '3 小時晴空率');
     const statLine = unavail
       ? (en ? 'Forecast temporarily unavailable' : '此方向氣象暫時無法取得')
-      : `${en ? 'Next 3h' : '3 小時晴空率'} <strong class="${col}">${clear3h}%</strong> · ${en ? 'now' : '目前'} ${clearNow}% · ${fmtTemp(d.temp)}${rainTag}`;
+      : `${winLbl} <strong class="${col}">${clear3h}%${trendArrow}</strong> · ${en ? 'now' : '目前'} ${clearNow}% · ${fmtTemp(d.temp)}${rainTag}`;
     const badgeHtml = isBest
       ? ` <span class="dir-best-tag">${en ? 'Best' : '最佳'}</span>`
       : (isGlareEscape ? ` <span class="dir-best-tag">${en ? 'Avoids glare' : '避光害參考'}</span>` : '');
@@ -1532,7 +1572,7 @@ function renderFromState(st) {
   }
   if (fmiMag && Number.isFinite(fmiMag.bayDropNt)) {
     const magMetric = fmiMag.bayDropNt >= 15 ? `-${fmiMag.bayDropNt}nT` : `${fmiMag.amp60Nt}nT/h`;
-    rawParts.push(`FMI ${fmiMag.code} ${magMetric} (${fmiMag.ageMin}m)`);
+    rawParts.push(`${fmiMag.source || 'FMI'} ${fmiMag.code} ${magMetric} (${fmiMag.ageMin}m)`);
   }
   if (metarObs && metarFusion?.applied) {
     if (metarObs.source === 'SMHI') {
@@ -1597,6 +1637,8 @@ function renderFromState(st) {
     lat: pos.lat, lon: pos.lon, geom: geomNow,
     auroraScore: sc.auroraScore, effMoonPct: moon.effMoonPct, lang: getLang()
   });
+  const posBucketKey = `${Math.round(pos.lat * 2) / 2},${Math.round(pos.lon * 2) / 2}`;
+  const prevBestKey = (posBucketKey === state.lastBestDirPosKey) ? state.lastBestDirKey : null;
   const compassOpts = {
     originGlare: urbanGlare,
     geom: geomNow,
@@ -1605,7 +1647,8 @@ function renderFromState(st) {
     isTooBright: Boolean(sc.isTooBright),
     outOfZone: Boolean(sc.outOfZone),
     auroraScore: sc.auroraScore,
-    effMoonPct: moon.effMoonPct
+    effMoonPct: moon.effMoonPct,
+    prevBestKey
   };
   st.compassOpts = compassOpts;
 
@@ -1640,6 +1683,7 @@ function renderFromState(st) {
         chartHours: Array.isArray(st.scoredHours) && st.scoredHours.length ? st.scoredHours : state.scoredHours
       })
     : nights3;
+  state.localizedNights3 = localizedNights3;
 
   const activeHrs = Array.isArray(st.scoredHours) && st.scoredHours.length ? st.scoredHours : state.scoredHours;
   if (Array.isArray(st.scoredHours) && st.scoredHours.length) state.scoredHours = st.scoredHours;
@@ -1671,6 +1715,8 @@ function renderFromState(st) {
   const actBtn = $('vActionBtn');
   if (actBtn) {
     const compassSum = summarizeCompass(dirResults, getLang(), compassOpts);
+    state.lastBestDirPosKey = posBucketKey;
+    state.lastBestDirKey = (compassSum?.good && compassSum.bestKey && compassSum.bestKey !== 'here') ? compassSum.bestKey : null;
     const bestDir = (compassSum?.good && compassSum.bestKey && compassSum.bestKey !== 'here' && Array.isArray(dirResults))
       ? dirResults.find(d => d && d.key === compassSum.bestKey)
       : null;
@@ -1864,7 +1910,7 @@ function handleOfflineFallback(pos) {
   const en = isEn();
   document.body.classList.remove('is-loading');
   setText('pMet', en ? 'Weather Offline' : '氣象離線');
-  const cached = findMatchingOfflineCache(pos);
+  const cached = findMatchingOfflineCache(pos, Date.now(), null, { maxFallbackKm: 150 });
   state.bannerState.offline = true;
   if (!cached) {
     setText('offlineTxt', en
@@ -1875,10 +1921,17 @@ function handleOfflineFallback(pos) {
   }
 
   const minsAgo = Math.max(1, Math.round((Date.now() - cached.ts) / 60000));
-  const cachedPosLabel = getPosDisplayName(pos) || cached.posName || '';
-  setText('offlineTxt', en
-    ? `Offline: ${minsAgo}m old cache (${cachedPosLabel}).`
-    : `離線模式：顯示 ${minsAgo} 分鐘前（${cachedPosLabel}）快取資料。`);
+  const fbDist = Number.isFinite(cached._fallbackDistKm) && cached._fallbackDistKm > 20 ? cached._fallbackDistKm : 0;
+  const cachedPosLabel = fbDist
+    ? (cached.posName || getPosDisplayName(pos) || '')
+    : (getPosDisplayName(pos) || cached.posName || '');
+  setText('offlineTxt', fbDist
+    ? (en
+        ? `Offline: ${minsAgo}m old cache from ${cachedPosLabel} (~${fbDist} km away).`
+        : `離線模式：顯示約 ${fbDist} km 外（${cachedPosLabel}）${minsAgo} 分鐘前快取。`)
+    : (en
+        ? `Offline: ${minsAgo}m old cache (${cachedPosLabel}).`
+        : `離線模式：顯示 ${minsAgo} 分鐘前（${cachedPosLabel}）快取資料。`));
   syncBannerBudget();
 
   const hydrated = hydrateOfflineState(cached, pos);
@@ -2075,31 +2128,81 @@ function useGPS() {
   );
 }
 
+function clearSearchResults() {
+  state.searchCandidates = [];
+  const box = $('searchResults');
+  if (box) { box.innerHTML = ''; box.style.display = 'none'; }
+}
+
+function applyPickedCity(found) {
+  if (!found) return;
+  clearSearchResults();
+  state.camUserPicked = false;
+  state.urlHasExplicitPos = false;
+  clearGpsSuggestion();
+  document.querySelectorAll('#presetChips .chip').forEach(c => c.classList.remove('on'));
+  state.pos = {
+    name: found.name, nameEn: found.nameEn,
+    lat: found.lat, lon: found.lon, tz: found.tz,
+    mode: 'manual', accuracy: null
+  };
+  renderLocationHeader(); syncBrowserUrl();
+  const input = $('cityInput');
+  if (input) input.value = '';
+  haptic(8);
+  togglePicker(true);
+  refreshAll(true);
+}
+
+function renderSearchResults(candidates) {
+  const box = $('searchResults');
+  if (!box) return;
+  const en = isEn();
+  state.searchCandidates = candidates;
+  if (!candidates.length) {
+    box.innerHTML = '';
+    box.style.display = 'none';
+    return;
+  }
+  box.innerHTML = candidates.map((c, idx) => {
+    const title = en ? (c.nameEn || c.name) : c.name;
+    const subParts = [];
+    if (c.admin1 && !title.includes(c.admin1)) subParts.push(c.admin1);
+    subParts.push(`${Math.abs(c.lat).toFixed(1)}°${c.lat >= 0 ? 'N' : 'S'}`);
+    return `<button type="button" class="search-res-item" role="option" data-search-idx="${idx}"><span>${escapeHtml(title)}</span><span class="search-res-sub">${escapeHtml(subParts.join(' · '))}</span></button>`;
+  }).join('');
+  box.style.display = 'flex';
+}
+
 async function searchCity(e) {
   e.preventDefault();
   const input = $('cityInput');
+  const btn = $('searchBtn');
   const rawQ = input?.value.trim() || '';
   if (!rawQ) return;
   const en = isEn();
   const myLocSeq = ++state.locationSeq;
+  trackEvent('city-search', 'City Search');
+  if (btn) { btn.disabled = true; btn.textContent = en ? 'Searching…' : '搜尋中…'; }
   try {
-    const found = await geocodeCityQuery(rawQ);
+    const candidates = await geocodeCityCandidates(rawQ, 5);
     if (myLocSeq !== state.locationSeq) return;
-    if (found) {
-      state.camUserPicked = false;
-      state.urlHasExplicitPos = false;
-      clearGpsSuggestion();
-      document.querySelectorAll('#presetChips .chip').forEach(c => c.classList.remove('on'));
-      state.pos = found;
-      renderLocationHeader(); syncBrowserUrl();
-      if (input) input.value = '';
-      haptic(8);
-      togglePicker(true);
-      refreshAll(true);
+    if (candidates.length === 1) {
+      applyPickedCity(candidates[0]);
       return;
     }
+    if (candidates.length > 1) {
+      renderSearchResults(candidates);
+      return;
+    }
+    clearSearchResults();
     toast(en ? 'City not found — try another spelling' : '找不到地名，可試英文拼法（如 Reykjavik）', 'warn');
-  } catch { toast(en ? 'Search failed — check connection' : '搜尋連線失敗，請檢查網路', 'error'); }
+  } catch {
+    clearSearchResults();
+    toast(en ? 'Search failed — check connection' : '搜尋連線失敗，請檢查網路', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = en ? 'Search' : '搜尋'; }
+  }
 }
 
 async function shareStatus() {
@@ -2167,7 +2270,7 @@ async function shareForecastCard() {
       bestIsNextNight = getZoneParts(new Date(best.dtMs - 12 * 3600000), tz).dateStr
         !== getZoneParts(new Date(refMs - 12 * 3600000), tz).dateStr;
     }
-    const localTimeStr = $('localClk')?.textContent?.trim() || '';
+    const localTimeStr = $('clk')?.textContent?.trim() || '';
     const payload = buildShareCardPayload({
       pos: state.pos,
       posName: getPosDisplayName(),
@@ -2181,7 +2284,7 @@ async function shareForecastCard() {
       heroCue: $('vTitle')?.textContent || '',
       bestAurora: best,
       bestIsNextNight,
-      nights3: state.renderState?.nights3 || [],
+      nights3: state.localizedNights3 || state.renderState?.nights3 || [],
       localTimeStr,
       lang: getLang()
     });
@@ -2296,15 +2399,19 @@ async function compareTripCities() {
   state.isComparingTrip = true;
   renderTripWatchlist();
   const nowSec = Math.floor(Date.now() / 1000);
+  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), 7500) : null;
   try {
-    await Promise.all(state.watchlist.map(async (c) => {
-      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-      const timer = ctrl ? setTimeout(() => ctrl.abort(), 6000) : null;
-      try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${c.lat.toFixed(4)}&longitude=${c.lon.toFixed(4)}&hourly=cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,temperature_2m&forecast_days=2&timeformat=unixtime&timezone=auto`;
-        const res = await fetch(url, { signal: ctrl?.signal });
-        if (!res.ok) return;
-        const data = await res.json();
+    // Single batched Open-Meteo multi-coordinate call (1 HTTP request instead of up to 5)
+    const lats = state.watchlist.map(c => c.lat.toFixed(4)).join(',');
+    const lons = state.watchlist.map(c => c.lon.toFixed(4)).join(',');
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,temperature_2m&forecast_days=2&timeformat=unixtime&timezone=auto`;
+    const res = await fetch(url, { signal: ctrl?.signal });
+    if (res.ok) {
+      const raw = await res.json();
+      const list = Array.isArray(raw) ? raw : [raw];
+      state.watchlist.forEach((c, idx) => {
+        const data = list[idx];
         const h = data?.hourly;
         if (!h?.time?.length) return;
         let bestClear = -1;
@@ -2321,7 +2428,7 @@ async function compareTripCities() {
           const high = h.cloud_cover_high?.[i];
           const tot = h.cloud_cover?.[i];
           const block = (Number.isFinite(low) && Number.isFinite(mid) && Number.isFinite(high))
-            ? effectiveCloud(low, mid, high)
+            ? computeEffectiveCloud(low, mid, high, 0, Number.isFinite(tot) ? tot : null)
             : (Number.isFinite(tot) ? Math.round(tot) : 50);
           const clear = Math.max(0, Math.min(100, 100 - block));
           const temp = Number.isFinite(h.temperature_2m?.[i]) ? Math.round(h.temperature_2m[i]) : null;
@@ -2331,16 +2438,14 @@ async function compareTripCities() {
             bestClear = clear;
             bestTemp = temp;
             const zp = getZoneParts(new Date(ts * 1000), tz);
-            bestTime = `${String(zp.hour).padStart(2, '0')}:00`;
+            bestTime = `${zp.hourStr}:00`;
           }
         }
         const finalClear = bestClear >= 0 ? bestClear : (fallbackClear ?? 0);
         const finalTemp = bestClear >= 0 ? bestTemp : fallbackTemp;
         state.tripCompareMap[tripKey(c)] = { clearPct: finalClear, bestTime, temp: finalTemp, ts: Date.now() };
-      } catch {} finally {
-        if (timer) clearTimeout(timer);
-      }
-    }));
+      });
+    }
     let winner = null;
     let maxClr = -1;
     for (const c of state.watchlist) {
@@ -2353,7 +2458,10 @@ async function compareTripCities() {
     } else {
       toast(en ? 'Could not fetch comparison — check network' : '暫時無法比較，請檢查網路連線', 'warn');
     }
+  } catch {
+    toast(en ? 'Could not fetch comparison — check network' : '暫時無法比較，請檢查網路連線', 'warn');
   } finally {
+    if (timer) clearTimeout(timer);
     state.isComparingTrip = false;
     renderTripWatchlist();
   }
@@ -2535,12 +2643,14 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
       if (magSvg) {
         const stName = escapeHtml(fmiMag.stationName || fmiMag.code || 'FMI');
         const distTxt = Number.isFinite(fmiMag.distKm) ? `${Math.round(fmiMag.distKm)} km` : '';
+        const compLbl = fmiMag.source === 'USGS' ? 'ΔH' : 'ΔBx';
         const dropVal = Number.isFinite(fmiMag.bayDropNt) && fmiMag.bayDropNt >= 15
-          ? `ΔBx -${Math.round(fmiMag.bayDropNt)} nT`
+          ? `${compLbl} -${Math.round(fmiMag.bayDropNt)} nT`
           : `±${Math.round(fmiMag.amp60Nt || 0)} nT/h`;
+        const srcTag = fmiMag.source || 'FMI';
         blocks.push(
-          `<div class="ts-pro-mag-hd"><span>${en ? `Ground Magnetometer · ${stName}${distTxt ? ` (${distTxt})` : ''}` : `當地地磁實測 · ${stName}${distTxt ? `（${distTxt}）` : ''}`}</span><strong>${escapeHtml(dropVal)}</strong></div>` +
-          `<svg class="ts-pro-mag-svg" viewBox="0 0 380 96" role="img" aria-label="${en ? '3-hour FMI ground magnetometer chart' : '近 3 小時北歐地面磁力儀波形圖'}">${magSvg}</svg>` +
+          `<div class="ts-pro-mag-hd"><span>${en ? `${srcTag} Magnetometer · ${stName}${distTxt ? ` (${distTxt})` : ''}` : `當地地磁實測（${srcTag}）· ${stName}${distTxt ? `（${distTxt}）` : ''}`}</span><strong>${escapeHtml(dropVal)}</strong></div>` +
+          `<svg class="ts-pro-mag-svg" viewBox="0 0 380 96" role="img" aria-label="${en ? `3-hour ${srcTag} ground magnetometer chart` : `近 3 小時 ${srcTag} 地面磁力儀波形圖`}">${magSvg}</svg>` +
           `<div class="ts-pro-note">${en ? 'Sharp negative dip below the amber guide signals an overhead auroral substorm.' : '曲線向下跌破琥珀線代表頭頂極光電射流增強（亞暴爆發）。'}</div>`
         );
       }
@@ -3007,6 +3117,19 @@ function bindEvents() {
     }
   });
   $('cityForm')?.addEventListener('submit', searchCity);
+  $('cityInput')?.addEventListener('input', (e) => { if (!e.target?.value?.trim()) clearSearchResults(); });
+  $('searchResults')?.addEventListener('click', (e) => {
+    const item = e.target.closest?.('[data-search-idx]');
+    if (!item) return;
+    const idx = parseInt(item.dataset.searchIdx, 10);
+    if (Number.isInteger(idx) && state.searchCandidates[idx]) {
+      applyPickedCity(state.searchCandidates[idx]);
+    }
+  });
+  $('windyLayerChips')?.addEventListener('click', (e) => {
+    const btn = e.target.closest?.('button[data-overlay]');
+    if (btn) selectWindyOverlay(btn.dataset.overlay, btn);
+  });
   $('ringBtn')?.addEventListener('click', (e) => openTrustSheet(e.currentTarget));
   $('trustBtn')?.addEventListener('click', (e) => openTrustSheet(e.currentTarget));
   $('fcConfBtn')?.addEventListener('click', (e) => openTrustSheet(e.currentTarget));

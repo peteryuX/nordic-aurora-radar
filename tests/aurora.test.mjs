@@ -3758,8 +3758,9 @@ test('70. v65 System-Level Tab 3 IA (觀測地圖), Copernicus GLO-30 Ridge Lowe
   const verifRaw = fs.readFileSync(path.join(__dirname, '..', 'verification', 'latest.json'), 'utf8');
   const verif = JSON.parse(verifRaw);
 
-  // (a) sw.js v65 + horizon-data.js in SHELL_ASSETS + Network-First for /verification/
-  assert.ok(swSrc.includes('aurora-radar-shell-v65'), 'sw.js CACHE_NAME must be bumped to v65');
+  // (a) sw.js v65+ + horizon-data.js in SHELL_ASSETS + Network-First for /verification/
+  const swVer70 = Number((swSrc.match(/aurora-radar-shell-v(\d+)/) || [])[1] || 0);
+  assert.ok(swVer70 >= 65, `sw.js CACHE_NAME must be >= v65, got v${swVer70}`);
   assert.ok(swSrc.includes('./src/horizon-data.js'), 'sw.js SHELL_ASSETS must include ./src/horizon-data.js');
   assert.ok(swSrc.includes("url.pathname.includes('/verification/')"), 'sw.js must serve /verification/ Network-First');
 
@@ -3796,6 +3797,140 @@ test('70. v65 System-Level Tab 3 IA (觀測地圖), Copernicus GLO-30 Ridge Lowe
     assert.equal(verif.geomagAudit.l1RocAuc, null, 'Small-sample guard (<5 active events) must suppress l1RocAuc to null');
   }
 });
+
+test('71. v66 Mainstream Complete & 6-Stage Real Human Driving/Chasing Journey Simulation (No Whiplash, Offline Fjord Survival, Spot SEO Live, Share Card, Trip Compare, USGS Mag)', async () => {
+  // (a) Real ES module import of spot-live.js (catches broken exports immediately!) + zero regression on live bugs
+  const spotLiveMod = await import('../src/spot-live.js');
+  assert.equal(typeof spotLiveMod.hydrateSpotLive, 'function', 'src/spot-live.js must cleanly import & export hydrateSpotLive');
+  const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const htmlSrc = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const swSrc = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+  assert.ok(!/\beffectiveCloud\s*\(/.test(appSrc), 'app.js must call computeEffectiveCloud, never undefined effectiveCloud');
+  assert.ok(!appSrc.includes("$('localClk')"), 'app.js shareForecastCard must read $("clk"), never nonexistent $("localClk")');
+  assert.ok(!/\bzp\.hour\b/.test(appSrc), 'app.js compareTripCities must read zp.hourStr, never undefined zp.hour');
+  assert.ok(swSrc.includes('aurora-radar-shell-v66'), 'sw.js must be bumped to aurora-radar-shell-v66');
+  assert.ok(htmlSrc.includes('https://geomag.usgs.gov'), 'index.html CSP connect-src must whitelist https://geomag.usgs.gov');
+  assert.ok(htmlSrc.includes('id="windyLayerChips"') && htmlSrc.includes('data-overlay="lclouds"') && htmlSrc.includes('data-overlay="satellite"'), 'Tab 3 must expose 3-pill Windy layer switcher');
+  assert.ok(htmlSrc.includes('id="searchResults"'), 'Location picker must mount #searchResults candidate container');
+
+  // (b) Share PNG Card auto-computes isBest highlight & preserves local clock
+  const { buildShareCardPayload } = await import('../src/share-card.js');
+  const cardPayload = buildShareCardPayload({
+    pos: { name: '挪威 · Tromsø', nameEn: 'Norway · Tromsø' },
+    posName: '挪威 · Tromsø',
+    sc: { total: 74, grade: 'prime', isTooBright: false },
+    localTimeStr: '23:15',
+    nights3: [
+      { dayLabel: '今晚', bestNightScore: 52, bestClearPct: 60, tone: 'good' },
+      { dayLabel: '明晚', bestNightScore: 78, bestClearPct: 88, tone: 'good' },
+      { dayLabel: '後天', bestNightScore: 30, bestClearPct: 40, tone: 'warn' }
+    ],
+    lang: 'zh'
+  });
+  assert.equal(cardPayload.localTimeStr, '23:15');
+  assert.equal(cardPayload.outlook[0].isBest, false);
+  assert.equal(cardPayload.outlook[1].isBest, true, 'Share PNG card must auto-highlight highest-scoring night >=18 as isBest');
+  assert.equal(cardPayload.outlook[2].isBest, false);
+
+  // (c) Real Human Chase Journey Stage 1 & 2: Mid-Drive Anti-Whiplash (NWP noise shorter-road + prevBestKey hysteresis)
+  const hotelDirsStage1 = [
+    { key: 'here', label: '原地', avg3h: 82, nowC: 85, isOcean: false },
+    { key: 'W', label: '往西 Sommarøy', lat: 69.63, lon: 18.01, roadKm: 58, avg3h: 24, nowC: 25, temp: -4, maxWind3h: 4, maxPrecip3h: 0, isOcean: false },
+    { key: 'SE', label: '往東南 Skibotn', lat: 69.39, lon: 20.27, roadKm: 118, avg3h: 21, nowC: 20, temp: -12, maxWind3h: 3, maxPrecip3h: 0, isOcean: false }
+  ];
+  const stage1NoPrev = api.summarizeCompass(hotelDirsStage1, 'zh');
+  assert.equal(stage1NoPrev.bestKey, 'W', `Within 3% NWP noise (21% vs 24%), shorter drive Sommarøy (58km) must beat Skibotn (118km), got ${stage1NoPrev.bestKey}`);
+
+  // Stage 2: Driver is ALREADY committed to Skibotn (prevBestKey: 'SE'), NWP jitters 5% (Skibotn 26% vs Sommarøy 21%)
+  const midDriveJitter = [
+    { key: 'here', label: '原地', avg3h: 80, nowC: 80, isOcean: false },
+    { key: 'W', label: '往西 Sommarøy', lat: 69.63, lon: 18.01, roadKm: 58, avg3h: 21, nowC: 22, temp: -4, maxWind3h: 4, maxPrecip3h: 0, isOcean: false },
+    { key: 'SE', label: '往東南 Skibotn', lat: 69.39, lon: 20.27, roadKm: 118, avg3h: 26, nowC: 24, temp: -12, maxWind3h: 3, maxPrecip3h: 0, isOcean: false }
+  ];
+  const stage2Hold = api.summarizeCompass(midDriveJitter, 'zh', { prevBestKey: 'SE' });
+  assert.equal(stage2Hold.bestKey, 'SE', `Mid-drive hysteresis must hold committed Skibotn (26% <= 35%, 5% margin <= 10%) instead of causing a winter U-turn, got ${stage2Hold.bestKey}`);
+
+  // Stage 3: Genuine Reversal! Skibotn collapses to 82% cloud while Sommarøy opens to 15% cloud -> MUST switch cleanly
+  const stage3Collapse = [
+    { key: 'here', label: '原地', avg3h: 78, nowC: 80, isOcean: false },
+    { key: 'W', label: '往西 Sommarøy', lat: 69.63, lon: 18.01, roadKm: 58, avg3h: 15, nowC: 18, temp: -4, maxWind3h: 4, maxPrecip3h: 0, isOcean: false },
+    { key: 'SE', label: '往東南 Skibotn', lat: 69.39, lon: 20.27, roadKm: 118, avg3h: 82, nowC: 40, temp: -12, maxWind3h: 3, maxPrecip3h: 0, isOcean: false }
+  ];
+  const stage3Switch = api.summarizeCompass(stage3Collapse, 'zh', { prevBestKey: 'SE' });
+  assert.equal(stage3Switch.bestKey, 'W', `When committed Skibotn genuinely clouds over (82%), compass must switch to clear Sommarøy, got ${stage3Switch.bestKey}`);
+
+  // Stage 3b: Origin/Current position unexpectedly clears (20% cloud) -> stop driving immediately!
+  const stage3bOriginClears = [
+    { key: 'here', label: '原地', avg3h: 20, nowC: 18, isOcean: false },
+    { key: 'SE', label: '往東南 Skibotn', lat: 69.39, lon: 20.27, roadKm: 118, avg3h: 15, nowC: 15, temp: -12, maxWind3h: 3, maxPrecip3h: 0, isOcean: false }
+  ];
+  const stage3bStay = api.summarizeCompass(stage3bOriginClears, 'zh', { prevBestKey: 'SE' });
+  assert.equal(stage3bStay.bestKey, 'here', 'When current sky clears to 80%, must immediately advise staying local instead of driving');
+
+  // (d) Stage 4: Fjord Dead-Zone Offline Survival (42 km from hotel, 2 hours later)
+  const storage = await import('../src/storage.js');
+  const mem = new Map();
+  const mockStore = {
+    getItem: k => (mem.has(k) ? mem.get(k) : null),
+    setItem: (k, v) => mem.set(k, String(v)),
+    removeItem: k => mem.delete(k)
+  };
+  const hotelMs = Date.UTC(2026, 10, 26, 19, 0, 0); // 20:00 CET
+  const hereHrsHotel = [
+    { time: '20:00', dtMs: hotelMs + 1800000, block: 85, clear: 15, temp: -3, windMs: 3, precip: 0, isDay: false },
+    { time: '21:00', dtMs: hotelMs + 5400000, block: 55, clear: 45, temp: -4, windMs: 3, precip: 0, isDay: false },
+    { time: '22:00', dtMs: hotelMs + 9000000, block: 10, clear: 90, temp: -5, windMs: 2, precip: 0, isDay: false },
+    { time: '23:00', dtMs: hotelMs + 12600000, block: 12, clear: 88, temp: -6, windMs: 2, precip: 0, isDay: false }
+  ];
+  storage.writeSwrCacheEntry({ lat: 69.6492, lon: 18.9553 }, {
+    ts: hotelMs, lang: 'zh', posName: '挪威 · Tromsø',
+    lat: 69.6492, lon: 18.9553, tz: 'Europe/Oslo',
+    kp: 4.0, bz: -5.0, speed: 480, sunAltNow: -20, mlt: 21.5,
+    score: { total: 14, skyScore: 15, auroraScore: 65, darkScore: 100, grade: 'low', isTooBright: false },
+    hereHrs: hereHrsHotel, dirResults: [], nights3: [], kpForecast: []
+  }, mockStore);
+  const fjordPos = { lat: 69.35, lon: 19.65, tz: 'Europe/Oslo' }; // ~43 km SE of Tromsø
+  const fjordMs = hotelMs + 2 * 3600000; // 22:00 CET (2 hours later)
+  assert.equal(storage.findMatchingOfflineCache(fjordPos, fjordMs, mockStore), null, 'Default 20km SWR pre-paint must stay strict');
+  const fbHit = storage.findMatchingOfflineCache(fjordPos, fjordMs, mockStore, { maxFallbackKm: 150 });
+  assert.ok(fbHit && fbHit._fallbackDistKm >= 35 && fbHit._fallbackDistKm <= 55, `150km offline fjord fallback must recover Tromsø cache (~43km), got ${JSON.stringify(fbHit?._fallbackDistKm)}`);
+  const hyd = storage.hydrateOfflineState(fbHit, fjordPos, fjordMs);
+  assert.equal(hyd.renderState.hereHrs[0].time, '22:00', `Offline hydration at 22:00 must advance hour pointer from 20:00 to 22:00, got ${hyd.renderState.hereHrs[0].time}`);
+  assert.ok(hyd.renderState.sc.skyScore >= 85 && hyd.renderState.sc.total > 40, `Offline hydration at 22:00 must advance hero score to clear 22:00 forecast, got ${JSON.stringify(hyd.renderState.sc)}`);
+
+  // (e) Stage 5: Radiation/Ice-Fog Detection + Silent USGS North America Ground Magnetometer (0.8m lag)
+  const metFogPayload = {
+    properties: {
+      timeseries: [{
+        time: new Date(hotelMs).toISOString().replace('.000Z', 'Z'),
+        data: {
+          instant: { details: { air_temperature: -14.0, dew_point_temperature: -14.7, wind_speed: 1.4, cloud_area_fraction: 5, cloud_area_fraction_low: 5, cloud_area_fraction_medium: 0, cloud_area_fraction_high: 0, fog_area_fraction: 0 } },
+          next_1_hours: { details: { precipitation_amount: 0 } }
+        }
+      }]
+    }
+  };
+  const fogHrs = api.parseMetNorwayHourly12(metFogPayload, 69.39, 20.27, 'Europe/Oslo', new Date(hotelMs - 60000), 1);
+  assert.equal(fogHrs[0].iceFogRisk, true, 'Calm -14°C air with 0.7°C dew-point spread must flag iceFogRisk');
+
+  const cmoSt = api.findNearestUsgsMagStation(64.8378, -147.7164);
+  assert.ok(cmoSt && cmoSt.code === 'CMO' && cmoSt.distKm < 20, `Fairbanks must match USGS CMO <20 km, got ${JSON.stringify(cmoSt)}`);
+  assert.equal(api.findNearestUsgsMagStation(-45.0312, 168.6626), null, 'Queenstown NZ must NOT match USGS North America stations');
+  const usgsTimes = Array.from({ length: 60 }, (_, i) => new Date(hotelMs - (59 - i) * 60000).toISOString());
+  const usgsVals = Array.from({ length: 60 }, (_, i) => (i >= 58 ? null : (i < 42 ? 12750 : 12750 - (i - 41) * 14)));
+  const usgsRes = api.parseUsgsMagnetometerJson({ times: usgsTimes, values: [{ id: 'H', values: usgsVals }] }, cmoSt, hotelMs);
+  assert.ok(usgsRes && usgsRes.source === 'USGS' && usgsRes.code === 'CMO' && usgsRes.active === true && usgsRes.bayDropNt >= 180 && usgsRes.groundSubstormJumpNt >= 25,
+    `USGS CMO -220 nT substorm bay (with trailing nulls) must trigger active ground substorm, got ${JSON.stringify(usgsRes)}`);
+
+  // Trust Sheet stat grid honesty: USGS shown in Fairbanks, absent in Queenstown
+  const { renderTrustStatGrid } = await import('../src/i18n.js');
+  const fakeGrid = { innerHTML: '' };
+  renderTrustStatGrid((id) => (id === 'tsStatGrid' ? fakeGrid : null), { lat: 64.8378, lon: -147.7164 }, false);
+  assert.ok(fakeGrid.innerHTML.includes('USGS') && fakeGrid.innerHTML.includes('CMO'), 'Fairbanks Trust Sheet must display USGS CMO');
+  renderTrustStatGrid((id) => (id === 'tsStatGrid' ? fakeGrid : null), { lat: -45.0312, lon: 168.6626 }, false);
+  assert.ok(!fakeGrid.innerHTML.includes('USGS') && !fakeGrid.innerHTML.includes('FMI'), 'Queenstown Trust Sheet must stay free of northern ground mag claims');
+});
+
 
 
 

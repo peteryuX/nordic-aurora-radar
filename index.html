@@ -9,7 +9,7 @@
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
   <meta name="google-site-verification" content="9uDTXgYt6cLyIyEW8tmFensPSWjd_Yc3Xj_U_BoEsS0" />
   <meta name="referrer" content="no-referrer" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://fox.phys.uit.no https://www.irf.se https://www.sgo.fi https://kho.unis.no https://cdn.fmi.fi https://optics.gi.alaska.edu https://auroramax.phys.ucalgary.ca https://services.swpc.noaa.gov https://www.vegagerdin.is https://nordicaurora.goatcounter.com; connect-src 'self' https://services.swpc.noaa.gov https://api.met.no https://api.open-meteo.com https://ensemble-api.open-meteo.com https://geocoding-api.open-meteo.com https://api.bigdatacloud.net https://mesonet.agron.iastate.edu https://opendata-download-metobs.smhi.se https://opendata.fmi.fi; frame-src https://embed.windy.com; object-src 'none'; base-uri 'self'; form-action 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://fox.phys.uit.no https://www.irf.se https://www.sgo.fi https://kho.unis.no https://cdn.fmi.fi https://optics.gi.alaska.edu https://auroramax.phys.ucalgary.ca https://services.swpc.noaa.gov https://www.vegagerdin.is https://nordicaurora.goatcounter.com; connect-src 'self' https://services.swpc.noaa.gov https://api.met.no https://api.open-meteo.com https://ensemble-api.open-meteo.com https://geocoding-api.open-meteo.com https://api.bigdatacloud.net https://mesonet.agron.iastate.edu https://opendata-download-metobs.smhi.se https://opendata.fmi.fi https://geomag.usgs.gov; frame-src https://embed.windy.com; object-src 'none'; base-uri 'self'; form-action 'none';" />
   <meta name="theme-color" content="#08101c" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -331,6 +331,11 @@
       <div class="card">
         <h2><span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.6 12.2H5.2a3.4 3.4 0 1 1 3.2-4.6h1a2.4 2.4 0 1 1 2.2 4.6Z"/></svg><span id="h2Windy">動態雲量預報（Windy）</span></span><a id="windyExtLink" class="tpill tpill-link windy-ext" target="_blank" rel="noopener noreferrer" href="https://www.windy.com/">Windy ↗</a></h2>
         <p id="subWindy" class="card-sub">已對準目前位置（ECMWF 數值雲層預報），按左下角 ▶ 可播放未來幾小時移動趨勢：</p>
+        <div class="chips" id="windyLayerChips" style="margin-bottom:10px;">
+          <button id="windyLayerClouds" class="chip on" type="button" data-overlay="clouds">綜合雲量</button>
+          <button id="windyLayerLow" class="chip" type="button" data-overlay="lclouds">低層厚雲</button>
+          <button id="windyLayerSat" class="chip" type="button" data-overlay="satellite">衛星雲圖</button>
+        </div>
         <div class="sat-img-wrap" style="height: 330px;">
           <iframe id="windyFrame" title="Windy Cloud Forecast Map" referrerpolicy="no-referrer" style="width:100%;height:100%;border:0;" loading="lazy"></iframe>
         </div>
@@ -384,6 +389,7 @@
           <input id="cityInput" type="text" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" placeholder="輸入地名（例：冰島、特羅姆瑟、黃刀）" />
           <button id="searchBtn" class="btn btn-blue" type="submit">搜尋</button>
         </form>
+        <div id="searchResults" class="search-results" style="display:none;" role="listbox" aria-label="搜尋結果"></div>
         <section id="tripSection" class="trip-sec" aria-label="我的行程清單">
           <div class="trip-head">
             <div id="tripLbl" class="picker-lbl">我的行程（最多 5 城）</div>

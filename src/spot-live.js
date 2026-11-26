@@ -8,13 +8,11 @@
 import {
   computeAuroraScore,
   computeSolarElevation,
-  effectiveCloud,
-  parseKpJson,
+  computeEffectiveCloud,
+  parseLatestKp,
   tGrade
 } from './aurora-engine.js';
 import { trackPageview } from './analytics.js';
-
-trackPageview();
 
 async function fetchJsonTimeout(url, timeoutMs = 6000) {
   const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -30,7 +28,8 @@ async function fetchJsonTimeout(url, timeoutMs = 6000) {
   }
 }
 
-async function hydrateSpotLive() {
+export async function hydrateSpotLive() {
+  if (typeof document === 'undefined') return;
   const box = document.getElementById('spotLiveBox');
   if (!box) return;
   const lat = Number(box.dataset.lat);
@@ -45,7 +44,8 @@ async function hydrateSpotLive() {
     fetchJsonTimeout(kpUrl, 6000)
   ]);
 
-  const kp = kpRaw ? parseKpJson(kpRaw) : null;
+  const kpObj = kpRaw ? parseLatestKp(kpRaw) : null;
+  const kp = Number.isFinite(kpObj?.kp) ? kpObj.kp : null;
   let cloudNow = null;
   let tempNow = null;
   if (om?.hourly?.time?.length) {
@@ -61,7 +61,7 @@ async function hydrateSpotLive() {
     const high = om.hourly.cloud_cover_high?.[idx];
     const tot = om.hourly.cloud_cover?.[idx];
     cloudNow = (Number.isFinite(low) && Number.isFinite(mid) && Number.isFinite(high))
-      ? effectiveCloud(low, mid, high)
+      ? computeEffectiveCloud(low, mid, high, 0, Number.isFinite(tot) ? tot : null)
       : (Number.isFinite(tot) ? Math.round(tot) : null);
     if (Number.isFinite(om.hourly.temperature_2m?.[idx])) {
       tempNow = Math.round(om.hourly.temperature_2m[idx]);
@@ -102,4 +102,7 @@ async function hydrateSpotLive() {
   box.classList.add('ready');
 }
 
-hydrateSpotLive();
+if (typeof document !== 'undefined') {
+  trackPageview();
+  hydrateSpotLive();
+}

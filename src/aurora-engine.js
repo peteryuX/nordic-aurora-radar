@@ -2449,8 +2449,10 @@ export function parseMetNorwayHourly12(metJson, lat, lon, timeZone, nowDate, hor
       ? computeEffectiveCloud(lowF ?? 0, midF ?? 0, highF ?? 0, fogVal, totCap, pr)
       : computeEffectiveCloud(totRaw ?? 100, 0, 0, fogVal, totCap, pr);
     const tp = toFinite(det.air_temperature) ?? 0;
+    const dewPt = toFinite(det.dew_point_temperature);
     const windMs = Math.max(0, toFinite(det.wind_speed) ?? 0);
     const windChill = computeWindChill(tp, windMs);
+    const iceFogRisk = fogVal >= 35 || (dewPt !== null && (tp - dewPt) <= 1.2 && windMs < 3.5 && tp <= 1.5);
     const z = getZoneParts(dt, timeZone);
     const nightKey = getZoneParts(new Date(ts - 12 * 3600000), timeZone).dateStr;
     const txt = isTooBright
@@ -2462,7 +2464,9 @@ export function parseMetNorwayHourly12(metJson, lat, lon, timeZone, nowDate, hor
       cloudLow: lowF !== null ? Math.round(lowF) : null,
       cloudMid: midF !== null ? Math.round(midF) : null,
       cloudHigh: highF !== null ? Math.round(highF) : null,
-      cloudFog: Math.round(fogVal)
+      cloudFog: Math.round(fogVal),
+      ...(dewPt !== null ? { dewPoint: +dewPt.toFixed(1) } : {}),
+      iceFogRisk
     });
   }
   return out;
@@ -2569,8 +2573,10 @@ export function parseOpenMeteoHourly12(hourly, lat, lon, timeZone, nowDate, utcO
       ? computeEffectiveCloud(lowF ?? 0, midF ?? 0, highF ?? 0, fogVal, totF, pr)
       : computeEffectiveCloud(totF ?? 100, 0, 0, fogVal, totF, pr);
     const tp = toFinite(hourly.temperature_2m?.[i]) ?? 0;
+    const dewPt = toFinite(hourly.dew_point_2m?.[i]);
     const windMs = Math.max(0, toFinite(hourly.wind_speed_10m?.[i]) ?? 0) / 3.6;
     const windChill = computeWindChill(tp, windMs);
+    const iceFogRisk = fogVal >= 35 || (dewPt !== null && (tp - dewPt) <= 1.2 && windMs < 3.5 && tp <= 1.5);
 
     const midUtc = new Date(startMs + 1800000);
     const sunAlt = computeSolarElevation(midUtc, lat, lon);
@@ -2587,7 +2593,9 @@ export function parseOpenMeteoHourly12(hourly, lat, lon, timeZone, nowDate, utcO
       cloudLow: lowF !== null ? Math.round(lowF) : null,
       cloudMid: midF !== null ? Math.round(midF) : null,
       cloudHigh: highF !== null ? Math.round(highF) : null,
-      cloudFog: Math.round(fogVal)
+      cloudFog: Math.round(fogVal),
+      ...(dewPt !== null ? { dewPoint: +dewPt.toFixed(1) } : {}),
+      iceFogRisk
     });
   }
   return out;
@@ -3104,6 +3112,7 @@ export function parseFmiMagnetometerWfs(xmlText, lat, lon, nowMs = Date.now(), m
   }));
 
   return {
+    source: 'FMI',
     code: meta.code,
     stationName: meta.name,
     distKm: best.distKm,
@@ -3113,6 +3122,137 @@ export function parseFmiMagnetometerWfs(xmlText, lat, lon, nowMs = Date.now(), m
     dBdtMax: +maxDropRate.toFixed(1),
     lowThreshold: meta.low,
     highThreshold: meta.high,
+    level,
+    active,
+    groundSubstormJumpNt,
+    obsMs: latestMs,
+    series
+  };
+}
+
+/**
+ * Official USGS Geomagnetism Program real-time 1-min observatories (Alaska, Yukon reach, Rockies, Northern US).
+ * Empirically verified CORS *, ~0.8 min lag, ~7 KB JSON. Calibrated to auroral-zone & sub-auroral thresholds.
+ */
+export const USGS_MAG_STATIONS = [
+  { code: 'CMO', name: 'College (Fairbanks)', lat: 64.8742, lon: -147.8597, low: 70, high: 240 },
+  { code: 'BRW', name: 'Barrow (Utqiaġvik)',  lat: 71.3225, lon: -156.6231, low: 65, high: 210 },
+  { code: 'DED', name: 'Deadhorse',           lat: 70.3552, lon: -148.7928, low: 65, high: 210 },
+  { code: 'SIT', name: 'Sitka',               lat: 57.0576, lon: -135.3273, low: 60, high: 180 },
+  { code: 'SHU', name: 'Shumagin',            lat: 55.3478, lon: -160.4618, low: 60, high: 180 },
+  { code: 'NEW', name: 'Newport (Rockies)',   lat: 48.2649, lon: -117.1231, low: 55, high: 150 },
+  { code: 'BOU', name: 'Boulder',             lat: 40.1375, lon: -105.2372, low: 50, high: 140 },
+  { code: 'FRD', name: 'Fredericksburg',      lat: 38.2047, lon: -77.3729,  low: 50, high: 140 }
+];
+
+/** Return nearest USGS real-time ground magnetometer within maxDistKm (default 600 km), or null. */
+export function findNearestUsgsMagStation(lat, lon, maxDistKm = 600) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < 32 || lon > -65 || lon < -172) return null;
+  let best = null;
+  let bestDist = Infinity;
+  for (const st of USGS_MAG_STATIONS) {
+    const d = computeDistanceKm(lat, lon, st.lat, st.lon);
+    if (Number.isFinite(d) && d <= maxDistKm && d < bestDist) {
+      bestDist = d;
+      best = { ...st, distKm: +d.toFixed(1) };
+    }
+  }
+  return best;
+}
+
+/**
+ * Parse USGS Geomagnetism Web Service JSON (`elements=H&sampling_period=60&type=variation&format=json`)
+ * into the exact same DC-offset-invariant substorm schema as `parseFmiMagnetometerWfs`.
+ */
+export function parseUsgsMagnetometerJson(json, station, nowMs = Date.now()) {
+  if (!json || !station || !Array.isArray(json.times) || !Array.isArray(json.values)) return null;
+  const hSeries = json.values.find(v => String(v?.id || v?.metadata?.element || '').toUpperCase() === 'H') || json.values[0];
+  const rawArr = hSeries?.values;
+  if (!Array.isArray(rawArr) || rawArr.length < 10) return null;
+
+  const pts = [];
+  const len = Math.min(json.times.length, rawArr.length);
+  for (let i = 0; i < len; i++) {
+    const val = Number(rawArr[i]);
+    if (!Number.isFinite(val) || Math.abs(val) > 90000) continue;
+    const tMs = Date.parse(json.times[i]);
+    if (!Number.isFinite(tMs) || tMs > nowMs + 10 * 60000 || tMs < nowMs - 4 * 3600000) continue;
+    pts.push({ tMs, val });
+  }
+  if (pts.length < 10) return null;
+  pts.sort((a, b) => a.tMs - b.tMs);
+  const latestMs = pts[pts.length - 1].tMs;
+  const ageMin = Math.round((nowMs - latestMs) / 60000);
+  if (ageMin > 25 || ageMin < -10) return null;
+
+  // 3-point median despiker
+  const rawVals = pts.map(p => p.val);
+  const smooth = rawVals.map((v, i) => {
+    if (i === 0 || i === rawVals.length - 1) return v;
+    const tri = [rawVals[i - 1], v, rawVals[i + 1]].sort((a, b) => a - b);
+    return tri[1];
+  });
+
+  const last60 = [];
+  const last40 = [];
+  const last15 = [];
+  for (let i = 0; i < pts.length; i++) {
+    if (pts[i].tMs >= latestMs - 65 * 60000) last60.push(smooth[i]);
+    if (pts[i].tMs >= latestMs - 40 * 60000) last40.push(smooth[i]);
+    if (pts[i].tMs >= latestMs - 15 * 60000) last15.push(smooth[i]);
+  }
+  const amp60Nt = last60.length >= 2 ? Math.round(Math.max(...last60) - Math.min(...last60)) : 0;
+  const sorted = [...smooth].sort((a, b) => a - b);
+  const quietRef = sorted[Math.floor(0.80 * (sorted.length - 1))];
+  const latestH = smooth[smooth.length - 1];
+  const minLast15 = last15.length ? Math.min(...last15) : latestH;
+  const minLast40 = last40.length ? Math.min(...last40) : minLast15;
+  const currentDropNt = Math.max(0, Math.round(quietRef - latestH));
+  const peakBayDrop40 = Math.max(0, Math.round(quietRef - minLast40));
+  const reboundFromTrough = Math.max(0, Math.round(latestH - minLast40));
+  const bayDropNt = Math.max(0, Math.round(quietRef - Math.min(latestH, minLast15)));
+
+  // Peak 5-min smoothed downward derivative over last 25 min (nT/min)
+  let maxDropRate = 0;
+  for (let i = 5; i < pts.length; i++) {
+    if (pts[i].tMs < latestMs - 25 * 60000) continue;
+    const dtMin = (pts[i].tMs - pts[i - 5].tMs) / 60000;
+    if (dtMin >= 2 && dtMin <= 15) {
+      const rate = (smooth[i - 5] - smooth[i]) / dtMin;
+      if (rate > maxDropRate) maxDropRate = rate;
+    }
+  }
+  const isSharpRecovery = (reboundFromTrough >= 60 && maxDropRate < 2 && peakBayDrop40 > 0 && reboundFromTrough >= peakBayDrop40 * 0.5)
+    || (reboundFromTrough >= 60 && currentDropNt < Math.round(station.low * 0.75));
+  const level = (bayDropNt >= station.high || amp60Nt >= Math.round(station.high * 1.15))
+    ? 'high'
+    : ((bayDropNt >= station.low || amp60Nt >= Math.round(station.low * 1.15)) ? 'moderate' : 'quiet');
+  const active = !isSharpRecovery && (bayDropNt >= station.low || (amp60Nt >= station.high && maxDropRate >= 5));
+  const distKm = Number.isFinite(station.distKm) ? station.distKm : 0;
+  const distAtten = distKm <= 300 ? 1 : Math.max(0.4, 1 - (distKm - 300) / 500);
+  const groundSubstormJumpNt = active ? Math.min(55, Math.round(bayDropNt * 0.22 * distAtten)) : 0;
+
+  // Subsample to ~5-min points (<=38 pts) for crisp Trust Sheet SVG parity with FMI
+  const series = [];
+  let lastKeptMs = -Infinity;
+  for (let i = 0; i < pts.length; i++) {
+    if (i === pts.length - 1 || pts[i].tMs - lastKeptMs >= 4.5 * 60000) {
+      series.push({ tMs: pts[i].tMs, relNt: Math.round(smooth[i] - quietRef) });
+      lastKeptMs = pts[i].tMs;
+    }
+  }
+
+  return {
+    source: 'USGS',
+    code: station.code,
+    stationName: station.name,
+    distKm,
+    ageMin: Math.max(0, ageMin),
+    amp60Nt,
+    bayDropNt,
+    dBdtMax: +maxDropRate.toFixed(1),
+    lowThreshold: station.low,
+    highThreshold: station.high,
     level,
     active,
     groundSubstormJumpNt,
@@ -4489,6 +4629,30 @@ export function summarizeCompass(dirResults, lang, opts = null) {
         return (a.roadKm || a.distKm || 99) - (b.roadKm || b.distKm || 99);
       });
       best = pool[0];
+    }
+  } else if (rankSource.length >= 2) {
+    // Anti-whiplash NWP noise guard: within <=8% cloud margin (pure forecast noise), prefer the closer road
+    // instead of sending drivers 60+ km further or flip-flopping directions on 3% model jitter.
+    const cMin = rankSource[0].avg3h;
+    const nearPool = rankSource.filter(d => (d.avg3h - cMin) <= 8);
+    if (nearPool.length >= 2) {
+      nearPool.sort((a, b) => {
+        const ka = Number.isFinite(a.roadKm) ? a.roadKm : (Number.isFinite(a.distKm) ? a.distKm : 999);
+        const kb = Number.isFinite(b.roadKm) ? b.roadKm : (Number.isFinite(b.distKm) ? b.distKm : 999);
+        if (ka !== kb) return ka - kb;
+        return a.avg3h - b.avg3h;
+      });
+      best = nearPool[0];
+    }
+  }
+  // Mid-drive hysteresis: if driver was already committed to prevBestKey and it stays safe, genuinely clear
+  // (<=35% cloud, >=65% clear), and within <=10% of any runner-up, hold course instead of causing a winter U-turn!
+  if (opts?.prevBestKey && opts.prevBestKey !== 'here' && best && best.key !== opts.prevBestKey) {
+    const prevCand = rankSource.find(d => d.key === opts.prevBestKey);
+    if (prevCand && prevCand.avg3h <= 35 && (prevCand.avg3h - best.avg3h) <= 10) {
+      const prevPen = glareEnabled ? (glareByKey[prevCand.key]?.penaltyPct || 0) : 0;
+      const bestPen = glareEnabled ? (glareByKey[best.key]?.penaltyPct || 0) : 0;
+      if (prevPen <= bestPen) best = prevCand;
     }
   }
   const bestClear = Math.max(0, Math.min(100, Math.round(100 - best.avg3h)));
