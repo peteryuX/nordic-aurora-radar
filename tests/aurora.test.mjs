@@ -2448,9 +2448,11 @@ test('51. Norway live weather & Kp audit: Svalbard AROME Arctic, 45m 0Z bin guar
   //     pole-aware Southern Hemisphere direction, honest straight-line GPS CTA, and tight global road-link bounds
   const htmlSrc = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const i18nSrc = fs.readFileSync(new URL('../src/i18n.js', import.meta.url), 'utf8');
-  assert.ok(!appSrc.includes('機場') && !htmlSrc.includes('機場') && !i18nSrc.includes('機場'), 'UI copy must use plain 當地氣象站 wording instead of cryptic 機場');
+  const fmtSrc = fs.readFileSync(new URL('../src/copy-formatters.js', import.meta.url), 'utf8');
+  const uiCopySrc = appSrc + '\n' + fmtSrc;
+  assert.ok(!uiCopySrc.includes('機場') && !htmlSrc.includes('機場') && !i18nSrc.includes('機場'), 'UI copy must use plain 當地氣象站 wording instead of cryptic 機場');
   assert.ok(appSrc.includes("'滿月'") && appSrc.includes("'有亮月'"), 'Darkness pillar moon sub-label must clearly distinguish 滿月 / 有亮月');
-  assert.ok(appSrc.includes('朝頭頂與南方觀察') && appSrc.includes('look overhead and south'), 'Southern Hemisphere hero cue must point south, not north');
+  assert.ok(uiCopySrc.includes('朝頭頂與南方觀察') && uiCopySrc.includes('look overhead and south'), 'Southern Hemisphere hero cue must point south, not north');
   assert.ok(appSrc.includes('bestDir.isGeneric') && appSrc.includes('直線 ~'), 'Generic GPS compass CTA must label straight-line distance honestly');
   assert.ok(appSrc.includes('else if (pos.lon >= 4)') && appSrc.includes('pos.lon < 26 || pos.lat >= 69.0'), 'Nordic road links must cover Finnmark/Kirkenes and exclude UK/Scotland');
   assert.ok(appSrc.includes('pos.lat >= 59 && pos.lon >= -126'), 'NWT Highways road link must not leak onto eastern North America');
@@ -3415,7 +3417,7 @@ test('63. v58 576-Scenario Copy-Truth Matrix Audit & Sub-Auroral Clarity (Ask/Os
   const fmtSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'copy-formatters.js'), 'utf8');
   assert.ok(fmtSrc.includes('晴朗但極光偏弱') && fmtSrc.includes('此地低空微弱，需'), 'copy-formatters must explain clear-sky weak-aurora hours');
   assert.ok(fmtSrc.includes('低月') && fmtSrc.includes('Low moon'), 'copy-formatters must clarify low-horizon bright moon');
-  assert.ok(appSrc.includes('const showNeedKp =') && appSrc.includes('formatHourScrubDetail'), 'Hero aurora pill must display neededKp and use copy-formatters');
+  assert.ok(fmtSrc.includes('const showNeedKp =') && appSrc.includes('buildHeroViewModel') && appSrc.includes('formatHourScrubDetail'), 'Hero aurora pill must display neededKp via pure buildHeroViewModel and copy-formatters');
 });
 
 test('64. v59 Daylight Clear-Sky Honesty, Defensive Hidden Banners & Atomic SW Shell', () => {
@@ -3461,10 +3463,47 @@ test('64. v59 Daylight Clear-Sky Honesty, Defensive Hidden Banners & Atomic SW S
     assert.ok(m && m[0].includes('display:none'), `Banner #${id} must carry inline style="display:none;"`);
   }
 
-  // (e) Atomic SW v59 serves root ./index.html from CACHE_NAME + app.js listens to controllerchange
-  assert.ok(swSrc.includes('aurora-radar-shell-v59') && swSrc.includes("caches.open(CACHE_NAME).then(cache =>\n        cache.match('./index.html')"),
+  // (e) Atomic SW serves root ./index.html from versioned CACHE_NAME + app.js listens to controllerchange
+  assert.ok(/aurora-radar-shell-v\d+/.test(swSrc) && swSrc.includes("caches.open(CACHE_NAME).then(cache =>\n        cache.match('./index.html')"),
     'sw.js must serve atomic versioned ./index.html from CACHE_NAME to prevent HTML/CSS version skew');
   assert.ok(appSrc.includes("addEventListener('controllerchange'"), 'app.js must reload once on atomic SW controllerchange');
+});
+
+test('65. v60 Trust Sheet Storm Detail Card (#tsStormNote) & Pure Hero ViewModel Convergence', async () => {
+  const { formatStormAlertDetail, buildHeroViewModel } = await import('../src/copy-formatters.js');
+  const htmlSrc = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const swSrc = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+
+  assert.ok(htmlSrc.includes('id="tsStormNote"') && htmlSrc.includes('class="ts-storm-note"'), 'index.html must mount #tsStormNote inside #trustSheet');
+  assert.ok(appSrc.includes('formatStormAlertDetail') && appSrc.includes("const sn = $('tsStormNote')"), 'app.js must render #tsStormNote via formatStormAlertDetail');
+  assert.ok(swSrc.includes('aurora-radar-shell-v60'), 'sw.js CACHE_NAME must be bumped to v60');
+
+  const askSc = api.computeAuroraScore({ lat: 60.06, lon: 11.04, cloudNow: 2, sunAlt: 3, kp: 0.7, ovation: 5, hpiGw: 10 });
+  const g1Zh = formatStormAlertDetail({
+    scales: { active: true, currentScale: 0, maxForecastScale: 1, peakDate: '2026-11-26' },
+    sc: askSc, lat: 60.06, en: false, fmtDateFn: () => '11月26日'
+  });
+  assert.ok(g1Zh && g1Zh.title.includes('11月26日') && g1Zh.title.includes('G1'), `Expected dated G1 watch title, got: ${g1Zh?.title}`);
+  assert.ok(g1Zh.body.includes('Kp 5') && g1Zh.body.includes('北方'), `Expected Kp 5 + north impact note, got: ${g1Zh.body}`);
+  assert.equal(g1Zh.linkUrl, 'https://www.spaceweather.gov/products/alerts-watches-and-warnings');
+
+  const qSc = api.computeAuroraScore({ lat: -45.0312, lon: 168.6626, cloudNow: 10, sunAlt: -20, kp: 2.0, ovation: 10, hpiGw: 20 });
+  const g3SouthEn = formatStormAlertDetail({
+    scales: null, noaaAlert: { active: true, kind: 'geomag', gScale: 3, isWarning: false },
+    sc: qSc, lat: -45.0312, en: true
+  });
+  assert.ok(g3SouthEn && g3SouthEn.title.includes('G3') && g3SouthEn.body.includes('southern') && !g3SouthEn.body.includes('northern'),
+    `Southern Hemisphere G3 detail must point south: ${g3SouthEn?.body}`);
+
+  assert.equal(formatStormAlertDetail({ scales: { active: false }, noaaAlert: { active: false } }), null);
+
+  const vm = buildHeroViewModel({
+    pos: { lat: 60.06, lon: 11.04 }, sc: askSc, kp: 0.7,
+    act: { actionType: 'daylight', title: 't', lead: '今晚維持晴朗，極光偏弱' }, en: false
+  });
+  assert.ok(vm.aurSubHtml.includes('Kp 0.7') && vm.aurSubHtml.includes('需 '), `Ask Hero aurSubHtml must show Kp 0.7 + needed threshold: ${vm.aurSubHtml}`);
+  assert.equal(vm.heroCue, '今晚維持晴朗，極光偏弱');
 });
 
 

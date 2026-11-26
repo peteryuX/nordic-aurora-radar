@@ -6,7 +6,7 @@
  * number-to-copy invariant across thousands of weather/latitude/lunar states.
  */
 
-import { escapeHtml } from './aurora-engine.js';
+import { escapeHtml, computeViewingGeometry } from './aurora-engine.js';
 import { TERMS, term } from './glossary.js';
 
 function fmtNextHr(h) {
@@ -233,3 +233,163 @@ export function formatOutlookRowStats({ n, idx = 0, en = false } = {}) {
   const winTxt = n?.bestWindow ? `${term(TERMS.peak, en)} ${n.bestWindow}` : '';
   return { clearTxt, kpTxt, winTxt, iconClearPct: displayClear, kpSplit };
 }
+
+/**
+ * Format actionable NOAA G1–G5 / CME storm details for #tsStormNote inside #trustSheet.
+ * Ensures tapping the Hero storm tag always opens concrete local-latitude storm details
+ * plus a direct official NOAA Alerts link.
+ */
+export function formatStormAlertDetail({
+  scales = null, noaaAlert = null, sc = null, lat = 69.97, en = false, fmtDateFn = null
+} = {}) {
+  const hasAlert = Boolean(noaaAlert && noaaAlert.active);
+  const hasScale = Boolean(scales && scales.active);
+  if (!hasAlert && !hasScale) return null;
+
+  const gNamesZh = { 1: '輕度', 2: '中度', 3: '強烈', 4: '嚴重', 5: '極端' };
+  const gNamesEn = { 1: 'Minor', 2: 'Moderate', 3: 'Strong', 4: 'Severe', 5: 'Extreme' };
+  const useAlert = hasAlert && (noaaAlert.kind === 'cme-shock' || (noaaAlert.gScale || 0) >= (scales?.currentScale || 0));
+  const isShock = Boolean(useAlert && noaaAlert.kind === 'cme-shock');
+  const lvl = useAlert
+    ? Math.max(1, Math.min(5, Number(noaaAlert.gScale) || 1))
+    : Math.max(0, Math.min(5, Number((scales?.currentScale >= 1 ? scales.currentScale : scales?.maxForecastScale) || 0)));
+  if (!isShock && lvl < 1) return null;
+
+  const stormKp = Math.min(9, 4 + Math.max(1, lvl));
+  const dirZh = lat >= 0 ? '北方' : '南方';
+  const dirEn = lat >= 0 ? 'northern' : 'southern';
+  const needKp = Number.isFinite(sc?.neededKp) ? sc.neededKp : null;
+  let localNote;
+  if (sc?.outOfZone === 'low-lat') {
+    const ml = Number.isFinite(sc?.magLat) ? sc.magLat : '--';
+    localNote = en
+      ? `Magnetic latitude here (${ml}°) is too low — even a G${lvl} storm rarely reaches this far.`
+      : `此地磁緯度偏低（地磁 ${ml}°），即使出現 G${lvl} 地磁暴也通常看不到極光。`;
+  } else if (needKp !== null) {
+    if (stormKp >= needKp + 1) {
+      localNote = en
+        ? `This latitude typically needs Kp ${needKp} — if Kp ${stormKp} hits under clear dark skies, aurora can reach overhead and the ${dirEn} sky.`
+        : `此地通常需 Kp ${needKp}，若達標（Kp ${stormKp}）且天黑晴朗，極光有機會出現在頭頂至${dirZh}天空。`;
+    } else if (stormKp >= needKp) {
+      localNote = en
+        ? `This latitude needs ~Kp ${needKp} — if Kp ${stormKp} hits under clear dark skies, look low toward the ${dirEn} horizon or try a camera.`
+        : `此地需約 Kp ${needKp}，若達標（Kp ${stormKp}）且天黑晴朗，有機會於${dirZh}低空看見微弱極光或用相機拍到。`;
+    } else {
+      localNote = en
+        ? `This latitude needs ~Kp ${needKp} — a G${lvl} storm (Kp ${stormKp}) is usually still too weak here.`
+        : `此地需約 Kp ${needKp}，單靠 G${lvl}（Kp ${stormKp}）通常仍不足，需更強磁暴才有機會。`;
+    }
+  } else {
+    localNote = en
+      ? `Under clear dark skies, aurora can brighten significantly toward the ${dirEn} horizon.`
+      : `若達標且天黑晴朗，極光可能明顯增強並向${dirZh}低空擴展。`;
+  }
+
+  let title;
+  let body;
+  let isActiveNow = false;
+  if (useAlert) {
+    const isWarn = Boolean(noaaAlert.isWarning);
+    isActiveNow = !isWarn;
+    if (isShock) {
+      title = isWarn
+        ? (en ? 'NOAA Solar Storm (CME) Warning' : 'NOAA 太陽風暴（CME）即將抵達')
+        : (en ? 'NOAA Solar Storm Shock Arrived' : 'NOAA 太陽風暴衝擊已抵達');
+      body = en
+        ? `A coronal mass ejection shock can trigger sudden aurora bursts within 30–60 min. ${localNote}`
+        : `太陽風暴（CME）衝擊波可能在 30–60 分鐘內引發極光突然增強。${localNote}`;
+    } else {
+      const gEn = gNamesEn[lvl] || 'Geomagnetic';
+      const gZh = gNamesZh[lvl] || '';
+      title = isWarn
+        ? (en ? `NOAA G${lvl} (${gEn}) Storm Watch` : `NOAA G${lvl} ${gZh}地磁暴預警`)
+        : (en ? `NOAA G${lvl} (${gEn}) Storm Active` : `NOAA G${lvl} ${gZh}地磁暴進行中`);
+      body = en
+        ? `Corresponds to Kp ${stormKp}. ${localNote} Actual visibility still depends on dark clear skies.`
+        : `對應 Kp ${stormKp} 級活動。${localNote} 實際仍取決於當下天黑與晴空條件。`;
+    }
+  } else {
+    const isNow = (scales?.currentScale || 0) >= 1;
+    isActiveNow = isNow;
+    const dStr = typeof fmtDateFn === 'function' ? (fmtDateFn(scales?.peakDate, en) || '') : '';
+    const gEn = gNamesEn[lvl] || 'Geomagnetic';
+    const gZh = gNamesZh[lvl] || '';
+    title = isNow
+      ? (en ? `NOAA G${lvl} (${gEn}) Storm Active` : `NOAA G${lvl} ${gZh}地磁暴進行中`)
+      : (en ? `NOAA G${lvl} (${gEn}) Storm Watch${dStr ? ` · ${dStr}` : ''}` : `NOAA ${dStr ? `${dStr} ` : ''}G${lvl} ${gZh}地磁暴預警`);
+    body = en
+      ? `NOAA forecasts up to G${lvl} (Kp ${stormKp}). ${localNote} Watches cover the whole day — check the 24h chart for dark clear hours.`
+      : `NOAA 預估最高可達 G${lvl}（對應 Kp ${stormKp}）。${localNote} 警報涵蓋整日可能時段，實際仍需搭配 24 小時預報確認天黑與晴空。`;
+  }
+
+  return {
+    title,
+    body,
+    level: lvl,
+    stormKp,
+    isActiveNow,
+    linkUrl: 'https://www.spaceweather.gov/products/alerts-watches-and-warnings',
+    linkLabel: en ? 'Open official NOAA Storm Alerts ↗' : '前往 NOAA 官方風暴警報原文 ↗'
+  };
+}
+
+/**
+ * Pure Hero ViewModel builder (Single Source of Truth for aurSubHtml, heroCue, heroSub).
+ * Keeps src/app.js thin while letting copy-contract.mjs exhaustively verify Hero copy invariants.
+ */
+export function buildHeroViewModel({
+  pos = { lat: 69.65, lon: 18.96 }, sc = {}, kp = null, mltNow = null,
+  act = {}, activeHrs = [], localizedNights3 = [], refNowMs = Date.now(), en = false
+} = {}) {
+  const kpShort = kp !== null && Number.isFinite(Number(kp)) ? Number(kp).toFixed(1) : '--';
+  const showNeedKp = sc.outOfZone === 'need-storm' || (Number.isFinite(sc.neededKp) && sc.neededKp >= 2.5 && (sc.auroraScore ?? 0) < 55);
+  const aurSubHtml = sc.outOfZone === 'low-lat'
+    ? `<span class="nowrap">${en ? `Mag ${sc.magLat}°` : `地磁 ${sc.magLat}°`}</span>`
+    : (showNeedKp
+        ? `<span class="nowrap">Kp ${kpShort} · ${en ? `need ${sc.neededKp}` : `需 ${sc.neededKp}`}</span>`
+        : `<span class="nowrap">Kp ${kpShort}${(sc.auroraScore ?? 0) >= 55 ? (en ? ' · Active' : ' · 活躍') : ''}</span>`);
+
+  let heroCue = act.title || '';
+  let heroSub = '';
+  if (act.actionType === 'drive') {
+    heroCue = act.title || '';
+    heroSub = act.lead || '';
+  } else if (act.actionType === 'daylight') {
+    heroCue = act.lead || act.title || '';
+  } else if (act.actionType === 'go') {
+    const geom = computeViewingGeometry({
+      lat: pos.lat, lon: pos.lon,
+      kp: Math.max(kp ?? 0, sc.effKp ?? 0), mlt: mltNow, lang: en ? 'en' : 'zh'
+    });
+    const lookSouth = pos.lat < 0 || geom.mode === 'overhead-eq';
+    const dirCueZh = (sc.total ?? 0) >= 65
+      ? (lookSouth ? '現在適合出門，肉眼可見，朝頭頂與南方觀察' : '現在適合出門，肉眼可見，朝頭頂與北方觀察')
+      : ((sc.total ?? 0) >= 40
+          ? (lookSouth ? '適合出門，肉眼可見、手機更亮，留意南方' : '適合出門，肉眼可見、手機更亮，留意北方')
+          : '極光爆發中，留意雲縫與手機夜拍');
+    const dirCueEn = (sc.total ?? 0) >= 65
+      ? (lookSouth ? 'Go out now — visible to eye, look overhead and south' : 'Go out now — visible to eye, look overhead and north')
+      : ((sc.total ?? 0) >= 40
+          ? 'Good to go — visible to eye, brighter on camera'
+          : 'Aurora burst — watch cloud gaps & try camera');
+    heroCue = en ? dirCueEn : dirCueZh;
+  } else if (act.actionType === 'wait' && (sc.total ?? 0) < 18 && (sc.skyScore ?? 0) < 45) {
+    const upcoming = (activeHrs || []).slice(1, 24).filter(h => !Number.isFinite(h?.dtMs) || h.dtMs > refNowMs + 15 * 60000);
+    const firstGood = upcoming.find(h => h && !h.isDay && h.score >= 40)
+      || upcoming.find(h => h && !h.isDay && h.clear >= 55);
+    const startT = firstGood?.time || '';
+    heroCue = startT
+      ? (en ? `Rest for now — skies improve after ${startT}` : `先休息，預計 ${startT} 後有望轉佳`)
+      : (act.title || '');
+  } else if (act.actionType === 'sleep') {
+    const futureBest = (localizedNights3 || []).slice(1)
+      .filter(n => n && (n.tone === 'good' || n.tone === 'warn'))
+      .sort((a, b) => (b.bestNightScore || 0) - (a.bestNightScore || 0))[0];
+    heroCue = futureBest
+      ? (en ? `Low chance tonight — ${futureBest.dayLabel} looks better` : `今晚機率偏低，${futureBest.dayLabel}機會較佳`)
+      : (en ? 'Low chance right now — check back later' : '目前機率偏低，可先休息稍後再看');
+  }
+
+  return { aurSubHtml, heroCue, heroSub };
+}
+

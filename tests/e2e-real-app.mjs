@@ -215,8 +215,8 @@ function buildInterceptorScript(sc) {
     if (url.includes('noaa-planetary-k-index-forecast.json')) return mkResp(kpFcRows);
     if (url.includes('noaa-scales.json')) {
       return mkResp({
-        '0': { DateStamp: '2026-11-25', G: { Scale: SC.gNow || '0' } },
-        '1': { DateStamp: '2026-11-26', G: { Scale: SC.gTomorrow || '1' } },
+        '0': { DateStamp: SC.gDate0 || '2026-11-25', G: { Scale: SC.gNow || '0' } },
+        '1': { DateStamp: SC.gDate1 || '2026-11-26', G: { Scale: SC.gTomorrow || '1' } },
         '2': { DateStamp: '2026-11-27', G: { Scale: '0' } }
       });
     }
@@ -241,11 +241,20 @@ function buildInterceptorScript(sc) {
       });
     }
 
+    const askCloudAt = (ts) => {
+      const iso = new OrigDate(ts).toISOString();
+      if (iso < '2026-11-26T16:00') return 2;   // 13:00-16:00 CET: 98% clear
+      if (iso < '2026-11-26T20:00') return 17;  // 17:00-20:00 CET: 83% clear (19:00 peak)
+      if (iso < '2026-11-27T06:00') return 88;  // 21:00-06:00 CET: 12% clear (22:00 G1 Kp 5.0 under clouds)
+      return 30;
+    };
+
     if (url.includes('api.met.no/weatherapi/locationforecast/2.0/complete')) {
       const mLat = parseFloat((url.match(/lat=([^&]+)/) || [])[1] || SC.lat);
       const isCenter = Math.abs(mLat - SC.lat) < 0.05;
       const fn = (h, ts) => {
         if (!isCenter && SC.corridorClear !== undefined) return 100 - SC.corridorClear;
+        if (SC.askDaytimeG1) return askCloudAt(ts);
         if (SC.osloMismatch) {
           // Tonight clear (0% cloud), Thu 11/26 early evening clear, Thu 11/26 19:00..06:00 CET overcast (100% cloud)
           const d = new OrigDate(ts);
@@ -319,6 +328,7 @@ function buildInterceptorScript(sc) {
         baseHourMs,
         (h, ts) => {
           if (idx > 0 && SC.corridorClear !== undefined) return 100 - SC.corridorClear;
+          if (SC.askDaytimeG1) return askCloudAt(ts);
           if (SC.osloMismatch) {
             const iso = new OrigDate(ts).toISOString();
             if (iso >= '2026-11-26T18:00' && iso < '2026-11-27T06:00') return 100;
@@ -329,7 +339,7 @@ function buildInterceptorScript(sc) {
         SC.tz,
         SC.utcOff ?? 3600,
         SC.tempC ?? -1,
-        SC.omCloud ?? SC.metCloud ?? 20
+        SC.askDaytimeG1 ? 2 : (SC.omCloud ?? SC.metCloud ?? 20)
       ));
       return mkResp(arr);
     }
@@ -422,12 +432,76 @@ function buildInterceptorScript(sc) {
       issues.push('HERO_GHOST_FADE_ON_SCROLL: opacity=' + getComputedStyle(stgEl).opacity);
     }
     window.scrollTo(0, 0);
+
+    // Universal Real-DOM Invariant 1: Zero orphan / empty visible banners in #bannerSlot
+    const bannerSlot = document.getElementById('bannerSlot');
+    if (bannerSlot) {
+      for (const ch of Array.from(bannerSlot.children)) {
+        const cs = getComputedStyle(ch);
+        const r = ch.getBoundingClientRect();
+        if (cs.display !== 'none' && r.height > 1) {
+          const txt = (ch.textContent || '').replace(/\\s+/g, ' ').trim();
+          if (!txt || txt.length < 3) issues.push('DOM_ORPHAN_BANNER: empty visible banner #' + ch.id);
+          if (ch.id === 'gpsSuggestBanner') {
+            const gTxt = document.getElementById('gpsSuggestTxt')?.textContent?.trim() || '';
+            if (!gTxt) issues.push('DOM_ORPHAN_BANNER: #gpsSuggestBanner visible without #gpsSuggestTxt');
+          }
+        }
+      }
+    }
+
+    // Universal Real-DOM Invariant 2: Cross-card clear-sky truth & copy hygiene in #v-home
+    const vHomeTxt = (document.getElementById('v-home')?.innerText || '').trim();
+    const fSkyNum = parseInt(document.getElementById('fSkyVal')?.textContent || '', 10);
+    const vTitleTxt = document.getElementById('vTitle')?.textContent?.trim() || '';
+    if (Number.isFinite(fSkyNum) && fSkyNum >= 70 && /有望見晴|有望放晴|clearer skies/i.test(vTitleTxt)) {
+      issues.push('DOM_CROSS_CARD_SKY_CONTRADICTION: fSkyVal=' + fSkyNum + '% but vTitle="' + vTitleTxt + '"');
+    }
+    if (/\\bNaN\\b|\\bundefined\\b|\\[object |分鐘 後|小時 後/.test(vHomeTxt)) {
+      issues.push('DOM_TOKEN_LEAK in #v-home');
+    }
+    const zhLeakM = SC.lang === 'zh' ? vHomeTxt.match(/數據|信息|屏幕|貼士|分佈|(?<!維)持平|天頂|後晚/) : null;
+    if (zhLeakM) {
+      issues.push('DOM_ZH_LINT_LEAK in #v-home: "' + zhLeakM[0] + '"');
+    }
+    if (SC.lang === 'en' && /[\\u4e00-\\u9fff]/.test(vHomeTxt)) {
+      issues.push('DOM_EN_CJK_LEAK in #v-home');
+    }
+
+    // Universal Real-DOM Invariant 3: Interactive click on Hero storm tag opens visible #tsStormNote with NOAA link
+    let stormClickOk = null;
+    let tsStormNoteText = '';
+    let tsStormLinkHref = '';
+    const stormBtn = document.querySelector('#heroTags [data-open-trust]');
+    if (stormBtn && getComputedStyle(stormBtn).display !== 'none') {
+      stormBtn.click();
+      const sheet = document.getElementById('trustSheet');
+      const sn = document.getElementById('tsStormNote');
+      const snOpen = Boolean(sheet && sheet.classList.contains('open'));
+      const snVis = Boolean(sn && getComputedStyle(sn).display !== 'none' && sn.getBoundingClientRect().height > 10);
+      tsStormNoteText = (sn?.textContent || '').replace(/\\s+/g, ' ').trim();
+      const snLink = sn?.querySelector('a[href*="alerts-watches-and-warnings"]');
+      tsStormLinkHref = snLink?.getAttribute('href') || '';
+      const snRel = snLink?.getAttribute('rel') || '';
+      stormClickOk = Boolean(snOpen && snVis && tsStormNoteText.length > 15 && tsStormLinkHref && snRel.includes('noopener') && snRel.includes('noreferrer'));
+      if (!stormClickOk) {
+        issues.push('DOM_STORM_CLICK_EMPTY: open=' + snOpen + ' vis=' + snVis + ' txt="' + tsStormNoteText.slice(0, 60) + '" href="' + tsStormLinkHref + '"');
+      }
+      if (typeof window.__AURORA_APP__?.closeTrustSheet === 'function') {
+        window.__AURORA_APP__.closeTrustSheet();
+      }
+    }
+
     const out = {
       locName: document.getElementById('locName')?.textContent?.trim() || '',
-      vTitle: document.getElementById('vTitle')?.textContent?.trim() || '',
+      vTitle: vTitleTxt,
       fSkyVal: document.getElementById('fSkyVal')?.textContent?.trim() || '',
       fAurSub: document.getElementById('fAurSub')?.textContent?.trim() || '',
       fDarkSub: document.getElementById('fDarkSub')?.textContent?.trim() || '',
+      heroTagsText: document.getElementById('heroTags')?.textContent?.replace(/\\s+/g, ' ').trim() || '',
+      stormClickOk,
+      tsStormNoteText,
+      tsStormLinkHref,
       fcConfBtn: document.getElementById('fcConfBtn')?.textContent?.trim() || '',
       pMet: document.getElementById('pMet')?.textContent?.trim() || '',
       pMetHref: document.getElementById('pMet')?.getAttribute('href') || '',
@@ -687,6 +761,50 @@ const SCENARIOS = [
       if (r.issues.length) errs.push(...r.issues);
       return errs;
     }
+  },
+  {
+    id: 'ask-daytime-g1-watch',
+    label: 'Ask/Oslo 19px daytime: 98% clear daylight honesty + Kp 0.7 need threshold + clickable G1 storm detail + Co-Temporal 83%/Kp 3.7(5.0) parity',
+    query: '?lat=60.06&lon=11.04&name=Ask',
+    lat: 60.06, lon: 11.04, tz: 'Europe/Oslo', utcOff: 3600, rootPx: 19, lang: 'zh',
+    nowMs: Date.UTC(2026, 10, 26, 12, 30, 0), // 13:30 CET daytime in Ask, Norway
+    askDaytimeG1: true, kpNow: 0.7, bz: 0.8, speed: 360, ov: 5, hpi: 10,
+    gDate0: '2026-11-26', gNow: '0', gDate1: '2026-11-26', gTomorrow: '1',
+    kpForecast: [
+      ['2026-11-26 12:00:00', '0.67', 'observed', null],
+      ['2026-11-26 15:00:00', '2.33', 'predicted', null],
+      ['2026-11-26 18:00:00', '3.67', 'predicted', null],
+      ['2026-11-26 21:00:00', '5.00', 'predicted', 'G1'],
+      ['2026-11-27 00:00:00', '4.33', 'predicted', null],
+      ['2026-11-27 03:00:00', '3.00', 'predicted', null],
+      ['2026-11-27 18:00:00', '2.33', 'predicted', null],
+      ['2026-11-28 18:00:00', '2.00', 'predicted', null]
+    ],
+    verify(r) {
+      const errs = [];
+      const skyPct = parseInt(r.fSkyVal, 10);
+      if (!(skyPct >= 90)) errs.push(`Expected Ask daytime clear sky >=90%, got "${r.fSkyVal}"`);
+      if (/有望見晴|有望放晴/.test(r.vTitle)) errs.push(`Already-clear Ask daytime must NEVER say 有望見晴, got "${r.vTitle}"`);
+      if (!r.fAurSub.includes('Kp 0.7') || !r.fAurSub.includes('需 ')) {
+        errs.push(`Sub-auroral Ask Hero aurSub must show Kp 0.7 + local threshold (需 X), got "${r.fAurSub}"`);
+      }
+      if (!r.heroTagsText.includes('G1')) errs.push(`Expected clickable G1 storm tag in #heroTags, got "${r.heroTagsText}"`);
+      if (r.stormClickOk !== true) errs.push(`Clicking G1 storm tag must open visible #tsStormNote with NOAA link (got stormClickOk=${r.stormClickOk})`);
+      if (!r.tsStormNoteText.includes('G1') || !r.tsStormNoteText.includes('Kp 5')) {
+        errs.push(`#tsStormNote must explain G1 (Kp 5) local impact, got "${r.tsStormNoteText}"`);
+      }
+      if (!r.homeBestText.includes('晴朗但極光偏弱')) {
+        errs.push(`24h wave peak for 83% clear faint aurora must say 晴朗但極光偏弱 (not 雲層稍薄), got "${r.homeBestText}"`);
+      }
+      if (!r.outlookText.includes('晴空率 83%') || r.outlookText.includes('98%')) {
+        errs.push(`Tonight 3-Night row must show co-temporal peak clear 83% (not 16:00's 98%), got "${r.outlookText}"`);
+      }
+      if (!r.outlookText.includes('Kp 3.7（高至 5.0）')) {
+        errs.push(`Tonight 3-Night row must distinguish peak-hour Kp 3.7 from later cloudy Kp 5.0, got "${r.outlookText}"`);
+      }
+      if (r.issues.length) errs.push(...r.issues);
+      return errs;
+    }
   }
 ];
 
@@ -770,7 +888,8 @@ try {
       console.log(`[FAIL] ${sc.label}\n    ⚠ Scenario did not emit result`);
       continue;
     }
-    const errs = sc.verify(data);
+    // Enforce universal DOM invariants across EVERY scenario (deduped with scenario-specific checks)
+    const errs = Array.from(new Set([...sc.verify(data), ...(data.issues || [])]));
     if (errs.length) {
       totalFails += errs.length;
       console.log(`[FAIL (${errs.length})] ${sc.label}`);
@@ -783,5 +902,42 @@ try {
   server.close();
 }
 
-console.log(`\nTotal real-app E2E issues across ${SCENARIOS.length} scenarios: ${totalFails}`);
+// Atomic Service Worker Shell & Asset Manifest Integrity Check
+{
+  const swErrs = [];
+  const swSrc = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
+  const cacheM = swSrc.match(/CACHE_NAME\s*=\s*'([^']+)'/);
+  if (!cacheM) swErrs.push('sw.js missing CACHE_NAME');
+  const assetsM = swSrc.match(/SHELL_ASSETS\s*=\s*\[([\s\S]*?)\];/);
+  if (!assetsM) {
+    swErrs.push('sw.js missing SHELL_ASSETS array');
+  } else {
+    const entries = [...assetsM[1].matchAll(/'([^']+)'/g)].map(x => x[1]);
+    for (const rel of entries) {
+      if (rel === './') continue;
+      const diskPath = path.resolve(ROOT, rel.replace(/^\.\//, ''));
+      if (!fs.existsSync(diskPath) || fs.statSync(diskPath).size === 0) {
+        swErrs.push(`SHELL_ASSETS missing or empty on disk: ${rel}`);
+      }
+    }
+    const srcFiles = fs.readdirSync(path.join(ROOT, 'src')).filter(f => f.endsWith('.js'));
+    for (const sf of srcFiles) {
+      if (!entries.includes(`./src/${sf}`)) {
+        swErrs.push(`src/${sf} not listed in sw.js SHELL_ASSETS`);
+      }
+    }
+  }
+  if (!swSrc.includes("cache.match('./index.html')")) {
+    swErrs.push('sw.js must serve root ./index.html atomically from CACHE_NAME');
+  }
+  if (swErrs.length) {
+    totalFails += swErrs.length;
+    console.log(`[FAIL (${swErrs.length})] Atomic SW Shell & Asset Manifest Integrity (${cacheM?.[1] || 'unknown'})`);
+    for (const e of swErrs) console.log(`    ⚠ ${e}`);
+  } else {
+    console.log(`[PASS] Atomic SW Shell & Asset Manifest Integrity (${cacheM[1]})`);
+  }
+}
+
+console.log(`\nTotal real-app E2E issues across ${SCENARIOS.length} scenarios + SW integrity: ${totalFails}`);
 process.exit(totalFails > 0 ? 1 : 0);

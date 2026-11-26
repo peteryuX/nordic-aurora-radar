@@ -1,7 +1,7 @@
 /**
  * Nordic Aurora Radar — Systematic Number-to-Copy Semantic Contract Suite
  *
- * Exhaustively tests 12 universal physical-to-copy invariants across thousands
+ * Exhaustively tests 14 universal physical-to-copy invariants across thousands
  * of cartesian combinations (8 latitudes × sky states × Kp × daylight/twilight/moon × ZH/EN)
  * directly against ALL production engine & UI copy formatters.
  *
@@ -14,7 +14,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as Engine from '../src/aurora-engine.js';
 import * as Charts from '../src/charts.js';
-import { formatWavePeakSummary, formatHourScrubDetail, formatOutlookRowStats } from '../src/copy-formatters.js';
+import {
+  formatWavePeakSummary, formatHourScrubDetail, formatOutlookRowStats,
+  formatStormAlertDetail, buildHeroViewModel
+} from '../src/copy-formatters.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const violations = [];
@@ -27,7 +30,7 @@ function check(cond, invId, msg) {
 
 const stripTags = (s) => String(s || '').replace(/<[^>]+>/g, '');
 
-const ZH_BANNED_RE = /數據|信息|屏幕|貼士|分佈|持平|天頂|後晚|分鐘 後|小時 後|。。|··/;
+const ZH_BANNED_RE = /數據|信息|屏幕|貼士|分佈|(?<!維)持平|天頂|後晚|分鐘 後|小時 後|。。|··/;
 const TOKEN_LEAK_RE = /\bNaN\b|\bundefined\b|\[object /;
 const CJK_RE = /[\u4e00-\u9fff]/;
 
@@ -293,6 +296,91 @@ check(
   }
 }
 
+// =========================================================================
+// 6. Storm Alert Detail & Hero ViewModel Contract (INV-14)
+// =========================================================================
+{
+  const fmtMockDate = (iso, en) => (iso === '2026-11-26' ? (en ? '26 Nov' : '11月26日') : '');
+  const stormCases = [
+    { name: 'watch-G1', scales: { active: true, currentScale: 0, maxForecastScale: 1, peakDate: '2026-11-26' }, noaaAlert: null, expectLevel: 1 },
+    { name: 'watch-G2', scales: { active: true, currentScale: 0, maxForecastScale: 2, peakDate: '2026-11-26' }, noaaAlert: null, expectLevel: 2 },
+    { name: 'active-G3', scales: { active: true, currentScale: 3, maxForecastScale: 3, peakDate: '2026-11-26' }, noaaAlert: null, expectLevel: 3 },
+    { name: 'alert-warn-G4', scales: null, noaaAlert: { active: true, kind: 'geomag', gScale: 4, isWarning: true }, expectLevel: 4 },
+    { name: 'alert-active-G5', scales: null, noaaAlert: { active: true, kind: 'geomag', gScale: 5, isWarning: false }, expectLevel: 5 },
+    { name: 'cme-shock-warn', scales: null, noaaAlert: { active: true, kind: 'cme-shock', gScale: 2, isWarning: true }, expectLevel: 2 },
+    { name: 'cme-shock-hit', scales: null, noaaAlert: { active: true, kind: 'cme-shock', gScale: 3, isWarning: false }, expectLevel: 3 }
+  ];
+
+  // Inactive storm must cleanly return null
+  check(formatStormAlertDetail({ scales: { active: false, currentScale: 0, maxForecastScale: 0 }, noaaAlert: { active: false } }) === null,
+    'INV-14', 'Inactive NOAA storm state must return null');
+
+  for (const city of CITIES) {
+    const sc = Engine.computeAuroraScore({
+      lat: city.lat, lon: city.lon, cloudNow: 10, sunAlt: -20, kp: 1.0, ovation: 8, hpiGw: 15
+    });
+    for (const stCase of stormCases) {
+      for (const lang of ['zh', 'en']) {
+        const en = lang === 'en';
+        const info = formatStormAlertDetail({
+          scales: stCase.scales, noaaAlert: stCase.noaaAlert, sc, lat: city.lat, en, fmtDateFn: fmtMockDate
+        });
+        const ctx = `INV-14(${city.name}, ${stCase.name}, ${lang})`;
+        check(Boolean(info && info.title && info.body), 'INV-14', `${ctx} must emit non-empty title & body`);
+        check(info?.linkUrl === 'https://www.spaceweather.gov/products/alerts-watches-and-warnings', 'INV-14',
+          `${ctx} must link to official NOAA alerts page`);
+        check(info?.level === stCase.expectLevel, 'INV-14', `${ctx} level mismatch: got ${info?.level}`);
+        checkHygiene(`${info?.title} ${info?.body} ${info?.linkLabel}`, lang, ctx);
+        if (city.lat < 0 && sc.outOfZone !== 'low-lat' && info.stormKp >= sc.neededKp) {
+          check(!/北方|northern/i.test(info.body), 'INV-14', `${ctx} Southern Hemisphere must not say north: "${info.body}"`);
+        }
+        if (city.lat >= 0 && sc.outOfZone !== 'low-lat' && info.stormKp >= sc.neededKp) {
+          check(!/南方|southern/i.test(info.body), 'INV-14', `${ctx} Northern Hemisphere storm note must not say south: "${info.body}"`);
+        }
+      }
+    }
+  }
+
+  // Hero ViewModel checks: Ask/Oslo sub-auroral need Kp, Queenstown/Svalbard south direction, Taipei low-lat
+  for (const lang of ['zh', 'en']) {
+    const en = lang === 'en';
+    const askSc = Engine.computeAuroraScore({ lat: 60.06, lon: 11.04, cloudNow: 2, sunAlt: 2, kp: 0.7, ovation: 5, hpiGw: 10 });
+    const askVm = buildHeroViewModel({
+      pos: { lat: 60.06, lon: 11.04 }, sc: askSc, kp: 0.7,
+      act: { actionType: 'daylight', title: 't', lead: en ? 'Clear tonight, faint aurora' : '今晚維持晴朗，極光偏弱' },
+      en
+    });
+    checkHygiene(`${askVm.aurSubHtml} ${askVm.heroCue} ${askVm.heroSub}`, lang, `INV-14(Hero Ask ${lang})`);
+    check(/需|need/.test(askVm.aurSubHtml), 'INV-14', `Ask daytime Hero aurSubHtml must show needed Kp: "${askVm.aurSubHtml}"`);
+
+    const qSc = Engine.computeAuroraScore({ lat: -45.0312, lon: 168.6626, cloudNow: 5, sunAlt: -25, kp: 7.5, bz: -16, speed: 620, ovation: 82, hpiGw: 140 });
+    const qVm = buildHeroViewModel({
+      pos: { lat: -45.0312, lon: 168.6626 }, sc: qSc, kp: 7.5, mltNow: 0,
+      act: { actionType: 'go', title: 'go' }, en
+    });
+    checkHygiene(`${qVm.aurSubHtml} ${qVm.heroCue}`, lang, `INV-14(Hero Queenstown ${lang})`);
+    check(en ? /south/i.test(qVm.heroCue) && !/north/i.test(qVm.heroCue) : qVm.heroCue.includes('南方') && !qVm.heroCue.includes('北方'),
+      'INV-14', `Queenstown Hero go cue must point south: "${qVm.heroCue}"`);
+
+    const svSc = Engine.computeAuroraScore({ lat: 78.2232, lon: 15.6267, cloudNow: 5, sunAlt: -25, kp: 5.5, bz: -10, speed: 550, ovation: 75, hpiGw: 110 });
+    const svVm = buildHeroViewModel({
+      pos: { lat: 78.2232, lon: 15.6267 }, sc: svSc, kp: 5.5, mltNow: 0,
+      act: { actionType: 'go', title: 'go' }, en
+    });
+    checkHygiene(`${svVm.aurSubHtml} ${svVm.heroCue}`, lang, `INV-14(Hero Svalbard ${lang})`);
+    check(en ? /south/i.test(svVm.heroCue) : svVm.heroCue.includes('南方'),
+      'INV-14', `Svalbard (poleward of oval) Hero go cue must point south: "${svVm.heroCue}"`);
+
+    const tpSc = Engine.computeAuroraScore({ lat: 25.033, lon: 121.5654, cloudNow: 10, sunAlt: -25, kp: 2.0, ovation: 0, hpiGw: 12 });
+    const tpVm = buildHeroViewModel({
+      pos: { lat: 25.033, lon: 121.5654 }, sc: tpSc, kp: 2.0,
+      act: { actionType: 'sleep', title: 'sleep' }, en
+    });
+    checkHygiene(`${tpVm.aurSubHtml} ${tpVm.heroCue}`, lang, `INV-14(Hero Taipei ${lang})`);
+    check(/地磁|Mag/.test(tpVm.aurSubHtml), 'INV-14', `Taipei Hero aurSubHtml must show magnetic latitude: "${tpVm.aurSubHtml}"`);
+  }
+}
+
 console.log(`=== COPY & SEMANTIC CONTRACT AUDIT ===`);
 console.log(`Total invariant checks executed : ${checksRun}`);
 console.log(`Violations found                : ${violations.length}`);
@@ -300,4 +388,4 @@ if (violations.length) {
   for (const v of violations.slice(0, 25)) console.error('  ✗', v);
   process.exit(1);
 }
-console.log('ALL 13 SEMANTIC & NUMBER-TO-COPY INVARIANTS PASSED (0 VIOLATIONS).');
+console.log('ALL 14 SEMANTIC & NUMBER-TO-COPY INVARIANTS PASSED (0 VIOLATIONS).');

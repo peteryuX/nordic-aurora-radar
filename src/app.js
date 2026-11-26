@@ -17,7 +17,10 @@ import {
 } from './storage.js';
 import { buildShareCardPayload, exportShareCardPng } from './share-card.js';
 import { trackPageview, trackEvent, normalizeCitySlug } from './analytics.js';
-import { formatWavePeakSummary, formatHourScrubDetail, formatOutlookRowStats } from './copy-formatters.js';
+import {
+  formatWavePeakSummary, formatHourScrubDetail, formatOutlookRowStats,
+  formatStormAlertDetail, buildHeroViewModel
+} from './copy-formatters.js';
 import { SKY_CAMS, renderSkyCamCaption, renderTrustStatGrid, applyStaticI18n as applyStaticI18nDom } from './i18n.js';
 import {
   fetchEnlilBackground, fetchNoaaBundle, fetchWeatherBundle,
@@ -1615,23 +1618,7 @@ function renderFromState(st) {
   }
   setHtml('heroTags', heroTags.join('<span class="meta-sep" aria-hidden="true"></span>'));
 
-  const kpShort = kp !== null ? kp.toFixed(1) : '--';
-  const showNeedKp = sc.outOfZone === 'need-storm' || (Number.isFinite(sc.neededKp) && sc.neededKp >= 2.5 && sc.auroraScore < 55);
-  const aurSubHtml = sc.outOfZone === 'low-lat'
-    ? `<span class="nowrap">${en ? `Mag ${sc.magLat}°` : `地磁 ${sc.magLat}°`}</span>`
-    : (showNeedKp
-        ? `<span class="nowrap">Kp ${kpShort} · ${en ? `need ${sc.neededKp}` : `需 ${sc.neededKp}`}</span>`
-        : `<span class="nowrap">Kp ${kpShort}${sc.auroraScore >= 55 ? (en ? ' · Active' : ' · 活躍') : ''}</span>`);
   const darkWin = computeDarkWindow(refNow, pos.lat, pos.lon, pos.tz);
-  document.body.classList.remove('is-loading');
-  renderGauge(sc, {
-    isTooBright: sc.isTooBright,
-    moon,
-    skySubHtml: skyParts.join('<span class="sub-dot" aria-hidden="true">·</span>'),
-    aurSubHtml,
-    darkSubHtml: formatDarkCountdownSub(darkWin, moon, en, sunAltNow)
-  });
-
   const localizedNights3 = multiDayPts
     ? summarize3NightOutlook({
         cloudPoints: multiDayPts, kpForecast: kpForecast || [], currentKp: kp,
@@ -1649,48 +1636,19 @@ function renderFromState(st) {
     bestDark, dirResults, nights3: localizedNights3, darkWin,
     kp, mlt: mltNow ?? null, effMoonPct: moon.effMoonPct
   });
-  const refNowMs = refNow.getTime();
-  // Derive a single crisp, non-redundant Hero action cue (filter out already-passed hours!)
-  let heroCue = act.title;
-  let heroSub = '';
-  if (act.actionType === 'drive') {
-    heroCue = act.title;
-    heroSub = act.lead;
-  } else if (act.actionType === 'daylight') {
-    heroCue = act.lead || act.title;
-  } else if (act.actionType === 'go') {
-    const geom = computeViewingGeometry({
-      lat: pos.lat, lon: pos.lon,
-      kp: Math.max(kp ?? 0, sc.effKp ?? 0), mlt: mltNow, lang: getLang()
-    });
-    const lookSouth = pos.lat < 0 || geom.mode === 'overhead-eq';
-    const dirCueZh = sc.total >= 65
-      ? (lookSouth ? '現在適合出門，肉眼可見，朝頭頂與南方觀察' : '現在適合出門，肉眼可見，朝頭頂與北方觀察')
-      : (sc.total >= 40
-          ? (lookSouth ? '適合出門，肉眼可見、手機更亮，留意南方' : '適合出門，肉眼可見、手機更亮，留意北方')
-          : '極光爆發中，留意雲縫與手機夜拍');
-    const dirCueEn = sc.total >= 65
-      ? (lookSouth ? 'Go out now — visible to eye, look overhead and south' : 'Go out now — visible to eye, look overhead and north')
-      : (sc.total >= 40
-          ? 'Good to go — visible to eye, brighter on camera'
-          : 'Aurora burst — watch cloud gaps & try camera');
-    heroCue = en ? dirCueEn : dirCueZh;
-  } else if (act.actionType === 'wait' && sc.total < 18 && sc.skyScore < 45) {
-    const upcoming = (activeHrs || []).slice(1, 24).filter(h => !Number.isFinite(h?.dtMs) || h.dtMs > refNowMs + 15 * 60000);
-    const firstGood = upcoming.find(h => h && !h.isDay && h.score >= 40)
-      || upcoming.find(h => h && !h.isDay && h.clear >= 55);
-    const startT = firstGood?.time || '';
-    heroCue = startT
-      ? (en ? `Rest for now — skies improve after ${startT}` : `先休息，預計 ${startT} 後有望轉佳`)
-      : act.title;
-  } else if (act.actionType === 'sleep') {
-    const futureBest = (localizedNights3 || []).slice(1)
-      .filter(n => n && (n.tone === 'good' || n.tone === 'warn'))
-      .sort((a, b) => (b.bestNightScore || 0) - (a.bestNightScore || 0))[0];
-    heroCue = futureBest
-      ? (en ? `Low chance tonight — ${futureBest.dayLabel} looks better` : `今晚機率偏低，${futureBest.dayLabel}機會較佳`)
-      : (en ? 'Low chance right now — check back later' : '目前機率偏低，可先休息稍後再看');
-  }
+  const { aurSubHtml, heroCue, heroSub } = buildHeroViewModel({
+    pos, sc, kp, mltNow, act, activeHrs, localizedNights3, refNowMs: refNow.getTime(), en
+  });
+
+  document.body.classList.remove('is-loading');
+  renderGauge(sc, {
+    isTooBright: sc.isTooBright,
+    moon,
+    skySubHtml: skyParts.join('<span class="sub-dot" aria-hidden="true">·</span>'),
+    aurSubHtml,
+    darkSubHtml: formatDarkCountdownSub(darkWin, moon, en, sunAltNow)
+  });
+
   setText('vTitle', heroCue);
   const leadEl = $('vLead');
   if (leadEl) {
@@ -2439,6 +2397,27 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
   }
   setText('tsConfRow', `${exp.confidence.badgeText}${effTelemetry ? ` · ${effTelemetry}` : ''}`);
   const stLive = stOpt || state.renderState;
+  const sn = $('tsStormNote');
+  if (sn) {
+    const stormInfo = formatStormAlertDetail({
+      scales: stLive?.noaaScales,
+      noaaAlert: stLive?.noaaAlert,
+      sc,
+      lat: stLive?.pos?.lat ?? state.pos.lat,
+      en,
+      fmtDateFn: fmtMonthDay
+    });
+    if (stormInfo) {
+      sn.style.display = 'block';
+      sn.innerHTML =
+        `<div class="ts-storm-note-hd">⚡ ${escapeHtml(stormInfo.title)}</div>` +
+        `<div>${escapeHtml(stormInfo.body)}</div>` +
+        `<a class="ts-storm-note-link" href="${escapeHtml(stormInfo.linkUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(stormInfo.linkLabel)}</a>`;
+    } else {
+      sn.style.display = 'none';
+      sn.innerHTML = '';
+    }
+  }
   const cd = $('tsConfDetail');
   if (cd) {
     let detailTxt = '';
@@ -2561,6 +2540,8 @@ function openTrustSheet(triggerEl) {
   }
   const sheet = $('trustSheet');
   if (!sheet) return;
+  const body = sheet.querySelector('.sheet-body');
+  if (body) body.scrollTop = 0;
   sheet.classList.add('open');
   sheet.setAttribute('aria-hidden', 'false');
   pushSheetHistory();
