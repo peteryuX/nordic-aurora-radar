@@ -243,7 +243,7 @@ export const EXTENDED_CORRIDORS = [
     { key: 'W', label: '往西北 Middlemarch', lat: -45.5067, lon: 170.1197, roadKm: 79, roadNote: '內陸晴空暗區·留意黑冰', roadNoteEn: 'Inland dark sky · watch black ice', isOcean: false }
   ]},
   { match: [59.91, 10.75], pts: [ // Oslo (Norway — poleward northern lookouts keeping Oslo's light dome behind you)
-    { key: 'N', label: '往北 Maridalen', lat: 60.0050, lon: 10.7680, roadKm: 12, roadNote: '市區北緣暗空·把奧斯陸光害留身後', roadNoteEn: 'North edge dark sky · Oslo glow behind you', isOcean: false },
+    { key: 'N', label: '往北 Maridalen', lat: 60.0050, lon: 10.7680, roadKm: 12, roadNote: '市區北緣湖畔·北方視野開闊', roadNoteEn: 'North edge lakeside · open northern sky', isOcean: false },
     { key: 'E', label: '往東北 Nittedal', lat: 60.1230, lon: 10.8750, roadKm: 28, roadNote: 'Rv4 主幹道·北方視野開闊', roadNoteEn: 'Rv4 main road · open northern horizon', isOcean: false },
     { key: 'W', label: '往西北 Sundvollen', lat: 60.0620, lon: 10.3100, roadKm: 42, roadNote: 'E16 主幹道·高地暗空區', roadNoteEn: 'E16 main road · elevated dark sky', isOcean: false },
     { key: 'S', label: '往東 Ask', lat: 60.0640, lon: 11.0360, roadKm: 32, roadNote: '鄉間低光害·北方地平線開闊', roadNoteEn: 'Rural low glare · open northern sky', isOcean: false }
@@ -4135,18 +4135,29 @@ export function isCorridorHazard(d) {
  * Unified cross-tab field decision synthesizer (GO / DRIVE / WAIT / SLEEP / DAYLIGHT / LOW-LAT).
  * Combines live score, incoming solar wind, dark-window countdown, 360° clear-sky corridors & 3-Night Outlook.
  */
+/** Single Source of Truth: is aurora currently active, imminent, or worth going out / chasing clear skies for? */
+export function isAuroraWorthViewing({ sc, scNext = null, bal = null, goesSub = null, fmiMag = null } = {}) {
+  if (!sc || sc.isTooBright || sc.outOfZone) return false;
+  return Boolean(
+    (sc.total ?? 0) >= 40 ||
+    (sc.auroraScore ?? 0) >= 30 ||
+    (scNext && !scNext.isTooBright && !scNext.outOfZone && (scNext.auroraScore ?? 0) >= 40) ||
+    bal?.shockActive || goesSub?.active || fmiMag?.active
+  );
+}
+
 export function synthesizeTonightAction({
   lat = 69.97, lon = 23.27, sc, scNext = null, bal = null, goesSub = null, fmiMag = null,
   bestDark = null, dirResults = null, nights3 = null, darkWin = null,
-  kp = null, mlt = null, effMoonPct = 0, lang
+  kp = null, mlt = null, effMoonPct = 0, compassOpts = null, lang
 } = {}) {
   const en = isEn(lang);
   const base = evaluateVerdict({ lat, lon, bestDark, kp, mlt, effMoonPct, scoreObj: sc, lang });
   if (!sc || typeof sc !== 'object') {
-    return { ...base, actionType: 'wait', ctaView: null, ctaLabel: '' };
+    return { ...base, actionType: 'wait', auroraWorthDriving: false, ctaView: null, ctaLabel: '' };
   }
   if (sc.outOfZone) {
-    return { ...base, actionType: 'low-lat', ctaView: null, ctaLabel: '' };
+    return { ...base, actionType: 'low-lat', auroraWorthDriving: false, ctaView: null, ctaLabel: '' };
   }
 
   const fmtDur = (mins) => {
@@ -4191,21 +4202,18 @@ export function synthesizeTonightAction({
         ? `Dark at ${darkWin.nextDarkHM}${inTxt ? ` (in ${inTxt})` : ''} · ${cueEn}.`
         : `${darkWin.nextDarkHM} 天黑${inTxt ? `（約 ${inTxt}後）` : ''}，${cueZh}。`;
     }
-    return { ...base, lead, actionType: 'daylight', ctaView: null, ctaLabel: '' };
+    return { ...base, lead, actionType: 'daylight', auroraWorthDriving: false, ctaView: null, ctaLabel: '' };
   }
+
+  const auroraWorthDriving = isAuroraWorthViewing({ sc, scNext, bal, goesSub, fmiMag });
 
   // 2. GO NOW (good/prime score or active GOES/FMI substorm with usable sky)
   if (sc.total >= 40 || ((goesSub?.active || fmiMag?.active) && sc.skyScore >= 25)) {
-    return { ...base, actionType: 'go', ctaView: null, ctaLabel: '' };
+    return { ...base, actionType: 'go', auroraWorthDriving, ctaView: null, ctaLabel: '' };
   }
 
   // 3. DRIVE (overcast locally, aurora actually active/incoming, AND 360° Radar finds a safe clear corridor)
-  const auroraWorthDriving = Boolean(
-    (sc.auroraScore ?? 0) >= 30 ||
-    (scNext && !scNext.isTooBright && !scNext.outOfZone && (scNext.auroraScore ?? 0) >= 40) ||
-    bal?.shockActive || goesSub?.active || fmiMag?.active
-  );
-  const comp = Array.isArray(dirResults) && dirResults.length >= 2 ? summarizeCompass(dirResults, lang) : null;
+  const comp = Array.isArray(dirResults) && dirResults.length >= 2 ? summarizeCompass(dirResults, lang, compassOpts) : null;
   if (sc.skyScore < 45 && auroraWorthDriving && comp && comp.good && comp.bestKey && comp.bestKey !== 'here') {
     const dest = dirResults.find(d => d && d.key === comp.bestKey);
     const roadKm = (dest && Number.isFinite(dest.roadKm)) ? dest.roadKm : ((dest && Number.isFinite(dest.distKm)) ? dest.distKm : null);
@@ -4317,47 +4325,131 @@ export function summarizeEnergyTrend(series, speed, langOrBal, maybeLang) {
   return { good: false, text: en ? 'Solar wind is currently quiet — keep screen-on monitor open for sudden bursts.' : '目前太陽風偏平靜，可開啟螢幕常亮監測，有活動增強再出門觀測。', raw, etaMin };
 }
 
-/** Unified Clear-Sky % compass summary (higher % = clearer = better; never promotes gale/blizzard routes) */
-export function summarizeCompass(dirResults, lang) {
+/** Unified Clear-Sky % compass summary (higher % = clearer = better; never promotes gale/blizzard routes;
+ * optionally uses azimuthal urban skyglow as a bounded <=12% tie-breaker and clear-night metro escape advisor). */
+export function summarizeCompass(dirResults, lang, opts = null) {
   if (!Array.isArray(dirResults) || dirResults.length < 2) return null;
   const en = isEn(lang);
   const here = dirResults[0];
   if (!here || here.unavailable || !Number.isFinite(here.avg3h)) return null;
   const hereClear = Math.max(0, Math.min(100, Math.round(100 - here.avg3h)));
   const landOthers = dirResults.slice(1).filter(d => d && !d.isOcean && !d.unavailable && Number.isFinite(d.avg3h)).sort((a, b) => a.avg3h - b.avg3h);
+
+  const originGlare = opts?.originGlare || null;
+  const glareEnabled = Boolean(opts && !opts.isTooBright && !opts.outOfZone && !originGlare?.stormPierces);
+  const glareByKey = {};
+  if (glareEnabled) {
+    for (const d of dirResults.slice(1)) {
+      if (!d || !d.key) continue;
+      glareByKey[d.key] = evaluateCorridorSkyglow({
+        dir: d, originGlare, geom: opts.geom || null,
+        auroraScore: opts.auroraScore ?? 30, effMoonPct: opts.effMoonPct ?? 0, lang
+      });
+    }
+  }
+
   if (here.avg3h <= 35) {
-    const clearZh = hereClear >= 85
-      ? `目前所在地已晴空（未來 3 小時晴空率 ${hereClear}%），無需驅車遠行；若市區光害明顯，就近避開路燈即可。`
-      : `原地未來 3 小時偏晴（晴空率 ${hereClear}%），無需遠行；若在市區建議就近避開路燈並朝開闊處觀察。`;
-    const clearEn = hereClear >= 85
-      ? `Already clear right here (${hereClear}% clear over the next 3h) — no need to drive. Step away from city lights if needed.`
-      : `Mostly clear right here for the next 3h (${hereClear}% clear) — no need to drive; step away from city lights if needed.`;
+    const glareEscapeActive = Boolean(
+      glareEnabled && originGlare?.level === 'strong' && opts.auroraWorthViewing
+    );
+    let glareEscapeKey = null;
+    let glareEscapeDir = null;
+    if (glareEscapeActive) {
+      const escapeCandidates = landOthers
+        .filter(d => !isCorridorHazard(d) && !d.isGeneric && d.avg3h <= 35 && d.avg3h <= here.avg3h + 20)
+        .filter(d => {
+          const km = Number.isFinite(d.roadKm) ? d.roadKm : (Number.isFinite(d.distKm) ? d.distKm : 999);
+          const g = glareByKey[d.key];
+          return km <= 45 && g && (g.status === 'behind' || g.status === 'away');
+        })
+        .sort((a, b) => {
+          const ka = Number.isFinite(a.roadKm) ? a.roadKm : (a.distKm || 99);
+          const kb = Number.isFinite(b.roadKm) ? b.roadKm : (b.distKm || 99);
+          return (a.avg3h + 0.15 * ka) - (b.avg3h + 0.15 * kb);
+        });
+      if (escapeCandidates.length) {
+        glareEscapeDir = escapeCandidates[0];
+        glareEscapeKey = glareEscapeDir.key;
+      }
+    }
+
+    let clearZh, clearEn;
+    if (glareEscapeActive && glareEscapeDir) {
+      const escKm = Number.isFinite(glareEscapeDir.roadKm) ? glareEscapeDir.roadKm : glareEscapeDir.distKm;
+      const escClr = Math.max(0, Math.min(100, Math.round(100 - glareEscapeDir.avg3h)));
+      const kmZh = Number.isFinite(escKm) ? `（~${escKm} km，晴空 ${escClr}%）` : `（晴空 ${escClr}%）`;
+      const kmEn = Number.isFinite(escKm) ? ` (~${escKm} km, ${escClr}% clear)` : ` (${escClr}% clear)`;
+      clearZh = `目前所在地已晴空（未來 3 小時晴空率 ${hereClear}%），無需為找雲縫遠行；但${originGlare.cityName}市區光害偏強，可考慮往「${glareEscapeDir.label}」${kmZh}把光穹留在身後。`;
+      clearEn = `Already clear right here (${hereClear}% clear over the next 3h) — no need to drive for cloud breaks, though ${originGlare.cityName} glare is strong; consider "${tDirLabel(glareEscapeDir.label, 'en')}"${kmEn} to put the city dome behind you.`;
+    } else if (glareEscapeActive) {
+      const dirZh = originGlare.escapeDir || '北方';
+      const dirEn = originGlare.escapeDir || 'north';
+      clearZh = `目前所在地已晴空（未來 3 小時晴空率 ${hereClear}%），無需為找雲縫遠行；但${originGlare.cityName}市區光害偏強，建議移往${dirZh}側避開光穹。`;
+      clearEn = `Already clear right here (${hereClear}% clear over the next 3h) — no need to drive for cloud breaks, though ${originGlare.cityName} glare is strong; move ${dirEn} to put the city dome behind you.`;
+    } else {
+      clearZh = hereClear >= 85
+        ? `目前所在地已晴空（未來 3 小時晴空率 ${hereClear}%），無需驅車遠行；若市區光害明顯，就近避開路燈即可。`
+        : `原地未來 3 小時偏晴（晴空率 ${hereClear}%），無需遠行；若在市區建議就近避開路燈並朝開闊處觀察。`;
+      clearEn = hereClear >= 85
+        ? `Already clear right here (${hereClear}% clear over the next 3h) — no need to drive. Step away from city lights if needed.`
+        : `Mostly clear right here for the next 3h (${hereClear}% clear) — no need to drive; step away from city lights if needed.`;
+    }
     return {
       bestKey: 'here', bestClear: hereClear, hereClear, diff: 0, good: true,
+      glareEscapeKey, glareEscapeActive, glareByKey,
       text: en ? clearEn : clearZh
     };
   }
   if (!landOthers.length) {
     return {
       bestKey: null, bestClear: null, hereClear, diff: 0, good: false,
+      glareEscapeKey: null, glareEscapeActive: false, glareByKey,
       text: en ? 'Surrounding points are open sea or unavailable. Stay local or check the Cloud Map for inland roads.' : '周邊多為海面或暫無資料，建議留在當地或透過「動態雲圖」查看內陸路線。'
     };
   }
   const safeOthers = landOthers.filter(d => !isCorridorHazard(d));
-  const best = safeOthers[0] || landOthers[0];
+  const qualSafe = safeOthers.filter(d => {
+    const c = Math.max(0, Math.min(100, Math.round(100 - d.avg3h)));
+    const df = c - hereClear;
+    return (df >= 25 && d.avg3h <= 50) || (d.avg3h <= 30 && df >= 15);
+  });
+  const rankSource = qualSafe.length ? qualSafe : safeOthers;
+  let best = rankSource[0] || landOthers[0];
+  // Hard <=12% cloud-margin pool: light-dome orientation ONLY breaks close cloud ties (clouds ALWAYS stay #1!)
+  if (glareEnabled && rankSource.length >= 2) {
+    const cMin = rankSource[0].avg3h;
+    const pool = rankSource.filter(d => (d.avg3h - cMin) <= 12);
+    if (pool.length >= 2) {
+      pool.sort((a, b) => {
+        const pa = glareByKey[a.key]?.penaltyPct || 0;
+        const pb = glareByKey[b.key]?.penaltyPct || 0;
+        const sa = a.avg3h + pa;
+        const sb = b.avg3h + pb;
+        if (sa !== sb) return sa - sb;
+        if (a.avg3h !== b.avg3h) return a.avg3h - b.avg3h;
+        return (a.roadKm || a.distKm || 99) - (b.roadKm || b.distKm || 99);
+      });
+      best = pool[0];
+    }
+  }
   const bestClear = Math.max(0, Math.min(100, Math.round(100 - best.avg3h)));
   const diff = bestClear - hereClear;
   const qualifies = (diff >= 25 && best.avg3h <= 50) || (best.avg3h <= 30 && diff >= 15);
   if (qualifies && !isCorridorHazard(best)) {
+    const bestGlare = glareByKey[best.key];
+    const glareWarn = bestGlare && (bestGlare.status === 'blocking' || bestGlare.status === 'blocking-far' || bestGlare.status === 'other-city')
+      ? (en ? ` Note: ${bestGlare.tagText.replace(/^⚠\s*/, '')}.` : `（留意：${bestGlare.tagText.replace(/^⚠\s*/, '')}）`)
+      : '';
     const bestTxt = best.isGeneric
       ? (en
-          ? `Clearer skies around ${tDirLabel(best.label, 'en')} (${bestClear}% clear, +${diff}% clearer than here) — tap View area to pick a safe road or town.`
-          : `${best.label} 方向有明顯晴空區（未來 3 小時晴空率 ${bestClear}%，比原地高 ${diff}%），點「看區域」挑選主幹道城鎮或停靠處。`)
+          ? `Clearer skies around ${tDirLabel(best.label, 'en')} (${bestClear}% clear, +${diff}% clearer than here) — tap View area to pick a safe road or town.${glareWarn}`
+          : `${best.label} 方向有明顯晴空區（未來 3 小時晴空率 ${bestClear}%，比原地高 ${diff}%），點「看區域」挑選主幹道城鎮或停靠處。${glareWarn}`)
       : (en
-          ? `Clearer skies toward "${tDirLabel(best.label, 'en')}" (${bestClear}% clear, +${diff}% clearer than here).`
-          : `「${best.label}」有明顯晴空空檔（未來 3 小時晴空率 ${bestClear}%，比原地高 ${diff}%）。`);
+          ? `Clearer skies toward "${tDirLabel(best.label, 'en')}" (${bestClear}% clear, +${diff}% clearer than here).${glareWarn}`
+          : `「${best.label}」有明顯晴空空檔（未來 3 小時晴空率 ${bestClear}%，比原地高 ${diff}%）。${glareWarn}`);
     return {
       bestKey: best.key, bestClear, hereClear, diff, good: true,
+      glareEscapeKey: null, glareEscapeActive: false, glareByKey,
       text: bestTxt
     };
   }
@@ -4368,6 +4460,7 @@ export function summarizeCompass(dirResults, lang) {
     const wMs = Math.round(hazardousBest.maxWind3h || 0);
     return {
       bestKey: null, bestClear: hClear, hereClear, diff: hClear - hereClear, good: false, hazardOnly: true,
+      glareEscapeKey: null, glareEscapeActive: false, glareByKey,
       text: en
         ? `Clearer sky toward "${tDirLabel(hazardousBest.label, 'en')}" (${hClear}%), but high wind/blowing snow (${wMs} m/s) makes driving hazardous — check road closures before leaving.`
         : `「${hazardousBest.label}」雖有晴空（${hClear}%），但強風／吹雪達 ${wMs} m/s，冬季行車風險高，請先查封路或留在原地。`
@@ -4376,11 +4469,13 @@ export function summarizeCompass(dirResults, lang) {
   if (best.avg3h <= 50) {
     return {
       bestKey: null, bestClear, hereClear, diff, good: false,
+      glareEscapeKey: null, glareEscapeActive: false, glareByKey,
       text: en ? `Nearby routes have similar partly-cloudy skies (~${bestClear}% clear) — watch locally first.` : `周邊與原地皆為局部雲隙（最晴方向晴空率約 ${bestClear}%），差距不大，建議先原地觀察。`
     };
   }
   return {
     bestKey: null, bestClear, hereClear, diff, good: false,
+    glareEscapeKey: null, glareEscapeActive: false, glareByKey,
     text: en ? `Nearby land routes are also overcast (~${bestClear}% clear). Better to wait locally.` : `周邊陸路目前同樣雲厚（晴空率約 ${bestClear}%），建議先原地等候放晴。`
   };
 }
@@ -4506,6 +4601,10 @@ export function estimateUrbanSkyglow({
     level: 'unknown',
     knownDark: false,
     cityName: '',
+    centerLat: null,
+    centerLon: null,
+    coreKm: null,
+    domeKm: null,
     distKm: null,
     domeImpact: 'none',
     excessL: 0,
@@ -4574,6 +4673,10 @@ export function estimateUrbanSkyglow({
     level,
     knownDark: false,
     cityName,
+    centerLat: primary.c.lat,
+    centerLon: primary.c.lon,
+    coreKm: primary.c.coreKm,
+    domeKm: primary.c.domeKm,
     distKm: Math.round(primary.d),
     domeImpact,
     excessL,
@@ -4584,5 +4687,98 @@ export function estimateUrbanSkyglow({
     tagText
   };
 }
+
+/**
+ * Evaluate a single 360° compass corridor's azimuthal urban light-dome relationship
+ * relative to BOTH any destination metro AND the origin metro dome.
+ *
+ * Guardrails:
+ * - Catches second-city ambushes (e.g., Edinburgh -> West 60 km hitting Glasgow).
+ * - Never labels unmapped destinations as "verified dark" / "zero light pollution" / Bortle.
+ * - Positive labels ('behind' / 'away') are strictly relative to the known origin city dome.
+ */
+export function evaluateCorridorSkyglow({
+  dir = null, originGlare = null, geom = null, auroraScore = 30, effMoonPct = 0, lang
+} = {}) {
+  const en = isEn(lang);
+  const none = { status: 'none', cityName: '', tagText: '', penaltyPct: 0, isWarning: false };
+  if (!dir || dir.isOcean || dir.unavailable || !Number.isFinite(dir.lat) || !Number.isFinite(dir.lon)) return none;
+  if (Number(auroraScore) >= 82 || originGlare?.stormPierces) return none;
+
+  const destGlare = estimateUrbanSkyglow({
+    lat: dir.lat, lon: dir.lon, geom, auroraScore, effMoonPct, lang
+  });
+  const originCity = originGlare?.cityName || '';
+
+  // 1. Destination directly faces ANY mapped city light dome toward the auroral horizon
+  if (destGlare.domeImpact === 'blocking-horizon' && destGlare.cityName) {
+    return {
+      status: 'blocking',
+      cityName: destGlare.cityName,
+      tagText: en ? `⚠ Faces ${destGlare.cityName} glow` : `⚠ 朝${destGlare.cityName}光穹`,
+      penaltyPct: 8,
+      isWarning: true
+    };
+  }
+  // 2. Second-city ambush (e.g., Edinburgh -> West 60 km landing near Glasgow!)
+  if (destGlare.level !== 'unknown' && destGlare.cityName && originCity && destGlare.cityName !== originCity) {
+    return {
+      status: 'other-city',
+      cityName: destGlare.cityName,
+      tagText: en ? `⚠ Near ${destGlare.cityName} glare` : `⚠ 接近${destGlare.cityName}光害區`,
+      penaltyPct: destGlare.level === 'strong' ? 8 : 5,
+      isWarning: true
+    };
+  }
+  // 3. Still inside a strong metro glare core (not behind)
+  if (destGlare.level === 'strong' && destGlare.domeImpact !== 'behind' && destGlare.cityName) {
+    return {
+      status: 'core',
+      cityName: destGlare.cityName,
+      tagText: en ? `⚠ Est. ${destGlare.cityName} glare` : `⚠ 仍在${destGlare.cityName}光害區`,
+      penaltyPct: 6,
+      isWarning: true
+    };
+  }
+  // 4. Relative to a known strong origin metro dome (works cleanly past 1.7x coreKm!)
+  if (originGlare?.level === 'strong' && Number.isFinite(originGlare.centerLat) && Number.isFinite(originGlare.centerLon)) {
+    if (destGlare.domeImpact === 'behind' && destGlare.cityName === originCity) {
+      return {
+        status: 'behind',
+        cityName: originCity,
+        tagText: en ? `${originCity} glow behind` : `${originCity}光穹在身後`,
+        penaltyPct: -4,
+        isWarning: false
+      };
+    }
+    const az = Number.isFinite(geom?.azimuthDeg) ? geom.azimuthDeg : computeAuroraBearing(dir.lat, dir.lon);
+    const distFromOrigin = computeDistanceKm(dir.lat, dir.lon, originGlare.centerLat, originGlare.centerLon);
+    const brgToOrigin = computeBearingDeg(dir.lat, dir.lon, originGlare.centerLat, originGlare.centerLon);
+    const angToOrigin = Math.abs(((brgToOrigin - az + 540) % 360) - 180);
+    const subAuroral = Math.abs(computeGeomagneticLat(dir.lat, dir.lon)) < 62;
+    const horizonCheck = subAuroral || (geom && (geom.mode === 'low' || geom.mode === 'mid' || geom.mode === 'below'));
+
+    if (horizonCheck && angToOrigin <= 45 && distFromOrigin >= 2 && distFromOrigin <= (originGlare.domeKm || 30) * 1.6) {
+      return {
+        status: 'blocking-far',
+        cityName: originCity,
+        tagText: en ? `⚠ Toward ${originCity} glow` : `⚠ 朝向${originCity}光穹方向`,
+        penaltyPct: 6,
+        isWarning: true
+      };
+    }
+    if (destGlare.level === 'unknown' && angToOrigin >= 115 && distFromOrigin >= (originGlare.coreKm || 6) && distFromOrigin <= Math.max(80, (originGlare.domeKm || 30) * 2.5)) {
+      return {
+        status: 'away',
+        cityName: originCity,
+        tagText: en ? `Away from ${originCity} glow` : `避開${originCity}光穹`,
+        penaltyPct: -4,
+        isWarning: false
+      };
+    }
+  }
+  return none;
+}
+
 
 

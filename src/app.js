@@ -34,7 +34,7 @@ const {
   parseUrlLocation, buildShareUrl, computeSolarElevation, computeDistanceKm, effectiveCloud,
   computeDarkWindow, getMoonState, computeViewingGeometry,
   computeMLT, explainAuroraScore, summarize3NightOutlook, evaluateVerdict,
-  isCorridorHazard, synthesizeTonightAction, summarizeEnergyTrend, summarizeCompass,
+  isCorridorHazard, isAuroraWorthViewing, synthesizeTonightAction, summarizeEnergyTrend, summarizeCompass,
   shouldTriggerAuroraAlert, evaluateSilentGpsDecision, utcTagToLocalHM, estimateUrbanSkyglow
 } = Engine;
 
@@ -942,7 +942,7 @@ function renderWaveCard(focusBest = false) {
   const bestTimeLbl = bestInVis ? formatHourLabel(bestInVis, en) : '';
   const bestIsNextNight = bestInVis ? isNextNightHour(bestInVis) : false;
   const dirs = state.renderState?.dirResults;
-  const compassGood = !Array.isArray(dirs) || dirs.length < 2 || Boolean(summarizeCompass(dirs)?.good);
+  const compassGood = !Array.isArray(dirs) || dirs.length < 2 || Boolean(summarizeCompass(dirs, getLang(), state.renderState?.compassOpts)?.good);
   const bestText = formatWavePeakSummary({
     vis, bestInVis, outZoneKind, isOutOfZone, bestTimeLbl, bestIsNextNight, compassGood, en
   });
@@ -1350,9 +1350,9 @@ function renderRoadLinks(pos, en) {
     links.map(l => `<a id="${l.id}" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="${l.url}">${en ? l.en : l.zh}</a>`).join('');
 }
 
-function renderCompassPanel(dirResults, pos, en) {
+function renderCompassPanel(dirResults, pos, en, compassOpts = null) {
   renderRoadLinks(pos, en);
-  const sum = summarizeCompass(dirResults);
+  const sum = summarizeCompass(dirResults, getLang(), compassOpts);
   const cs = $('compassSummary');
   if (cs) {
     cs.className = 'callout ' + (sum?.good ? 'good' : 'warn');
@@ -1366,13 +1366,18 @@ function renderCompassPanel(dirResults, pos, en) {
   const hereClear = Number.isFinite(sum?.hereClear) ? sum.hereClear : 0;
   const landDirs = dirResults.slice(1).filter(d => d && !d.isOcean && !d.unavailable && Number.isFinite(d.avg3h));
   const allCloudyNearby = !hereIsClear && !sum?.good && landDirs.length > 0 && landDirs.every(d => Math.round(100 - d.avg3h) < 30);
+  const escCity = compassOpts?.originGlare?.cityName || '';
+  const escDir = compassOpts?.originGlare?.escapeDir || (en ? 'north' : '北方');
   const refHeader = hereIsClear
-    ? `<div class="dir-ref-hd">${en ? 'Nearby skies for reference · no need to drive' : '周邊晴空參考 · 目前無需遠行'}</div>`
+    ? (sum?.glareEscapeActive && escCity
+        ? `<div class="dir-ref-hd">${escapeHtml(en ? `Nearby reference · clear here; check ${escDir}-side spots to put ${escCity} glow behind you` : `周邊參考 · 原地已晴空，若想避開${escCity}光穹可看${escDir}側地點`)}</div>`
+        : `<div class="dir-ref-hd">${en ? 'Nearby skies for reference · no need to drive' : '周邊晴空參考 · 目前無需遠行'}</div>`)
     : (allCloudyNearby
         ? `<div class="dir-ref-hd">${en ? 'Nearby skies are also cloudy · no need to drive' : '周邊同樣多雲 · 目前不建議遠行'}</div>`
         : '');
   cBox.innerHTML = refHeader + dirResults.slice(1).map(d => {
     const isBest = Boolean(sum && sum.bestKey === d.key);
+    const isGlareEscape = Boolean(hereIsClear && sum && sum.glareEscapeKey === d.key);
     const isGeneric = Boolean(d.isGeneric);
     const unavail = Boolean(d.unavailable) || !Number.isFinite(d.avg3h);
     const hazard = isCorridorHazard(d);
@@ -1408,7 +1413,11 @@ function renderCompassPanel(dirResults, pos, en) {
     const noteText = baseNote || (isGeneric && isBest && !hereIsClear
       ? (en ? 'Weather sample point — tap View area to pick a main-road town or pullout' : '直線氣象採樣點，點「看區域」挑選主幹道城鎮或停靠處')
       : '');
-    const isPositiveNote = /雨影|晴空|暗空|主幹道|rain shadow|dark sky|main highway|paved/i.test(noteText);
+    const glare = sum?.glareByKey?.[d.key] || null;
+    const glareHtml = (glare && glare.tagText && !noteText.includes(glare.tagText))
+      ? `<div class="${glare.isWarning ? 'dir-note' : 'dir-tip'}">${escapeHtml(glare.tagText)}</div>`
+      : '';
+    const isPositiveNote = /雨影|晴空|暗空|主幹道|視野開闊|rain shadow|dark sky|main highway|paved|open northern|open southern/i.test(noteText);
     const noteHtml = noteText ? `<div class="${isPositiveNote ? 'dir-tip' : 'dir-note'}">${escapeHtml(noteText)}</div>` : '';
     const areaHref = `https://www.google.com/maps/search/?api=1&query=${d.lat},${d.lon}`;
     const driveHref = `https://www.google.com/maps/dir/?api=1&origin=${pos.lat},${pos.lon}&destination=${d.lat},${d.lon}&travelmode=driving`;
@@ -1433,9 +1442,12 @@ function renderCompassPanel(dirResults, pos, en) {
     const statLine = unavail
       ? (en ? 'Forecast temporarily unavailable' : '此方向氣象暫時無法取得')
       : `${en ? 'Next 3h' : '3 小時晴空率'} <strong class="${col}">${clear3h}%</strong> · ${en ? 'now' : '目前'} ${clearNow}% · ${fmtTemp(d.temp)}${rainTag}`;
+    const badgeHtml = isBest
+      ? ` <span class="dir-best-tag">${en ? 'Best' : '最佳'}</span>`
+      : (isGlareEscape ? ` <span class="dir-best-tag">${en ? 'Avoids glare' : '避光穹參考'}</span>` : '');
     return `<div class="dir ${isBest ? 'best' : ''} ${hazard ? 'hazard' : ''} ${d.isOcean ? 'sea' : ''} ${demoteToMap ? 'ref-only' : ''}" data-dir-card="${escapeHtml(d.key)}">
-      <div class="dir-main"><div class="dir-title">${escapeHtml(tDirLabel(d.label))}${isBest ? ` <span class="dir-best-tag">${en ? 'Best' : '最佳'}</span>` : ''}<span class="dir-dist">${distTag}</span></div>
-      <div class="dir-stat">${statLine}</div>${hazardHtml}${noteHtml}</div>
+      <div class="dir-main"><div class="dir-title">${escapeHtml(tDirLabel(d.label))}${badgeHtml}<span class="dir-dist">${distTag}</span></div>
+      <div class="dir-stat">${statLine}</div>${hazardHtml}${glareHtml}${noteHtml}</div>
       ${nav}
     </div>`;
   }).join('');
@@ -1576,6 +1588,16 @@ function renderFromState(st) {
     lat: pos.lat, lon: pos.lon, geom: geomNow,
     auroraScore: sc.auroraScore, effMoonPct: moon.effMoonPct, lang: getLang()
   });
+  const compassOpts = {
+    originGlare: urbanGlare,
+    geom: geomNow,
+    auroraWorthViewing: isAuroraWorthViewing({ sc, scNext, bal: safeBal, goesSub, fmiMag }),
+    isTooBright: Boolean(sc.isTooBright),
+    outOfZone: Boolean(sc.outOfZone),
+    auroraScore: sc.auroraScore,
+    effMoonPct: moon.effMoonPct
+  };
+  st.compassOpts = compassOpts;
 
   // Frameless monochrome 1.5px SVG footnote items (traveler-relevant alerts only; local station calibration lives cleanly in Trust Sheet & confidence link)
   const heroTags = [];
@@ -1615,7 +1637,7 @@ function renderFromState(st) {
   const act = synthesizeTonightAction({
     lat: pos.lat, lon: pos.lon, sc, scNext, bal: safeBal, goesSub, fmiMag,
     bestDark, dirResults, nights3: localizedNights3, darkWin,
-    kp, mlt: mltNow ?? null, effMoonPct: moon.effMoonPct
+    kp, mlt: mltNow ?? null, effMoonPct: moon.effMoonPct, compassOpts
   });
   const { aurSubHtml, heroCue, heroSub } = buildHeroViewModel({
     pos, sc, kp, mltNow, act, activeHrs, localizedNights3, refNowMs: refNow.getTime(), en
@@ -1638,7 +1660,7 @@ function renderFromState(st) {
   }
   const actBtn = $('vActionBtn');
   if (actBtn) {
-    const compassSum = summarizeCompass(dirResults);
+    const compassSum = summarizeCompass(dirResults, getLang(), compassOpts);
     const bestDir = (compassSum?.good && compassSum.bestKey && compassSum.bestKey !== 'here' && Array.isArray(dirResults))
       ? dirResults.find(d => d && d.key === compassSum.bestKey)
       : null;
@@ -1675,7 +1697,7 @@ function renderFromState(st) {
 
   renderWaveCard(false);
   render3NightOutlook(localizedNights3);
-  renderCompassPanel(dirResults, pos, en);
+  renderCompassPanel(dirResults, pos, en, compassOpts);
   renderTrustStatGrid($, pos, en);
 
   const pMet = $('pMet');

@@ -561,6 +561,7 @@ function buildInterceptorScript(sc) {
       bzBadge: document.getElementById('bzBadge')?.textContent?.trim() || '',
       energyBanner: document.getElementById('energyBanner')?.textContent?.trim() || '',
       navSat: document.getElementById('navSat')?.textContent?.trim() || '',
+      compassSummaryText: document.getElementById('compassSummary')?.textContent?.trim() || '',
       compassHtml: document.getElementById('compassBox')?.innerHTML || '',
       outlookText: document.getElementById('outlookGrid')?.textContent?.replace(/\\s+/g, ' ').trim() || '',
       waveSvgHtml,
@@ -637,6 +638,7 @@ const SCENARIOS = [
       if (r.compassHtml.includes('travelmode=driving')) errs.push('Already-clear Oslo must NEVER emit turn-by-turn travelmode=driving links');
       if (!r.compassHtml.includes('Maridalen')) errs.push('Oslo compass must surface curated northern dark-sky spot Maridalen / Sognsvann');
       if (!r.compassHtml.includes('看地圖')) errs.push('Already-clear Oslo must demote corridor button to 看地圖');
+      if (r.compassHtml.includes('避光穹參考')) errs.push('Quiet-aurora Oslo (Kp 1.0) must NOT show 避光穹參考 escape badge');
       if (r.issues.length) errs.push(...r.issues);
       return errs;
     }
@@ -900,6 +902,15 @@ const SCENARIOS = [
         errs.push(`Sub-auroral Oslo evening go-cue must say 北方低空 (never falsely 朝頭頂), got "${r.vTitle}"`);
       }
       if (!r.compassHtml.includes('Maridalen')) errs.push('Oslo compass must include Maridalen / Sognsvann');
+      if (!r.compassSummaryText.includes('Maridalen') || !r.compassSummaryText.includes('光穹')) {
+        errs.push(`Active clear Oslo #compassSummary must suggest Maridalen to escape city dome, got "${r.compassSummaryText}"`);
+      }
+      if (!r.compassHtml.includes('避光穹參考') || !r.compassHtml.includes('奧斯陸光穹在身後')) {
+        errs.push('Active clear Oslo #compassBox must show 避光穹參考 badge and 奧斯陸光穹在身後 geometry tag');
+      }
+      if (r.compassHtml.includes('travelmode=driving')) {
+        errs.push('Already-clear Oslo glare-escape must keep calm 看地圖 links (zero travelmode=driving)');
+      }
       if (r.issues.length) errs.push(...r.issues);
       return errs;
     }

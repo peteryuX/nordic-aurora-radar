@@ -1,7 +1,7 @@
 /**
  * Nordic Aurora Radar — Systematic Number-to-Copy Semantic Contract Suite
  *
- * Exhaustively tests 16 universal physical-to-copy & cross-card invariants across thousands
+ * Exhaustively tests 17 universal physical-to-copy & cross-card invariants across thousands
  * of cartesian combinations (8 latitudes × sky states × Kp × daylight/twilight/moon × ZH/EN)
  * directly against ALL production engine & UI copy formatters.
  *
@@ -501,6 +501,71 @@ check(
   }
 }
 
+// =========================================================================
+// 9. Compass × Azimuthal Light-Dome Contract (INV-17)
+// =========================================================================
+{
+  const GLARE_FORBIDDEN_RE = /Bortle|SQM|mag\/arcsec|無光害|暗空認證|verified dark|zero light pollution/i;
+  for (const lang of ['zh', 'en']) {
+    // (a) Edinburgh -> West 60 km second-city ambush (Glasgow)
+    const ediGeom = Engine.computeViewingGeometry({ lat: 55.9533, lon: -3.1883, kp: 5.0, mlt: 23, lang });
+    const ediGlare = Engine.estimateUrbanSkyglow({ lat: 55.9533, lon: -3.1883, geom: ediGeom, auroraScore: 55, effMoonPct: 0, lang });
+    const glasgowRes = Engine.evaluateCorridorSkyglow({
+      dir: { key: 'W', label: '往西 60km', lat: 55.87, lon: -4.15, avg3h: 18, isGeneric: true },
+      originGlare: ediGlare, geom: ediGeom, auroraScore: 55, effMoonPct: 0, lang
+    });
+    check(glasgowRes.status === 'other-city' && glasgowRes.isWarning, 'INV-17',
+      `Edinburgh->West (${lang}) must flag Glasgow other-city ambush, got ${JSON.stringify(glasgowRes)}`);
+    check(!GLARE_FORBIDDEN_RE.test(glasgowRes.tagText), 'INV-17', `Forbidden glare claim in ${glasgowRes.tagText}`);
+    checkHygiene(glasgowRes.tagText, lang, `INV-17(Glasgow ${lang})`);
+
+    // (b) Oslo cloudy <= 12% tie-break vs > 12% cloud-wins
+    const osloGeom = Engine.computeViewingGeometry({ lat: 59.9127, lon: 10.7461, kp: 4.5, mlt: 21, lang });
+    const osloGlare = Engine.estimateUrbanSkyglow({ lat: 59.9127, lon: 10.7461, geom: osloGeom, auroraScore: 55, effMoonPct: 0, lang });
+    const optsActive = { originGlare: osloGlare, geom: osloGeom, auroraWorthViewing: true, isTooBright: false, outOfZone: false, auroraScore: 55, effMoonPct: 0 };
+
+    const tieSum = Engine.summarizeCompass([
+      { key: 'here', label: '原地', avg3h: 82, nowC: 85, isOcean: false },
+      { key: 'S', label: '往南 Kolbotn', lat: 59.81, lon: 10.80, roadKm: 16, avg3h: 20, nowC: 20, temp: -2, maxWind3h: 3, maxPrecip3h: 0, isOcean: false },
+      { key: 'N', label: '往北 Maridalen', lat: 60.01, lon: 10.77, roadKm: 12, avg3h: 28, nowC: 28, temp: -2, maxWind3h: 3, maxPrecip3h: 0, isOcean: false }
+    ], lang, optsActive);
+    check(tieSum.bestKey === 'N', 'INV-17', `Oslo cloudy <=12% tie (${lang}) must pick N (behind dome), got ${tieSum.bestKey}`);
+    check(!GLARE_FORBIDDEN_RE.test(tieSum.text), 'INV-17', `Forbidden glare claim in tieSum: "${tieSum.text}"`);
+    checkHygiene(tieSum.text, lang, `INV-17(Oslo tie ${lang})`);
+
+    const wideSum = Engine.summarizeCompass([
+      { key: 'here', label: '原地', avg3h: 82, nowC: 85, isOcean: false },
+      { key: 'S', label: '往南 Kolbotn', lat: 59.81, lon: 10.80, roadKm: 16, avg3h: 15, nowC: 15, temp: -2, maxWind3h: 3, maxPrecip3h: 0, isOcean: false },
+      { key: 'N', label: '往北 Maridalen', lat: 60.01, lon: 10.77, roadKm: 12, avg3h: 32, nowC: 32, temp: -2, maxWind3h: 3, maxPrecip3h: 0, isOcean: false }
+    ], lang, optsActive);
+    check(wideSum.bestKey === 'S', 'INV-17', `Oslo cloudy >12% margin (${lang}) must keep clearer S as bestKey, got ${wideSum.bestKey}`);
+    checkHygiene(wideSum.text, lang, `INV-17(Oslo wide ${lang})`);
+
+    // (c) Oslo clear night: quiet Kp 1.0 stays calm, active Kp 4.5 suggests Maridalen without mutating bestKey
+    const clearDirs = [
+      { key: 'here', label: '原地', avg3h: 5, nowC: 5, isOcean: false },
+      { key: 'N', label: '往北 Maridalen', lat: 60.01, lon: 10.77, roadKm: 12, avg3h: 5, nowC: 5, temp: -2, maxWind3h: 2, maxPrecip3h: 0, isOcean: false },
+      { key: 'NW', label: '往西北 Sundvollen', lat: 60.06, lon: 10.31, roadKm: 42, avg3h: 5, nowC: 5, temp: -2, maxWind3h: 2, maxPrecip3h: 0, isOcean: false }
+    ];
+    const clearActive = Engine.summarizeCompass(clearDirs, lang, optsActive);
+    const clearQuiet = Engine.summarizeCompass(clearDirs, lang, { ...optsActive, auroraWorthViewing: false });
+    check(clearActive.bestKey === 'here' && clearActive.glareEscapeActive && clearActive.glareEscapeKey === 'N', 'INV-17',
+      `Oslo clear active (${lang}) must keep bestKey=here and suggest N as glareEscapeKey, got ${JSON.stringify({ b: clearActive.bestKey, e: clearActive.glareEscapeKey })}`);
+    check(clearQuiet.bestKey === 'here' && !clearQuiet.glareEscapeActive && clearQuiet.glareEscapeKey === null, 'INV-17',
+      `Oslo clear quiet (${lang}) must keep glareEscapeActive=false`);
+    for (const s of [clearActive, clearQuiet]) {
+      check(!GLARE_FORBIDDEN_RE.test(s.text), 'INV-17', `Forbidden glare wording: "${s.text}"`);
+      checkHygiene(s.text, lang, `INV-17(Oslo clear ${lang})`);
+      for (const g of Object.values(s.glareByKey || {})) {
+        if (g?.tagText) {
+          check(!GLARE_FORBIDDEN_RE.test(g.tagText), 'INV-17', `Forbidden corridor tag: "${g.tagText}"`);
+          checkHygiene(g.tagText, lang, `INV-17(tag ${lang})`);
+        }
+      }
+    }
+  }
+}
+
 console.log(`=== COPY & SEMANTIC CONTRACT AUDIT ===`);
 console.log(`Total invariant checks executed : ${checksRun}`);
 console.log(`Violations found                : ${violations.length}`);
@@ -508,4 +573,5 @@ if (violations.length) {
   for (const v of violations.slice(0, 25)) console.error('  ✗', v);
   process.exit(1);
 }
-console.log('ALL 16 SEMANTIC & NUMBER-TO-COPY INVARIANTS PASSED (0 VIOLATIONS).');
+console.log('ALL 17 SEMANTIC & NUMBER-TO-COPY INVARIANTS PASSED (0 VIOLATIONS).');
+

@@ -3554,7 +3554,7 @@ test('67. v62 Urban Skyglow Hybrid (Additive Luminance, Azimuthal Dome, Zero Fak
   const htmlSrc = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const swSrc = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
 
-  assert.ok(swSrc.includes('aurora-radar-shell-v62'), 'sw.js CACHE_NAME must be bumped to v62');
+  assert.ok(/aurora-radar-shell-v\d+/.test(swSrc), 'sw.js CACHE_NAME must be versioned');
   assert.ok(htmlSrc.includes('id="tsLightNote"'), 'index.html must mount #tsLightNote inside #trustSheet');
   assert.equal(TERMS.darkFull.zh, '天文暗空');
   assert.equal(TERMS.darkFull.en, 'Astro dark');
@@ -3589,6 +3589,76 @@ test('67. v62 Urban Skyglow Hybrid (Additive Luminance, Azimuthal Dome, Zero Fak
   const osloCorridor = api.EXTENDED_CORRIDORS.find(c => Math.abs(c.match[0] - 59.91) < 0.1 && Math.abs(c.match[1] - 10.75) < 0.1);
   assert.ok(osloCorridor && osloCorridor.pts.some(p => p.label.includes('Maridalen')), 'Oslo must have curated northern dark-sky corridors');
 });
+
+test('68. v63 Compass × Azimuthal Light-Dome Integration (<=12% Tie-Breaker, Second-City Ambush Guard, Clear-Night Metro Escape & SSoT)', () => {
+  const swSrc = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+  const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  assert.ok(swSrc.includes('aurora-radar-shell-v63'), 'sw.js CACHE_NAME must be bumped to v63');
+  assert.ok(appSrc.includes('st.compassOpts = compassOpts') && appSrc.includes('compassOpts') && appSrc.includes('glareEscapeKey'),
+    'app.js must share one compassOpts across synthesizeTonightAction, vActionBtn, renderWaveCard, and renderCompassPanel');
+
+  // (a) Second-city ambush: Edinburgh -> West 60 km hits Glasgow light dome!
+  const ediGeom = api.computeViewingGeometry({ lat: 55.9533, lon: -3.1883, kp: 5.0, mlt: 23, lang: 'zh' });
+  const ediGlare = api.estimateUrbanSkyglow({ lat: 55.9533, lon: -3.1883, geom: ediGeom, auroraScore: 55, effMoonPct: 0, lang: 'zh' });
+  const glasgowHit = api.evaluateCorridorSkyglow({
+    dir: { key: 'W', label: '往西 60km', lat: 55.87, lon: -4.15, avg3h: 20, isGeneric: true },
+    originGlare: ediGlare, geom: ediGeom, auroraScore: 55, effMoonPct: 0, lang: 'zh'
+  });
+  assert.equal(glasgowHit.status, 'other-city', `Edinburgh->West hitting Glasgow must trigger other-city warning, got ${JSON.stringify(glasgowHit)}`);
+  assert.equal(glasgowHit.isWarning, true);
+  assert.ok(glasgowHit.tagText.includes('格拉斯哥'), `Expected Glasgow warning tag, got "${glasgowHit.tagText}"`);
+
+  // (b) Oslo cloudy <= 12% cloud-margin tie-breaker vs > 12% clouds-always-win
+  const osloGeom = api.computeViewingGeometry({ lat: 59.9127, lon: 10.7461, kp: 4.5, mlt: 21, lang: 'zh' });
+  const osloGlare = api.estimateUrbanSkyglow({ lat: 59.9127, lon: 10.7461, geom: osloGeom, auroraScore: 55, effMoonPct: 0, lang: 'zh' });
+  const optsCloudy = { originGlare: osloGlare, geom: osloGeom, auroraWorthViewing: true, isTooBright: false, outOfZone: false, auroraScore: 55, effMoonPct: 0 };
+
+  const tieDirs = [
+    { key: 'here', label: '原地', avg3h: 82, nowC: 85, isOcean: false },
+    { key: 'S', label: '往南 Kolbotn', lat: 59.81, lon: 10.80, roadKm: 16, avg3h: 20, nowC: 20, temp: -2, maxWind3h: 3, maxPrecip3h: 0, isOcean: false },
+    { key: 'N', label: '往北 Maridalen', lat: 60.01, lon: 10.77, roadKm: 12, avg3h: 28, nowC: 28, temp: -2, maxWind3h: 3, maxPrecip3h: 0, isOcean: false }
+  ];
+  const tieSum = api.summarizeCompass(tieDirs, 'zh', optsCloudy);
+  assert.equal(tieSum.bestKey, 'N', `Within 8% cloud margin (<=12%), Maridalen (behind dome) must beat Kolbotn (blocking dome), got ${tieSum.bestKey}`);
+  assert.equal(tieSum.glareByKey.N.status, 'behind');
+  assert.equal(tieSum.glareByKey.S.status, 'blocking');
+
+  // Verify synthesizeTonightAction receives identical bestKey via compassOpts (Single Source of Truth)
+  const osloCloudySc = api.computeAuroraScore({ lat: 59.9127, lon: 10.7461, cloudNow: 82, sunAlt: -20, kp: 4.5, bz: -5, speed: 480, ovation: 48, hpiGw: 55, mlt: 21 });
+  const actTie = api.synthesizeTonightAction({
+    lat: 59.9127, lon: 10.7461, sc: osloCloudySc, dirResults: tieDirs, kp: 4.5, mlt: 21, compassOpts: optsCloudy, lang: 'zh'
+  });
+  assert.equal(actTie.actionType, 'drive');
+  assert.ok(actTie.lead.includes('Maridalen'), `synthesizeTonightAction must share the exact same tie-broken winner (Maridalen), got "${actTie.lead}"`);
+
+  // Beyond 12% cloud margin (17% difference): clouds ALWAYS win, with honest dome warning
+  const wideDirs = [
+    { key: 'here', label: '原地', avg3h: 82, nowC: 85, isOcean: false },
+    { key: 'S', label: '往南 Kolbotn', lat: 59.81, lon: 10.80, roadKm: 16, avg3h: 15, nowC: 15, temp: -2, maxWind3h: 3, maxPrecip3h: 0, isOcean: false },
+    { key: 'N', label: '往北 Maridalen', lat: 60.01, lon: 10.77, roadKm: 12, avg3h: 32, nowC: 32, temp: -2, maxWind3h: 3, maxPrecip3h: 0, isOcean: false }
+  ];
+  const wideSum = api.summarizeCompass(wideDirs, 'zh', optsCloudy);
+  assert.equal(wideSum.bestKey, 'S', `Beyond 12% cloud margin, clearer sky must still win (clouds > glare), got ${wideSum.bestKey}`);
+  assert.ok(wideSum.text.includes('光穹'), `Winner facing city dome must include honest glare note, got "${wideSum.text}"`);
+
+  // (c) Clear-night Oslo: NEVER mutates bestKey away from 'here'; activates glareEscapeKey only when auroraWorthViewing=true
+  const clearDirs = [
+    { key: 'here', label: '原地', avg3h: 5, nowC: 5, isOcean: false },
+    { key: 'N', label: '往北 Maridalen', lat: 60.01, lon: 10.77, roadKm: 12, avg3h: 5, nowC: 5, temp: -2, maxWind3h: 2, maxPrecip3h: 0, isOcean: false },
+    { key: 'NE', label: '往東北 Nittedal', lat: 60.06, lon: 10.87, roadKm: 22, avg3h: 5, nowC: 5, temp: -2, maxWind3h: 2, maxPrecip3h: 0, isOcean: false }
+  ];
+  const clearActive = api.summarizeCompass(clearDirs, 'zh', optsCloudy);
+  assert.equal(clearActive.bestKey, 'here', 'Clear night must NEVER mutate bestKey away from here');
+  assert.equal(clearActive.glareEscapeActive, true);
+  assert.equal(clearActive.glareEscapeKey, 'N', `Clear active Oslo night should suggest Maridalen (12km) as calm glareEscapeKey, got ${clearActive.glareEscapeKey}`);
+  assert.ok(clearActive.text.includes('Maridalen') && clearActive.text.includes('光穹'));
+
+  const clearQuiet = api.summarizeCompass(clearDirs, 'zh', { ...optsCloudy, auroraWorthViewing: false });
+  assert.equal(clearQuiet.bestKey, 'here');
+  assert.equal(clearQuiet.glareEscapeActive, false);
+  assert.equal(clearQuiet.glareEscapeKey, null, 'Quiet aurora night must stay calm with no glareEscapeKey');
+});
+
 
 
 
