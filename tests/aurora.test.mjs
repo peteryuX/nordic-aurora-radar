@@ -2872,6 +2872,88 @@ test('55. Tonight 3-Night Outlook maxKp parity with 24h live-calibrated chart (n
   assert.equal(nights[1].gScale, 1, 'Tomorrow night must still flag G1');
 });
 
+test('56. v50 World-Class Upgrades: FMI Nordic Ground Magnetometers, Finnish Lapland Cloud Sensors, Adaptive BMA & Substorm Phase', async () => {
+  const nowMs = Date.UTC(2026, 10, 26, 4, 30, 0);
+
+  // (a) FMI WFS Magnetometer parser: DC-offset invariance (2306 nT quiet baseline), 1-sample spike rejection, real -180 nT negative bay
+  const mkMagXml = (vals) => `<wfs:FeatureCollection>${vals.map((v, k) => {
+    const t = new Date(nowMs - (vals.length - 1 - k) * 5 * 60000).toISOString().slice(0, 19) + 'Z';
+    return `<wfs:member><BsWfs:BsWfsElement><BsWfs:Location><gml:Point><gml:pos>69.05800 20.77470 </gml:pos></gml:Point></BsWfs:Location><BsWfs:Time>${t}</BsWfs:Time><BsWfs:ParameterName>MAGNX_PT1M_AVG</BsWfs:ParameterName><BsWfs:ParameterValue>${v}</BsWfs:ParameterValue></BsWfs:BsWfsElement></wfs:member>`;
+  }).join('')}</wfs:FeatureCollection>`;
+
+  // Quiet night with huge arbitrary DC baseline (14690 nT) + single isolated -500 nT glitch spike -> MUST stay quiet!
+  const quietVals = Array.from({ length: 24 }, (_, k) => k === 12 ? 14190 : 14690 + (k % 2 ? 3 : -3));
+  const quietMag = api.parseFmiMagnetometerWfs(mkMagXml(quietVals), 69.6492, 18.9553, nowMs);
+  assert.ok(quietMag && quietMag.code === 'KIL' && quietMag.active === false && quietMag.groundSubstormJumpNt === 0,
+    `Quiet 14690 nT baseline + single glitch must stay quiet, got ${JSON.stringify(quietMag)}`);
+
+  // Real overhead westward auroral electrojet negative bay (-180 nT drop over 20 min at Kilpisjärvi, 2306 nT DC baseline)
+  const bayVals = Array.from({ length: 24 }, (_, k) => k < 18 ? 2306 : Math.round(2306 - ((k - 17) / 6) * 180));
+  const bayMag = api.parseFmiMagnetometerWfs(mkMagXml(bayVals), 69.6492, 18.9553, nowMs);
+  assert.ok(bayMag && bayMag.code === 'KIL' && bayMag.active === true && bayMag.bayDropNt >= 150 && bayMag.groundSubstormJumpNt >= 30,
+    `Real -180 nT overhead bay must activate substorm detector, got ${JSON.stringify(bayMag)}`);
+
+  // Out-of-range (>600 km, e.g. Iceland) returns null
+  assert.equal(api.parseFmiMagnetometerWfs(mkMagXml(bayVals), 64.1466, -21.9426, nowMs), null, 'Iceland >600km from FMI chain must return null');
+
+  // (b) FMI Finnish Lapland n_man cloud parser (oktas 0..8, NaN rejection, nearest station)
+  const fmiCloudXml = `<wfs:FeatureCollection>
+    <wfs:member><BsWfs:BsWfsElement><BsWfs:Location><gml:Point><gml:pos>69.03905 20.81379 </gml:pos></gml:Point></BsWfs:Location><BsWfs:Time>${new Date(nowMs - 10 * 60000).toISOString()}</BsWfs:Time><BsWfs:ParameterName>n_man</BsWfs:ParameterName><BsWfs:ParameterValue>1.0</BsWfs:ParameterValue></BsWfs:BsWfsElement></wfs:member>
+    <wfs:member><BsWfs:BsWfsElement><BsWfs:Location><gml:Point><gml:pos>69.03905 20.81379 </gml:pos></gml:Point></BsWfs:Location><BsWfs:Time>${new Date(nowMs - 5 * 60000).toISOString()}</BsWfs:Time><BsWfs:ParameterName>n_man</BsWfs:ParameterName><BsWfs:ParameterValue>NaN</BsWfs:ParameterValue></BsWfs:BsWfsElement></wfs:member>
+  </wfs:FeatureCollection>`;
+  const fmiObs = api.parseFmiCloudObs(fmiCloudXml, 69.045, 20.80, nowMs);
+  assert.ok(fmiObs && fmiObs.source === 'FMI' && fmiObs.effCloud === 13 && fmiObs.clearPct === 87 && fmiObs.skyCode === 'FEW',
+    `Kilpisjärvi 1 okta must yield 13% cloud / 87% clear while ignoring NaN, got ${JSON.stringify(fmiObs)}`);
+
+  // (c) Inverse-Variance Bayesian Model Averaging (BMA) — Tromsø marine stratus miss vs Abisko blue hole
+  // Live Tromsø case: MEPS missed 1,250m stratus (6%), ECMWF caught it (86%), ENTC METAR ground truth = 75%
+  const wTromso = api.computeAdaptiveBmaWeight(6, 86, 75, 4, 10);
+  assert.ok(wTromso >= 0.78 && wTromso <= 0.85, `Tromsø obs-verified ECMWF BMA weight must be ~0.82-0.85, got ${wTromso}`);
+  // Abisko blue-hole case: MEPS caught clear sky (14%), coarse ECMWF smeared overcast (88%), SMHI obs = 10%
+  const wAbisko = api.computeAdaptiveBmaWeight(14, 88, 10, 1, 10);
+  assert.ok(wAbisko >= 0.15 && wAbisko <= 0.22, `Abisko obs-verified MEPS BMA weight must keep ECMWF low (~0.15-0.22), got ${wAbisko}`);
+  // Agreeing models (<18 pts apart) return null (preserve prior)
+  assert.equal(api.computeAdaptiveBmaWeight(40, 50, 45, 5, 10), null);
+
+  // Verify BMA fixes Tromsø +0..2h false optimism in blendNordicHourlyForecasts while relaxing smoothly to 50/50 by +6h
+  const baseStart = Date.UTC(2026, 10, 25, 21, 0, 0);
+  const metMiss = Array.from({ length: 12 }, (_, i) => ({
+    dtMs: baseStart + i * 3600000, time: `${String((22 + i) % 24).padStart(2, '0')}:00`,
+    block: 6, clear: 94, temp: -1, windMs: 3, precip: 0, isDay: false, sunAlt: -20, txt: '🌟 晴'
+  }));
+  const omHit = metMiss.map(h => ({ ...h, block: 86, clear: 14 }));
+  const bmaBlended = api.blendNordicHourlyForecasts(metMiss, omHit, { metarConfirmsEcmwf: true, bmaWeight2: wTromso });
+  assert.ok(bmaBlended[0].block >= 68, `Tromsø +0h BMA block (${bmaBlended[0].block}%) must reflect ~75% stratus instead of 46% 50/50`);
+  assert.ok(bmaBlended[2].block >= 55 && bmaBlended[2].block < bmaBlended[0].block, `Tromsø +2h BMA block (${bmaBlended[2].block}%) must relax smoothly`);
+  assert.equal(bmaBlended[6].block, 46, '+6h relaxes cleanly back to 50/50 prior');
+
+  // (d) Substorm phase classifier
+  const pActive = api.computeSubstormPhase({ fmiMag: bayMag });
+  assert.equal(pActive.phase, 'active');
+  assert.equal(pActive.groundTriggered, true);
+  const pLoad = api.computeSubstormPhase({ bal: { energy120: [42], avgNewell60: 3600 }, fmiMag: quietMag });
+  assert.equal(pLoad.phase, 'loading');
+  const pRec = api.computeSubstormPhase({ fmiMag: { ...quietMag, level: 'moderate', active: false }, kyotoDst: { dst: -55 } });
+  assert.equal(pRec.phase, 'recovery');
+  const pQuiet = api.computeSubstormPhase({ bal: { energy120: [5], avgNewell60: 400 }, fmiMag: quietMag });
+  assert.equal(pQuiet.phase, 'quiet');
+
+  // (e) Live smoke verification of opendata.fmi.fi WFS (Magnetometer + Lapland cloud n_man) when LIVE_TEST=1
+  if (process.env.LIVE_TEST === '1') {
+    const start180 = new Date(Date.now() - 180 * 60000).toISOString().slice(0, 19) + 'Z';
+    const endNow = new Date().toISOString().slice(0, 19) + 'Z';
+    const start35 = new Date(Date.now() - 35 * 60000).toISOString().slice(0, 19) + 'Z';
+    const [magXml, cldXml] = await Promise.all([
+      fetch(`https://opendata.fmi.fi/wfs?service=WFS&version=2.0.0&request=getFeature&storedquery_id=fmi::observations::magnetometer::simple&starttime=${start180}&endtime=${endNow}&parameters=MAGNX_PT1M_AVG&timestep=5`).then(r => r.text()),
+      fetch(`https://opendata.fmi.fi/wfs?service=WFS&version=2.0.0&request=getFeature&storedquery_id=fmi::observations::weather::simple&bbox=20,66,30,70&parameters=n_man&starttime=${start35}`).then(r => r.text())
+    ]);
+    const liveMag = api.parseFmiMagnetometerWfs(magXml, 69.6492, 18.9553, Date.now());
+    assert.ok(liveMag && liveMag.code === 'KIL' && Number.isFinite(liveMag.amp60Nt), `Live FMI KIL magnetometer failed: ${JSON.stringify(liveMag)}`);
+    const liveCld = api.parseFmiCloudObs(cldXml, 69.045, 20.80, Date.now());
+    assert.ok(liveCld && liveCld.source === 'FMI' && liveCld.effCloud >= 0 && liveCld.effCloud <= 100, `Live FMI Kilpisjärvi cloud obs failed: ${JSON.stringify(liveCld)}`);
+  }
+});
+
 
 
 

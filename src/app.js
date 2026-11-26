@@ -1198,7 +1198,7 @@ function selectBzPoint(idx) {
   if (nextBtn) nextBtn.disabled = clampedIdx >= series.length - 1;
 }
 
-function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales, noaaAlert, bal, noaaOk, noaaLagMin, pos }) {
+function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, fmiMag, substormPhase, noaaScales, noaaAlert, bal, noaaOk, noaaLagMin, pos }) {
   const en = isEn();
   const tz = pos?.tz || state.pos.tz;
   renderStormBanner(noaaScales, noaaAlert);
@@ -1215,14 +1215,19 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales,
     ? bal.energy120[bal.energy120.length - 1]
     : (liveBz !== null ? Engine.bzToEnergy(liveBz, speed) : null);
 
-  const isBurst = Boolean(goesSub?.active || bal?.shockActive);
+  const groundBurst = Boolean(fmiMag?.active);
+  const groundRecovery = Boolean(!groundBurst && substormPhase?.phase === 'recovery' && substormPhase?.groundTriggered);
+  const isBurst = Boolean(groundBurst || goesSub?.active || bal?.shockActive);
   const isBrighten = Boolean(enSum.good || (latestEnergy !== null && latestEnergy >= 62));
   const isBuilding = Boolean(!isBrighten && ((latestEnergy !== null && latestEnergy >= 25) || (enSum.raw && enSum.raw.includes('增強'))));
 
   const bzBadge = $('bzBadge');
   if (bzBadge) {
     const leadTag = en ? `~${etaMin}m` : `約 ${etaMin} 分後`;
-    if (isBurst) {
+    if (groundBurst) {
+      bzBadge.innerHTML = `${en ? 'Now' : '即時'} · <strong style="color:var(--green);">${en ? 'Substorm active' : '頭頂爆發中'}</strong>`;
+      bzBadge.className = 'sw-badge sw-good';
+    } else if (isBurst) {
       bzBadge.innerHTML = `${leadTag} · <strong style="color:var(--green);">${escapeHtml(term(TERMS.solarWind.strong, en))}</strong>`;
       bzBadge.className = 'sw-badge sw-good';
     } else if (isBrighten) {
@@ -1230,6 +1235,9 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales,
       bzBadge.className = 'sw-badge sw-good';
     } else if (isBuilding) {
       bzBadge.innerHTML = `${leadTag} · <strong style="color:var(--amber);">${escapeHtml(term(TERMS.solarWind.building, en))}</strong>`;
+      bzBadge.className = 'sw-badge sw-warn';
+    } else if (groundRecovery) {
+      bzBadge.innerHTML = `${en ? 'Now' : '即時'} · <strong style="color:var(--amber);">${en ? 'Recovery glow' : '餘韻持續'}</strong>`;
       bzBadge.className = 'sw-badge sw-warn';
     } else if (enSum.raw || liveBz !== null) {
       bzBadge.innerHTML = `${leadTag} · <strong>${escapeHtml(term(TERMS.solarWind.low, en))}</strong>`;
@@ -1241,8 +1249,12 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales,
   }
   const eb = $('energyBanner');
   if (eb) {
-    eb.className = 'sw-summary' + (isBurst || isBrighten ? ' sw-sum-good' : (isBuilding ? ' sw-sum-warn' : ''));
-    if (goesSub?.active) {
+    eb.className = 'sw-summary' + (isBurst || isBrighten ? ' sw-sum-good' : ((isBuilding || groundRecovery) ? ' sw-sum-warn' : ''));
+    if (groundBurst) {
+      eb.textContent = en
+        ? `Local magnetometer (${fmiMag.stationName}) recorded a ${fmiMag.bayDropNt} nT overhead drop — substorm active now.`
+        : `當地地磁站（${fmiMag.stationName}）測得頭頂磁場驟降 ${fmiMag.bayDropNt} nT，極光正處於爆發期。`;
+    } else if (goesSub?.active) {
       eb.textContent = en
         ? 'Sudden magnetic energy release detected — aurora may brighten quickly.'
         : '衛星偵測到磁尾能量釋放，極光可能短時間內突然變亮。';
@@ -1258,6 +1270,10 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, noaaScales,
       eb.textContent = en
         ? `Solar wind energy is building — aurora may strengthen within ~${etaMin} min.`
         : `極光能量正在累積，未來 ${etaMin} 分鐘內有機會轉強。`;
+    } else if (groundRecovery) {
+      eb.textContent = en
+        ? `Recent magnetic activity (${fmiMag.stationName}, ${fmiMag.amp60Nt} nT/h) — faint recovery glow may persist.`
+        : `當地地磁剛有擾動（${fmiMag.stationName}），高空仍可能有餘韻極光。`;
     } else if (liveBz !== null) {
       eb.textContent = en
         ? `No burst signal from upstream satellites for the next ~${etaMin} min.`
@@ -1463,17 +1479,18 @@ function renderFromState(st) {
   if (!st) return;
   const en = isEn();
   const {
-    pos: stPos, magSeries, chartSeries, speed, bz, kp, ovation, hpiGw, goesSub, noaaScales, noaaAlert, kyotoDst, enlilForecast, predKp1h, bal,
+    pos: stPos, magSeries, chartSeries, speed, bz, kp, ovation, hpiGw, goesSub, fmiMag, substormPhase,
+    noaaScales, noaaAlert, kyotoDst, enlilForecast, predKp1h, bal,
     noaaOk, noaaLagMin, hereHrs, dirResults, weatherSourceLabel, usedMet, cloudConsensus, metarObs, metarFusion, nowcastObs,
-    sunAltNow, mltNow, moon, sc, scNext, bestDark, nights3, multiDayPts, kpForecast, fetchedAt
+    bmaWeight2, sunAltNow, mltNow, moon, sc, scNext, bestDark, nights3, multiDayPts, kpForecast, fetchedAt
   } = st;
   const pos = stPos || state.pos;
   const refNow = fetchedAt instanceof Date ? fetchedAt : (fetchedAt ? new Date(fetchedAt) : new Date());
   const safeBal = bal || { etaMin: 45, nowBz: bz, nextBz: bz, cleanLatestBz: bz, nowPdyn: null, nowShockJumpNpa: 0, pdyn: null, shockActive: false, energy120: [], arrivingIdx: -1 };
 
   const etaClock = renderNoaaSection({
-    magSeries: magSeries || [], chartSeries: chartSeries || [], speed, goesSub, noaaScales, noaaAlert,
-    bal: safeBal, noaaOk, noaaLagMin, pos
+    magSeries: magSeries || [], chartSeries: chartSeries || [], speed, goesSub, fmiMag, substormPhase,
+    noaaScales, noaaAlert, bal: safeBal, noaaOk, noaaLagMin, pos
   });
   if (!hereHrs || !hereHrs.length) return;
   const c0 = hereHrs[0].block;
@@ -1485,11 +1502,12 @@ function renderFromState(st) {
   const metarCalibrated = Boolean(
     metarObs && metarFusion?.applied && (metarObs.distKm ?? 99) <= 25 && (metarObs.ageMin ?? 99) <= 60
   );
+  const effSubstormJump = Math.max(goesSub ? goesSub.jumpNt : 0, fmiMag?.groundSubstormJumpNt || 0);
   const expNow = explainAuroraScore({
     lat: pos.lat, lon: pos.lon,
     cloudNow: c0, sunAlt: sunAltNow,
     bz: safeBal.nowBz ?? bz, speed, kp, ovation, hpiGw,
-    substormJumpNt: goesSub ? goesSub.jumpNt : 0,
+    substormJumpNt: effSubstormJump,
     pdyn: safeBal.nowPdyn, shockJumpNpa: safeBal.nowShockJumpNpa,
     newell: safeBal.nowNewell, preconditionedNewell60: safeBal.avgNewell60,
     dst: st.effectiveDst?.dstNow ?? kyotoDst?.dst ?? null,
@@ -1519,9 +1537,15 @@ function renderFromState(st) {
   if (effDstNow !== null && Number.isFinite(effDstNow)) {
     rawParts.push(`${st.effectiveDst?.usedMhd ? 'MHD Dst' : 'Dst'} ${effDstNow} nT`);
   }
+  if (fmiMag && Number.isFinite(fmiMag.bayDropNt)) {
+    const magMetric = fmiMag.bayDropNt >= 15 ? `-${fmiMag.bayDropNt}nT` : `${fmiMag.amp60Nt}nT/h`;
+    rawParts.push(`FMI ${fmiMag.code} ${magMetric} (${fmiMag.ageMin}m)`);
+  }
   if (metarObs && metarFusion?.applied) {
     if (metarObs.source === 'SMHI') {
       rawParts.push(`SMHI ${metarObs.stationId || metarObs.icao} ${metarObs.clearPct}% clr (${metarObs.ageMin}m)`);
+    } else if (metarObs.source === 'FMI') {
+      rawParts.push(`FMI ${metarObs.clearPct}% clr (${metarObs.ageMin}m)`);
     } else {
       const ceilStr = metarObs.ceilingM ? ` ${metarObs.ceilingM}m` : '';
       rawParts.push(`METAR ${metarObs.icao} ${metarObs.skyCode}${ceilStr} (${metarObs.ageMin}m)`);
@@ -1531,6 +1555,9 @@ function renderFromState(st) {
     rawParts.push(nowcastObs.radarActive ? `Radar 5m (${nowcastObs.precipRate}mm/h)` : 'Radar 5m');
   } else if (nowcastObs?.source === 'gps-15m') {
     rawParts.push('GPS 15m');
+  }
+  if (Number.isFinite(bmaWeight2)) {
+    rawParts.push(`BMA ${Math.round(bmaWeight2 * 100)}%`);
   }
   if (st.ensMeta?.members >= 15) {
     rawParts.push(`ENS ${st.ensMeta.members}m`);

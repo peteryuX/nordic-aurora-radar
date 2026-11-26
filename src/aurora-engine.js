@@ -2864,6 +2864,269 @@ export function parseSmhiCloudObs(json, nowMs = Date.now(), stationId = '') {
 }
 
 /**
+ * Official Finnish Meteorological Institute (FMI / IMAGE) Nordic Ground Magnetometer Chain.
+ * `low` / `high` nT thresholds are FMI's exact published per-station auroral activity limits.
+ */
+export const FMI_MAG_STATIONS = [
+  { code: 'KEV', name: 'Kevo',         lat: 69.7564, lon: 27.0068, low: 55, high: 165 },
+  { code: 'KIL', name: 'Kilpisjärvi',  lat: 69.0580, lon: 20.7747, low: 61, high: 210 },
+  { code: 'IVA', name: 'Ivalo',        lat: 68.5590, lon: 27.2890, low: 72, high: 275 },
+  { code: 'MUO', name: 'Muonio',       lat: 68.0224, lon: 23.5201, low: 75, high: 300 },
+  { code: 'PEL', name: 'Pello',        lat: 66.9042, lon: 24.0798, low: 73, high: 285 },
+  { code: 'RAN', name: 'Ranua',        lat: 65.8957, lon: 26.4092, low: 70, high: 240 },
+  { code: 'OUJ', name: 'Oulujärvi',    lat: 64.5107, lon: 27.2267, low: 68, high: 200 },
+  { code: 'MEK', name: 'Mekrijärvi',   lat: 62.7740, lon: 30.9680, low: 64, high: 150 },
+  { code: 'HAN', name: 'Hankasalmi',   lat: 62.2540, lon: 26.5965, low: 63, high: 140 },
+  { code: 'NUR', name: 'Nurmijärvi',   lat: 60.5000, lon: 24.6500, low: 60, high: 120 },
+  { code: 'TAR', name: 'Tartu',        lat: 58.2600, lon: 26.4600, low: 55, high: 100 }
+];
+
+/** Geographic domain covered by the Nordic FMI/IMAGE ground magnetometer chain (<=600 km reach). */
+export function isInFmiNordicBox(lat, lon) {
+  return Number.isFinite(lat) && Number.isFinite(lon) && lat >= 56.0 && lat <= 73.5 && lon >= 4.0 && lon <= 35.0;
+}
+
+/** Geographic domain for FMI Finnish Lapland / mainland automated ground cloud sensors (n_man oktas). */
+export function isInFinlandCloudBox(lat, lon) {
+  return Number.isFinite(lat) && Number.isFinite(lon) && lat >= 59.5 && lat <= 70.5 && lon >= 19.5 && lon <= 31.6;
+}
+
+/**
+ * Parse FMI Open Data WFS `fmi::observations::magnetometer::simple` (MAGNX_PT1M_AVG).
+ * Uses strictly DC-offset-invariant metrics (180-min 80th-percentile quiet baseline minus latest despiked Bx
+ * for westward electrojet negative bay drop, plus 60-min peak-to-peak excursion) calibrated directly to
+ * FMI's official per-station auroral thresholds so arbitrary variometer DC offsets never cause false alarms.
+ */
+export function parseFmiMagnetometerWfs(xmlText, lat, lon, nowMs = Date.now(), maxDistKm = 600) {
+  if (typeof xmlText !== 'string' || !xmlText.includes('BsWfsElement')) return null;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+
+  const byPos = new Map();
+  const re = /<gml:pos>([^<]+)<\/gml:pos>[\s\S]*?<BsWfs:Time>([^<]+)<\/BsWfs:Time>[\s\S]*?<BsWfs:ParameterName>([^<]+)<\/BsWfs:ParameterName>[\s\S]*?<BsWfs:ParameterValue>([^<]+)<\/BsWfs:ParameterValue>/g;
+  let m;
+  while ((m = re.exec(xmlText)) !== null) {
+    if (!m[3].includes('MAGNX')) continue;
+    const val = Number(m[4].trim());
+    if (!Number.isFinite(val)) continue;
+    const tMs = Date.parse(m[2].trim());
+    if (!Number.isFinite(tMs) || tMs > nowMs + 10 * 60000 || tMs < nowMs - 4 * 3600000) continue;
+    const posKey = m[1].trim();
+    if (!byPos.has(posKey)) byPos.set(posKey, []);
+    byPos.get(posKey).push({ tMs, val });
+  }
+  if (!byPos.size) return null;
+
+  let best = null;
+  for (const [posKey, pts] of byPos) {
+    const parts = posKey.split(/\s+/).map(Number);
+    if (parts.length < 2 || !Number.isFinite(parts[0]) || !Number.isFinite(parts[1])) continue;
+    const [sLat, sLon] = parts;
+    const distKm = computeDistanceKm(lat, lon, sLat, sLon);
+    if (!Number.isFinite(distKm) || distKm > maxDistKm) continue;
+    if (pts.length < 4) continue;
+    pts.sort((a, b) => a.tMs - b.tMs);
+    const lastMs = pts[pts.length - 1].tMs;
+    const ageMin = Math.round((nowMs - lastMs) / 60000);
+    if (ageMin > 25 || ageMin < -10) continue;
+    if (!best || distKm < best.distKm) {
+      best = { sLat, sLon, distKm: +distKm.toFixed(1), ageMin: Math.max(0, ageMin), pts };
+    }
+  }
+  if (!best) return null;
+
+  // Match nearest official FMI station registry metadata for exact low/high auroral thresholds
+  let meta = { code: 'FMI', name: 'Lapland', low: 65, high: 220 };
+  let metaDist = Infinity;
+  for (const st of FMI_MAG_STATIONS) {
+    const d = computeDistanceKm(best.sLat, best.sLon, st.lat, st.lon);
+    if (Number.isFinite(d) && d < metaDist) { metaDist = d; meta = st; }
+  }
+
+  // 3-point median despiker (eliminates isolated 1-sample telemetry spikes)
+  const rawVals = best.pts.map(p => p.val);
+  const smooth = rawVals.map((v, i) => {
+    if (i === 0 || i === rawVals.length - 1) return v;
+    const tri = [rawVals[i - 1], v, rawVals[i + 1]].sort((a, b) => a - b);
+    return tri[1];
+  });
+  const latestMs = best.pts[best.pts.length - 1].tMs;
+  const last60 = [];
+  for (let i = 0; i < best.pts.length; i++) {
+    if (best.pts[i].tMs >= latestMs - 65 * 60000) last60.push(smooth[i]);
+  }
+  const amp60Nt = last60.length >= 2 ? Math.round(Math.max(...last60) - Math.min(...last60)) : 0;
+
+  // Quiet reference = 80th percentile of rolling 180m window (robust against ongoing negative bay)
+  const sorted = [...smooth].sort((a, b) => a - b);
+  const quietRef = sorted[Math.floor(0.80 * (sorted.length - 1))];
+  const latestBx = smooth[smooth.length - 1];
+  const minLast15 = Math.min(...smooth.slice(-Math.min(4, smooth.length)));
+  // Negative bay drop (positive nT magnitude when westward auroral electrojet depresses Bx)
+  const bayDropNt = Math.max(0, Math.round(quietRef - Math.min(latestBx, minLast15)));
+
+  // Peak 5-min downward derivative in the last 25 min (nT/min) for expansion-onset detection
+  let maxDropRate = 0;
+  for (let i = 1; i < best.pts.length; i++) {
+    if (best.pts[i].tMs < latestMs - 25 * 60000) continue;
+    const dtMin = (best.pts[i].tMs - best.pts[i - 1].tMs) / 60000;
+    if (dtMin >= 1 && dtMin <= 15) {
+      const rate = (smooth[i - 1] - smooth[i]) / dtMin;
+      if (rate > maxDropRate) maxDropRate = rate;
+    }
+  }
+
+  const level = (bayDropNt >= meta.high || amp60Nt >= Math.round(meta.high * 1.15))
+    ? 'high'
+    : ((bayDropNt >= meta.low || amp60Nt >= Math.round(meta.low * 1.15)) ? 'moderate' : 'quiet');
+  const active = bayDropNt >= meta.low || (amp60Nt >= meta.high && maxDropRate >= 5);
+  // Conservative mapping to equivalent GOES substorm jump nT (0 when quiet; max 55 nT on major overhead substorm)
+  const distAtten = best.distKm <= 300 ? 1 : Math.max(0.4, 1 - (best.distKm - 300) / 500);
+  const groundSubstormJumpNt = active
+    ? Math.min(55, Math.round(bayDropNt * 0.22 * distAtten))
+    : 0;
+
+  return {
+    code: meta.code,
+    stationName: meta.name,
+    distKm: best.distKm,
+    ageMin: best.ageMin,
+    amp60Nt,
+    bayDropNt,
+    dBdtMax: +maxDropRate.toFixed(1),
+    lowThreshold: meta.low,
+    highThreshold: meta.high,
+    level,
+    active,
+    groundSubstormJumpNt,
+    obsMs: latestMs
+  };
+}
+
+/**
+ * Parse FMI Open Data WFS `fmi::observations::weather::simple` (`n_man` total cloud cover in 0..8 oktas).
+ * Covers 29+ automated Finnish Lapland ground stations (Kilpisjärvi, Levi, Saariselkä, Utsjoki, Sodankylä, Rovaniemi).
+ */
+export function parseFmiCloudObs(xmlText, lat, lon, nowMs = Date.now(), maxDistKm = 55) {
+  if (typeof xmlText !== 'string' || !xmlText.includes('BsWfsElement')) return null;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+
+  const latestByPos = new Map();
+  const re = /<gml:pos>([^<]+)<\/gml:pos>[\s\S]*?<BsWfs:Time>([^<]+)<\/BsWfs:Time>[\s\S]*?<BsWfs:ParameterName>([^<]+)<\/BsWfs:ParameterName>[\s\S]*?<BsWfs:ParameterValue>([^<]+)<\/BsWfs:ParameterValue>/g;
+  let m;
+  while ((m = re.exec(xmlText)) !== null) {
+    if (m[3].trim() !== 'n_man') continue;
+    const oktas = Number(m[4].trim());
+    if (!Number.isFinite(oktas) || oktas < 0 || oktas > 8) continue;
+    const obsMs = Date.parse(m[2].trim());
+    if (!Number.isFinite(obsMs)) continue;
+    const ageMin = Math.round((nowMs - obsMs) / 60000);
+    if (ageMin > 60 || ageMin < -15) continue;
+    const posKey = m[1].trim();
+    const prev = latestByPos.get(posKey);
+    if (!prev || obsMs > prev.obsMs) latestByPos.set(posKey, { obsMs, ageMin: Math.max(0, ageMin), oktas });
+  }
+  if (!latestByPos.size) return null;
+
+  let best = null;
+  for (const [posKey, rec] of latestByPos) {
+    const parts = posKey.split(/\s+/).map(Number);
+    if (parts.length < 2 || !Number.isFinite(parts[0]) || !Number.isFinite(parts[1])) continue;
+    const [sLat, sLon] = parts;
+    const d = computeDistanceKm(lat, lon, sLat, sLon);
+    if (!Number.isFinite(d) || d > maxDistKm) continue;
+    if (!best || d < best.distKm) {
+      best = { lat: sLat, lon: sLon, distKm: +d.toFixed(1), ...rec };
+    }
+  }
+  if (!best) return null;
+
+  const effCloud = Math.max(0, Math.min(100, Math.round((best.oktas / 8) * 100)));
+  const clearPct = 100 - effCloud;
+  const skyCode = effCloud === 0 ? 'CLR' : (effCloud <= 25 ? 'FEW' : (effCloud <= 50 ? 'SCT' : (effCloud <= 88 ? 'BKN' : 'OVC')));
+  // Human-readable nearest Lapland station name when close to known FMI sites
+  let name = 'FMI Lapland';
+  let bestNmDist = 25;
+  for (const st of FMI_MAG_STATIONS) {
+    const d = computeDistanceKm(best.lat, best.lon, st.lat, st.lon);
+    if (Number.isFinite(d) && d < bestNmDist) { bestNmDist = d; name = st.name; }
+  }
+  return {
+    icao: 'FMI',
+    stationId: 'FMI',
+    name,
+    lat: best.lat,
+    lon: best.lon,
+    distKm: best.distKm,
+    obsMs: best.obsMs,
+    ageMin: best.ageMin,
+    source: 'FMI',
+    effCloud,
+    clearPct,
+    skyCode,
+    ceilingM: null,
+    hasPrecipFog: false
+  };
+}
+
+/**
+ * Inverse-Variance Bayesian Model Averaging (BMA) weight for Model 2 vs Model 1,
+ * verified directly against live ground laser-ceilometer observations (METAR / SMHI / FMI).
+ * Returns null when models agree (<18 pts) or no fresh nearby observation is available,
+ * preserving default climatological/2.5km weights. Clamped strictly to [0.15, 0.85] with
+ * smooth distance attenuation (25..55 km -> 0.50 prior) so a distant station never overfits.
+ */
+export function computeAdaptiveBmaWeight(m1Block0, m2Block0, obsBlock, distKm = 0, ageMin = 0, {
+  sigma0 = 14, minW = 0.15, maxW = 0.85, minDivergence = 18
+} = {}) {
+  if (!Number.isFinite(m1Block0) || !Number.isFinite(m2Block0) || !Number.isFinite(obsBlock)) return null;
+  if (!Number.isFinite(distKm) || distKm < 0 || distKm > 55) return null;
+  if (!Number.isFinite(ageMin) || ageMin < 0 || ageMin > 90) return null;
+  if (Math.abs(m1Block0 - m2Block0) < minDivergence) return null;
+
+  const e1 = Math.abs(m1Block0 - obsBlock);
+  const e2 = Math.abs(m2Block0 - obsBlock);
+  const s2 = sigma0 * sigma0;
+  const inv1 = 1 / (e1 * e1 + s2);
+  const inv2 = 1 / (e2 * e2 + s2);
+  const rawW2 = Math.max(minW, Math.min(maxW, inv2 / (inv1 + inv2)));
+  // Full BMA strength within 25 km; linearly attenuate toward neutral 0.50 out to 55 km
+  const distFactor = distKm <= 25 ? 1 : Math.max(0, 1 - (distKm - 25) / 30);
+  const ageFactor = Math.exp(-ageMin / 120);
+  const effW2 = 0.50 + (rawW2 - 0.50) * distFactor * ageFactor;
+  return +effW2.toFixed(3);
+}
+
+/**
+ * Real-time Magnetospheric Substorm Phase Classifier (Quiet -> Loading -> Active -> Recovery).
+ * Synthesizes 1-min L1 Newell coupling integral, GOES Hp dip, live Nordic FMI/IMAGE ground
+ * magnetometer bay drop, and Geospace 1h forward MHD Dst.
+ */
+export function computeSubstormPhase({ bal = null, goesSub = null, fmiMag = null, geoDst1h = null, kyotoDst = null } = {}) {
+  const groundActive = Boolean(fmiMag?.active);
+  const goesActive = Boolean(goesSub?.active);
+  const shockActive = Boolean(bal?.shockActive);
+  const nextEnergy = (bal && Array.isArray(bal.energy120) && bal.energy120.length)
+    ? bal.energy120[bal.energy120.length - 1]
+    : 0;
+  const avgNewell60 = Number(bal?.avgNewell60) || 0;
+  const effDst = Number.isFinite(geoDst1h?.nowDst) ? geoDst1h.nowDst : (Number.isFinite(kyotoDst?.dst) ? kyotoDst.dst : 0);
+
+  if (groundActive) {
+    return { phase: 'active', groundTriggered: true, labelZh: '頭頂爆發中', labelEn: 'Substorm active' };
+  }
+  if (goesActive || shockActive) {
+    return { phase: 'active', groundTriggered: false, labelZh: '可能爆發', labelEn: 'Burst active' };
+  }
+  if (nextEnergy >= 25 || avgNewell60 >= 3200) {
+    return { phase: 'loading', groundTriggered: false, labelZh: '能量累積', labelEn: 'Energy loading' };
+  }
+  if ((fmiMag && fmiMag.level !== 'quiet') || effDst <= -45) {
+    return { phase: 'recovery', groundTriggered: Boolean(fmiMag && fmiMag.level !== 'quiet'), labelZh: '餘韻持續', labelEn: 'Recovery glow' };
+  }
+  return { phase: 'quiet', groundTriggered: false, labelZh: '平靜', labelEn: 'Quiet' };
+}
+
+/**
  * Strictly causal Optimal Interpolation (Daley 1991) ground laser ceilometer nowcast assimilation.
  * Decays innovation [OBS(t0) - NWP(t0)] exponentially across distance (Lc=40km), lead time (tau=1.6h),
  * and observation age (tau_a=90m) over hours +0h..+3h. Verified on 60,693 unbiased dark hours across
@@ -2879,7 +3142,7 @@ export function assimilateMetarNowcast(hereHrs, metarObs, distKm) {
   if (d > 55 || age > 90 || !Number.isFinite(rawNwpCloud0)) return { hours: hereHrs, applied: false };
 
   const delta0 = metarObs.effCloud - rawNwpCloud0;
-  const peakGain = metarObs.source === 'SMHI' ? 0.68 : 0.72;
+  const peakGain = (metarObs.source === 'SMHI' || metarObs.source === 'FMI') ? 0.68 : 0.72;
   const baseW = peakGain * Math.exp(-d / 40) * Math.exp(-age / 90);
   const hours = hereHrs.map((h, idx) => {
     if (idx > 3 || !Number.isFinite(h?.block)) return h;
@@ -3158,13 +3421,14 @@ export function parseEcmwfCloudEnsemble(ensJson, nowDate = new Date(), horizonHo
  * Optionally integrates 51-member ECMWF cloud ensemble median from `replaceSecondaryFromIdx` onward (default +4h;
  * pass `Infinity` for Iceland to preserve verified best_match+ICON point forecast while keeping P10..P90 envelope).
  */
-export function blendHourlyForecasts(primaryHrs, secondaryHrs, { ensHrs = null, replaceSecondaryFromIdx = 4 } = {}) {
+export function blendHourlyForecasts(primaryHrs, secondaryHrs, { ensHrs = null, replaceSecondaryFromIdx = 4, bmaWeight2 = null } = {}) {
   const hasPrim = Array.isArray(primaryHrs) && primaryHrs.length > 0;
   const hasSec = Array.isArray(secondaryHrs) && secondaryHrs.length > 0;
   const hasEns = Array.isArray(ensHrs) && ensHrs.length > 0;
   if (!hasPrim) return hasSec ? secondaryHrs : [];
   if (!hasSec && !hasEns) return primaryHrs;
   const hasSecDt = hasSec && secondaryHrs.some(s => Number.isFinite(s?.dtMs));
+  const hasBma = Number.isFinite(bmaWeight2);
   return primaryHrs.map((h, i) => {
     const match = hasSec
       ? ((Number.isFinite(h?.dtMs) && hasSecDt)
@@ -3199,7 +3463,8 @@ export function blendHourlyForecasts(primaryHrs, secondaryHrs, { ensHrs = null, 
     if (synopticBlock === null) {
       return { ...h, cloudSpread, clearLow, clearHigh, ...ensMeta };
     }
-    const block = Math.max(0, Math.min(100, Math.round(0.5 * m1 + 0.5 * synopticBlock)));
+    const w2 = (hasBma && i <= 5) ? (0.50 + (bmaWeight2 - 0.50) * Math.exp(-i / 3.5)) : 0.50;
+    const block = Math.max(0, Math.min(100, Math.round((1 - w2) * m1 + w2 * synopticBlock)));
     const clear = 100 - block;
     let txt = h.txt;
     if (!h.isDay && txt !== undefined) {
@@ -3213,16 +3478,17 @@ export function blendHourlyForecasts(primaryHrs, secondaryHrs, { ensHrs = null, 
 
 /**
  * Nordic horizon-aware dual-model & 51-member ensemble (MET Norway 2.5km MEPS + ECMWF IFS 0.25° + 51-member ENS):
- * - +0..2h: preserve 2.5km fjord rain-shadow precision (omW = 0), unless live obs proves ECMWF closer (omW = 0.50)
- * - +3h: smooth transition (omW = 0.25, or 0.50 if live obs confirms ECMWF)
- * - +4..23h: 50/50 synoptic ensemble (MEPS + 51-member ECMWF median) with outer P10..P90 clear-sky envelope
+ * - +0..2h: preserve 2.5km fjord rain-shadow precision (omW = 0), unless live obs proves ECMWF closer (BMA up to 0.85)
+ * - +3..5h: smooth Bayesian Model Averaging relaxation toward synoptic 50/50
+ * - +6..23h: 50/50 synoptic ensemble (MEPS + 51-member ECMWF median) with outer P10..P90 clear-sky envelope
  * Always preserves surface temp/wind/precip from 2.5km MEPS and attaches raw pre-blend spread metadata.
  */
-export function blendNordicHourlyForecasts(metHrs, omHrs, { metarConfirmsEcmwf = false, ensHrs = null } = {}) {
+export function blendNordicHourlyForecasts(metHrs, omHrs, { metarConfirmsEcmwf = false, ensHrs = null, bmaWeight2 = null } = {}) {
   if (!Array.isArray(metHrs) || !metHrs.length) return metHrs || [];
   const hasOm = Array.isArray(omHrs) && omHrs.length > 0;
   const hasEns = Array.isArray(ensHrs) && ensHrs.length > 0;
   if (!hasOm && !hasEns) return metHrs;
+  const hasBma = Number.isFinite(bmaWeight2);
   return metHrs.map((h, idx) => {
     if (!Number.isFinite(h?.dtMs) || !Number.isFinite(h?.block)) {
       return { ...h, cloudSpread: null, clearLow: null, clearHigh: null };
@@ -3248,15 +3514,24 @@ export function blendNordicHourlyForecasts(metHrs, omHrs, { metarConfirmsEcmwf =
     const clearLow = ensM ? Math.max(0, Math.min(detLow, ensM.ensClearP10)) : detLow;
     const clearHigh = ensM ? Math.min(100, Math.max(detHigh, ensM.ensClearP90)) : detHigh;
     const cloudSpread = Math.round(clearHigh - clearLow);
-    const omW = idx <= 2
-      ? (metarConfirmsEcmwf && omM ? 0.50 : 0)
-      : (idx === 3 ? (metarConfirmsEcmwf && omM ? 0.50 : 0.25) : 0.50);
+    let omW;
+    if (hasBma && omM && bmaWeight2 > 0.50) {
+      // Ground obs proved ECMWF tracks active cloud deck better than MEPS: shift up to 0.85, relaxing to 0.50 by +6h
+      omW = idx <= 5 ? (0.50 + (bmaWeight2 - 0.50) * Math.exp(-idx / 3.5)) : 0.50;
+    } else if (hasBma && omM && bmaWeight2 < 0.50) {
+      // Ground obs confirmed 2.5km MEPS rain-shadow precision: hold pure MEPS +0..2h and dampen coarse ECMWF +3..5h
+      const priorW = idx <= 2 ? 0 : (idx === 3 ? 0.25 : 0.50);
+      omW = idx <= 2 ? 0 : (idx <= 5 ? Math.min(priorW, 0.50 + (bmaWeight2 - 0.50) * Math.exp(-idx / 3.5)) : 0.50);
+    } else {
+      omW = idx <= 2
+        ? (metarConfirmsEcmwf && omM ? 0.50 : 0)
+        : (idx === 3 ? (metarConfirmsEcmwf && omM ? 0.50 : 0.25) : 0.50);
+    }
     if (omW === 0) {
       return { ...h, cloudSpread, clearLow, clearHigh, ...ensMeta };
     }
-    // +0..3h METAR-confirmed damping uses deterministic omM (what local obs directly validated);
-    // +3..23h synoptic blend prefers 51-member ECMWF median (with heavy-precip guard)
-    const m2 = (metarConfirmsEcmwf && idx <= 3 && omM)
+    const useObsVerifiedDet = Boolean((metarConfirmsEcmwf || (hasBma && bmaWeight2 > 0.50)) && idx <= 3 && omM);
+    const m2 = useObsVerifiedDet
       ? omM.block
       : (ensM
           ? ((omM && (omM.precip || 0) >= 0.5 && omM.block > ensM.ensBlockP50)

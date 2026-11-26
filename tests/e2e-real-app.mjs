@@ -286,6 +286,21 @@ function buildInterceptorScript(sc) {
       }
       return mkResp({ hourly });
     }
+    if (url.includes('opendata.fmi.fi/wfs')) {
+      if (url.includes('magnetometer')) {
+        if (!SC.fmiBayDrop) return new Response('<wfs:FeatureCollection/>', { status: 200, headers: { 'Content-Type': 'text/xml' } });
+        const vals = Array.from({ length: 24 }, (_, k) => k < 18 ? 2306 : Math.round(2306 - ((k - 17) / 6) * SC.fmiBayDrop));
+        const xml = '<wfs:FeatureCollection>' + vals.map((v, k) => {
+          const t = new OrigDate(FIXED_MS - (vals.length - 1 - k) * 5 * 60000).toISOString().slice(0, 19) + 'Z';
+          return '<wfs:member><BsWfs:BsWfsElement><BsWfs:Location><gml:Point><gml:pos>69.05800 20.77470 </gml:pos></gml:Point></BsWfs:Location><BsWfs:Time>' + t + '</BsWfs:Time><BsWfs:ParameterName>MAGNX_PT1M_AVG</BsWfs:ParameterName><BsWfs:ParameterValue>' + v + '</BsWfs:ParameterValue></BsWfs:BsWfsElement></wfs:member>';
+        }).join('') + '</wfs:FeatureCollection>';
+        return mkResp(xml, 'text/xml');
+      }
+      if (SC.fmiOktas === undefined) return new Response('<wfs:FeatureCollection/>', { status: 200, headers: { 'Content-Type': 'text/xml' } });
+      const t = new OrigDate(FIXED_MS - 10 * 60000).toISOString().slice(0, 19) + 'Z';
+      const xml = '<wfs:FeatureCollection><wfs:member><BsWfs:BsWfsElement><BsWfs:Location><gml:Point><gml:pos>69.03905 20.81379 </gml:pos></gml:Point></BsWfs:Location><BsWfs:Time>' + t + '</BsWfs:Time><BsWfs:ParameterName>n_man</BsWfs:ParameterName><BsWfs:ParameterValue>' + SC.fmiOktas + '.0</BsWfs:ParameterValue></BsWfs:BsWfsElement></wfs:member></wfs:FeatureCollection>';
+      return mkResp(xml, 'text/xml');
+    }
     if (url.includes('geospace_dst_1_hour.json')) {
       if (SC.mhdDst === undefined) return mkResp([]);
       const rows = Array.from({ length: 90 }, (_, k) => ({
@@ -423,6 +438,8 @@ function buildInterceptorScript(sc) {
       tsValOut: document.getElementById('tsValOut')?.textContent?.trim() || '',
       tsDiagTxt: document.getElementById('tsDiagTxt')?.textContent?.trim() || '',
       vActionBtn: document.getElementById('vActionBtn')?.textContent?.trim() || '',
+      bzBadge: document.getElementById('bzBadge')?.textContent?.trim() || '',
+      energyBanner: document.getElementById('energyBanner')?.textContent?.trim() || '',
       navSat: document.getElementById('navSat')?.textContent?.trim() || '',
       outlookText: document.getElementById('outlookGrid')?.textContent?.replace(/\\s+/g, ' ').trim() || '',
       waveSvgHtml,
@@ -610,6 +627,27 @@ const SCENARIOS = [
       if (!r.hourDetailTrend.includes('趨勢參考') || !r.hourDetailTrend.includes('晴空 18%–82%')) {
         errs.push(`Expected +6h Trend scrub-bar to reflect 51-member P10..P90 clear range (18%–82%), got "${r.hourDetailTrend}"`);
       }
+      if (r.issues.length) errs.push(...r.issues);
+      return errs;
+    }
+  },
+  {
+    id: 'kilpisjarvi-fmi-bma-substorm',
+    label: 'Kilpisjärvi 19px: FMI KIL live overhead substorm (-165 nT) + FMI n_man cloud + Adaptive BMA',
+    query: '?lat=69.045&lon=20.80&name=Kilpisjarvi',
+    lat: 69.045, lon: 20.80, tz: 'Europe/Helsinki', utcOff: 7200, rootPx: 19, lang: 'zh',
+    nowMs: Date.UTC(2026, 10, 25, 20, 0, 0),
+    kpNow: 2.0, bz: 0.5, speed: 390, ov: 20,
+    metCloud: 85, omCloud: 15, fmiOktas: 1, fmiBayDrop: 165, ensRange: [10, 35],
+    verify(r) {
+      const errs = [];
+      if (!r.bzBadge.includes('頭頂爆發中')) errs.push(`Expected live overhead substorm badge 頭頂爆發中, got "${r.bzBadge}"`);
+      if (!r.energyBanner.includes('Kilpisjärvi') || !r.energyBanner.includes('nT')) {
+        errs.push(`Expected Kilpisjärvi magnetometer substorm summary, got "${r.energyBanner}"`);
+      }
+      if (!r.tsConfRow.includes('FMI KIL -165nT')) errs.push(`Expected FMI KIL -165nT in Trust Sheet telemetry, got "${r.tsConfRow}"`);
+      if (!r.tsConfRow.includes('FMI 87% clr')) errs.push(`Expected FMI 87% clr in Trust Sheet telemetry, got "${r.tsConfRow}"`);
+      if (!r.tsConfRow.includes('BMA ')) errs.push(`Expected Adaptive BMA weight in Trust Sheet telemetry, got "${r.tsConfRow}"`);
       if (r.issues.length) errs.push(...r.issues);
       return errs;
     }
