@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aurora-radar-shell-v66';
+const CACHE_NAME = 'aurora-radar-shell-v67';
 const FETCH_TIMEOUT_MS = 3500;
 const SHELL_ASSETS = [
   './',
@@ -15,6 +15,7 @@ const SHELL_ASSETS = [
   './src/copy-formatters.js',
   './src/share-card.js',
   './src/spot-live.js',
+  './src/verification-page.js',
   './src/app.js',
   './manifest.json',
   './icon.svg',

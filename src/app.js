@@ -2670,6 +2670,14 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
     : (en
         ? 'Live 3h NOAA feed — verify G1–G5 watches in "NOAA Storm Alerts" and tonight\'s oval in "NOAA Aurora Map".'
         : '直連 NOAA 每 3 小時滾動更新 — 核對警報請看「NOAA 風暴警報」，今晚極光範圍請看「NOAA 極光總覽」。'));
+  const fbLink = $('tsFeedbackLink');
+  if (fbLink) {
+    const cityLabel = getPosDisplayName(stLive?.pos || state.pos);
+    const clkTxt = $('clk')?.textContent?.trim() || '';
+    const locStr = `${cityLabel}${clkTxt ? ` · ${clkTxt}` : ''} (${Number(state.pos.lat).toFixed(2)}, ${Number(state.pos.lon).toFixed(2)})`;
+    const snapStr = `v67 | Score ${sc?.total ?? '--'}/99 | Clear ${sc?.skyScore ?? '--'}% | Kp ${Number.isFinite(stLive?.kp) ? stLive.kp.toFixed(1) : '--'} | Bz ${Number.isFinite(stLive?.bz) ? stLive.bz.toFixed(1) : '--'} nT`;
+    fbLink.href = `https://github.com/peteryuX/nordic-aurora-radar/issues/new?template=field-sky-report.yml&location=${encodeURIComponent(locStr)}&telemetry=${encodeURIComponent(snapStr)}`;
+  }
   renderVerificationCard();
 }
 

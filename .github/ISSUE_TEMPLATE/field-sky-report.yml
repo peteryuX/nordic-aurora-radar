@@ -1,0 +1,38 @@
+name: "🌌 現場觀測回報 / Field Sky Report"
+description: "分享現場實際看到的天空／極光狀況，幫我們持續校準雲量、山脊遮蔽與預報準度"
+title: "[Field Report] "
+labels: ["field-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感謝回報現場觀測！不管是**有看到極光**、**預報晴空卻起霧／被雲擋住**，或是**當地導遊建議的私房晴空點**，都能直接幫全球追光旅人讓雷達更準。
+  - type: input
+    id: location
+    attributes:
+      label: "地點與時間 / Location & Local Time"
+      placeholder: "例如：挪威 Tromsø Skibotn · 22:30"
+    validations:
+      required: true
+  - type: input
+    id: telemetry
+    attributes:
+      label: "當時雷達顯示數據 / Radar Snapshot (auto-filled if opened from app)"
+      placeholder: "Score / Clear% / Kp / Bz"
+  - type: dropdown
+    id: actual_sky
+    attributes:
+      label: "現場真實天空與極光 / Actual Sky Observed"
+      options:
+        - "🟢 肉眼清楚看到極光 / Bright aurora to naked eye"
+        - "📷 肉眼淡、手機夜拍清楚 / Faint to eye, clear on phone camera"
+        - "⭐ 天空晴朗但沒看到極光 / Clear sky, no aurora visible"
+        - "☁️ 雷達說晴但現場被雲或霧擋住 / Forecast clear, actually cloudy or foggy"
+        - "⛰️ 被遠山／地形擋住低空極光 / Low aurora blocked by mountains/ridge"
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: "補充細節或建議 / Notes (optional)"
+      placeholder: "例如：現場起海霧、開車到哪裡才放晴、或對 App 的使用感受…"

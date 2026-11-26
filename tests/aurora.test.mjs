@@ -3808,7 +3808,8 @@ test('71. v66 Mainstream Complete & 6-Stage Real Human Driving/Chasing Journey S
   assert.ok(!/\beffectiveCloud\s*\(/.test(appSrc), 'app.js must call computeEffectiveCloud, never undefined effectiveCloud');
   assert.ok(!appSrc.includes("$('localClk')"), 'app.js shareForecastCard must read $("clk"), never nonexistent $("localClk")');
   assert.ok(!/\bzp\.hour\b/.test(appSrc), 'app.js compareTripCities must read zp.hourStr, never undefined zp.hour');
-  assert.ok(swSrc.includes('aurora-radar-shell-v66'), 'sw.js must be bumped to aurora-radar-shell-v66');
+  const swVer71 = Number((swSrc.match(/aurora-radar-shell-v(\d+)/) || [])[1] || 0);
+  assert.ok(swVer71 >= 66, `sw.js must be >= aurora-radar-shell-v66, got v${swVer71}`);
   assert.ok(htmlSrc.includes('https://geomag.usgs.gov'), 'index.html CSP connect-src must whitelist https://geomag.usgs.gov');
   assert.ok(htmlSrc.includes('id="windyLayerChips"') && htmlSrc.includes('data-overlay="lclouds"') && htmlSrc.includes('data-overlay="satellite"'), 'Tab 3 must expose 3-pill Windy layer switcher');
   assert.ok(htmlSrc.includes('id="searchResults"'), 'Location picker must mount #searchResults candidate container');
@@ -3930,6 +3931,29 @@ test('71. v66 Mainstream Complete & 6-Stage Real Human Driving/Chasing Journey S
   renderTrustStatGrid((id) => (id === 'tsStatGrid' ? fakeGrid : null), { lat: -45.0312, lon: 168.6626 }, false);
   assert.ok(!fakeGrid.innerHTML.includes('USGS') && !fakeGrid.innerHTML.includes('FMI'), 'Queenstown Trust Sheet must stay free of northern ground mag claims');
 });
+
+test('72. v67 Public Live Verification Page, In-App Field Feedback Loop & Copernicus DEM Enriched SEO Pages', async () => {
+  const verifMod = await import('../src/verification-page.js');
+  assert.equal(typeof verifMod.hydrateVerificationPage, 'function', 'src/verification-page.js must cleanly import & export hydrateVerificationPage');
+
+  const swSrc = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+  const htmlSrc = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const verifHtml = fs.readFileSync(path.join(__dirname, '..', 'verification', 'index.html'), 'utf8');
+  const sitemapXml = fs.readFileSync(path.join(__dirname, '..', 'sitemap.xml'), 'utf8');
+  const banffHtml = fs.readFileSync(path.join(__dirname, '..', 'spots', 'banff', 'index.html'), 'utf8');
+
+  assert.ok(swSrc.includes('aurora-radar-shell-v67'), 'sw.js CACHE_NAME must be bumped to v67');
+  assert.ok(swSrc.includes('./src/verification-page.js'), 'sw.js SHELL_ASSETS must include ./src/verification-page.js');
+  assert.ok(htmlSrc.includes('id="tsFeedbackLink"') && htmlSrc.includes('href="verification/"'), 'Trust Sheet must link to live verification/ page and #tsFeedbackLink');
+  assert.ok(verifHtml.includes('../src/verification-page.js') && verifHtml.includes('id="vLayeredMae"'), 'verification/index.html must mount live scorecard DOM & hydrator');
+  assert.ok(sitemapXml.includes('/verification/'), 'sitemap.xml must include /verification/');
+  assert.ok(banffHtml.includes('Copernicus DEM') && banffHtml.includes('遠山至少遮蔽'), 'SEO spot pages must surface real Copernicus GLO-30 mountain-ridge horizon data');
+  assert.ok(banffHtml.includes('需要 Kp 幾才看得到'), 'SEO spot pages must include Traditional Chinese FAQ JSON-LD');
+  for (const tpl of ['field-sky-report.yml', 'bug-report.yml', 'feature-request.yml']) {
+    assert.ok(fs.existsSync(path.join(__dirname, '..', '.github', 'ISSUE_TEMPLATE', tpl)), `Missing issue template ${tpl}`);
+  }
+});
+
 
 
 

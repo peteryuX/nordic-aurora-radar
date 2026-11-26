@@ -2,33 +2,36 @@
 
 [![Live App (EN)](https://img.shields.io/badge/Live%20App-English-34f0b0?style=flat-square)](https://peteryux.github.io/nordic-aurora-radar/?lang=en)
 [![Live App (繁體中文)](https://img.shields.io/badge/線上版-繁體中文-66bdff?style=flat-square)](https://peteryux.github.io/nordic-aurora-radar/?lang=zh)
+[![Live 30d Verification](https://img.shields.io/badge/Daily%20Verification-METAR%20%2B%20GFZ%20Hp30-fbbf24?style=flat-square)](https://peteryux.github.io/nordic-aurora-radar/verification/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-a855f7?style=flat-square)](LICENSE)
 
-Real-time Nordic & global aurora radar fusing **MET Norway (Yr.no)** 2.5 km layered clouds, **14 live NOAA SWPC** space-weather feeds, twilight/moonlight darkness physics, live airport METAR laser ceilometers, and a **360° winter-road clear-sky radar** — zero build step, zero trackers, 100% client-side.
+Real-time Nordic & global aurora radar fusing **MET Norway (Yr.no)** 2.5 km layered clouds, **14 live NOAA SWPC** space-weather feeds, **FMI Nordic & USGS North America** real-time ground magnetometers, **Copernicus GLO-30** satellite mountain-ridge horizon lower bounds, daily automated **METAR laser-ceilometer + GFZ Hp30** verification, and an **ETA arrival-time 360° winter-road clear-sky radar** — zero build step, zero cookies, 100% client-side.
 
-整合挪威官方 **Yr.no** 2.5 km 分層雲量、**14 項美國 NOAA 即時太空天氣衛星資料**、機場 METAR 雷射雲高短時融合、天文暮光／月光物理與 **360° 冬季實路晴空雷達**；零後端、零追蹤、支援紅光夜視與 PWA 離線使用。
+整合挪威官方 **Yr.no** 2.5 km 分層雲量、**14 項美國 NOAA 即時太空天氣衛星**、**北歐 FMI 與北美 USGS 即時地面磁力儀**、歐洲太空總署 **Copernicus GLO-30** 衛星遠山遮蔽下界、每日自動 **9 站 METAR 雷射測雲儀＋GFZ Hp30 驗證頁**，以及計算**抵達時（ETA）晴空率**的 360° 冬季實路雷達；零後端、零廣告、零 Cookie，支援紅光夜視與無訊號峽灣離線求生。
 
 - **English**: https://peteryux.github.io/nordic-aurora-radar/?lang=en
 - **繁體中文**: https://peteryux.github.io/nordic-aurora-radar/?lang=zh
+- **Live Daily 30-Day Verification**: https://peteryux.github.io/nordic-aurora-radar/verification/
+- **Submit Field Sky Report / Feedback**: https://github.com/peteryuX/nordic-aurora-radar/issues/new/choose
 
 ## Key Features｜主要功能
 
-- **0–99 Viewing Score & Pure IGRF-14 Apex-110 Physics**：Fuses layered low/mid/high cloud optics, MET Norway `2.5 km` primary clouds in Nordics (with Open-Meteo divergence consensus) and dual-model NWP globally (`best_match + ICON` in Iceland, `best_match + ECMWF` elsewhere), **live Airport METAR Optimal Interpolation** (`+0h–+3h`, `≤ 55 km`), pure **IGRF-14 (n=1..13) Modified Apex-110** geomagnetic latitude, and JPL DE441-verified twilight/moonlight physics.
-- **Live Solar Wind & Earth-Arrival Timeline**：14 NOAA SWPC feeds including 1-minute L1 magnetometer/plasma with causal spike filtering, ballistic Earth-arrival local time axis, Newell coupling, Geospace 1h predicted Kp, GOES East/West magnetometers, Kyoto Dst, WSA-ENLIL CME forecast, and SWPC G1–G5 storm alerts.
-- **12-Hour & 3-Night Outlook**：Interactive hourly clear-sky & score chart plus a 3-night dark-sky outlook using sustained 2-hour clear windows.
-- **360° Winter-Road Clear-Sky Radar**：Verified winter-open paved corridors with road distances & driving hazard warnings (gale/blowing snow, extreme cold, road authority links) for **18 global hubs** — Alta, Tromsø, Lofoten, Senja, Narvik, Abisko, Kiruna, Kirkenes, Rovaniemi, Inari, Reykjavik, Akureyri, Fairbanks, Yellowknife, Whitehorse, Queenstown, Lake Tekapo, and Hobart (plus any global GPS/city search).
-- **Live All-Sky Cams & Cloud Map**：Region-aware live observatory cameras (**Nordic**: UiT Skibotn, IRF Kiruna, SGO Sodankylä, KHO Svalbard, FMI ground magnetometers; **North America**: UAF Poker Flat, CSA/UCalgary AuroraMAX), embedded Windy clouds, and NOAA OVATION oval.
-- **Field-Ready PWA & Red-Light Mode**：Zero-leak scotopic red-light mode, screen-on alert monitor (with auto Wake Lock re-acquire), coordinate-keyed offline cache, strict CSP (`script-src 'self'`), and zero cookies/analytics (see [SECURITY.md](SECURITY.md)).
+- **0–99 Viewing Score & Pure IGRF-14 Apex-110 Physics**：Fuses layered low/mid/high cloud optics, MET Norway `2.5 km` primary clouds + ECMWF 51-member ensemble + Adaptive BMA calibrated against live ground sky sensors (**METAR / SMHI / FMI** `≤ 55 km`), pure **IGRF-14 (n=1..13) Modified Apex-110** geomagnetic latitude, and NASA JPL DE441-verified (`0.004°` MAE) twilight/moonlight physics.
+- **Live Solar Wind + Dual-Continent Ground Magnetometers**：14 NOAA SWPC feeds (1-min L1 magnetometer/plasma, ballistic Earth-arrival timeline, Newell coupling, 60-min magnetotail preconditioning, Geospace 1h MHD Kp/Dst, GOES-18/19, Kyoto Dst, WSA-ENLIL) plus live **FMI Nordic** and **USGS North America** (`0.8m` lag) ground magnetometer substorm detection.
+- **ETA Arrival-Time 360° Clear-Sky Radar & Satellite Ridge Masks**：Scores the **3-hour window AFTER winter driving ETA** (preventing closing-cloud traps), includes mid-drive anti-whiplash stability, flags local ice-fog/gale/snow hazards, checks azimuthal city light-dome escape, and shows precomputed **Copernicus GLO-30** mountain-ridge horizon lower bounds across **26 global hubs (112 curated points)**.
+- **Sky & Maps (觀測地圖)**：Region-aware live cameras (**Nordic**: UiT, IRF, SGO, KHO, FMI mag; **Iceland**: 3 official Vegagerðin road/sky cams; **North America**: UAF Poker Flat, AuroraMAX), Windy 3-layer switcher (`All clouds / Low clouds / Satellite IR`), and NOAA OVATION 30-min forecast.
+- **Field-Ready PWA, Fjord Offline Survival & Daily Self-Verification**：18h offline cache with `150 km` dead-zone fallback & live hour-pointer advance, zero-leak scotopic red-light mode, shareable PNG forecast cards, 5-city batched Trip Compare, 15 live bilingual SEO destination pages (`/spots/`), and a transparent daily GitHub Actions verification scorecard (`/verification/`).
 
 ## Architecture｜專案結構
 
 Zero build tools, zero npm runtime dependencies (native ES modules):
 
-- `index.html` / `styles.css` — Semantic PWA shell, strict CSP & scotopic red-light theme
-- `src/aurora-engine.js` — Pure physics (IGRF-14 Apex-110, JPL DE441 solar/lunar, Newell coupling, layered clouds, METAR Optimal Interpolation) & 15+ upstream parsers
-- `src/charts.js` — Pure SVG visualizations (live sky, solar wind, 12h wave, 360° radar)
-- `src/data-client.js` / `src/storage.js` / `src/i18n.js` / `src/app.js` — Live transport (NOAA, MET Norway, Dual-Model Open-Meteo, METAR ceilometers), offline SWR cache, bilingual UI & controller
-- `tests/` — `50` automated tests (`49` unit including bilingual copy & chart-clarity lint gate + `1` optional live in `aurora.test.mjs`), `72` curated scenario regression guardrails & `22` JPL DE441 checkpoints (`benchmark.mjs`), and live public-data audit (`realworld-validation.mjs`)
+- `index.html` / `styles.css` / `sw.js` — Atomic versioned PWA shell, strict CSP & scotopic red-light theme
+- `src/aurora-engine.js` / `src/horizon-data.js` — Pure physics (IGRF-14 Apex-110, JPL DE441, Newell coupling, layered clouds, FMI/USGS magnetometers, Copernicus GLO-30 horizon lower bounds)
+- `src/charts.js` / `src/share-card.js` — Pure SVG visualizations & Retina 4:5 PNG forecast card generator
+- `src/data-client.js` / `src/storage.js` / `src/i18n.js` / `src/copy-formatters.js` / `src/app.js` — Live transport, 150 km offline fjord recovery, bilingual copy contract & UI controller
+- `verification/` & `spots/` — Public live 30-day instrument verification scorecard + 15 live bilingual destination pages
+- `tests/` — `72` automated tests (incl. 6-stage real-human chase simulation), `17` copy/semantic invariants (`17,631` checks), `72`-case `MCC=1.0000` + `22` JPL DE441 benchmark, `18` multi-font real-iPhone UI QA cases, and `15` real-app headless Chrome E2E scenarios
 
 ## Independent Zero-Fitting Validation & Known Caveats｜零擬合盲測驗證與限制
 

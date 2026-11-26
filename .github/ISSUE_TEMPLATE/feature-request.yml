@@ -1,0 +1,20 @@
+name: "💡 功能許願與導遊建議 / Feature & Guide Feedback"
+description: "許願新城市走廊、追光導遊實戰痛點或任何改善建議"
+title: "[Feedback] "
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: role
+    attributes:
+      label: "你的身分 / How do you use Aurora Radar?"
+      options:
+        - "自由行旅人 / Independent traveler"
+        - "在地極光導遊或追光團 / Local aurora guide or tour operator"
+        - "攝影師或天文愛好者 / Photographer or space-weather enthusiast"
+  - type: textarea
+    id: idea
+    attributes:
+      label: "最希望我們改善什麼？ / What would make this replace your other tools?"
+      placeholder: "例如：想新增哪個地點的追光路線、哪個資訊不夠清楚…"
+    validations:
+      required: true

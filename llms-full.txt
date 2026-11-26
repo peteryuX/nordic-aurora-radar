@@ -1,10 +1,11 @@
 # Nordic Aurora Radar (極光即時雷達) — Full Technical & Destination Reference
 
-> Free, open-source (MIT), zero-tracking real-time aurora forecast PWA for Northern Norway, Iceland, Lapland, Alaska, Canada, New Zealand, Tasmania, and global GPS locations.
+> Free, open-source (MIT), cookieless real-time aurora forecast PWA for Northern Norway, Iceland, Lapland, Alaska, Canada, New Zealand, Tasmania, and global GPS locations.
 
 - Live App (繁體中文): https://peteryux.github.io/nordic-aurora-radar/
 - Live App (English): https://peteryux.github.io/nordic-aurora-radar/?lang=en
-- Source Repository: https://github.com/peteryuX/nordic-aurora-radar
+- Live 30-Day Instrument Verification Scorecard: https://peteryux.github.io/nordic-aurora-radar/verification/
+- Source Repository & Field Reports: https://github.com/peteryuX/nordic-aurora-radar
 - Validation & Known Limitations: https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md
 - Last Updated: 2026-11-26
 

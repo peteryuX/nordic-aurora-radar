@@ -1,0 +1,17 @@
+name: "🐛 問題回報 / Bug Report"
+description: "回報顯示異常、定位問題、離線或預報錯誤"
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: input
+    id: device
+    attributes:
+      label: "裝置與瀏覽器 / Device & Browser"
+      placeholder: "例如：iPhone 15 Safari / Android Chrome / PWA"
+  - type: textarea
+    id: details
+    attributes:
+      label: "發生了什麼問題？ / What happened?"
+      placeholder: "請簡述你在哪個地點、點了什麼按鈕、看到什麼異常（附上截圖更有幫助）"
+    validations:
+      required: true

@@ -11,6 +11,7 @@ import {
   computeAuroraScore,
   computeCompassPoints,
   findNearestMetarStation,
+  lookupCorridorHorizon,
   tDirLabel
 } from '../src/aurora-engine.js';
 
@@ -314,14 +315,20 @@ for (const s of spotRecords) {
   const auroraTypeEn = s.lat >= 0 ? 'Northern Lights (Aurora Borealis)' : 'Southern Lights (Aurora Australis)';
   const auroraTypeZh = s.lat >= 0 ? '北極光' : '南極光';
 
+  const poleAz = s.lat >= 0 ? 0 : 180;
   const corridorRows = s.corridors.map(c => {
     const km = c.roadKm ?? c.distKm ?? '--';
     const noteEn = c.roadNoteEn || (c.isOcean ? 'Open sea reference' : 'Clear-sky backup direction');
     const noteZh = c.roadNote || (c.isOcean ? '海域參考' : '晴空備案方向');
+    const hor = (!c.isOcean && Number.isFinite(c.lat) && Number.isFinite(c.lon))
+      ? lookupCorridorHorizon({ lat: c.lat, lon: c.lon, azimuthDeg: poleAz })
+      : null;
+    const horTagEn = (hor && hor.matched && hor.blocksLow) ? ` · ⛰ Ridge ≥${hor.minDeg}° (Copernicus DEM)` : '';
+    const horTagZh = (hor && hor.matched && hor.blocksLow) ? ` · ⛰ 遠山至少遮蔽 ${hor.minDeg}°` : '';
     return `<tr>
       <td><strong>${esc(tDirLabel(c.label, 'en'))}</strong><br/><span class="muted">${esc(c.label)}</span></td>
       <td class="num">${km} km</td>
-      <td>${esc(noteEn)}<br/><span class="muted">${esc(noteZh)}</span></td>
+      <td>${esc(noteEn)}${esc(horTagEn)}<br/><span class="muted">${esc(noteZh)}${esc(horTagZh)}</span></td>
     </tr>`;
   }).join('\n');
 
@@ -362,7 +369,15 @@ for (const s of spotRecords) {
             name: `How do I check live clouds and aurora in ${s.cityEn} tonight?`,
             acceptedAnswer: {
               '@type': 'Answer',
-              text: `Nordic Aurora Radar combines ${s.weatherModelEn}${s.metar ? ` and live ${s.metar.icao} airport ceilometer readings` : ''} with 14 NOAA SWPC live solar wind feeds into a single 0–99 hourly viewing score and a 360° clear-sky driving radar.`
+              text: `Nordic Aurora Radar combines ${s.weatherModelEn}${s.metar ? ` and live ${s.metar.icao} weather station ceilometer readings` : ''} with 14 NOAA SWPC live solar wind feeds into a single 0–99 hourly viewing score and an ETA arrival-time 360° clear-sky driving radar.`
+            }
+          },
+          {
+            '@type': 'Question',
+            name: `${s.cityZh}${auroraTypeZh}需要 Kp 幾才看得到？如果雲厚要開車去哪裡？`,
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: `${s.cityZh}地磁緯度為 ${s.magLat}°${s.hemi}，一般需 ${s.kpTextZh} 並搭配暗空與晴空。${s.tipZh}`
             }
           }
         ]
@@ -488,7 +503,8 @@ for (const s of spotRecords) {
       </div>
       <p style="margin:12px 0 0;font-size:0.76rem;color:var(--muted);">
         Free, open-source, no ads &amp; cookieless · Supports °C / °F &amp; scotopic red-light night-vision mode ·
-        <a href="https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md" target="_blank" rel="noopener noreferrer" style="color:var(--text-soft);">Validation Report (VALIDATION.md) ↗</a>
+        <a href="../../verification/" style="color:var(--green);">Live 30-Day Instrument Verification｜每日實測驗證 ↗</a> ·
+        <a href="https://github.com/peteryuX/nordic-aurora-radar/issues/new?template=field-sky-report.yml" target="_blank" rel="noopener noreferrer" style="color:var(--text-soft);">Field Report｜現場回報 ↗</a>
       </p>
     </section>
   </div>
@@ -502,6 +518,7 @@ for (const s of spotRecords) {
 // 2. Write sitemap.xml
 const urls = [
   { loc: `${BASE_URL}/`, freq: 'daily', prio: '1.0' },
+  { loc: `${BASE_URL}/verification/`, freq: 'daily', prio: '0.85' },
   ...spotRecords.map(s => ({ loc: `${BASE_URL}/spots/${s.slug}/`, freq: 'weekly', prio: '0.85' })),
   { loc: `${BASE_URL}/llms.txt`, freq: 'weekly', prio: '0.6' },
   { loc: `${BASE_URL}/llms-full.txt`, freq: 'weekly', prio: '0.6' }
@@ -550,11 +567,12 @@ fs.writeFileSync(path.join(ROOT, 'robots.txt'), robotsTxt, 'utf8');
 // 4. Write llms-full.txt (comprehensive structured context for AI search & RAG pipelines)
 const llmsFull = `# Nordic Aurora Radar (極光即時雷達) — Full Technical & Destination Reference
 
-> Free, open-source (MIT), zero-tracking real-time aurora forecast PWA for Northern Norway, Iceland, Lapland, Alaska, Canada, New Zealand, Tasmania, and global GPS locations.
+> Free, open-source (MIT), cookieless real-time aurora forecast PWA for Northern Norway, Iceland, Lapland, Alaska, Canada, New Zealand, Tasmania, and global GPS locations.
 
 - Live App (繁體中文): ${BASE_URL}/
 - Live App (English): ${BASE_URL}/?lang=en
-- Source Repository: https://github.com/peteryuX/nordic-aurora-radar
+- Live 30-Day Instrument Verification Scorecard: ${BASE_URL}/verification/
+- Source Repository & Field Reports: https://github.com/peteryuX/nordic-aurora-radar
 - Validation & Known Limitations: https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md
 - Last Updated: ${LASTMOD}
 

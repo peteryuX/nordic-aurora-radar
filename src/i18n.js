@@ -180,7 +180,8 @@ export const STATIC_TEXT_MAP = {
     'Live 3h NOAA feed — verify G1–G5 watches in "NOAA Storm Alerts" and tonight\'s oval in "NOAA Aurora Map".'
   ],
   tsSealLink: ['GitHub 開源（MIT · 無 Cookie）↗', 'Open source (MIT · cookieless) ↗'],
-  tsValReportLink: ['完整驗證報告 ↗', 'Validation report ↗'],
+  tsValReportLink: ['每日實測驗證頁 ↗', 'Live verification ↗'],
+  tsFeedbackLink: ['回報現場實測／建議 ↗', 'Field report & feedback ↗'],
   tsPwaTip: [
     '離線使用：Safari 點「分享 → 加入主畫面」或 Chrome 點「安裝」，極區無訊號時仍可開啟快取。',
     'Offline tip: Add to Home Screen (Safari Share / Chrome Install) for cached access with no signal.'

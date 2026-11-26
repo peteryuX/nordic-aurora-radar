@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Live 30-Day Instrument Verification｜每日獨立儀器驗證成績單 — Nordic Aurora Radar</title>
+  <meta name="description" content="Transparent daily automated verification of Nordic Aurora Radar against 9 Arctic airport METAR laser ceilometers, GFZ Potsdam Hp30 geomagnetic index, Copernicus GLO-30 satellite DEM, and NASA JPL DE441 ephemeris." />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+  <meta name="referrer" content="no-referrer" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://nordicaurora.goatcounter.com; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none';" />
+  <meta name="theme-color" content="#08090c" />
+  <link rel="canonical" href="https://peteryux.github.io/nordic-aurora-radar/verification/" />
+  <link rel="icon" type="image/svg+xml" href="../icon.svg" />
+  <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://peteryux.github.io/nordic-aurora-radar/verification/" />
+  <meta property="og:title" content="Live 30-Day Instrument Verification — Nordic Aurora Radar" />
+  <meta property="og:description" content="Daily automated open-source scorecard verifying raw cloud forecasts against 9 Arctic METAR laser ceilometers &amp; GFZ Potsdam Hp30." />
+  <meta property="og:image" content="https://peteryux.github.io/nordic-aurora-radar/og-cover.png?v=2" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    .v-wrap { max-width: 720px; margin: 0 auto; padding: 18px 14px 56px; }
+    .v-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; font-size: 0.84rem; flex-wrap: wrap; }
+    .v-nav a { color: var(--green); text-decoration: none; font-weight: 700; }
+    .v-h1 { margin: 0 0 6px; font-size: 1.45rem; line-height: 1.25; }
+    .v-sub { margin: 0 0 14px; color: var(--text-soft); font-size: 0.88rem; line-height: 1.55; }
+    .v-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 10px; }
+    .v-kv { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 11px 12px; }
+    .v-kv span { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; }
+    .v-kv strong { font-size: 1.12rem; color: var(--text); font-variant-numeric: tabular-nums; }
+    .v-kv small { display: block; font-size: 0.72rem; color: var(--text-soft); margin-top: 3px; line-height: 1.35; }
+    .v-tbl { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.82rem; }
+    .v-tbl th, .v-tbl td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .v-tbl th { color: var(--muted); font-size: 0.74rem; font-weight: 700; }
+    .v-tbl td.num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .v-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-soft); }
+    .v-pill.ok { color: var(--green-text); border-color: var(--green-border); background: var(--green-bg); }
+    .v-pill.warn { color: var(--amber); }
+    .v-disc { margin-top: 10px; font-size: 0.76rem; color: var(--muted); line-height: 1.5; }
+    .v-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .v-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 9px 14px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 0.84rem; background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); }
+    .v-btn.primary { background: var(--green-bg); border-color: var(--green-border); color: var(--green-text); }
+  </style>
+</head>
+<body>
+  <div class="v-wrap">
+    <nav class="v-nav" aria-label="Breadcrumb">
+      <a href="../">← Nordic Aurora Radar｜極光即時雷達</a>
+      <a href="./latest.json" target="_blank" rel="noopener noreferrer">Raw latest.json ↗</a>
+    </nav>
+
+    <section class="card">
+      <h1 class="v-h1">Live 30-Day Instrument Verification<br/><span style="font-size:1rem;color:var(--text-soft);font-weight:700;">每日獨立儀器自動驗證成績單</span></h1>
+      <p class="v-sub">
+        Updated automatically every day via GitHub Actions at 12:15 UTC against independent ground laser ceilometers (METAR) and the German GFZ Potsdam 30-minute geomagnetic index (Hp30). Zero cherry-picking, zero leakage, and strict small-sample honesty guards.<br/>
+        每天由 GitHub Actions 自動對照 9 座極區氣象觀測站雷射測雲儀與德國 GFZ Potsdam 30 分鐘地磁指數（Hp30）；絕不篩選數據、零資料外洩、樣本不足誠實標示。
+      </p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+        <span id="vStatusPill" class="v-pill">Loading live scorecard…</span>
+        <span id="vUpdatedAt" class="v-pill">Updated: --</span>
+      </div>
+      <div class="v-grid" id="vSummaryGrid">
+        <div class="v-kv"><span>Layered Cloud MAE｜分層雲量誤差</span><strong id="vLayeredMae">--</strong><small id="vCloudBase">vs raw total: --</small></div>
+        <div class="v-kv"><span>Audited Stations｜核對觀測站</span><strong id="vStations">--</strong><small id="vProspCount">Prospective +3/+6/+12h: --</small></div>
+        <div class="v-kv"><span>30d GFZ Hp30 Bins｜30天實測</span><strong id="vHp30Bins">--</strong><small id="vHp30Events">Active / Storm: --</small></div>
+        <div class="v-kv"><span>Pure-L1 ROC-AUC｜太陽風辨識力</span><strong id="vL1Auc">--</strong><small id="vL1Note">Small-sample guard active</small></div>
+      </div>
+      <p id="vDisclaimer" class="v-disc"></p>
+    </section>
+
+    <section class="card">
+      <h2>Satellite Mountain-Ridge Horizon Lower Bounds (Copernicus GLO-30)｜衛星地形山脊遮蔽實測</h2>
+      <p class="v-sub" style="margin-bottom:6px;">
+        Precomputed from European Space Agency Copernicus GLO-30 DEM (0.8–40 km, Earth curvature + refraction R_eff = 7320 km, 5-point ±400 m conservative minimum) across 112 curated aurora hubs &amp; corridors. Strictly advisory — never distorts 0–99 scores and never interpolates beyond 1.5 km.
+      </p>
+      <table class="v-tbl">
+        <thead><tr><th>Spot｜觀測點</th><th>Aurora Azimuth Ridge｜極光方位山脊下界</th><th>Field Reality｜現場意義</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Banff · Lake Minnewanka</strong></td><td class="num"><strong>≥10°</strong></td><td>Steep Rockies block low northern horizon / 洛磯山脈遮蔽低空極光</td></tr>
+          <tr><td><strong>Lofoten · Lødingen / Senja · Ersfjord</strong></td><td class="num"><strong>≥9°</strong></td><td>Fjord walls require moderate–high aurora / 峽灣陡壁需較高仰角</td></tr>
+          <tr><td><strong>Banff · Lake Louise / Iceland · Skógar</strong></td><td class="num"><strong>≥7°</strong></td><td>Nearby peaks trim low-elevation arcs / 鄰近山脊略擋低空弧光</td></tr>
+          <tr><td><strong>Narvik · Gratangen / Oslo · Maridalen</strong></td><td class="num"><strong>≥6°</strong></td><td>Valley ridge advisory on Tab 2 / Tab 2 走廊卡自動提醒</td></tr>
+          <tr><td><strong>Yellowknife / Rovaniemi / Abisko (Lake)</strong></td><td class="num"><strong>0°–1°</strong></td><td>Wide-open horizon — zero false warnings / 開闊視野零誤報</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Independent Physics Benchmarks｜獨立物理基準驗證</h2>
+      <div class="v-grid">
+        <div class="v-kv"><span>NASA JPL DE441 Ephemeris</span><strong>0.004°</strong><small>Solar MAE (22 checkpoints · max 0.006°)</small></div>
+        <div class="v-kv"><span>IGRF-14 Apex-110 vs AACGMv2</span><strong>0.236°</strong><small>MAE across 14,122 Aurorasaurus coords</small></div>
+        <div class="v-kv"><span>NASA OMNI2 (17,255h)</span><strong>ROC 0.902</strong><small>Pure-L1 AE ≥ 500 nT (PR-AUC 0.655)</small></div>
+        <div class="v-kv"><span>Automated CI Gates</span><strong>17,631+</strong><small>17 copy invariants · 72 MCC=1.0 · 15 E2E</small></div>
+      </div>
+      <div class="v-acts">
+        <a class="v-btn primary" href="../">Open Live Aurora Radar｜開啟即時雷達 →</a>
+        <a class="v-btn" href="https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md" target="_blank" rel="noopener noreferrer">Full VALIDATION.md ↗</a>
+        <a class="v-btn" href="https://github.com/peteryuX/nordic-aurora-radar/issues/new?template=field-sky-report.yml" target="_blank" rel="noopener noreferrer">Submit Field Sky Report｜現場回報 ↗</a>
+      </div>
+    </section>
+  </div>
+  <script type="module" src="../src/verification-page.js"></script>
+</body>
+</html>
