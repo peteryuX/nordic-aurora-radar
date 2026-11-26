@@ -116,18 +116,18 @@
     <!-- Single Priority Banner Slot (Strict Banner Budget = 1: P0 Alert > P1 Offline > P2 Severe Storm > P3 Monitor) -->
     <div id="bannerSlot" class="banner-slot">
       <div id="monitorBar" class="monitor-bar" role="status" aria-live="polite"></div>
-      <div id="offlineBanner" class="offline-tip">
+      <div id="offlineBanner" class="offline-tip" style="display:none;">
         <span id="offlineTxt"></span>
         <button id="offlineRetryBtn" class="tip-action" type="button">重試</button>
       </div>
-      <a id="stormBanner" class="storm-banner" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/alerts-watches-and-warnings"></a>
-      <div id="lineTip" class="line-tip">
+      <a id="stormBanner" class="storm-banner" style="display:none;" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/alerts-watches-and-warnings"></a>
+      <div id="lineTip" class="line-tip" style="display:none;">
         <span id="lineTipTxt">若在 App 內建瀏覽器無法使用 GPS，請改用 Safari / Chrome 開啟，或點上方地名切換。</span>
         <button id="lineTipClose" class="tip-close" type="button" aria-label="關閉">
           <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
         </button>
       </div>
-      <div id="gpsSuggestBanner" class="gps-tip" role="status" aria-live="polite">
+      <div id="gpsSuggestBanner" class="gps-tip" style="display:none;" role="status" aria-live="polite">
         <span id="gpsSuggestTxt"></span>
         <span class="tip-actions">
           <button id="gpsSuggestBtn" class="tip-action" type="button">切換到此處</button>

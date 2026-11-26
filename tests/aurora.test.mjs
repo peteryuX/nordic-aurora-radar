@@ -3411,11 +3411,62 @@ test('63. v58 576-Scenario Copy-Truth Matrix Audit & Sub-Auroral Clarity (Ask/Os
   assert.ok(Number.isFinite(scored.hours[1].neededKp) && scored.hours[1].neededKp >= 3.0);
   assert.ok(Number.isFinite(scored.hours[1].magLat) && scored.hours[1].magLat <= 59);
 
-  // App UI guards: clear-sky homeBest never says 雲層稍薄 when clear>=60, low-moon label, Hero neededKp & scrub-bar hint
-  assert.ok(appSrc.includes('晴朗但極光偏弱') && appSrc.includes('此地低空微弱，需'), 'App must explain clear-sky weak-aurora hours');
-  assert.ok(appSrc.includes('低月') && appSrc.includes('Low moon'), 'App must clarify low-horizon bright moon');
-  assert.ok(appSrc.includes('const showNeedKp ='), 'Hero aurora pill must display neededKp for mid-lat locations');
+  // Single-source-of-truth copy-formatters + Hero neededKp guard
+  const fmtSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'copy-formatters.js'), 'utf8');
+  assert.ok(fmtSrc.includes('晴朗但極光偏弱') && fmtSrc.includes('此地低空微弱，需'), 'copy-formatters must explain clear-sky weak-aurora hours');
+  assert.ok(fmtSrc.includes('低月') && fmtSrc.includes('Low moon'), 'copy-formatters must clarify low-horizon bright moon');
+  assert.ok(appSrc.includes('const showNeedKp =') && appSrc.includes('formatHourScrubDetail'), 'Hero aurora pill must display neededKp and use copy-formatters');
 });
+
+test('64. v59 Daylight Clear-Sky Honesty, Defensive Hidden Banners & Atomic SW Shell', () => {
+  const htmlSrc = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const swSrc = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+  const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+
+  // (a) Already 98% clear in Ask daytime must NEVER say 有望見晴 / 有望放晴 / clearer skies
+  const askDayClear = api.synthesizeTonightAction({
+    lat: 60.06, lon: 11.04,
+    sc: { total: 0, skyScore: 98, auroraScore: 10, darkScore: 0, isTooBright: true, outOfZone: null, grade: '☀️ 天色過亮' },
+    bestDark: { time: '19:00', clear: 83, score: 24 },
+    darkWin: { state: 'twilight-wait', nextDarkHM: '15:58', darkInMin: 152 },
+    kp: 0.7, lang: 'zh'
+  });
+  assert.ok(askDayClear.lead.includes('今晚維持晴朗，極光偏弱'), `Expected honest clear+weak copy, got: ${askDayClear.lead}`);
+  assert.ok(!askDayClear.lead.includes('有望見晴') && !askDayClear.lead.includes('有望放晴') && !askDayClear.lead.includes('分鐘 後'),
+    `Bad daylight clear copy/spacing: ${askDayClear.lead}`);
+
+  // (b) Already 95% clear in Tromsø daytime with good night ahead says 維持晴朗 (not 有望放晴)
+  const troDayClear = api.synthesizeTonightAction({
+    lat: 69.65, lon: 18.96,
+    sc: { total: 0, skyScore: 95, auroraScore: 55, darkScore: 0, isTooBright: true, outOfZone: null, grade: '☀️ 天色過亮' },
+    bestDark: { time: '19:00', clear: 88, score: 72 },
+    darkWin: { state: 'twilight-wait', nextDarkHM: '14:30', darkInMin: 90 },
+    kp: 3.5, lang: 'zh'
+  });
+  assert.ok(troDayClear.lead.includes('今晚預估維持晴朗'), `Expected 維持晴朗, got: ${troDayClear.lead}`);
+
+  // (c) Currently overcast (skyScore 15%) clearing to 80% tonight SHOULD say 有望放晴 / clearer skies
+  const overcastClearingZh = api.synthesizeTonightAction({
+    lat: 69.65, lon: 18.96,
+    sc: { total: 0, skyScore: 15, auroraScore: 45, darkScore: 0, isTooBright: true, outOfZone: null, grade: '☀️ 天色過亮' },
+    bestDark: { time: '21:00', clear: 80, score: 65 },
+    darkWin: { state: 'twilight-wait', nextDarkHM: '15:00', darkInMin: 120 },
+    kp: 3.0, lang: 'zh'
+  });
+  assert.ok(overcastClearingZh.lead.includes('今晚有望放晴'), `Expected 有望放晴 when currently cloudy, got: ${overcastClearingZh.lead}`);
+
+  // (d) All 4 hidden banners in index.html carry inline style="display:none;" defense-in-depth
+  for (const id of ['offlineBanner', 'stormBanner', 'lineTip', 'gpsSuggestBanner']) {
+    const m = htmlSrc.match(new RegExp(`id="${id}"[^>]*>`));
+    assert.ok(m && m[0].includes('display:none'), `Banner #${id} must carry inline style="display:none;"`);
+  }
+
+  // (e) Atomic SW v59 serves root ./index.html from CACHE_NAME + app.js listens to controllerchange
+  assert.ok(swSrc.includes('aurora-radar-shell-v59') && swSrc.includes("caches.open(CACHE_NAME).then(cache =>\n        cache.match('./index.html')"),
+    'sw.js must serve atomic versioned ./index.html from CACHE_NAME to prevent HTML/CSS version skew');
+  assert.ok(appSrc.includes("addEventListener('controllerchange'"), 'app.js must reload once on atomic SW controllerchange');
+});
+
 
 
 

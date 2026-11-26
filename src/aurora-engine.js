@@ -3883,6 +3883,8 @@ export function summarize3NightOutlook({
       // (cloud + matched forecast Kp + MLT + lunar illuminance at the SAME hour), so Tonight's peak matches the chart.
       // Live solar-wind terms (Bz/speed/OVATION) are neutral at +24-72h, which keeps multi-day estimates honest.
       let bestDtMs = null;
+      let peakClear = null;
+      let peakKp = null;
       let kpPeakClearSum = 0;
       let kpPeakClearCnt = 0;
       const kpPeakFloor = Math.max(effMaxKp - 0.7, 3.0);
@@ -3897,7 +3899,12 @@ export function summarize3NightOutlook({
         // Tonight: keep 1h peak parity with the live 24h chart (a real 1h clear break tonight IS chaseable)
         for (const h of chartDark) {
           trackKpPeakClear(h.clear, h.kpFc, h.outOfZone ? 0 : 35);
-          if (h.score > bestNightScore) { bestNightScore = h.score; bestDtMs = h.dtMs; }
+          if (h.score > bestNightScore) {
+            bestNightScore = h.score;
+            bestDtMs = h.dtMs;
+            peakClear = Number.isFinite(h.clear) ? Math.round(h.clear) : null;
+            peakKp = Number.isFinite(h.kpFc) ? +Number(h.kpFc).toFixed(1) : null;
+          }
         }
         for (const p of darkPts) {
           if (p.dtMs <= chartEndMs) continue;
@@ -3913,14 +3920,19 @@ export function summarize3NightOutlook({
           });
           trackKpPeakClear(p.clear, hKp, scH?.auroraScore ?? 0);
           const hScore = Number.isFinite(scH?.total) ? scH.total : 0;
-          if (hScore > bestNightScore) { bestNightScore = hScore; bestDtMs = p.dtMs; }
+          if (hScore > bestNightScore) {
+            bestNightScore = hScore;
+            bestDtMs = p.dtMs;
+            peakClear = Number.isFinite(p.clear) ? Math.round(p.clear) : null;
+            peakKp = Number.isFinite(hKp) ? +Number(hKp).toFixed(1) : null;
+          }
         }
       } else {
         // Night +1/+2 (+24-72h): use max 2h sustained rolling score (matching bestClear) so 1h NWP cloud flukes never spike the card
         const scoredPts = [];
         for (const h of chartDark) {
           trackKpPeakClear(h.clear, h.kpFc, h.outOfZone ? 0 : 35);
-          scoredPts.push({ dtMs: h.dtMs, score: h.score });
+          scoredPts.push({ dtMs: h.dtMs, score: h.score, clear: h.clear, kp: h.kpFc });
         }
         for (const p of darkPts) {
           if (p.dtMs <= chartEndMs) continue;
@@ -3935,18 +3947,23 @@ export function summarize3NightOutlook({
             mlt: computeMLT(dt, lat, lon), effMoonPct: moonH.effMoonPct
           });
           trackKpPeakClear(p.clear, hKp, scH?.auroraScore ?? 0);
-          scoredPts.push({ dtMs: p.dtMs, score: Number.isFinite(scH?.total) ? scH.total : 0 });
+          scoredPts.push({ dtMs: p.dtMs, score: Number.isFinite(scH?.total) ? scH.total : 0, clear: p.clear, kp: hKp });
         }
         scoredPts.sort((a, b) => a.dtMs - b.dtMs);
         if (scoredPts.length === 1) {
           bestNightScore = scoredPts[0].score;
           bestDtMs = scoredPts[0].dtMs;
+          peakClear = Number.isFinite(scoredPts[0].clear) ? Math.round(scoredPts[0].clear) : null;
+          peakKp = Number.isFinite(scoredPts[0].kp) ? +Number(scoredPts[0].kp).toFixed(1) : null;
         } else if (scoredPts.length >= 2) {
           for (let i = 0; i < scoredPts.length - 1; i++) {
             const pairScore = Math.round((scoredPts[i].score + scoredPts[i + 1].score) / 2);
             if (pairScore > bestNightScore) {
               bestNightScore = pairScore;
-              bestDtMs = scoredPts[i].score >= scoredPts[i + 1].score ? scoredPts[i].dtMs : scoredPts[i + 1].dtMs;
+              const winPt = scoredPts[i].score >= scoredPts[i + 1].score ? scoredPts[i] : scoredPts[i + 1];
+              bestDtMs = winPt.dtMs;
+              peakClear = Math.round(((scoredPts[i].clear ?? 0) + (scoredPts[i + 1].clear ?? 0)) / 2);
+              peakKp = Number.isFinite(winPt.kp) ? +Number(winPt.kp).toFixed(1) : null;
             }
           }
         }
@@ -3984,9 +4001,9 @@ export function summarize3NightOutlook({
         badge = term(TERMS.tier.low, en); badgeColor = '#8b94a5';
       }
       scoreAvailable = true;
-      return { key, label, dayLabel, dateLabel, bestClear, kpPeakClear, peakCloudMismatch, clearDarkHrs, bestNightScore, bestWindow, scoreAvailable, maxKp: maxKp ?? 0, kpAvailable: maxKp !== null, gScale, darkCount: darkPts.length, tone, badge, badgeColor, enlilTag, enlilMaxSpeed };
+      return { key, label, dayLabel, dateLabel, bestClear, peakClear, peakKp, kpPeakClear, peakCloudMismatch, clearDarkHrs, bestNightScore, bestWindow, scoreAvailable, maxKp: maxKp ?? 0, kpAvailable: maxKp !== null, gScale, darkCount: darkPts.length, tone, badge, badgeColor, enlilTag, enlilMaxSpeed };
     }
-    return { key, label, dayLabel, dateLabel, bestClear, kpPeakClear: null, peakCloudMismatch: false, clearDarkHrs, bestNightScore, bestWindow: '', scoreAvailable, maxKp: maxKp ?? 0, kpAvailable: maxKp !== null, gScale, darkCount: darkPts.length, tone, badge, badgeColor, enlilTag, enlilMaxSpeed };
+    return { key, label, dayLabel, dateLabel, bestClear, peakClear: null, peakKp: null, kpPeakClear: null, peakCloudMismatch: false, clearDarkHrs, bestNightScore, bestWindow: '', scoreAvailable, maxKp: maxKp ?? 0, kpAvailable: maxKp !== null, gScale, darkCount: darkPts.length, tone, badge, badgeColor, enlilTag, enlilMaxSpeed };
   });
 }
 
@@ -4123,16 +4140,31 @@ export function synthesizeTonightAction({
         : '目前處於極晝期間，24 小時天色皆過亮，暫無法觀測極光。';
     } else if (darkWin?.state === 'twilight-wait' && darkWin.nextDarkHM) {
       const inTxt = fmtDur(darkWin.darkInMin);
-      const hasClearAhead = bestDark && (bestDark.clear >= 50 || (bestDark.score ?? 0) >= 35);
-      const cueZh = hasClearAhead
-        ? '今晚有望見晴'
-        : (bestDark && bestDark.clear < 25 ? '今晚普遍多雲' : '入夜後再看雲況');
-      const cueEn = hasClearAhead
-        ? 'clearer skies tonight'
-        : (bestDark && bestDark.clear < 25 ? 'mostly cloudy tonight' : 'check clouds after dusk');
+      const nowClear = sc.skyScore >= 70;
+      const nowPartly = sc.skyScore >= 50;
+      const nightClear = Boolean(bestDark && bestDark.clear >= 65);
+      const nightPartly = Boolean(bestDark && (bestDark.clear >= 50 || (bestDark.score ?? 0) >= 35));
+      const nightWeakAur = Boolean(bestDark && (bestDark.score ?? 0) < 25);
+      let cueZh, cueEn;
+      if (nowClear && nightClear) {
+        cueZh = nightWeakAur ? '今晚維持晴朗，極光偏弱' : '今晚預估維持晴朗';
+        cueEn = nightWeakAur ? 'clear skies tonight, faint aurora' : 'clear skies expected tonight';
+      } else if (nowPartly && nightPartly) {
+        cueZh = '今晚預估偏晴';
+        cueEn = 'partly clear tonight';
+      } else if (!nowPartly && nightPartly) {
+        cueZh = '今晚有望放晴';
+        cueEn = 'clearer skies expected tonight';
+      } else if (bestDark && bestDark.clear < 25) {
+        cueZh = '今晚普遍多雲';
+        cueEn = 'mostly cloudy tonight';
+      } else {
+        cueZh = '入夜後再看雲況';
+        cueEn = 'check clouds after dusk';
+      }
       lead = en
         ? `Dark at ${darkWin.nextDarkHM}${inTxt ? ` (in ${inTxt})` : ''} · ${cueEn}.`
-        : `${darkWin.nextDarkHM} 天黑${inTxt ? `（約 ${inTxt} 後）` : ''}，${cueZh}。`;
+        : `${darkWin.nextDarkHM} 天黑${inTxt ? `（約 ${inTxt}後）` : ''}，${cueZh}。`;
     }
     return { ...base, lead, actionType: 'daylight', ctaView: null, ctaLabel: '' };
   }

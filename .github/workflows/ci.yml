@@ -27,8 +27,10 @@ jobs:
           node-version: '22'
       - name: Syntax check all ES modules, SW & test scripts
         run: for f in src/*.js sw.js tests/*.mjs; do node --check "$f"; done
-      - name: Run 52 automated physics, chaos, nowcast, storage, glossary, SVG fuzz & security tests
+      - name: Run automated physics, chaos, nowcast, storage, glossary, SVG fuzz & security tests
         run: node --test tests/aurora.test.mjs
+      - name: Run systematic 12-invariant number-to-copy semantic contract suite
+        run: node tests/copy-contract.mjs
       - name: Run quantitative calibration (72 storms) & NASA JPL DE441 (22 checkpoints) benchmark
         run: node tests/benchmark.mjs
       - name: Run 18-case real-iPhone viewport, scroll-bleed, flex-spillover, multi-font (14px-28px), EN & red-mode UI QA gate

@@ -17,6 +17,7 @@ import {
 } from './storage.js';
 import { buildShareCardPayload, exportShareCardPng } from './share-card.js';
 import { trackPageview, trackEvent, normalizeCitySlug } from './analytics.js';
+import { formatWavePeakSummary, formatHourScrubDetail, formatOutlookRowStats } from './copy-formatters.js';
 import { SKY_CAMS, renderSkyCamCaption, renderTrustStatGrid, applyStaticI18n as applyStaticI18nDom } from './i18n.js';
 import {
   fetchEnlilBackground, fetchNoaaBundle, fetchWeatherBundle,
@@ -934,109 +935,11 @@ function renderWaveCard(focusBest = false) {
   const outZoneKind = state.lastScore?.outOfZone || null;
   const isOutOfZone = Boolean(outZoneKind) && vis.every(h => !h || h.isDay || h.outOfZone || h.score === 0);
   const bestInVis = isOutOfZone ? null : pickBestInSlice(vis);
-  const hz = vis.length;
   const bestTimeLbl = bestInVis ? formatHourLabel(bestInVis, en) : '';
   const bestIsNextNight = bestInVis ? isNextNightHour(bestInVis) : false;
-  const fmtNextHr = (h) => {
-    const m = /^(\d{2}):(\d{2})/.exec(String(h?.time || ''));
-    if (!m) return '';
-    return `${String((Number(m[1]) + 1) % 24).padStart(2, '0')}:${m[2]}`;
-  };
-  let bestText = '';
-  if (isOutOfZone) {
-    bestText = outZoneKind === 'need-storm'
-      ? (en ? `Activity is too weak for this latitude — needs a stronger storm over the next ${hz}h.` : `目前活動偏弱，此緯度需要更強的地磁暴才會出現極光。`)
-      : (en ? `Outside the auroral zone — tap the location above to explore aurora hotspots.` : `此地不在極光帶，點上方地名可切換全球極光熱點。`);
-  } else if (!bestInVis) {
-    bestText = en ? `Sky stays too bright for the next ${hz}h — check back after dark.` : `未來 ${hz} 小時天色偏亮，天黑後再查看。`;
-  } else {
-    const bIdx = vis.findIndex(h => (Number.isFinite(bestInVis.dtMs) && Number.isFinite(h.dtMs)) ? h.dtMs === bestInVis.dtMs : h.time === bestInVis.time);
-    const findContiguous = (pred) => {
-      if (bIdx < 0 || !pred(vis[bIdx])) return null;
-      let s = bIdx, e = bIdx;
-      while (s > 0 && pred(vis[s - 1])) s--;
-      while (e < vis.length - 1 && pred(vis[e + 1])) e++;
-      const startLbl = escapeHtml(vis[s].time || '');
-      const endLbl = fmtNextHr(vis[e]);
-      return { s, e, len: e - s + 1, range: (startLbl && endLbl) ? `${startLbl}–${endLbl}` : '' };
-    };
-    const dayPrefixZh = bestIsNextNight ? '明晚' : '今晚';
-    if (bestInVis.score >= 40) {
-      const win = findContiguous(h => h && !h.isDay && h.score >= 40);
-      const startIdx = win ? win.s : bIdx;
-      const tierTagZh = bestInVis.score >= 65 ? '極佳' : '適合';
-      if (startIdx >= 4) {
-        if (win && win.len >= 2 && win.range) {
-          bestText = en
-            ? `Trend <strong>${win.range}</strong> · peaks ~<strong>${bestTimeLbl}</strong>`
-            : `${dayPrefixZh} <strong>${win.range}</strong> 預估${tierTagZh}`;
-        } else {
-          bestText = en
-            ? `Possible window ~<strong>${bestTimeLbl}</strong>`
-            : `${dayPrefixZh} <strong>${bestTimeLbl}</strong> 預估有空檔`;
-        }
-      } else if (bIdx >= 4) {
-        if (win && win.len >= 2 && win.range) {
-          bestText = en
-            ? `Best <strong>${win.range}</strong> · peaks ~<strong>${bestTimeLbl}</strong>`
-            : `${dayPrefixZh} <strong>${win.range}</strong> ${tierTagZh} · <strong>${bestTimeLbl}</strong> 最強`;
-        } else {
-          bestText = en
-            ? `Possible window ~<strong>${bestTimeLbl}</strong>`
-            : `${dayPrefixZh} <strong>${bestTimeLbl}</strong> 有望出現空檔`;
-        }
-      } else if (win && win.len >= 2 && win.range) {
-        bestText = en
-          ? `Best <strong>${win.range}</strong> · peaks <strong>${bestTimeLbl}</strong>`
-          : `${dayPrefixZh} <strong>${win.range}</strong> ${tierTagZh} · <strong>${bestTimeLbl}</strong> 最強`;
-      } else {
-        bestText = en
-          ? `Brief window ~<strong>${bestTimeLbl}</strong>`
-          : `${dayPrefixZh} <strong>${bestTimeLbl}</strong> 短暫空檔`;
-      }
-    } else if (bestInVis.score >= 18) {
-      const win = findContiguous(h => h && !h.isDay && h.score >= 18);
-      const startIdx = win ? win.s : bIdx;
-      const clearNotCloudy = bestInVis.clear >= 60;
-      if (clearNotCloudy) {
-        if (win && win.len >= 2 && win.range) {
-          bestText = en
-            ? `Clear <strong>${win.range}</strong> · faint aurora`
-            : `${dayPrefixZh} <strong>${win.range}</strong> 晴朗但極光偏弱`;
-        } else {
-          bestText = en
-            ? `Clear ~<strong>${bestTimeLbl}</strong> · faint aurora`
-            : `${dayPrefixZh} <strong>${bestTimeLbl}</strong> 晴朗但極光偏弱`;
-        }
-      } else if (startIdx >= 4) {
-        if (win && win.len >= 2 && win.range) {
-          bestText = en
-            ? `Fair trend <strong>${win.range}</strong>`
-            : `${dayPrefixZh} <strong>${win.range}</strong> 預估普通`;
-        } else {
-          bestText = en
-            ? `Thinner clouds ~<strong>${bestTimeLbl}</strong>`
-            : `${dayPrefixZh} <strong>${bestTimeLbl}</strong> 雲層稍薄`;
-        }
-      } else if (win && win.len >= 2 && win.range) {
-        bestText = en
-          ? `Fair <strong>${win.range}</strong> · peaks <strong>${bestTimeLbl}</strong>`
-          : `${dayPrefixZh} <strong>${win.range}</strong> 普通 · <strong>${bestTimeLbl}</strong> 最佳`;
-      } else {
-        bestText = en
-          ? `Brief break ~<strong>${bestTimeLbl}</strong>`
-          : `<strong>${bestTimeLbl}</strong> 雲層稍薄`;
-      }
-    } else if (bestInVis.clear >= 55) {
-      bestText = en
-        ? `Clearest ~<strong>${bestTimeLbl}</strong>, quiet aurora`
-        : `<strong>${bestTimeLbl}</strong> 最晴，極光偏弱`;
-    } else {
-      bestText = en
-        ? `Mostly cloudy next ${hz}h`
-        : `未來 ${hz} 小時偏多雲，可看「找晴空」`;
-    }
-  }
+  const bestText = formatWavePeakSummary({
+    vis, bestInVis, outZoneKind, isOutOfZone, bestTimeLbl, bestIsNextNight, en
+  });
   const hb = $('homeBest');
   if (hb) {
     hb.className = 'wave-peak';
@@ -1061,80 +964,16 @@ function selectForecastHour(idx) {
   const isOutOfZone = Boolean(state.lastScore?.outOfZone) && vis.every(x => !x || x.isDay || x.outOfZone || x.score === 0);
   const bestInVis = isOutOfZone ? null : pickBestInSlice(vis);
   setHtml('skyWaveChart', buildSkyWaveSVG(vis, bestInVis, idx, getLang()));
-  const hasTemp = Number.isFinite(Number(h.temp));
-  const tInt = hasTemp ? (Math.round(Number(h.temp)) || 0) : null;
-  const wcInt = Number.isFinite(Number(h.windChill)) ? (Math.round(Number(h.windChill)) || 0) : tInt;
-  const windMs = Number.isFinite(Number(h.windMs)) ? Math.round(Number(h.windMs)) : 0;
-  const isTrend = idx >= 4;
-  const isGated = Boolean(h.isDay || h.outOfZone);
-  const darkPct = Number.isFinite(h.darkScore) ? Math.round(h.darkScore) : (h.isDay ? 0 : (h.moonUp ? Math.max(20, 100 - Math.round((h.moonPct || 0) * 0.4)) : 100));
-  const brightMoonUp = Boolean(h.moonUp && (h.moonPct || 0) >= 60 && (h.moonAlt || 0) >= 10);
-  const lowHorizonMoon = Boolean(brightMoonUp && (h.moonAlt || 0) < 18 && darkPct >= 90);
-  const darkTxt = h.isDay
-    ? ''
-    : (darkPct >= 95 && !brightMoonUp
-        ? term(TERMS.darkFull, en)
-        : (brightMoonUp
-            ? (lowHorizonMoon
-                ? (en ? `Dark ${darkPct}% · Low moon ${Math.round(h.moonPct)}%` : `暗度 ${darkPct}% · 低月 ${Math.round(h.moonPct)}%`)
-                : (en ? `Dark ${darkPct}% · Moon ${Math.round(h.moonPct)}%` : `暗度 ${darkPct}% · 月 ${Math.round(h.moonPct)}%`))
-            : `${term(TERMS.darkShort, en)} ${darkPct}%`));
-  const kpVal = Number.isFinite(h.kpFc) ? h.kpFc : null;
-  const baseKpBadge = kpVal === null
-    ? `Kp ${escapeHtml(h.kpFc)}`
-    : (isTrend
-        ? (en ? `~Kp ${Math.round(kpVal)}` : `約 Kp ${Math.round(kpVal)}`)
-        : `Kp ${kpVal.toFixed(1)}`);
-  const hNeededKp = Number.isFinite(h.neededKp) ? h.neededKp : state.lastScore?.neededKp;
-  const hMagLat = Number.isFinite(h.magLat) ? h.magLat : state.lastScore?.magLat;
-  let kpBadge = baseKpBadge;
-  if (h.outOfZone === 'low-lat') {
-    kpBadge = en ? `Mag ${hMagLat ?? '--'}° (too low)` : `地磁 ${hMagLat ?? '--'}°（緯度過低）`;
-  } else if (h.outOfZone === 'need-storm') {
-    kpBadge = en
-      ? `${baseKpBadge} (need ${hNeededKp ?? '--'}+ here)`
-      : `${baseKpBadge}（此地需 ≥ ${hNeededKp ?? '--'}）`;
-  } else if (!h.isDay && h.clear >= 50 && Number.isFinite(h.auroraScore) && h.auroraScore < 45) {
-    if (Number.isFinite(hNeededKp) && hNeededKp >= 2.0) {
-      const strongKp = Math.min(9, Math.ceil(hNeededKp + 1.2));
-      kpBadge = (kpVal !== null && kpVal >= hNeededKp - 0.3)
-        ? (en ? `${baseKpBadge} (low horizon, need ${strongKp}+)` : `${baseKpBadge}（此地低空微弱，需 ${strongKp}+）`)
-        : (en ? `${baseKpBadge} (faint here, need ${hNeededKp}+)` : `${baseKpBadge}（此地偏弱，需 ≥ ${hNeededKp}）`);
-    } else {
-      kpBadge = en ? `${baseKpBadge} (quiet aurora)` : `${baseKpBadge}（極光偏弱）`;
-    }
-  }
-  const tStr = formatHourLabel(h, en);
-  const scCol = h.isDay ? 'var(--blue)' : tierColor(h.score);
-  const scTier = scoreTierWord(h.score, h.isDay, en);
-  const scoreReadout = (!isTrend || isGated)
-    ? `${h.score} ${scTier}`
-    : (en ? `~${h.score} ${scTier}` : `約 ${h.score} ${scTier}`);
-  const clearSpread = (Number.isFinite(h.clearLow) && Number.isFinite(h.clearHigh))
-    ? (h.clearHigh - h.clearLow)
-    : 0;
-  const scoreSpread = (Number.isFinite(h.scoreLow) && Number.isFinite(h.scoreHigh))
-    ? (h.scoreHigh - h.scoreLow)
-    : 0;
-  const highSkyUncert = isTrend && !isGated && (clearSpread >= 40 || scoreSpread >= 35);
-  const trendTagHtml = (isTrend && !isGated)
-    ? (highSkyUncert
-        ? ` <span class="sb-tag sb-tag-warn">${term(TERMS.skyUncertain, en)}</span>`
-        : ` <span class="sb-tag">${term(TERMS.trendRef, en)}</span>`)
-    : '';
-  const clearPart = (isTrend && !h.isDay)
-    ? (en ? `~${h.clear}% clear` : `晴空約 ${h.clear}%`)
-    : (en ? `${h.clear}% clear` : `晴空 ${h.clear}%`);
-  const tempPart = hasTemp
-    ? ((tInt - wcInt >= 3) ? (en ? `Feels ${fmtTemp(wcInt)}` : `體感 ${fmtTemp(wcInt)}`) : fmtTemp(tInt))
-    : '';
-  const windPart = windMs >= 10 ? (en ? `Wind ${windMs}m/s` : `風速 ${windMs}m/s`) : '';
-  const rightMeta = [clearPart, darkTxt, tempPart, windPart, kpBadge]
-    .filter(Boolean)
-    .map(p => `<span class="nowrap">${p}</span>`)
-    .join(' · ');
-  setHtml('hourDetail',
-    `<div class="sb-top"><strong>${tStr}</strong> <strong style="color:${scCol}">${scoreReadout}</strong>${trendTagHtml}</div><div class="sb-bot">${rightMeta}</div>`);
+  const det = formatHourScrubDetail({
+    h, idx,
+    tStr: formatHourLabel(h, en),
+    lastScore: state.lastScore,
+    fmtTempFn: fmtTemp,
+    tierWord: scoreTierWord(h.score, h.isDay, en),
+    scCol: h.isDay ? 'var(--blue)' : tierColor(h.score),
+    en
+  });
+  setHtml('hourDetail', det.html);
   const prevBtn = $('hrPrevBtn'), nextBtn = $('hrNextBtn');
   if (prevBtn) prevBtn.disabled = idx <= 0;
   if (nextBtn) nextBtn.disabled = idx >= vis.length - 1;
@@ -1247,21 +1086,10 @@ function render3NightOutlook(nights) {
     const scoreVal = Math.round(n.bestNightScore || 0);
     const dayTxt = n.dayLabel || n.label || '';
     const dateTxt = fmtNightDate(n, en);
-    const isMismatch = Boolean(n.peakCloudMismatch && Number.isFinite(n.kpPeakClear));
-    const clearTxt = isMismatch
-      ? (en ? `${n.kpPeakClear}% clear at peak` : `強光時晴空 ${n.kpPeakClear}%`)
-      : (n.bestClear !== null
-          ? (en ? `${n.bestClear}% clear` : `${term(TERMS.clearSky, false)} ${n.bestClear}%`)
-          : term(TERMS.status.noDarkSky, en));
-    const kpTxt = n.kpAvailable === false
-      ? (en ? 'Kp --' : 'Kp 更新中')
-      : (i > 0
-          ? (en ? `~Kp ${Math.round(Number(n.maxKp || 0))}` : `約 Kp ${Math.round(Number(n.maxKp || 0))}`)
-          : `Kp ${Number(n.maxKp || 0).toFixed(1)}`);
+    const { clearTxt, kpTxt, winTxt, iconClearPct } = formatOutlookRowStats({ n, idx: i, en });
     const gTag = n.kpAvailable !== false && n.gScale >= 1 ? ` <span class="od-g">G${n.gScale}</span>` : '';
     const isBest = i === bestIdx;
-    const winTxt = n.bestWindow ? `${term(TERMS.peak, en)} ${n.bestWindow}` : '';
-    const skyIco = buildOutlookSkyIcon({ score: scoreVal, clearPct: isMismatch ? n.kpPeakClear : n.bestClear, scoreAvailable: hasScore });
+    const skyIco = buildOutlookSkyIcon({ score: scoreVal, clearPct: iconClearPct, scoreAvailable: hasScore });
     const barPct = hasScore ? Math.max(8, Math.min(100, scoreVal)) : 0;
     const barBg = hasScore && scoreVal >= 65
       ? 'linear-gradient(90deg, var(--good), var(--green))'
@@ -3275,6 +3103,13 @@ function bindEvents() {
 function registerServiceWorker() {
   try {
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+      const hadController = Boolean(navigator.serviceWorker.controller);
+      let swReloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadController || swReloading) return;
+        swReloading = true;
+        location.reload();
+      });
       navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => {});
     }
   } catch {}
