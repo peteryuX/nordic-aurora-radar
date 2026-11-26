@@ -204,7 +204,7 @@ function buildInterceptorScript(sc) {
   const origFetch = window.fetch.bind(window);
   window.fetch = async (input, init) => {
     const url = typeof input === 'string' ? input : (input?.url || '');
-    if (url.startsWith(location.origin) || url.startsWith('/')) return origFetch(input, init);
+    if (url.startsWith(location.origin) || url.startsWith('/') || url.startsWith('./')) return origFetch(input, init);
 
     if (url.includes('rtsw_mag_1m.json')) return mkResp(magRows);
     if (url.includes('rtsw_wind_1m.json')) return mkResp(windRows);
@@ -561,6 +561,7 @@ function buildInterceptorScript(sc) {
       bzBadge: document.getElementById('bzBadge')?.textContent?.trim() || '',
       energyBanner: document.getElementById('energyBanner')?.textContent?.trim() || '',
       navSat: document.getElementById('navSat')?.textContent?.trim() || '',
+      skyCamEnabled: document.getElementById('skyCamCard')?.style.display !== 'none',
       compassSummaryText: document.getElementById('compassSummary')?.textContent?.trim() || '',
       compassHtml: document.getElementById('compassBox')?.innerHTML || '',
       outlookText: document.getElementById('outlookGrid')?.textContent?.replace(/\\s+/g, ' ').trim() || '',
@@ -598,7 +599,8 @@ const SCENARIOS = [
       if (!r.fAurSub.includes('Kp 1.0')) errs.push(`Expected Kp 1.0 (not 0.0 during UT rollover), got "${r.fAurSub}"`);
       if (r.bodyText.includes('機場')) errs.push('Found forbidden cryptic word 機場 in real DOM');
       if (r.vActionBtn.includes('與實拍')) errs.push(`Hero dir CTA must NOT claim 與實拍, got "${r.vActionBtn}"`);
-      if (r.navSat !== '實拍雲圖') errs.push(`Tromsø (inside Nordic cam range) navSat must be 實拍雲圖, got "${r.navSat}"`);
+      if (r.navSat !== '觀測地圖') errs.push(`Tab 3 navSat must stay permanently unified as 觀測地圖, got "${r.navSat}"`);
+      if (!r.skyCamEnabled) errs.push('Tromsø (inside Nordic cam range) must keep skyCamCard enabled');
       if (!r.tsValSky.endsWith('%') || !r.tsValAur.endsWith('/100') || !r.tsValDark.endsWith('%') || !r.tsValOut.endsWith('/99')) {
         errs.push(`Trust Sheet formula cells must carry explicit units (%, /100, %, /99), got sky="${r.tsValSky}" aur="${r.tsValAur}" dark="${r.tsValDark}" out="${r.tsValOut}"`);
       }
@@ -622,7 +624,7 @@ const SCENARIOS = [
   },
   {
     id: 'oslo-search-mismatch',
-    label: 'Oslo 19px: English search -> 挪威 · Oslo + Thu 11/26 強極光時雲厚 + honest 動態雲圖 + curated northern dark-sky spots (stay-local 看地圖)',
+    label: 'Oslo 19px: English search -> 挪威 · Oslo + Thu 11/26 強極光時雲厚 + unified 觀測地圖 (cam hidden) + curated northern dark-sky spots (stay-local 看地圖)',
     query: '?lat=69.6492&lon=18.9553',
     runSearchQuery: 'Oslo',
     searchResultName: 'Oslo', searchResultCountry: 'Norway', searchResultCC: 'NO',
@@ -632,7 +634,8 @@ const SCENARIOS = [
     verify(r) {
       const errs = [];
       if (r.locName !== '挪威 · Oslo') errs.push(`English search "Oslo" must render 挪威 · Oslo, got "${r.locName}"`);
-      if (r.navSat !== '動態雲圖') errs.push(`Oslo (outside Arctic observatory cam range) navSat must be 動態雲圖, got "${r.navSat}"`);
+      if (r.navSat !== '觀測地圖') errs.push(`Oslo Tab 3 navSat must stay permanently unified as 觀測地圖, got "${r.navSat}"`);
+      if (r.skyCamEnabled) errs.push('Oslo (outside Arctic observatory cam range) must hide skyCamCard');
       if (!r.outlookText.includes('強極光時雲厚')) errs.push(`Expected 強極光時雲厚 on Oslo Thu 11/26, got "${r.outlookText}"`);
       if (!r.outlookText.includes('極光強時晴空 0%')) errs.push(`Expected 極光強時晴空 0% on Oslo Thu 11/26, got "${r.outlookText}"`);
       if (r.compassHtml.includes('travelmode=driving')) errs.push('Already-clear Oslo must NEVER emit turn-by-turn travelmode=driving links');
@@ -791,14 +794,15 @@ const SCENARIOS = [
   },
   {
     id: 'reykjavik-iceland-cams',
-    label: 'Reykjavik 19px: Official Iceland Vegagerðin live cams active (navSat = 實拍雲圖) + Windy weather link',
+    label: 'Reykjavik 19px: Official Iceland Vegagerðin live cams active (skyCamEnabled = true, navSat = 觀測地圖) + Windy weather link',
     query: '?lat=64.1466&lon=-21.9426',
     lat: 64.1466, lon: -21.9426, tz: 'Atlantic/Reykjavik', utcOff: 0, rootPx: 19, lang: 'zh',
     nowMs: Date.UTC(2026, 10, 25, 22, 0, 0),
     kpNow: 3.5, bz: -4.0, speed: 460, ov: 48, metCloud: 25, omCloud: 25,
     verify(r) {
       const errs = [];
-      if (r.navSat !== '實拍雲圖') errs.push(`Reykjavik (inside Iceland official cam range) navSat must be 實拍雲圖, got "${r.navSat}"`);
+      if (r.navSat !== '觀測地圖') errs.push(`Reykjavik Tab 3 navSat must stay permanently unified as 觀測地圖, got "${r.navSat}"`);
+      if (!r.skyCamEnabled) errs.push('Reykjavik (inside Iceland official cam range) must keep skyCamCard enabled');
       if (r.pMetHref.includes('open-meteo.com/en/docs')) errs.push(`Reykjavik must not link to open-meteo docs: "${r.pMetHref}"`);
       if (!r.tsProHtml.includes('ts-pro-layers')) errs.push(`Reykjavik Trust Sheet Pro panel must show layered clouds`);
       if (r.issues.length) errs.push(...r.issues);

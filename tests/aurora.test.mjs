@@ -3663,7 +3663,8 @@ test('69. v64 All-4-Auditors Sign-Off (Nightside Storm Parity, Clear-Now/Storm-L
   const { formatStormAlertDetail, buildHeroViewModel, formatLightPollutionNote, formatOutlookRowStats } = await import('../src/copy-formatters.js');
   const swSrc = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
   const cssSrc = fs.readFileSync(path.join(__dirname, '..', 'styles.css'), 'utf8');
-  assert.ok(swSrc.includes('aurora-radar-shell-v64'), 'sw.js CACHE_NAME must be bumped to v64');
+  const swVer69 = Number((swSrc.match(/aurora-radar-shell-v(\d+)/) || [])[1] || 0);
+  assert.ok(swVer69 >= 64, `sw.js CACHE_NAME must be >= v64, got v${swVer69}`);
   assert.ok(cssSrc.includes('.dir-note { display: block;') && cssSrc.includes('.dir-tip { display: block;'), '.dir-note and .dir-tip must be block-level to prevent glued tags');
 
   // (a) Oslo G1 Watch: noon vs evening produces identical stable nightside Kp baseline (never flips to 5.3 / too weak!)
@@ -3747,6 +3748,55 @@ test('69. v64 All-4-Auditors Sign-Off (Nightside Storm Parity, Clear-Now/Storm-L
   const osloNote = formatLightPollutionNote({ urbanGlare: api.estimateUrbanSkyglow({ lat: 59.9127, lon: 10.7461, auroraScore: 45, effMoonPct: 0, lang: 'zh' }), pos: { mode: 'manual' }, sc: {}, en: false });
   assert.ok(!/光穹|北方側|南方側/.test(osloNote.text), `Beginner copy must not contain 光穹 or 北方側: "${osloNote.text}"`);
 });
+
+test('70. v65 System-Level Tab 3 IA (觀測地圖), Copernicus GLO-30 Ridge Lower Bounds & Daily Instrument Verification Scorecard', async () => {
+  const { TERMS } = await import('../src/glossary.js');
+  const { HORIZON_LOWER_BOUNDS } = await import('../src/horizon-data.js');
+  const swSrc = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+  const htmlSrc = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const verifRaw = fs.readFileSync(path.join(__dirname, '..', 'verification', 'latest.json'), 'utf8');
+  const verif = JSON.parse(verifRaw);
+
+  // (a) sw.js v65 + horizon-data.js in SHELL_ASSETS + Network-First for /verification/
+  assert.ok(swSrc.includes('aurora-radar-shell-v65'), 'sw.js CACHE_NAME must be bumped to v65');
+  assert.ok(swSrc.includes('./src/horizon-data.js'), 'sw.js SHELL_ASSETS must include ./src/horizon-data.js');
+  assert.ok(swSrc.includes("url.pathname.includes('/verification/')"), 'sw.js must serve /verification/ Network-First');
+
+  // (b) Tab 3 system-level IA permanently unified as 觀測地圖 / Sky & maps with Folded Map SVG & scientifically honest forecast titles
+  assert.equal(TERMS.nav.liveMap.zh, '觀測地圖');
+  assert.equal(TERMS.nav.liveMap.en, 'Sky & maps');
+  assert.equal(TERMS.nav.cloudMap.zh, '觀測地圖');
+  assert.equal(TERMS.nav.cloudMap.en, 'Sky & maps');
+  assert.ok(htmlSrc.includes('polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21 3 6"'), 'Tab 3 bottom nav must use Folded Map SVG');
+  assert.ok(htmlSrc.includes('id="tsVerifCard"'), 'Trust Sheet must mount #tsVerifCard');
+  assert.ok(htmlSrc.includes('動態雲量預報（Windy）') && htmlSrc.includes('北半球極光範圍預報（NOAA）'), 'Tab 3 card titles must honestly label Windy cloud & NOAA aurora forecasts');
+  assert.ok(appSrc.includes('loadVerificationScorecard') && appSrc.includes('7 * 86400000'), 'app.js must lazily load verification scorecard with 7-day staleness guard');
+
+  // (c) Copernicus GLO-30 fixed-corridor horizon table: 112 curated spots, strict <=1.5 km non-interpolated lookup, advisory-only
+  const keys = Object.keys(HORIZON_LOWER_BOUNDS);
+  assert.ok(keys.length >= 100, `Expected >=100 curated Copernicus GLO-30 spots, got ${keys.length}`);
+  const banff = api.lookupCorridorHorizon({ lat: 51.2485, lon: -115.4979, azimuthDeg: 0 });
+  assert.equal(banff.matched, true, 'Banff Lake Minnewanka must match curated GLO-30 entry');
+  assert.ok(banff.minDeg >= 6 && banff.blocksLow === true, `Banff Minnewanka northward ridge must report >=6° lower bound, got ${JSON.stringify(banff)}`);
+  const yk = api.lookupCorridorHorizon({ lat: 62.4540, lon: -114.3718, azimuthDeg: 0 });
+  assert.equal(yk.matched, true, 'Yellowknife must match curated GLO-30 entry');
+  assert.equal(yk.minDeg, 0, `Flat Yellowknife shield must report 0° horizon, got ${yk.minDeg}`);
+  assert.equal(yk.blocksLow, false);
+  const unmapped = api.lookupCorridorHorizon({ lat: 61.5000, lon: 8.5000, azimuthDeg: 0 });
+  assert.equal(unmapped.matched, false, 'Unmapped mountain coordinate >1.5 km from curated points must NEVER interpolate');
+  assert.equal(unmapped.blocksLow, false);
+
+  // (d) Daily independent verification scorecard schema & small-sample honesty guard
+  assert.ok(Number.isFinite(Date.parse(verif.generatedAt)), `verification/latest.json generatedAt must be valid ISO date, got ${verif.generatedAt}`);
+  assert.ok(!verifRaw.includes('NaN') && !verifRaw.includes('機場'), 'verification/latest.json must never contain NaN or cryptic 機場');
+  assert.ok(verif.cloudAudit && verif.cloudAudit.airportsCheckedNow >= 5, `Expected >=5 live METAR stations audited, got ${verif.cloudAudit?.airportsCheckedNow}`);
+  assert.ok(verif.geomagAudit && verif.geomagAudit.gfzHp30Bins30d >= 1000, `Expected 30-day GFZ Hp30 bins >=1000, got ${verif.geomagAudit?.gfzHp30Bins30d}`);
+  if (verif.geomagAudit.smallSampleGuard) {
+    assert.equal(verif.geomagAudit.l1RocAuc, null, 'Small-sample guard (<5 active events) must suppress l1RocAuc to null');
+  }
+});
+
 
 
 

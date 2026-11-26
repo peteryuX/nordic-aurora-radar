@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "generatedAt": "2026-11-26T20:07:47.452Z",
+  "windowDays": 30,
+  "cloudAudit": {
+    "mode": "raw-nwp-nowcast",
+    "samples": 9,
+    "prospectiveSamples": 0,
+    "pendingProspective": 27,
+    "airportsCheckedNow": 9,
+    "layeredMaePct": 37.3,
+    "rawTotalMaePct": 38.3,
+    "persistenceMaePct": null,
+    "falseClearRatePct": null
+  },
+  "geomagAudit": {
+    "gfzHp30Bins30d": 1439,
+    "activeEvents30d": 57,
+    "stormEvents30d": 15,
+    "l1MatchedBins": 45,
+    "l1ActiveEvents": 0,
+    "l1RocAuc": null,
+    "smallSampleGuard": true
+  },
+  "sources": [
+    "AviationWeather.gov & IEM Official Airport METAR Ceilometers (9 stations)",
+    "GFZ Potsdam 30-min Hp30 Geomagnetic Index",
+    "NOAA SWPC DSCOVR/ACE Real-Time L1 Solar Wind"
+  ],
+  "disclaimerZh": "僅驗證原始數值預報雲量與地磁擾動準度（對照當地氣象觀測站雷射測雲儀與 GFZ Hp30），非單點肉眼極光保證。",
+  "disclaimerEn": "Verifies raw NWP cloud forecasts and geomagnetic activity against independent airport METAR ceilometers and GFZ Hp30 — not a local naked-eye visibility guarantee."
+}

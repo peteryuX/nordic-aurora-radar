@@ -6,7 +6,8 @@
  */
 
 import { TERMS, term } from './glossary.js';
-export { TERMS, term };
+import { HORIZON_LOWER_BOUNDS } from './horizon-data.js';
+export { TERMS, term, HORIZON_LOWER_BOUNDS };
 
 // ====== Bilingual Formatting State & Helpers ======
 let currentLang = 'zh';
@@ -4128,8 +4129,8 @@ export function evaluateVerdict({ lat = 69.97, lon = 23.27, bestDark, kp, mlt = 
   }
   if (scoreObj.auroraScore >= 55 && scoreObj.skyScore < 35) {
     return en
-      ? { kicker: 'Active · cloudy', title: 'Strong aurora above, blocked by clouds', lead: 'Solar wind is active — try Find clear skies or the live cloud map for nearby clear skies.' }
-      : { kicker: '極光活躍 · 雲厚', title: '極光能量充足，但目前受厚雲遮蔽', lead: '太陽風活躍中，可點下方「找晴空」或「動態雲圖」尋找周邊晴朗區域。' };
+      ? { kicker: 'Active · cloudy', title: 'Strong aurora above, blocked by clouds', lead: 'Solar wind is active — try Find clear skies or Sky & maps for nearby clear skies.' }
+      : { kicker: '極光活躍 · 雲厚', title: '極光能量充足，但目前受厚雲遮蔽', lead: '太陽風活躍中，可點下方「找晴空」或「觀測地圖」尋找周邊晴朗區域。' };
   }
   if (scoreObj.skyScore >= 55) {
     return en
@@ -4462,7 +4463,7 @@ export function summarizeCompass(dirResults, lang, opts = null) {
     return {
       bestKey: null, bestClear: null, hereClear, diff: 0, good: false,
       glareEscapeKey: null, glareEscapeActive: false, glareByKey,
-      text: en ? 'Surrounding points are open sea or unavailable. Stay local or check the Cloud Map for inland roads.' : '周邊多為海面或暫無資料，建議留在當地或透過「動態雲圖」查看內陸路線。'
+      text: en ? 'Surrounding points are open sea or unavailable. Stay local or check Sky & maps for inland roads.' : '周邊多為海面或暫無資料，建議留在當地或透過「觀測地圖」查看內陸路線。'
     };
   }
   const safeOthers = landOthers.filter(d => !isCorridorHazard(d));
@@ -4855,6 +4856,28 @@ export function evaluateCorridorSkyglow({
   }
   return none;
 }
+
+/**
+ * Look up conservative Copernicus GLO-30 distant mountain-ridge horizon lower bound (0.8–40 km)
+ * for curated hubs and corridors ONLY (strict <=1.5 km match — NEVER interpolates across unknown fjords).
+ * Strictly advisory: never alters 0–99 scores; excludes near-field trees and buildings.
+ */
+export function lookupCorridorHorizon({ lat, lon, azimuthDeg = null } = {}) {
+  const none = { matched: false, minDeg: 0, maxDeg: 0, sectorIdx: null, blocksLow: false };
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Array.isArray(HORIZON_LOWER_BOUNDS)) return none;
+  let best = null, bestKm = Infinity;
+  for (const row of HORIZON_LOWER_BOUNDS) {
+    const d = computeDistanceKm(lat, lon, row[0], row[1]);
+    if (d < bestKm) { bestKm = d; best = row; }
+  }
+  if (!best || bestKm > 1.5 || !Array.isArray(best[2]) || best[2].length < 16) return none;
+  const az = Number.isFinite(azimuthDeg) ? azimuthDeg : computeAuroraBearing(lat, lon);
+  const sectorIdx = Math.round((((az % 360) + 360) % 360) / 22.5) % 16;
+  const minDeg = Math.max(0, Number(best[2][sectorIdx]) || 0);
+  const maxDeg = Math.max(...best[2]);
+  return { matched: true, minDeg, maxDeg, sectorIdx, blocksLow: minDeg >= 6 };
+}
+
 
 
 

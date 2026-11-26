@@ -1,0 +1,585 @@
+{
+  "cloudPending": [
+    {
+      "icao": "ENTC",
+      "leadH": 3,
+      "issuedMs": 1795723667452,
+      "validMs": 1795734000000,
+      "effCloud": 4,
+      "rawTotal": 3,
+      "persistCloud": 19
+    },
+    {
+      "icao": "ENTC",
+      "leadH": 6,
+      "issuedMs": 1795723667452,
+      "validMs": 1795744800000,
+      "effCloud": 70,
+      "rawTotal": 62,
+      "persistCloud": 19
+    },
+    {
+      "icao": "ENTC",
+      "leadH": 12,
+      "issuedMs": 1795723667452,
+      "validMs": 1795766400000,
+      "effCloud": 3,
+      "rawTotal": 2,
+      "persistCloud": 19
+    },
+    {
+      "icao": "ENAT",
+      "leadH": 3,
+      "issuedMs": 1795723667452,
+      "validMs": 1795734000000,
+      "effCloud": 22,
+      "rawTotal": 15,
+      "persistCloud": 75
+    },
+    {
+      "icao": "ENAT",
+      "leadH": 6,
+      "issuedMs": 1795723667452,
+      "validMs": 1795744800000,
+      "effCloud": 2,
+      "rawTotal": 2,
+      "persistCloud": 75
+    },
+    {
+      "icao": "ENAT",
+      "leadH": 12,
+      "issuedMs": 1795723667452,
+      "validMs": 1795766400000,
+      "effCloud": 85,
+      "rawTotal": 77,
+      "persistCloud": 75
+    },
+    {
+      "icao": "ESNQ",
+      "leadH": 3,
+      "issuedMs": 1795723667452,
+      "validMs": 1795734000000,
+      "effCloud": 1,
+      "rawTotal": 1,
+      "persistCloud": 75
+    },
+    {
+      "icao": "ESNQ",
+      "leadH": 6,
+      "issuedMs": 1795723667452,
+      "validMs": 1795744800000,
+      "effCloud": 13,
+      "rawTotal": 9,
+      "persistCloud": 75
+    },
+    {
+      "icao": "ESNQ",
+      "leadH": 12,
+      "issuedMs": 1795723667452,
+      "validMs": 1795766400000,
+      "effCloud": 89,
+      "rawTotal": 82,
+      "persistCloud": 75
+    },
+    {
+      "icao": "EFRO",
+      "leadH": 3,
+      "issuedMs": 1795723667452,
+      "validMs": 1795734000000,
+      "effCloud": 0,
+      "rawTotal": 0,
+      "persistCloud": 0
+    },
+    {
+      "icao": "EFRO",
+      "leadH": 6,
+      "issuedMs": 1795723667452,
+      "validMs": 1795744800000,
+      "effCloud": 0,
+      "rawTotal": 0,
+      "persistCloud": 0
+    },
+    {
+      "icao": "EFRO",
+      "leadH": 12,
+      "issuedMs": 1795723667452,
+      "validMs": 1795766400000,
+      "effCloud": 2,
+      "rawTotal": 1,
+      "persistCloud": 0
+    },
+    {
+      "icao": "BIRK",
+      "leadH": 3,
+      "issuedMs": 1795723667452,
+      "validMs": 1795734000000,
+      "effCloud": 100,
+      "rawTotal": 100,
+      "persistCloud": 86
+    },
+    {
+      "icao": "BIRK",
+      "leadH": 6,
+      "issuedMs": 1795723667452,
+      "validMs": 1795744800000,
+      "effCloud": 79,
+      "rawTotal": 96,
+      "persistCloud": 86
+    },
+    {
+      "icao": "BIRK",
+      "leadH": 12,
+      "issuedMs": 1795723667452,
+      "validMs": 1795766400000,
+      "effCloud": 100,
+      "rawTotal": 100,
+      "persistCloud": 86
+    },
+    {
+      "icao": "PAFA",
+      "leadH": 3,
+      "issuedMs": 1795723667452,
+      "validMs": 1795734000000,
+      "effCloud": 10,
+      "rawTotal": 10,
+      "persistCloud": 100
+    },
+    {
+      "icao": "PAFA",
+      "leadH": 6,
+      "issuedMs": 1795723667452,
+      "validMs": 1795744800000,
+      "effCloud": 12,
+      "rawTotal": 12,
+      "persistCloud": 100
+    },
+    {
+      "icao": "PAFA",
+      "leadH": 12,
+      "issuedMs": 1795723667452,
+      "validMs": 1795766400000,
+      "effCloud": 55,
+      "rawTotal": 57,
+      "persistCloud": 100
+    },
+    {
+      "icao": "CYZF",
+      "leadH": 3,
+      "issuedMs": 1795723667452,
+      "validMs": 1795734000000,
+      "effCloud": 92,
+      "rawTotal": 100,
+      "persistCloud": 86
+    },
+    {
+      "icao": "CYZF",
+      "leadH": 6,
+      "issuedMs": 1795723667452,
+      "validMs": 1795744800000,
+      "effCloud": 100,
+      "rawTotal": 100,
+      "persistCloud": 86
+    },
+    {
+      "icao": "CYZF",
+      "leadH": 12,
+      "issuedMs": 1795723667452,
+      "validMs": 1795766400000,
+      "effCloud": 100,
+      "rawTotal": 100,
+      "persistCloud": 86
+    },
+    {
+      "icao": "NZQN",
+      "leadH": 3,
+      "issuedMs": 1795723667452,
+      "validMs": 1795734000000,
+      "effCloud": 28,
+      "rawTotal": 45,
+      "persistCloud": 0
+    },
+    {
+      "icao": "NZQN",
+      "leadH": 6,
+      "issuedMs": 1795723667452,
+      "validMs": 1795744800000,
+      "effCloud": 24,
+      "rawTotal": 25,
+      "persistCloud": 0
+    },
+    {
+      "icao": "NZQN",
+      "leadH": 12,
+      "issuedMs": 1795723667452,
+      "validMs": 1795766400000,
+      "effCloud": 6,
+      "rawTotal": 5,
+      "persistCloud": 0
+    },
+    {
+      "icao": "YMHB",
+      "leadH": 3,
+      "issuedMs": 1795723667452,
+      "validMs": 1795734000000,
+      "effCloud": 0,
+      "rawTotal": 0,
+      "persistCloud": 0
+    },
+    {
+      "icao": "YMHB",
+      "leadH": 6,
+      "issuedMs": 1795723667452,
+      "validMs": 1795744800000,
+      "effCloud": 28,
+      "rawTotal": 93,
+      "persistCloud": 0
+    },
+    {
+      "icao": "YMHB",
+      "leadH": 12,
+      "issuedMs": 1795723667452,
+      "validMs": 1795766400000,
+      "effCloud": 87,
+      "rawTotal": 100,
+      "persistCloud": 0
+    }
+  ],
+  "cloudGraded": [],
+  "cloudZeroLead": [
+    {
+      "icao": "ENTC",
+      "ts": 1795722600000,
+      "obsCloud": 19,
+      "effCloud": 0,
+      "rawTotal": 0
+    },
+    {
+      "icao": "ENAT",
+      "ts": 1795722600000,
+      "obsCloud": 75,
+      "effCloud": 69,
+      "rawTotal": 61
+    },
+    {
+      "icao": "ESNQ",
+      "ts": 1795722600000,
+      "obsCloud": 75,
+      "effCloud": 5,
+      "rawTotal": 4
+    },
+    {
+      "icao": "EFRO",
+      "ts": 1795722600000,
+      "obsCloud": 0,
+      "effCloud": 0,
+      "rawTotal": 0
+    },
+    {
+      "icao": "BIRK",
+      "ts": 1795723200000,
+      "obsCloud": 86,
+      "effCloud": 100,
+      "rawTotal": 100
+    },
+    {
+      "icao": "PAFA",
+      "ts": 1795722780000,
+      "obsCloud": 100,
+      "effCloud": 29,
+      "rawTotal": 29
+    },
+    {
+      "icao": "CYZF",
+      "ts": 1795719600000,
+      "obsCloud": 86,
+      "effCloud": 100,
+      "rawTotal": 100
+    },
+    {
+      "icao": "NZQN",
+      "ts": 1795723200000,
+      "obsCloud": 0,
+      "effCloud": 100,
+      "rawTotal": 100
+    },
+    {
+      "icao": "YMHB",
+      "ts": 1795721400000,
+      "obsCloud": 0,
+      "effCloud": 42,
+      "rawTotal": 42
+    }
+  ],
+  "l1Graded": [
+    {
+      "bin30": 997578,
+      "ts": 1795640400000,
+      "newell": 3071,
+      "hp30": 0.67
+    },
+    {
+      "bin30": 997579,
+      "ts": 1795642200000,
+      "newell": 2097,
+      "hp30": 1
+    },
+    {
+      "bin30": 997580,
+      "ts": 1795644000000,
+      "newell": 2750,
+      "hp30": 1
+    },
+    {
+      "bin30": 997581,
+      "ts": 1795645800000,
+      "newell": 2435,
+      "hp30": 1.33
+    },
+    {
+      "bin30": 997582,
+      "ts": 1795647600000,
+      "newell": 1386,
+      "hp30": 1
+    },
+    {
+      "bin30": 997583,
+      "ts": 1795649400000,
+      "newell": 193,
+      "hp30": 1
+    },
+    {
+      "bin30": 997584,
+      "ts": 1795651200000,
+      "newell": 818,
+      "hp30": 0.67
+    },
+    {
+      "bin30": 997585,
+      "ts": 1795653000000,
+      "newell": 1105,
+      "hp30": 0.33
+    },
+    {
+      "bin30": 997586,
+      "ts": 1795654800000,
+      "newell": 1611,
+      "hp30": 0
+    },
+    {
+      "bin30": 997587,
+      "ts": 1795656600000,
+      "newell": 2941,
+      "hp30": 0.33
+    },
+    {
+      "bin30": 997588,
+      "ts": 1795658400000,
+      "newell": 3948,
+      "hp30": 0.33
+    },
+    {
+      "bin30": 997589,
+      "ts": 1795660200000,
+      "newell": 3586,
+      "hp30": 0.67
+    },
+    {
+      "bin30": 997590,
+      "ts": 1795662000000,
+      "newell": 3173,
+      "hp30": 1
+    },
+    {
+      "bin30": 997591,
+      "ts": 1795663800000,
+      "newell": 2799,
+      "hp30": 2.33
+    },
+    {
+      "bin30": 997592,
+      "ts": 1795665600000,
+      "newell": 2722,
+      "hp30": 2.67
+    },
+    {
+      "bin30": 997593,
+      "ts": 1795667400000,
+      "newell": 2556,
+      "hp30": 2.33
+    },
+    {
+      "bin30": 997594,
+      "ts": 1795669200000,
+      "newell": 2600,
+      "hp30": 1
+    },
+    {
+      "bin30": 997595,
+      "ts": 1795671000000,
+      "newell": 2647,
+      "hp30": 0.67
+    },
+    {
+      "bin30": 997596,
+      "ts": 1795672800000,
+      "newell": 2745,
+      "hp30": 0.33
+    },
+    {
+      "bin30": 997597,
+      "ts": 1795674600000,
+      "newell": 2870,
+      "hp30": 0.67
+    },
+    {
+      "bin30": 997598,
+      "ts": 1795676400000,
+      "newell": 2539,
+      "hp30": 1.33
+    },
+    {
+      "bin30": 997599,
+      "ts": 1795678200000,
+      "newell": 2726,
+      "hp30": 0.67
+    },
+    {
+      "bin30": 997600,
+      "ts": 1795680000000,
+      "newell": 2813,
+      "hp30": 0
+    },
+    {
+      "bin30": 997601,
+      "ts": 1795681800000,
+      "newell": 2800,
+      "hp30": 0.33
+    },
+    {
+      "bin30": 997602,
+      "ts": 1795683600000,
+      "newell": 2014,
+      "hp30": 0
+    },
+    {
+      "bin30": 997603,
+      "ts": 1795685400000,
+      "newell": 2567,
+      "hp30": 0.67
+    },
+    {
+      "bin30": 997604,
+      "ts": 1795687200000,
+      "newell": 1617,
+      "hp30": 0.67
+    },
+    {
+      "bin30": 997605,
+      "ts": 1795689000000,
+      "newell": 3475,
+      "hp30": 0.67
+    },
+    {
+      "bin30": 997606,
+      "ts": 1795690800000,
+      "newell": 4009,
+      "hp30": 0.67
+    },
+    {
+      "bin30": 997607,
+      "ts": 1795692600000,
+      "newell": 4329,
+      "hp30": 0.67
+    },
+    {
+      "bin30": 997608,
+      "ts": 1795694400000,
+      "newell": 3508,
+      "hp30": 0
+    },
+    {
+      "bin30": 997609,
+      "ts": 1795696200000,
+      "newell": 3220,
+      "hp30": 0.67
+    },
+    {
+      "bin30": 997610,
+      "ts": 1795698000000,
+      "newell": 2946,
+      "hp30": 1
+    },
+    {
+      "bin30": 997611,
+      "ts": 1795699800000,
+      "newell": 2165,
+      "hp30": 1
+    },
+    {
+      "bin30": 997612,
+      "ts": 1795701600000,
+      "newell": 2956,
+      "hp30": 0.67
+    },
+    {
+      "bin30": 997613,
+      "ts": 1795703400000,
+      "newell": 4155,
+      "hp30": 0.67
+    },
+    {
+      "bin30": 997614,
+      "ts": 1795705200000,
+      "newell": 2466,
+      "hp30": 1
+    },
+    {
+      "bin30": 997615,
+      "ts": 1795707000000,
+      "newell": 2953,
+      "hp30": 1
+    },
+    {
+      "bin30": 997616,
+      "ts": 1795708800000,
+      "newell": 2152,
+      "hp30": 1
+    },
+    {
+      "bin30": 997618,
+      "ts": 1795712400000,
+      "newell": 275,
+      "hp30": 1
+    },
+    {
+      "bin30": 997619,
+      "ts": 1795714200000,
+      "newell": 1099,
+      "hp30": 1.33
+    },
+    {
+      "bin30": 997620,
+      "ts": 1795716000000,
+      "newell": 2492,
+      "hp30": 1
+    },
+    {
+      "bin30": 997621,
+      "ts": 1795717800000,
+      "newell": 1851,
+      "hp30": 0.67
+    },
+    {
+      "bin30": 997622,
+      "ts": 1795719600000,
+      "newell": 467,
+      "hp30": 0.33
+    },
+    {
+      "bin30": 997623,
+      "ts": 1795721400000,
+      "newell": 578,
+      "hp30": 0.33
+    }
+  ]
+}

@@ -1,10 +1,11 @@
-const CACHE_NAME = 'aurora-radar-shell-v64';
+const CACHE_NAME = 'aurora-radar-shell-v65';
 const FETCH_TIMEOUT_MS = 3500;
 const SHELL_ASSETS = [
   './',
   './index.html',
   './styles.css',
   './src/glossary.js',
+  './src/horizon-data.js',
   './src/aurora-engine.js',
   './src/charts.js',
   './src/storage.js',
@@ -52,7 +53,7 @@ function fetchWithTimeout(req, timeoutMs) {
 // Atomic versioned app-shell SW:
 // - Root HTML + static shell (.js/.css/.svg/.png/.json) ALWAYS serve from the same atomic CACHE_NAME
 //   so a deploy NEVER mixes new index.html with stale styles.css / src/app.js (zero split-brain UI!).
-// - /spots/* SEO pages pass through network-first under their own URL and NEVER overwrite ./index.html.
+// - /spots/* SEO pages and /verification/* rolling daily JSON serve network-first (never frozen in shell cache!).
 // - Never intercepts third-party live APIs (NOAA, MET Norway, Open-Meteo, Windy, sky cams).
 self.addEventListener('fetch', event => {
   const req = event.request;
@@ -62,6 +63,23 @@ self.addEventListener('fetch', event => {
 
   const isNav = req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html');
   const isSpotsPage = url.pathname.includes('/spots/');
+  const isVerificationJson = url.pathname.includes('/verification/');
+
+  if (isVerificationJson) {
+    // Rolling daily independent verification JSON: ALWAYS network-first with cache fallback
+    event.respondWith(
+      fetchWithTimeout(new Request(req, { cache: 'no-cache' }), FETCH_TIMEOUT_MS)
+        .then(res => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            event.waitUntil(caches.open(CACHE_NAME).then(c => c.put(req, copy)).catch(() => {}));
+          }
+          return res;
+        })
+        .catch(() => caches.match(req, { ignoreSearch: true }).then(hit => hit || new Response('', { status: 503, statusText: 'Offline' })))
+    );
+    return;
+  }
 
   if (isNav) {
     if (isSpotsPage) {

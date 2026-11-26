@@ -134,10 +134,10 @@ export const STATIC_TEXT_MAP = {
   roadSe: ['瑞典 Trafikverket ↗', 'Sweden Trafikverket ↗'],
   roadIs: ['冰島 Umferðin ↗', 'Iceland Umferðin ↗'],
   roadFi: ['芬蘭路況 ↗', 'Finland roads ↗'],
-  h2Cam: ['天文台即時全天空實拍', 'Observatory all-sky cameras'],
+  h2Cam: ['即時天空實拍', 'Live sky cams'],
   subCam: [
-    '即時天空實拍，切換地點自動顯示最近鏡頭：',
-    'Live sky cameras — automatically matched to the nearest station:'
+    '即時天空實拍（見星點＝晴空、均勻亮霧＝厚雲或光害），切換地點自動顯示最近鏡頭：',
+    'Live sky cameras (visible stars = clear, uniform bright haze = cloud/glare) — matched to nearest station:'
   ],
   camBtnUit: ['Tromsø 近郊', 'Near Tromsø'],
   camBtnIrf: ['Kiruna', 'Kiruna'],
@@ -150,9 +150,9 @@ export const STATIC_TEXT_MAP = {
   camBtnUaf: ['Fairbanks', 'Fairbanks'],
   camBtnAmax: ['Yellowknife', 'Yellowknife'],
   camBrightBtn: ['日間已調暗 · 點此看原亮度', 'Dimmed in daylight · tap for full'],
-  h2Windy: ['即時動態雲圖', 'Live cloud map'],
-  subWindy: ['已自動對準目前位置，按左下角 ▶ 可播放接下來幾小時雲層移動趨勢：', 'Centered on your location — press ▶ bottom-left to animate cloud movement:'],
-  subOv: ['查看綠色／黃色極光帶目前是否覆蓋所在區域（每 5 分鐘自動更新）：', 'Check if the auroral oval covers your region (updates every 5 min):'],
+  h2Windy: ['動態雲量預報（Windy）', 'Cloud forecast (Windy)'],
+  subWindy: ['已對準目前位置（ECMWF 數值雲層預報），按左下角 ▶ 可播放未來幾小時移動趨勢：', 'Centered here (ECMWF cloud forecast) — press ▶ bottom-left to animate cloud movement:'],
+  subOv: ['NOAA OVATION 30 分鐘極光預報模型（每 5 分鐘更新），查看綠／黃色極光帶覆蓋範圍：', 'NOAA OVATION 30-min aurora forecast model (updates every 5 min) — check green/yellow coverage:'],
   navHome: pair(TERMS.nav.overview),
   navDir: pair(TERMS.nav.findClearShort),
   navSat: pair(TERMS.nav.liveMap),
@@ -341,7 +341,7 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
   const ovH = $('ovHeading');
   if (ovH) {
     ovH.textContent = currentPos.lat >= 0
-      ? (en ? 'NOAA Northern Hemisphere Aurora Oval' : 'NOAA 北半球即時極光橢圓圖')
-      : (en ? 'NOAA Southern Hemisphere Aurora Oval' : 'NOAA 南半球即時極光橢圓圖');
+      ? (en ? 'Northern aurora forecast (NOAA)' : '北半球極光範圍預報（NOAA）')
+      : (en ? 'Southern aurora forecast (NOAA)' : '南半球極光範圍預報（NOAA）');
   }
 }

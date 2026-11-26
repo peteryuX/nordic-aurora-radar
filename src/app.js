@@ -35,7 +35,8 @@ const {
   computeDarkWindow, getMoonState, computeViewingGeometry,
   computeMLT, explainAuroraScore, summarize3NightOutlook, evaluateVerdict,
   isCorridorHazard, isAuroraWorthViewing, synthesizeTonightAction, summarizeEnergyTrend, summarizeCompass,
-  shouldTriggerAuroraAlert, evaluateSilentGpsDecision, utcTagToLocalHM, estimateUrbanSkyglow
+  shouldTriggerAuroraAlert, evaluateSilentGpsDecision, utcTagToLocalHM, estimateUrbanSkyglow,
+  lookupCorridorHorizon
 } = Engine;
 
 const {
@@ -642,8 +643,9 @@ function getActiveSkyCamRegion(lat, lon) {
 }
 
 function syncNavSatLabel() {
-  const hasCam = Boolean(getActiveSkyCamRegion(state.pos.lat, state.pos.lon));
-  setText('navSat', term(hasCam ? TERMS.nav.liveMap : TERMS.nav.cloudMap, isEn()));
+  setText('navSat', term(TERMS.nav.liveMap, isEn()));
+  const camCard = $('skyCamCard');
+  if (camCard) camCard.style.display = getActiveSkyCamRegion(state.pos.lat, state.pos.lon) ? 'block' : 'none';
 }
 
 function syncSatTab() {
@@ -665,8 +667,8 @@ function syncSatTab() {
     if (offBox) {
       offBox.style.display = 'flex';
       offBox.textContent = en
-        ? 'Offline — live Windy cloud map requires signal. Your cached 24h forecast remains available on Overview.'
-        : '目前無網路訊號 — 即時動態雲圖需連線載入，可先回到「總覽」查看快取預報。';
+        ? 'Offline — Windy cloud forecast map requires signal. Your cached 24h forecast remains available on Overview.'
+        : '目前無網路訊號 — 動態雲量預報需連線載入，可先回到「總覽」查看快取預報。';
     }
   } else {
     if (offBox) offBox.style.display = 'none';
@@ -676,9 +678,9 @@ function syncSatTab() {
   }
   const hemi = state.pos.lat >= 0 ? 'north' : 'south';
   setText('ovHeading', state.pos.lat >= 0
-    ? (en ? 'NOAA Northern Hemisphere Aurora Oval' : 'NOAA 北半球即時極光橢圓圖')
-    : (en ? 'NOAA Southern Hemisphere Aurora Oval' : 'NOAA 南半球即時極光橢圓圖'));
-  setHtml('ovCap', `<a class="src-link" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/aurora-30-minute-forecast">${en ? 'Source: NOAA SWPC OVATION Live Model (Green = aurora, Yellow/Red = strong) ↗' : '資料來源：NOAA SWPC OVATION 即時模型（綠色＝有極光、黃紅＝強爆發）↗'}</a>`);
+    ? (en ? 'Northern aurora forecast (NOAA)' : '北半球極光範圍預報（NOAA）')
+    : (en ? 'Southern aurora forecast (NOAA)' : '南半球極光範圍預報（NOAA）'));
+  setHtml('ovCap', `<a class="src-link" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/aurora-30-minute-forecast">${en ? 'Source: NOAA SWPC OVATION 30-min forecast model (Green = aurora, Yellow/Red = strong) ↗' : '資料來源：NOAA SWPC OVATION 30 分鐘預報模型（綠色＝有極光、黃紅＝強爆發）↗'}</a>`);
   const ovImg = $('ovationImg');
   if (ovImg && !offline) {
     const bucket = Math.floor(Date.now() / 180000);
@@ -697,10 +699,10 @@ function syncSatTab() {
   if (camCard) camCard.style.display = activeRegion ? 'block' : 'none';
   if (activeRegion) {
     setText('h2Cam', activeRegion === 'na'
-      ? (en ? 'North America All-Sky Cameras' : '北美天文台即時全天空實拍')
+      ? (en ? 'North America live sky cams' : '北美即時天空實拍')
       : (activeRegion === 'iceland'
-          ? (en ? 'Iceland Official Live Sky Cameras' : '冰島官方即時天空實拍')
-          : (en ? 'Nordic All-Sky Cameras' : '北歐天文台即時全天空實拍')));
+          ? (en ? 'Iceland live sky cams' : '冰島即時天空實拍')
+          : (en ? 'Nordic live sky cams' : '北歐即時天空實拍')));
     document.querySelectorAll('#camChips .chip').forEach(c => {
       c.style.display = c.dataset.region === activeRegion ? '' : 'none';
     });
@@ -1418,6 +1420,12 @@ function renderCompassPanel(dirResults, pos, en, compassOpts = null) {
     const glareHtml = (glare && glare.tagText && !noteText.includes(glare.tagText))
       ? `<div class="${glare.isWarning ? 'dir-note' : 'dir-tip'}">${escapeHtml(glare.tagText)}</div>`
       : '';
+    const hor = (!d.isOcean && !isGeneric && Number.isFinite(d.lat) && Number.isFinite(d.lon))
+      ? lookupCorridorHorizon({ lat: d.lat, lon: d.lon, azimuthDeg: compassOpts?.geom?.azimuthDeg ?? null })
+      : null;
+    const horHtml = (hor && hor.matched && hor.blocksLow)
+      ? `<div class="dir-note">${escapeHtml(en ? `⛰ Distant ridges block ≥${hor.minDeg}° toward aurora (excl. local trees/buildings)` : `⛰ 極光方位遠山至少遮蔽約 ${hor.minDeg}°（不含近處樹林與建物）`)}</div>`
+      : '';
     const isPositiveNote = /雨影|晴空|暗空|主幹道|視野開闊|開闊區|rain shadow|dark sky|main highway|paved|open northern|open southern|open sky/i.test(noteText);
     const noteHtml = noteText ? `<div class="${isPositiveNote ? 'dir-tip' : 'dir-note'}">${escapeHtml(noteText)}</div>` : '';
     const areaHref = `https://www.google.com/maps/search/?api=1&query=${d.lat},${d.lon}`;
@@ -1448,7 +1456,7 @@ function renderCompassPanel(dirResults, pos, en, compassOpts = null) {
       : (isGlareEscape ? ` <span class="dir-best-tag">${en ? 'Avoids glare' : '避光害參考'}</span>` : '');
     return `<div class="dir ${isBest ? 'best' : ''} ${hazard ? 'hazard' : ''} ${d.isOcean ? 'sea' : ''} ${demoteToMap ? 'ref-only' : ''}" data-dir-card="${escapeHtml(d.key)}">
       <div class="dir-main"><div class="dir-title">${escapeHtml(tDirLabel(d.label))}${badgeHtml}<span class="dir-dist">${distTag}</span></div>
-      <div class="dir-stat">${statLine}</div>${hazardHtml}${glareHtml}${noteHtml}</div>
+      <div class="dir-stat">${statLine}</div>${hazardHtml}${glareHtml}${horHtml}${noteHtml}</div>
       ${nav}
     </div>`;
   }).join('');
@@ -2458,12 +2466,12 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
               ? `Models differed (${isMet ? 'MET Norway' : 'Primary'} ${c1}% vs ${isMet ? 'ECMWF' : 'Secondary'} ${c2}% clear) — short-term clouds adjusted using local live observations.`
               : `兩組預報晴空率有分歧（${isMet ? '挪威官方' : '主模型'} ${c1}%、${isMet ? 'ECMWF 全球模型' : '對照模型'} ${c2}%），已優先參照當地即時實測修正。`)
           : (en
-              ? `Clear-sky models disagree (${isMet ? 'MET Norway' : 'Primary'} ${c1}% vs ${isMet ? 'ECMWF' : 'Secondary'} ${c2}%) — ${hasCam ? 'check live cams or the sky.' : 'check the cloud map or sky.'}`
-              : `兩組晴空預報分歧（${isMet ? '挪威官方' : '主模型'} ${c1}%、${isMet ? 'ECMWF 全球模型' : '對照模型'} ${c2}%），${hasCam ? '建議查看天文台實拍或抬頭確認。' : '建議查看動態雲圖或抬頭確認。'}`);
+              ? `Clear-sky models disagree (${isMet ? 'MET Norway' : 'Primary'} ${c1}% vs ${isMet ? 'ECMWF' : 'Secondary'} ${c2}%) — check ${hasCam ? 'Sky & maps live cams' : 'Sky & maps cloud forecast'} or the sky.`
+              : `兩組晴空預報分歧（${isMet ? '挪威官方' : '主模型'} ${c1}%、${isMet ? 'ECMWF 全球模型' : '對照模型'} ${c2}%），建議查看「觀測地圖」${hasCam ? '即時天空實拍' : '動態雲量預報'}或抬頭確認。`);
       } else if (pr === 'cloud-spread') {
         detailTxt = en
-          ? `Cloud cover is uncertain over the next few hours — check ${hasCam ? 'live cams' : 'the cloud map'} or the sky.`
-          : `未來幾小時雲量變動區間較大，建議搭配${hasCam ? '天文台實拍' : '動態雲圖'}或抬頭確認。`;
+          ? `Cloud cover is uncertain over the next few hours — check ${hasCam ? 'Sky & maps live cams' : 'Sky & maps'} or the sky.`
+          : `未來幾小時雲量變動區間較大，建議搭配「觀測地圖」${hasCam ? '即時天空實拍' : '動態雲量預報'}或抬頭確認。`;
       } else if (pr === 'fast-clouds') {
         detailTxt = en
           ? 'Fast-moving clouds over the next 3h — clear windows may shift.'
@@ -2479,8 +2487,8 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
           : 'NOAA 太空天氣暫時斷線，極光指數僅供參考。';
       } else if (pr === 'single-model') {
         detailTxt = en
-          ? (hasCam ? 'Single weather model only — double-check the sky or live cams.' : 'Single weather model only — double-check the cloud map or sky.')
-          : (hasCam ? '目前僅有單一氣象模型，出發前建議抬頭或看實拍確認。' : '目前僅有單一氣象模型，出發前建議抬頭或看動態雲圖確認。');
+          ? (hasCam ? 'Single weather model only — double-check the sky or Sky & maps live cams.' : 'Single weather model only — double-check Sky & maps or the sky.')
+          : (hasCam ? '目前僅有單一氣象模型，出發前建議抬頭或看「觀測地圖」即時實拍確認。' : '目前僅有單一氣象模型，出發前建議抬頭或看「觀測地圖」確認。');
       }
     }
     if (detailTxt) {
@@ -2552,6 +2560,72 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
     : (en
         ? 'Live 3h NOAA feed — verify G1–G5 watches in "NOAA Storm Alerts" and tonight\'s oval in "NOAA Aurora Map".'
         : '直連 NOAA 每 3 小時滾動更新 — 核對警報請看「NOAA 風暴警報」，今晚極光範圍請看「NOAA 極光總覽」。'));
+  renderVerificationCard();
+}
+
+let verifCache = null;
+let verifFetched = false;
+
+function renderVerificationCard() {
+  const el = $('tsVerifCard');
+  if (!el) return;
+  const v = verifCache;
+  if (!v || !v.generatedAt) { el.style.display = 'none'; return; }
+  const genMs = Date.parse(v.generatedAt);
+  // Strict 7-day staleness guard: never pretend stale verification data is live
+  if (!Number.isFinite(genMs) || (Date.now() - genMs) > 7 * 86400000) {
+    el.style.display = 'none';
+    return;
+  }
+  const en = isEn();
+  const dateStr = new Date(genMs).toISOString().slice(0, 10);
+  const ca = v.cloudAudit || {};
+  const ga = v.geomagAudit || {};
+  const lines = [];
+  if (Number.isFinite(ca.layeredMaePct) && (ca.samples || 0) >= 3) {
+    const modeLbl = ca.mode === 'prospective-lead'
+      ? (en ? `Prospective +3/+6/+12h (${ca.samples} samples)` : `前瞻 +3/+6/+12h（${ca.samples} 筆）`)
+      : (en ? `9-station raw NWP (${ca.samples} samples)` : `9 座氣象觀測站原始預報（${ca.samples} 筆）`);
+    const basePart = Number.isFinite(ca.rawTotalMaePct)
+      ? (en ? ` vs raw total ${ca.rawTotalMaePct}%` : `，對照總雲量 ${ca.rawTotalMaePct}%`)
+      : '';
+    const fcPart = Number.isFinite(ca.falseClearRatePct)
+      ? (en ? ` · False-clear ${ca.falseClearRatePct}%` : ` · 假晴空率 ${ca.falseClearRatePct}%`)
+      : '';
+    lines.push(en
+      ? `Cloud MAE: ${ca.layeredMaePct}%${basePart} (${modeLbl}${fcPart})`
+      : `雲量平均誤差：${ca.layeredMaePct}%${basePart}（${modeLbl}${fcPart}）`);
+  }
+  if ((ga.gfzHp30Bins30d || 0) >= 200) {
+    const aucTxt = (!ga.smallSampleGuard && Number.isFinite(ga.l1RocAuc))
+      ? (en ? ` · L1 ROC-AUC ${ga.l1RocAuc}` : ` · 純 L1 ROC-AUC ${ga.l1RocAuc}`)
+      : (en ? ' · L1 active sample accumulating' : ' · L1 活躍樣本累積中');
+    lines.push(en
+      ? `30d GFZ Hp30: ${ga.gfzHp30Bins30d} bins (${ga.activeEvents30d || 0} active, ${ga.stormEvents30d || 0} storm${aucTxt})`
+      : `近 30 天 GFZ Hp30：${ga.gfzHp30Bins30d} 筆（活躍 ${ga.activeEvents30d || 0}、風暴 ${ga.stormEvents30d || 0}${aucTxt}）`);
+  }
+  if (!lines.length) { el.style.display = 'none'; return; }
+  const disc = en ? (v.disclaimerEn || '') : (v.disclaimerZh || '');
+  el.innerHTML =
+    `<div class="ts-verif-hd"><span>${en ? 'Rolling 30d Instrument Verification' : '近 30 天獨立儀器自動驗證'}</span><span class="ts-verif-date">${escapeHtml(dateStr)}</span></div>` +
+    lines.map(l => `<div>${escapeHtml(l)}</div>`).join('') +
+    (disc ? `<div class="ts-verif-disc">${escapeHtml(disc)}</div>` : '');
+  el.style.display = 'block';
+}
+
+function loadVerificationScorecard() {
+  if (verifFetched) { renderVerificationCard(); return; }
+  verifFetched = true;
+  if (typeof fetch !== 'function') return;
+  fetch('./verification/latest.json', { cache: 'no-cache' })
+    .then(r => (r && r.ok ? r.json() : null))
+    .then(j => {
+      if (j && j.generatedAt) {
+        verifCache = j;
+        renderVerificationCard();
+      }
+    })
+    .catch(() => {});
 }
 
 function openTrustSheet(triggerEl) {
@@ -2562,6 +2636,7 @@ function openTrustSheet(triggerEl) {
   } else if (state.renderState) {
     renderFromState(state.renderState);
   }
+  loadVerificationScorecard();
   const sheet = $('trustSheet');
   if (!sheet) return;
   const body = sheet.querySelector('.sheet-body');
@@ -3099,8 +3174,8 @@ function bindEvents() {
     ovImg.style.display = 'none';
     const en = isEn();
     setHtml('ovCap', (en
-      ? 'NOAA OVATION map temporarily unavailable — pull down to refresh.'
-      : 'NOAA 極光橢圓圖暫時無法載入，請稍後下拉更新重試。')
+      ? 'NOAA OVATION forecast map temporarily unavailable — pull down to refresh.'
+      : 'NOAA 極光範圍預報圖暫時無法載入，請稍後下拉更新重試。')
       + ` <a class="src-link" href="https://www.swpc.noaa.gov/products/aurora-30-minute-forecast" target="_blank" rel="noopener noreferrer">${en ? 'NOAA OVATION ↗' : '查看 NOAA 原圖 ↗'}</a>`);
   });
 }

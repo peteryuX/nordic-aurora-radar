@@ -1,0 +1,45 @@
+name: Daily Independent Verification Scorecard
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-verification
+  cancel-in-progress: false
+
+on:
+  schedule:
+    - cron: '15 12 * * *'
+  workflow_dispatch:
+
+jobs:
+  verify-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run blind out-of-sample 30-day independent instrument verification
+        run: node scripts/generate-verification-scorecard.mjs
+      - name: Validate JSON integrity before publishing
+        run: |
+          node -e "
+            const fs = require('node:fs');
+            const j = JSON.parse(fs.readFileSync('verification/latest.json', 'utf8'));
+            if (!j.generatedAt || Number.isNaN(Date.parse(j.generatedAt))) throw new Error('Bad generatedAt');
+            if ((j.cloudAudit?.samples ?? 0) < 3 && (j.geomagAudit?.gfzHp30Bins30d ?? 0) < 200) throw new Error('Insufficient data');
+            console.log('Validated verification/latest.json:', j.generatedAt);
+          "
+      - name: Commit updated scorecard (only if changed)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add verification/latest.json verification/ledger.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore(verify): daily independent 30d instrument scorecard [skip ci]"
+            git push origin HEAD:main
+          fi

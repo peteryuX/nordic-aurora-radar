@@ -306,8 +306,8 @@
     <!-- VIEW 3: LIVE CLOUD MAP, ALL-SKY CAMS & OVATION -->
     <section id="v-sat" class="view">
       <div class="card" id="skyCamCard">
-        <h2><span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2"/></svg><span id="h2Cam">天文台即時全天空實拍</span></span></h2>
-        <p id="subCam" class="card-sub">即時天空實拍，切換地點自動顯示最近鏡頭：</p>
+        <h2><span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2"/></svg><span id="h2Cam">即時天空實拍</span></span></h2>
+        <p id="subCam" class="card-sub">即時天空實拍（見星點＝晴空、均勻亮霧＝厚雲或光害），切換地點自動顯示最近鏡頭：</p>
         <div class="chips" id="camChips" style="margin-bottom:10px;">
           <button id="camBtnUit" class="chip on" type="button" data-cam="uit" data-region="nordic">Tromsø 近郊</button>
           <button id="camBtnIrf" class="chip" type="button" data-cam="irf" data-region="nordic">Kiruna</button>
@@ -329,19 +329,19 @@
       </div>
 
       <div class="card">
-        <h2><span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.6 12.2H5.2a3.4 3.4 0 1 1 3.2-4.6h1a2.4 2.4 0 1 1 2.2 4.6Z"/></svg><span id="h2Windy">即時動態雲圖</span></span><a id="windyExtLink" class="tpill tpill-link windy-ext" target="_blank" rel="noopener noreferrer" href="https://www.windy.com/">Windy ↗</a></h2>
-        <p id="subWindy" class="card-sub">已自動對準目前位置，按左下角 ▶ 可播放接下來幾小時雲層移動趨勢：</p>
+        <h2><span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.6 12.2H5.2a3.4 3.4 0 1 1 3.2-4.6h1a2.4 2.4 0 1 1 2.2 4.6Z"/></svg><span id="h2Windy">動態雲量預報（Windy）</span></span><a id="windyExtLink" class="tpill tpill-link windy-ext" target="_blank" rel="noopener noreferrer" href="https://www.windy.com/">Windy ↗</a></h2>
+        <p id="subWindy" class="card-sub">已對準目前位置（ECMWF 數值雲層預報），按左下角 ▶ 可播放未來幾小時移動趨勢：</p>
         <div class="sat-img-wrap" style="height: 330px;">
-          <iframe id="windyFrame" title="Windy Live Cloud Map" referrerpolicy="no-referrer" style="width:100%;height:100%;border:0;" loading="lazy"></iframe>
+          <iframe id="windyFrame" title="Windy Cloud Forecast Map" referrerpolicy="no-referrer" style="width:100%;height:100%;border:0;" loading="lazy"></iframe>
         </div>
       </div>
 
       <div class="card">
-        <h2><span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><ellipse cx="8" cy="6.2" rx="4" ry="1.8"/></svg><span id="ovHeading">NOAA 北半球即時極光橢圓圖</span></span></h2>
-        <p id="subOv" class="card-sub">查看綠色／黃色極光帶目前是否覆蓋所在區域（每 5 分鐘自動更新）：</p>
+        <h2><span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><ellipse cx="8" cy="6.2" rx="4" ry="1.8"/></svg><span id="ovHeading">北半球極光範圍預報（NOAA）</span></span></h2>
+        <p id="subOv" class="card-sub">NOAA OVATION 30 分鐘極光預報模型（每 5 分鐘更新），查看綠／黃色極光帶覆蓋範圍：</p>
         <div class="sat-img-wrap">
-          <img id="ovationImg" class="sat-img" alt="NOAA Live OVATION Aurora Oval" loading="lazy" />
-          <div id="ovCap" class="sat-cap"><a class="src-link" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/aurora-30-minute-forecast">資料來源：NOAA SWPC OVATION 即時模型（綠色＝有極光、黃紅＝強爆發）↗</a></div>
+          <img id="ovationImg" class="sat-img" alt="NOAA OVATION 30-Minute Aurora Forecast" loading="lazy" />
+          <div id="ovCap" class="sat-cap"><a class="src-link" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/aurora-30-minute-forecast">資料來源：NOAA SWPC OVATION 30 分鐘預報模型（綠色＝有極光、黃紅＝強爆發）↗</a></div>
         </div>
       </div>
     </section>
@@ -359,8 +359,8 @@
         <span id="navDir">找晴空</span>
       </button>
       <button class="nav-btn" type="button" data-view="sat">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 18.5H8.8a5.8 5.8 0 1 1 5.4-7.9h1.6a4 4 0 1 1 1.7 7.9Z"/></svg>
-        <span id="navSat">實拍雲圖</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21 3 6"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+        <span id="navSat">觀測地圖</span>
       </button>
     </div>
   </nav>
@@ -510,6 +510,7 @@
             <div class="ts-stat"><strong>當地氣象站即時校正</strong><span>55 km 內實測融合（METAR · SMHI）</span></div>
             <div class="ts-stat"><strong>分層雲量與系集區間</strong><span>北歐 Yr.no 2.5km · ECMWF 51 成員</span></div>
           </div>
+          <div id="tsVerifCard" class="ts-verif-card" style="display:none;"></div>
           <p id="tsNoaaSyncNote" class="ts-noaa-note">直連 NOAA 每 3 小時滾動更新 — 核對警報請看「NOAA 風暴警報」，今晚極光範圍請看「NOAA 極光總覽」。</p>
           <div class="ts-src-links">
             <a id="pNoaa" class="tpill tpill-link" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/communities/aurora-dashboard-experimental">NOAA 極光總覽 ↗</a>

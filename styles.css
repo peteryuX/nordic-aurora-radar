@@ -590,6 +590,14 @@ body.is-loading .skel-day .od-stat {
 .ts-noaa-note {
   margin: 8px 0 9px; font-size: 0.8rem; line-height: 1.5; color: var(--muted);
 }
+.ts-verif-card {
+  margin: 8px 0 9px; padding: 9px 11px; border-radius: 10px;
+  background: var(--surface-2); border: 0.5px solid var(--border);
+  font-size: 0.77rem; line-height: 1.48; color: var(--text-soft);
+}
+.ts-verif-hd { font-weight: 700; color: var(--text); margin-bottom: 4px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.ts-verif-date { font-weight: 500; font-size: 0.72rem; color: var(--muted); }
+.ts-verif-disc { margin-top: 4px; font-size: 0.71rem; color: var(--muted); }
 
 .tpill { padding: 5px 11px; border-radius: 99px; background: var(--surface-2); border: 0.5px solid var(--border); font-weight: 600; font-size: 0.81rem; color: var(--text-soft); }
 .tpill-link { text-decoration: none; display: inline-flex; align-items: center; gap: 4px; transition: border-color 0.15s ease, color 0.15s ease, transform 0.12s var(--spring); }

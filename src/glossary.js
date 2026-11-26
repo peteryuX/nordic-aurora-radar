@@ -70,8 +70,8 @@ export const TERMS = Object.freeze({
     findClear:      Object.freeze({ zh: '找晴空',   en: 'Find clear skies' }),
     findClearShort: Object.freeze({ zh: '找晴空',   en: 'Clear skies' }),
     nearbyClear:    Object.freeze({ zh: '周邊晴空', en: 'Clear skies nearby' }),
-    liveMap:        Object.freeze({ zh: '實拍雲圖', en: 'Live map' }),
-    cloudMap:       Object.freeze({ zh: '動態雲圖', en: 'Cloud map' }),
+    liveMap:        Object.freeze({ zh: '觀測地圖', en: 'Sky & maps' }),
+    cloudMap:       Object.freeze({ zh: '觀測地圖', en: 'Sky & maps' }),
     hourlyTrend:    Object.freeze({ zh: '逐時趨勢', en: 'Hourly trend' }),
     next3Nights:    Object.freeze({ zh: '未來三晚', en: 'Next 3 nights' }),
     range24h:       Object.freeze({ zh: '24 小時', en: '24h' })
