@@ -6,7 +6,7 @@
 - Live App (English): https://peteryux.github.io/nordic-aurora-radar/?lang=en
 - Source Repository: https://github.com/peteryuX/nordic-aurora-radar
 - Validation & Known Limitations: https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md
-- Last Updated: 2026-11-25
+- Last Updated: 2026-11-26
 
 ## Core Architecture & User Experience
 
@@ -124,4 +124,54 @@
 - Field Note: Queenstown watches the Southern Lights (Aurora Australis) toward the southern horizon. Because geomagnetic latitude is 52°S, strong geomagnetic activity (G1–G2+ / Kp ≥ 5–6 or strong southward Bz) is needed — monitor NOAA solar wind and face south with an open lake view.
 - Road-Verified Corridors: North Wanaka (~68 km); East Cromwell (~60 km); South Kingston (~47 km); West Glenorchy (~46 km)
 - Official Road Authority: NZTA Journeys Road Status (https://www.journeys.nzta.govt.nz/)
+
+### Vík í Mýrdal, Iceland (冰島維克)
+- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/vik/
+- Coordinates: `63.4186, -19.006` | Geomagnetic Latitude (IGRF-14): `63°N`
+- Typical Activity Threshold: Kp ≥ 1.4
+- Best Season: Sep – early Apr
+- Weather & Airport METAR: Open-Meteo ECMWF + ICON layered clouds · Vegagerðin live road cam
+- Field Note: South Coast oceanic clouds roll in quickly at Reynisfjara and Vík, while driving 35–70 km east toward Kirkjubæjarklaustur or west toward Skógar often reveals dramatic clear gaps over glaciers.
+- Road-Verified Corridors: East Klaustur (~71 km); West Skógar (~34 km)
+- Official Road Authority: Iceland Road.is & SafeTravel (https://umferdin.is/en)
+
+### Levi, Finland (芬蘭萊維)
+- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/levi/
+- Coordinates: `67.804, 24.808` | Geomagnetic Latitude (IGRF-14): `65°N`
+- Typical Activity Threshold: Kp 0–1 (directly under the auroral oval)
+- Best Season: Sep – early Apr
+- Weather & Airport METAR: MET Norway (Yr.no) 2.5 km MEPS + FMI Lapland cloud & magnetometer sensors + EFKT (12 km)
+- Field Note: Levi sits well north of the Arctic Circle in Finnish Lapland: escape ski-resort slope lights by driving 15–30 minutes toward Lake Immeljärvi, Muonio, or Kittilä.
+- Road-Verified Corridors: NE · Pokka (~66 km); South Kittilä (~19 km); West Muonio (~60 km); SW · Äkäslompolo (~52 km)
+- Official Road Authority: Finland Fintraffic Roads (https://liikennetilanne.fintraffic.fi/)
+
+### Saariselkä, Finland (薩利色爾卡)
+- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/saariselka/
+- Coordinates: `68.4197, 27.4106` | Geomagnetic Latitude (IGRF-14): `65°N`
+- Typical Activity Threshold: Kp 0–1 (directly under the auroral oval)
+- Best Season: Sep – early Apr
+- Weather & Airport METAR: MET Norway (Yr.no) 2.5 km MEPS + FMI Ivalo/Sodankylä ground sensors + EFIV (21 km)
+- Field Note: Home to Finland’s famous glass igloos, Saariselkä enjoys dark Arctic wilderness skies under the core auroral oval — check Kaunispää fell or north toward Inari when valley mist forms.
+- Road-Verified Corridors: North Ivalo (~31 km); South Vuotso (~43 km)
+- Official Road Authority: Finland Fintraffic Roads (https://liikennetilanne.fintraffic.fi/)
+
+### Anchorage, USA (Alaska) (安克拉治)
+- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/anchorage/
+- Coordinates: `61.2181, -149.9003` | Geomagnetic Latitude (IGRF-14): `61°N`
+- Typical Activity Threshold: Kp ≥ 2.4
+- Best Season: Sep – early Apr
+- Weather & Airport METAR: Open-Meteo ECMWF + GFS layered clouds · METAR PANC airport obs + PANC (7 km)
+- Field Note: Anchorage requires moderate geomagnetic activity (Kp 3–4+) for bright northern arcs — drive 35–60 minutes north along Glenn Hwy toward Eklutna or Palmer to escape Cook Inlet city glow.
+- Road-Verified Corridors: NE · Palmer (~68 km); NE · Eagle River (~23 km); SE · Girdwood (~62 km)
+- Official Road Authority: Alaska 511 Road Status (https://511.alaska.gov/)
+
+### Banff, Canada (加拿大班夫)
+- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/banff/
+- Coordinates: `51.1784, -115.5708` | Geomagnetic Latitude (IGRF-14): `57°N`
+- Typical Activity Threshold: Kp ≥ 4.2
+- Best Season: Sep – Apr (best on Kp 4+ nights)
+- Weather & Airport METAR: Open-Meteo ECMWF + GEM layered clouds · Alberta 511 winter highway status
+- Field Note: Banff sits in the Canadian Rockies storm-aurora zone: Lake Minnewanka and Vermilion Lakes offer iconic north-facing reflections on Kp 4–5+ nights, while foothills east toward Canmore often clear first.
+- Road-Verified Corridors: North Minnewanka (~13 km); East Canmore (~24 km); NW · Lake Louise (~57 km)
+- Official Road Authority: Alberta 511 Road Conditions (https://511.alberta.ca/)
 

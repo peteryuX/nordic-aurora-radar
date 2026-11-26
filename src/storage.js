@@ -16,10 +16,12 @@ export const STORAGE_KEYS = {
   LANG: 'aurora_lang_v4',
   SWR: 'aurora_swr_v6',
   LEGACY_CACHE: 'aurora_cache_v4',
-  ENLIL: 'aurora_enlil_v1'
+  ENLIL: 'aurora_enlil_v1',
+  WATCHLIST: 'aurora_trip_v1'
 };
 
 export const SWR_MAX_LOCATIONS = 5;
+export const WATCHLIST_MAX = 5;
 export const SWR_MAX_AGE_MS = 6 * 3600 * 1000;
 export const ENLIL_TTL_MS = 6 * 3600 * 1000;
 
@@ -225,3 +227,50 @@ export function hydrateOfflineState(cached, pos, nowMs = Date.now()) {
     }
   };
 }
+
+/** Load sanitized Multi-City Trip Watchlist (max 5 pinned cities) */
+export function loadWatchlist(storeOpt) {
+  const parsed = safeReadJson(STORAGE_KEYS.WATCHLIST, storeOpt);
+  if (!Array.isArray(parsed)) return [];
+  const out = [];
+  for (const raw of parsed) {
+    const clean = sanitizeSavedPos(raw);
+    if (!clean) continue;
+    if (out.some(c => computeDistanceKm(c.lat, c.lon, clean.lat, clean.lon) < 15)) continue;
+    out.push({ name: clean.name, nameEn: clean.nameEn, lat: clean.lat, lon: clean.lon, tz: clean.tz });
+    if (out.length >= WATCHLIST_MAX) break;
+  }
+  return out;
+}
+
+export function saveWatchlist(list, storeOpt) {
+  const safe = Array.isArray(list) ? list.slice(0, WATCHLIST_MAX) : [];
+  return safeSet(STORAGE_KEYS.WATCHLIST, JSON.stringify(safe), storeOpt);
+}
+
+export function isCityInWatchlist(list, pos) {
+  if (!Array.isArray(list) || !pos || !Number.isFinite(pos.lat) || !Number.isFinite(pos.lon)) return false;
+  return list.some(c => computeDistanceKm(c.lat, c.lon, pos.lat, pos.lon) < 15);
+}
+
+export function toggleWatchlistCity(list, pos, storeOpt) {
+  const cur = Array.isArray(list) ? [...list] : [];
+  if (!pos || !Number.isFinite(pos.lat) || !Number.isFinite(pos.lon)) {
+    return { list: cur, pinned: false, full: false };
+  }
+  const idx = cur.findIndex(c => computeDistanceKm(c.lat, c.lon, pos.lat, pos.lon) < 15);
+  if (idx >= 0) {
+    cur.splice(idx, 1);
+    saveWatchlist(cur, storeOpt);
+    return { list: cur, pinned: false, full: false };
+  }
+  if (cur.length >= WATCHLIST_MAX) {
+    return { list: cur, pinned: false, full: true };
+  }
+  const clean = sanitizeSavedPos(pos);
+  if (!clean) return { list: cur, pinned: false, full: false };
+  cur.push({ name: clean.name, nameEn: clean.nameEn, lat: clean.lat, lon: clean.lon, tz: clean.tz });
+  saveWatchlist(cur, storeOpt);
+  return { list: cur, pinned: true, full: false };
+}
+

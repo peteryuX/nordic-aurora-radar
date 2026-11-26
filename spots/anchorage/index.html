@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Anchorage Aurora Forecast Tonight｜安克拉治北極光即時預報 — Nordic Aurora Radar</title>
+  <meta name="description" content="Live Anchorage, USA (Alaska) Northern Lights (Aurora Borealis) forecast: 24-hour viewing score, layered cloud cover, 360° clear-sky driving radar &amp; 14 NOAA solar wind feeds. 安克拉治北極光即時晴空與太陽風預報。" />
+  <meta name="keywords" content="Anchorage aurora forecast, Alaska northern lights tonight, Palmer aurora clouds, 安克拉治極光預報, 阿拉斯加極光" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+  <meta name="referrer" content="no-referrer" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.open-meteo.com https://services.swpc.noaa.gov; object-src 'none'; base-uri 'self'; form-action 'none';" />
+  <meta name="theme-color" content="#08090c" />
+  <link rel="canonical" href="https://peteryux.github.io/nordic-aurora-radar/spots/anchorage/" />
+  <link rel="icon" type="image/svg+xml" href="../../icon.svg" />
+  <link rel="apple-touch-icon" sizes="180x180" href="../../apple-touch-icon.png" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://peteryux.github.io/nordic-aurora-radar/spots/anchorage/" />
+  <meta property="og:title" content="Anchorage Aurora Forecast Tonight — Live Clouds &amp; Solar Wind" />
+  <meta property="og:description" content="Free, no-ad live Anchorage aurora viewing score (0–99), 24h cloud strip, 3-night peak window &amp; 360° clear-sky radar." />
+  <meta property="og:image" content="https://peteryux.github.io/nordic-aurora-radar/og-cover.png?v=2" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://peteryux.github.io/nordic-aurora-radar/og-cover.png?v=2" />
+  <link rel="stylesheet" href="../../styles.css" />
+  <style>
+    .spot-wrap { max-width: 680px; margin: 0 auto; padding: 18px 14px 48px; }
+    .spot-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; font-size: 0.82rem; }
+    .spot-nav a { color: var(--green); text-decoration: none; font-weight: 700; }
+    .spot-hero h1 { margin: 0 0 6px; font-size: 1.48rem; line-height: 1.25; }
+    .spot-sub { margin: 0 0 14px; color: var(--text-soft); font-size: 0.9rem; line-height: 1.55; }
+    .spot-live {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px;
+      margin: 0 0 12px; padding: 10px 12px; border-radius: 12px;
+      background: var(--surface-2); border: 1px solid var(--border-strong);
+      font-size: 0.84rem; font-variant-numeric: tabular-nums;
+    }
+    .spot-live-lbl { font-size: 0.72rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .spot-live-score { font-size: 1rem; font-weight: 900; color: var(--text); }
+    .spot-live-meta { font-size: 0.8rem; color: var(--text-soft); font-weight: 600; }
+    .spot-cta-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 9px; margin-top: 12px; }
+    .spot-cta {
+      display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 10px 14px;
+      border-radius: 13px; text-decoration: none; font-weight: 800; font-size: 0.9rem; text-align: center;
+    }
+    .spot-cta.primary { background: var(--green-bg); border: 1px solid var(--green-border); color: var(--green-text); }
+    .spot-cta.secondary { background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); }
+    .spot-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
+    .spot-kv { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 11px; }
+    .spot-kv span { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 3px; }
+    .spot-kv strong { font-size: 0.88rem; color: var(--text); line-height: 1.35; }
+    .spot-tbl { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.82rem; }
+    .spot-tbl th, .spot-tbl td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .spot-tbl th { color: var(--muted); font-size: 0.74rem; font-weight: 700; }
+    .spot-tbl td.num { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--text-soft); }
+    .muted { color: var(--muted); font-size: 0.76rem; }
+    .spot-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+    .spot-chip {
+      display: inline-flex; align-items: center; padding: 7px 11px; border-radius: 999px;
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--text-soft);
+      font-size: 0.78rem; font-weight: 700; text-decoration: none;
+    }
+    .spot-chip:hover { border-color: var(--green-border); color: var(--text); }
+  </style>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","name":"Anchorage Aurora Forecast Tonight｜安克拉治北極光即時預報","url":"https://peteryux.github.io/nordic-aurora-radar/spots/anchorage/","inLanguage":["en","zh-Hant"],"dateModified":"2026-11-26","isPartOf":{"@type":"WebApplication","name":"Nordic Aurora Radar","url":"https://peteryux.github.io/nordic-aurora-radar/"},"about":{"@type":"Place","name":"Anchorage, USA (Alaska)","geo":{"@type":"GeoCoordinates","latitude":61.2181,"longitude":-149.9003}}},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What Kp index is needed to see aurora in Anchorage?","acceptedAnswer":{"@type":"Answer","text":"Anchorage sits at 61°N geomagnetic latitude (IGRF-14 Apex-110). Typical viewing threshold is Kp ≥ 2.4, combined with dark sky and clear local cloud cover."}},{"@type":"Question","name":"How do I check live clouds and aurora in Anchorage tonight?","acceptedAnswer":{"@type":"Answer","text":"Nordic Aurora Radar combines Open-Meteo ECMWF + GFS layered clouds · METAR PANC airport obs and live PANC airport ceilometer readings with 14 NOAA SWPC live solar wind feeds into a single 0–99 hourly viewing score and a 360° clear-sky driving radar."}}]}]}</script>
+</head>
+<body>
+  <div class="spot-wrap">
+    <nav class="spot-nav" aria-label="Breadcrumb">
+      <a href="../../">← Nordic Aurora Radar｜極光即時雷達</a>
+      <a href="https://511.alaska.gov/" target="_blank" rel="noopener noreferrer">Alaska 511 Road Status ↗</a>
+    </nav>
+
+    <section class="card spot-hero">
+      <h1>Anchorage, USA (Alaska) Aurora Forecast<br/><span style="font-size:1.05rem;color:var(--text-soft);font-weight:700;">美國阿拉斯加 · 安克拉治北極光即時預報</span></h1>
+      <div id="spotLiveBox" class="spot-live" data-lat="61.2181" data-lon="-149.9003" aria-live="polite">
+        <div>
+          <div class="spot-live-lbl">Live Now｜即時觀測</div>
+          <div id="spotLiveScore" class="spot-live-score">Loading live sky &amp; Kp…</div>
+        </div>
+        <div id="spotLiveMeta" class="spot-live-meta">NOAA SWPC · Open-Meteo</div>
+      </div>
+      <p class="spot-sub">Anchorage requires moderate geomagnetic activity (Kp 3–4+) for bright northern arcs — drive 35–60 minutes north along Glenn Hwy toward Eklutna or Palmer to escape Cook Inlet city glow.<br/>安克拉治需中等地磁活動（Kp 3–4+）時北向低空清晰可見，建議沿 Glenn Hwy 往北開 35–60 分鐘至 Eklutna 或 Palmer 避開市區光害。</p>
+      <div class="spot-cta-row">
+        <a class="spot-cta primary" href="../../?lat=61.2181&lon=-149.9003&name=USA%20%C2%B7%20Anchorage&lang=en">Open Live Anchorage Radar (EN) →</a>
+        <a class="spot-cta secondary" href="../../?lat=61.2181&lon=-149.9003&name=%E7%BE%8E%E5%9C%8B%20%C2%B7%20Anchorage&lang=zh">開啟即時安克拉治雷達（繁體中文）→</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Local Aurora Physics &amp; Live Data｜在地觀測參數</h2>
+      <div class="spot-grid">
+        <div class="spot-kv"><span>Geomagnetic Latitude｜地磁緯度 (IGRF-14)</span><strong>61°N</strong></div>
+        <div class="spot-kv"><span>Typical Activity Needed｜一般所需地磁活動</span><strong>Kp ≥ 2.4<br/><span class="muted">Kp ≥ 2.4</span></strong></div>
+        <div class="spot-kv"><span>Best Viewing Season｜主要觀測季節</span><strong>Sep – early Apr<br/><span class="muted">9 月至隔年 4 月初</span></strong></div>
+        <div class="spot-kv"><span>Cloud Model &amp; Airport Obs｜雲量與機場實測</span><strong>Open-Meteo ECMWF + GFS layered clouds · METAR PANC airport obs · METAR PANC (7 km)</strong></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>360° Clear-Sky Driving Corridors｜周邊晴空追光路線</h2>
+      <p class="spot-sub" style="margin-bottom:6px;">Road-verified winter backup directions plotted on the live 360° polar radar with wind, snow &amp; black-ice safety checks.</p>
+      <table class="spot-tbl">
+        <thead><tr><th>Corridor｜方向</th><th>Road</th><th>Microclimate &amp; Road Notes｜微氣候與路況備註</th></tr></thead>
+        <tbody>
+          <tr>
+      <td><strong>NE · Palmer</strong><br/><span class="muted">往東北 Palmer</span></td>
+      <td class="num">68 km</td>
+      <td>Glenn Hwy · watch moose<br/><span class="muted">Glenn Hwy 幹道·留意麋鹿</span></td>
+    </tr>
+<tr>
+      <td><strong>NE · Eagle River</strong><br/><span class="muted">往東北 Eagle River</span></td>
+      <td class="num">23 km</td>
+      <td>Main highway<br/><span class="muted">主要幹道</span></td>
+    </tr>
+<tr>
+      <td><strong>SE · Girdwood</strong><br/><span class="muted">往東南 Girdwood</span></td>
+      <td class="num">62 km</td>
+      <td>Seward Hwy · coastal wind<br/><span class="muted">Seward Hwy 沿海強風</span></td>
+    </tr>
+        </tbody>
+      </table>
+      <div style="margin-top:12px;font-size:0.8rem;color:var(--muted);">
+        Official road &amp; closure status｜官方即時路況：<a href="https://511.alaska.gov/" target="_blank" rel="noopener noreferrer" style="color:var(--green);">Alaska 511 Road Status / 阿拉斯加 511 路況 ↗</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>More Aurora Destinations｜其他極光熱點即時預報</h2>
+      <div class="spot-chips">
+          <a class="spot-chip" href="../tromso/">Tromsø · 特羅姆瑟</a>
+          <a class="spot-chip" href="../lofoten/">Lofoten Islands · 羅浮敦群島</a>
+          <a class="spot-chip" href="../alta/">Alta · 阿爾塔</a>
+          <a class="spot-chip" href="../abisko/">Abisko · 阿比斯庫</a>
+          <a class="spot-chip" href="../rovaniemi/">Rovaniemi · 羅瓦涅米</a>
+          <a class="spot-chip" href="../reykjavik/">Reykjavik · 雷克雅維克</a>
+          <a class="spot-chip" href="../akureyri/">Akureyri · 阿克雷里</a>
+          <a class="spot-chip" href="../fairbanks/">Fairbanks · 費爾班克斯</a>
+          <a class="spot-chip" href="../yellowknife/">Yellowknife · 黃刀鎮</a>
+          <a class="spot-chip" href="../queenstown/">Queenstown · 皇后鎮</a>
+          <a class="spot-chip" href="../vik/">Vík í Mýrdal · 冰島維克</a>
+          <a class="spot-chip" href="../levi/">Levi · 芬蘭萊維</a>
+          <a class="spot-chip" href="../saariselka/">Saariselkä · 薩利色爾卡</a>
+          <a class="spot-chip" href="../banff/">Banff · 加拿大班夫</a>
+      </div>
+      <p style="margin:12px 0 0;font-size:0.76rem;color:var(--muted);">
+        Free, open-source, zero tracking · Supports °C / °F &amp; scotopic red-light night-vision mode ·
+        <a href="https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md" target="_blank" rel="noopener noreferrer" style="color:var(--text-soft);">Validation Report (VALIDATION.md) ↗</a>
+      </p>
+    </section>
+  </div>
+  <script type="module" src="../../src/spot-live.js"></script>
+</body>
+</html>

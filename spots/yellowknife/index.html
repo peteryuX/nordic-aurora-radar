@@ -8,7 +8,7 @@
   <meta name="keywords" content="Yellowknife aurora forecast, Yellowknife northern lights tonight, Canada aurora, 黃刀鎮極光預報, 加拿大極光" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
   <meta name="referrer" content="no-referrer" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.open-meteo.com https://services.swpc.noaa.gov; object-src 'none'; base-uri 'self'; form-action 'none';" />
   <meta name="theme-color" content="#08090c" />
   <link rel="canonical" href="https://peteryux.github.io/nordic-aurora-radar/spots/yellowknife/" />
   <link rel="icon" type="image/svg+xml" href="../../icon.svg" />
@@ -27,6 +27,15 @@
     .spot-nav a { color: var(--green); text-decoration: none; font-weight: 700; }
     .spot-hero h1 { margin: 0 0 6px; font-size: 1.48rem; line-height: 1.25; }
     .spot-sub { margin: 0 0 14px; color: var(--text-soft); font-size: 0.9rem; line-height: 1.55; }
+    .spot-live {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px;
+      margin: 0 0 12px; padding: 10px 12px; border-radius: 12px;
+      background: var(--surface-2); border: 1px solid var(--border-strong);
+      font-size: 0.84rem; font-variant-numeric: tabular-nums;
+    }
+    .spot-live-lbl { font-size: 0.72rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .spot-live-score { font-size: 1rem; font-weight: 900; color: var(--text); }
+    .spot-live-meta { font-size: 0.8rem; color: var(--text-soft); font-weight: 600; }
     .spot-cta-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 9px; margin-top: 12px; }
     .spot-cta {
       display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 10px 14px;
@@ -51,7 +60,7 @@
     }
     .spot-chip:hover { border-color: var(--green-border); color: var(--text); }
   </style>
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","name":"Yellowknife Aurora Forecast Tonight｜黃刀鎮北極光即時預報","url":"https://peteryux.github.io/nordic-aurora-radar/spots/yellowknife/","inLanguage":["en","zh-Hant"],"dateModified":"2026-11-25","isPartOf":{"@type":"WebApplication","name":"Nordic Aurora Radar","url":"https://peteryux.github.io/nordic-aurora-radar/"},"about":{"@type":"Place","name":"Yellowknife, Canada","geo":{"@type":"GeoCoordinates","latitude":62.454,"longitude":-114.3718}}},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What Kp index is needed to see aurora in Yellowknife?","acceptedAnswer":{"@type":"Answer","text":"Yellowknife sits at 68°N geomagnetic latitude (IGRF-14 Apex-110). Typical viewing threshold is Kp 0–1 (directly under the auroral oval), combined with dark sky and clear local cloud cover."}},{"@type":"Question","name":"How do I check live clouds and aurora in Yellowknife tonight?","acceptedAnswer":{"@type":"Answer","text":"Nordic Aurora Radar combines Dual-Model Open-Meteo (best_match + ECMWF IFS) + live CYZF airport METAR and live CYZF airport ceilometer readings with 14 NOAA SWPC live solar wind feeds into a single 0–99 hourly viewing score and a 360° clear-sky driving radar."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","name":"Yellowknife Aurora Forecast Tonight｜黃刀鎮北極光即時預報","url":"https://peteryux.github.io/nordic-aurora-radar/spots/yellowknife/","inLanguage":["en","zh-Hant"],"dateModified":"2026-11-26","isPartOf":{"@type":"WebApplication","name":"Nordic Aurora Radar","url":"https://peteryux.github.io/nordic-aurora-radar/"},"about":{"@type":"Place","name":"Yellowknife, Canada","geo":{"@type":"GeoCoordinates","latitude":62.454,"longitude":-114.3718}}},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What Kp index is needed to see aurora in Yellowknife?","acceptedAnswer":{"@type":"Answer","text":"Yellowknife sits at 68°N geomagnetic latitude (IGRF-14 Apex-110). Typical viewing threshold is Kp 0–1 (directly under the auroral oval), combined with dark sky and clear local cloud cover."}},{"@type":"Question","name":"How do I check live clouds and aurora in Yellowknife tonight?","acceptedAnswer":{"@type":"Answer","text":"Nordic Aurora Radar combines Dual-Model Open-Meteo (best_match + ECMWF IFS) + live CYZF airport METAR and live CYZF airport ceilometer readings with 14 NOAA SWPC live solar wind feeds into a single 0–99 hourly viewing score and a 360° clear-sky driving radar."}}]}]}</script>
 </head>
 <body>
   <div class="spot-wrap">
@@ -62,6 +71,13 @@
 
     <section class="card spot-hero">
       <h1>Yellowknife, Canada Aurora Forecast<br/><span style="font-size:1.05rem;color:var(--text-soft);font-weight:700;">加拿大 · 黃刀鎮北極光即時預報</span></h1>
+      <div id="spotLiveBox" class="spot-live" data-lat="62.454" data-lon="-114.3718" aria-live="polite">
+        <div>
+          <div class="spot-live-lbl">Live Now｜即時觀測</div>
+          <div id="spotLiveScore" class="spot-live-score">Loading live sky &amp; Kp…</div>
+        </div>
+        <div id="spotLiveMeta" class="spot-live-meta">NOAA SWPC · Open-Meteo</div>
+      </div>
       <p class="spot-sub">With 68° geomagnetic latitude and flat sub-Arctic terrain, Yellowknife sees overhead aurora even on quiet Kp 1–2 nights. Ingraham Trail (east) and Highway 3 (west) provide unobstructed dark-sky lakes.<br/>黃刀鎮地磁緯度高達 68° 且地形平坦開闊，即使在平靜的 Kp 1–2 夜也常有頭頂極光；沿 Ingraham Trail 與 3 號公路可快速遠離市區光害。</p>
       <div class="spot-cta-row">
         <a class="spot-cta primary" href="../../?lat=62.454&lon=-114.3718&name=Canada%20%C2%B7%20Yellowknife&lang=en">Open Live Yellowknife Radar (EN) →</a>
@@ -93,7 +109,7 @@
 <tr>
       <td><strong>East Tibbitt Lake</strong><br/><span class="muted">往東 Tibbitt Lake</span></td>
       <td class="num">68 km</td>
-      <td>No cell service<br/><span class="muted">終點無訊號</span></td>
+      <td>Road end · no cell · mine trucks<br/><span class="muted">公路終點·無訊號·礦區大車</span></td>
     </tr>
 <tr>
       <td><strong>West Behchokǫ̀</strong><br/><span class="muted">往西 Behchokǫ̀</span></td>
@@ -119,6 +135,11 @@
           <a class="spot-chip" href="../akureyri/">Akureyri · 阿克雷里</a>
           <a class="spot-chip" href="../fairbanks/">Fairbanks · 費爾班克斯</a>
           <a class="spot-chip" href="../queenstown/">Queenstown · 皇后鎮</a>
+          <a class="spot-chip" href="../vik/">Vík í Mýrdal · 冰島維克</a>
+          <a class="spot-chip" href="../levi/">Levi · 芬蘭萊維</a>
+          <a class="spot-chip" href="../saariselka/">Saariselkä · 薩利色爾卡</a>
+          <a class="spot-chip" href="../anchorage/">Anchorage · 安克拉治</a>
+          <a class="spot-chip" href="../banff/">Banff · 加拿大班夫</a>
       </div>
       <p style="margin:12px 0 0;font-size:0.76rem;color:var(--muted);">
         Free, open-source, zero tracking · Supports °C / °F &amp; scotopic red-light night-vision mode ·
@@ -126,5 +147,6 @@
       </p>
     </section>
   </div>
+  <script type="module" src="../../src/spot-live.js"></script>
 </body>
 </html>

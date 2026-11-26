@@ -8,7 +8,7 @@
   <meta name="keywords" content="Queenstown aurora australis forecast, New Zealand southern lights tonight, Lake Tekapo aurora, 皇后鎮南極光預報, 紐西蘭南極光" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
   <meta name="referrer" content="no-referrer" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.open-meteo.com https://services.swpc.noaa.gov; object-src 'none'; base-uri 'self'; form-action 'none';" />
   <meta name="theme-color" content="#08090c" />
   <link rel="canonical" href="https://peteryux.github.io/nordic-aurora-radar/spots/queenstown/" />
   <link rel="icon" type="image/svg+xml" href="../../icon.svg" />
@@ -27,6 +27,15 @@
     .spot-nav a { color: var(--green); text-decoration: none; font-weight: 700; }
     .spot-hero h1 { margin: 0 0 6px; font-size: 1.48rem; line-height: 1.25; }
     .spot-sub { margin: 0 0 14px; color: var(--text-soft); font-size: 0.9rem; line-height: 1.55; }
+    .spot-live {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px;
+      margin: 0 0 12px; padding: 10px 12px; border-radius: 12px;
+      background: var(--surface-2); border: 1px solid var(--border-strong);
+      font-size: 0.84rem; font-variant-numeric: tabular-nums;
+    }
+    .spot-live-lbl { font-size: 0.72rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .spot-live-score { font-size: 1rem; font-weight: 900; color: var(--text); }
+    .spot-live-meta { font-size: 0.8rem; color: var(--text-soft); font-weight: 600; }
     .spot-cta-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 9px; margin-top: 12px; }
     .spot-cta {
       display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 10px 14px;
@@ -51,7 +60,7 @@
     }
     .spot-chip:hover { border-color: var(--green-border); color: var(--text); }
   </style>
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","name":"Queenstown Aurora Forecast Tonight｜皇后鎮南極光即時預報","url":"https://peteryux.github.io/nordic-aurora-radar/spots/queenstown/","inLanguage":["en","zh-Hant"],"dateModified":"2026-11-25","isPartOf":{"@type":"WebApplication","name":"Nordic Aurora Radar","url":"https://peteryux.github.io/nordic-aurora-radar/"},"about":{"@type":"Place","name":"Queenstown, New Zealand","geo":{"@type":"GeoCoordinates","latitude":-45.0312,"longitude":168.6626}}},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What Kp index is needed to see aurora in Queenstown?","acceptedAnswer":{"@type":"Answer","text":"Queenstown sits at 52°S geomagnetic latitude (IGRF-14 Apex-110). Typical viewing threshold is Kp ≥ 6.2, combined with dark sky and clear local cloud cover."}},{"@type":"Question","name":"How do I check live clouds and aurora in Queenstown tonight?","acceptedAnswer":{"@type":"Answer","text":"Nordic Aurora Radar combines Dual-Model Open-Meteo (best_match + ECMWF IFS) + live NZQN airport METAR and live NZQN airport ceilometer readings with 14 NOAA SWPC live solar wind feeds into a single 0–99 hourly viewing score and a 360° clear-sky driving radar."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","name":"Queenstown Aurora Forecast Tonight｜皇后鎮南極光即時預報","url":"https://peteryux.github.io/nordic-aurora-radar/spots/queenstown/","inLanguage":["en","zh-Hant"],"dateModified":"2026-11-26","isPartOf":{"@type":"WebApplication","name":"Nordic Aurora Radar","url":"https://peteryux.github.io/nordic-aurora-radar/"},"about":{"@type":"Place","name":"Queenstown, New Zealand","geo":{"@type":"GeoCoordinates","latitude":-45.0312,"longitude":168.6626}}},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What Kp index is needed to see aurora in Queenstown?","acceptedAnswer":{"@type":"Answer","text":"Queenstown sits at 52°S geomagnetic latitude (IGRF-14 Apex-110). Typical viewing threshold is Kp ≥ 6.2, combined with dark sky and clear local cloud cover."}},{"@type":"Question","name":"How do I check live clouds and aurora in Queenstown tonight?","acceptedAnswer":{"@type":"Answer","text":"Nordic Aurora Radar combines Dual-Model Open-Meteo (best_match + ECMWF IFS) + live NZQN airport METAR and live NZQN airport ceilometer readings with 14 NOAA SWPC live solar wind feeds into a single 0–99 hourly viewing score and a 360° clear-sky driving radar."}}]}]}</script>
 </head>
 <body>
   <div class="spot-wrap">
@@ -62,6 +71,13 @@
 
     <section class="card spot-hero">
       <h1>Queenstown, New Zealand Aurora Forecast<br/><span style="font-size:1.05rem;color:var(--text-soft);font-weight:700;">紐西蘭 · 皇后鎮南極光即時預報</span></h1>
+      <div id="spotLiveBox" class="spot-live" data-lat="-45.0312" data-lon="168.6626" aria-live="polite">
+        <div>
+          <div class="spot-live-lbl">Live Now｜即時觀測</div>
+          <div id="spotLiveScore" class="spot-live-score">Loading live sky &amp; Kp…</div>
+        </div>
+        <div id="spotLiveMeta" class="spot-live-meta">NOAA SWPC · Open-Meteo</div>
+      </div>
       <p class="spot-sub">Queenstown watches the Southern Lights (Aurora Australis) toward the southern horizon. Because geomagnetic latitude is 52°S, strong geomagnetic activity (G1–G2+ / Kp ≥ 5–6 or strong southward Bz) is needed — monitor NOAA solar wind and face south with an open lake view.<br/>皇后鎮觀測的是南極光（Aurora Australis），地磁緯度約 52°S，通常需要 G1–G2 以上地磁暴（Kp ≥ 5–6 或強烈南向 Bz）才容易在南方低空出現，建議找南方無山遮蔽的湖岸。</p>
       <div class="spot-cta-row">
         <a class="spot-cta primary" href="../../?lat=-45.0312&lon=168.6626&name=New%20Zealand%20%C2%B7%20Queenstown&lang=en">Open Live Queenstown Radar (EN) →</a>
@@ -93,17 +109,17 @@
 <tr>
       <td><strong>East Cromwell</strong><br/><span class="muted">往東 Cromwell</span></td>
       <td class="num">60 km</td>
-      <td>Clear-sky backup direction<br/><span class="muted">晴空備案方向</span></td>
+      <td>Gorge curves · watch black ice<br/><span class="muted">峽谷彎道·留意黑冰</span></td>
     </tr>
 <tr>
       <td><strong>South Kingston</strong><br/><span class="muted">往南 Kingston</span></td>
       <td class="num">47 km</td>
-      <td>Clear-sky backup direction<br/><span class="muted">晴空備案方向</span></td>
+      <td>Lakeside curves · black ice<br/><span class="muted">湖岸窄路·留意黑冰</span></td>
     </tr>
 <tr>
       <td><strong>West Glenorchy</strong><br/><span class="muted">往西 Glenorchy</span></td>
       <td class="num">46 km</td>
-      <td>Clear-sky backup direction<br/><span class="muted">晴空備案方向</span></td>
+      <td>Winding lakeside · low cell<br/><span class="muted">湖岸窄彎·訊號弱</span></td>
     </tr>
         </tbody>
       </table>
@@ -124,6 +140,11 @@
           <a class="spot-chip" href="../akureyri/">Akureyri · 阿克雷里</a>
           <a class="spot-chip" href="../fairbanks/">Fairbanks · 費爾班克斯</a>
           <a class="spot-chip" href="../yellowknife/">Yellowknife · 黃刀鎮</a>
+          <a class="spot-chip" href="../vik/">Vík í Mýrdal · 冰島維克</a>
+          <a class="spot-chip" href="../levi/">Levi · 芬蘭萊維</a>
+          <a class="spot-chip" href="../saariselka/">Saariselkä · 薩利色爾卡</a>
+          <a class="spot-chip" href="../anchorage/">Anchorage · 安克拉治</a>
+          <a class="spot-chip" href="../banff/">Banff · 加拿大班夫</a>
       </div>
       <p style="margin:12px 0 0;font-size:0.76rem;color:var(--muted);">
         Free, open-source, zero tracking · Supports °C / °F &amp; scotopic red-light night-vision mode ·
@@ -131,5 +152,6 @@
       </p>
     </section>
   </div>
+  <script type="module" src="../../src/spot-live.js"></script>
 </body>
 </html>

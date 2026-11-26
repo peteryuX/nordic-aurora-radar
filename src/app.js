@@ -12,8 +12,10 @@ import * as Charts from './charts.js';
 import {
   loadSavedPos, savePos, loadRedMode, saveRedMode, saveLangPref,
   readCachedEnlil, writeCachedEnlil, writeSwrCacheEntry,
-  findMatchingOfflineCache, buildSwrPayload, hydrateOfflineState
+  findMatchingOfflineCache, buildSwrPayload, hydrateOfflineState,
+  loadWatchlist, saveWatchlist, isCityInWatchlist, toggleWatchlistCity
 } from './storage.js';
+import { buildShareCardPayload, exportShareCardPng } from './share-card.js';
 import { SKY_CAMS, renderSkyCamCaption, renderTrustStatGrid, applyStaticI18n as applyStaticI18nDom } from './i18n.js';
 import {
   fetchEnlilBackground, fetchNoaaBundle, fetchWeatherBundle,
@@ -23,7 +25,7 @@ import {
 const {
   detectDefaultLang, getLang, setLang, isEn, escapeHtml, tSky, tDirLabel, tGrade,
   isInNordicMetBox, getZoneParts, matchKnownCity, hasCjkChars, resolveCityDisplayName,
-  parseUrlLocation, buildShareUrl, computeSolarElevation, computeDistanceKm,
+  parseUrlLocation, buildShareUrl, computeSolarElevation, computeDistanceKm, effectiveCloud,
   computeDarkWindow, getMoonState, computeViewingGeometry,
   computeMLT, explainAuroraScore, summarize3NightOutlook, evaluateVerdict,
   isCorridorHazard, synthesizeTonightAction, summarizeEnergyTrend, summarizeCompass,
@@ -52,6 +54,9 @@ const state = {
   urlHasExplicitPos: false,
   lastGpsCheckMs: 0,
   gpsSuggestion: null,
+  watchlist: [],
+  tripCompareMap: {},
+  isComparingTrip: false,
   lastScore: null,
   lastSyncMs: 0,
   syncedAtMs: 0,
@@ -277,6 +282,7 @@ function toggleLang() {
   renderLocationHeader();
   renderMonitorBar();
   renderGpsSuggestBanner();
+  renderTripWatchlist();
   updateClockAndPhoto();
   if (state.renderState) renderFromState(state.renderState);
   syncBrowserUrl();
@@ -427,6 +433,7 @@ function loadSavedPrefs() {
   state.locationSeq++;
   setLang(detectDefaultLang());
   state.redModeEnabled = loadRedMode();
+  state.watchlist = loadWatchlist();
   applyRedModeUI();
   const urlPos = parseUrlLocation(location.search);
   state.urlHasExplicitPos = Boolean(urlPos);
@@ -745,6 +752,7 @@ function renderLocationHeader() {
   }
 
   syncPresetChipHighlight();
+  renderTripWatchlist();
   syncNavSatLabel();
   renderTrustStatGrid($, state.pos, en);
   const windyUrl = `https://www.windy.com/${state.pos.lat.toFixed(3)}/${state.pos.lon.toFixed(3)}?clouds,${state.pos.lat.toFixed(3)},${state.pos.lon.toFixed(3)},8`;
@@ -2304,6 +2312,211 @@ async function shareStatus() {
   }
 }
 
+async function shareForecastCard() {
+  const en = isEn();
+  const btns = [$('homeShareCardBtn'), $('shareCardBtn')].filter(Boolean);
+  btns.forEach(b => { b.disabled = true; });
+  try {
+    const shareUrl = buildShareUrl(location.href, state.pos, getLang());
+    const sc = state.lastScore || state.renderState?.sc || null;
+    const best = state.bestAurora;
+    let bestIsNextNight = false;
+    if (best && Number.isFinite(best.dtMs)) {
+      const tz = state.pos.tz || 'UTC';
+      const refMs = Date.now();
+      bestIsNextNight = getZoneParts(new Date(best.dtMs - 12 * 3600000), tz).dateStr
+        !== getZoneParts(new Date(refMs - 12 * 3600000), tz).dateStr;
+    }
+    const localTimeStr = $('localClk')?.textContent?.trim() || '';
+    const payload = buildShareCardPayload({
+      pos: state.pos,
+      posName: getPosDisplayName(),
+      sc,
+      skyVal: $('fSkyVal')?.textContent || '--',
+      skySub: $('fSkySub')?.textContent || '',
+      aurVal: $('fAurVal')?.textContent || '--',
+      aurSub: $('fAurSub')?.textContent || '',
+      darkVal: $('fDarkVal')?.textContent || '--',
+      darkSub: $('fDarkSub')?.textContent || '',
+      heroCue: $('vTitle')?.textContent || '',
+      bestAurora: best,
+      bestIsNextNight,
+      nights3: state.renderState?.nights3 || [],
+      localTimeStr,
+      lang: getLang()
+    });
+    haptic(8);
+    const res = await exportShareCardPng(payload, shareUrl);
+    if (res.ok && res.method === 'download') {
+      toast(en ? 'Forecast card PNG downloaded' : '已下載極光預報圖卡（PNG）', 'success');
+    } else if (res.ok && res.method === 'native-share') {
+      toast(en ? 'Forecast card ready to share' : '已開啟圖卡分享選單', 'success');
+    } else if (!res.ok) {
+      toast(en ? 'Could not create card — try Share link instead' : '無法產生圖卡，請改用分享連結', 'warn');
+    }
+  } catch {
+    toast(en ? 'Could not create card — try Share link instead' : '無法產生圖卡，請改用分享連結', 'warn');
+  } finally {
+    btns.forEach(b => { b.disabled = false; });
+  }
+}
+
+function tripKey(city) {
+  return `${Number(city.lat).toFixed(2)},${Number(city.lon).toFixed(2)}`;
+}
+
+function renderTripWatchlist() {
+  const listEl = $('tripList');
+  const pinBtn = $('tripPinBtn');
+  const cmpBtn = $('tripCompareBtn');
+  if (!listEl) return;
+  const en = isEn();
+  const pinnedNow = isCityInWatchlist(state.watchlist, state.pos);
+  if (pinBtn) {
+    pinBtn.classList.toggle('on', pinnedNow);
+    pinBtn.textContent = pinnedNow
+      ? (en ? '★ Pinned' : '★ 已釘選')
+      : (en ? '☆ Pin current' : '☆ 釘選目前地點');
+  }
+  if (cmpBtn) {
+    cmpBtn.style.display = state.watchlist.length >= 2 ? '' : 'none';
+    cmpBtn.disabled = state.isComparingTrip;
+    cmpBtn.textContent = state.isComparingTrip
+      ? (en ? 'Comparing…' : '比較中…')
+      : (en ? 'Compare tonight' : '比較今晚晴空');
+  }
+  if (!state.watchlist.length) {
+    listEl.innerHTML = `<div class="trip-empty">${en ? 'Pin 2–5 cities from your trip to compare tonight’s clearest sky in one tap.' : '釘選 2–5 個行程城市，隨時一鍵比較今晚哪裡晴空率最高。'}</div>`;
+    return;
+  }
+
+  const nowMs = Date.now();
+  let bestKey = null;
+  let bestClear = -1;
+  let comparedCount = 0;
+  for (const c of state.watchlist) {
+    const info = state.tripCompareMap[tripKey(c)];
+    if (info && Number.isFinite(info.clearPct) && (nowMs - info.ts < 30 * 60000)) {
+      comparedCount++;
+      if (info.clearPct > bestClear) { bestClear = info.clearPct; bestKey = tripKey(c); }
+    }
+  }
+
+  listEl.innerHTML = state.watchlist.map((c, idx) => {
+    const k = tripKey(c);
+    const isActive = computeDistanceKm(c.lat, c.lon, state.pos.lat, state.pos.lon) < 15;
+    const isBest = comparedCount >= 2 && k === bestKey && bestClear >= 40;
+    const cmp = state.tripCompareMap[k];
+    let statTxt = '';
+    if (cmp && Number.isFinite(cmp.clearPct) && (nowMs - cmp.ts < 30 * 60000)) {
+      const tempPart = Number.isFinite(cmp.temp) ? ` · ${fmtTemp(cmp.temp)}` : '';
+      const timePart = cmp.bestTime ? ` ${cmp.bestTime}` : '';
+      statTxt = isBest
+        ? (en ? `★ Clearest ${cmp.clearPct}%${timePart}` : `★ 最晴 ${cmp.clearPct}%${timePart}`)
+        : (en ? `${cmp.clearPct}% clear${tempPart}` : `晴空 ${cmp.clearPct}%${tempPart}`);
+    } else {
+      const swr = findMatchingOfflineCache(c);
+      if (swr && Number.isFinite(swr.score?.skyScore)) {
+        statTxt = en ? `Cached ${swr.score.skyScore}%` : `快取晴空 ${swr.score.skyScore}%`;
+      } else {
+        statTxt = en ? 'Tap to view' : '點此查看';
+      }
+    }
+    const label = resolveCityDisplayName(c, getLang());
+    return `<div class="trip-row">
+      <button type="button" class="trip-item${isActive ? ' active' : ''}${isBest ? ' best' : ''}" data-trip-idx="${idx}">
+        <span class="trip-name">${escapeHtml(label)}</span>
+        <span class="trip-stat">${escapeHtml(statTxt)}</span>
+      </button>
+      <button type="button" class="trip-del" data-trip-del="${idx}" aria-label="${en ? 'Remove' : '移除'} ${escapeHtml(label)}">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function togglePinCurrentCity() {
+  const en = isEn();
+  const res = toggleWatchlistCity(state.watchlist, state.pos);
+  state.watchlist = res.list;
+  haptic(8);
+  if (res.full) {
+    toast(en ? 'Trip watchlist is full (max 5 cities)' : '行程清單已達上限（最多 5 個城市）', 'warn');
+  } else if (res.pinned) {
+    toast(en ? `Pinned to My Trip: ${getPosDisplayName()}` : `已加入我的行程：${getPosDisplayName()}`, 'success');
+  } else {
+    toast(en ? `Removed from My Trip: ${getPosDisplayName()}` : `已移出我的行程：${getPosDisplayName()}`, 'info');
+  }
+  renderTripWatchlist();
+}
+
+async function compareTripCities() {
+  const en = isEn();
+  if (state.isComparingTrip || state.watchlist.length < 2) return;
+  state.isComparingTrip = true;
+  renderTripWatchlist();
+  const nowSec = Math.floor(Date.now() / 1000);
+  try {
+    await Promise.all(state.watchlist.map(async (c) => {
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), 6000) : null;
+      try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${c.lat.toFixed(4)}&longitude=${c.lon.toFixed(4)}&hourly=cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,temperature_2m&forecast_days=2&timeformat=unixtime&timezone=auto`;
+        const res = await fetch(url, { signal: ctrl?.signal });
+        if (!res.ok) return;
+        const data = await res.json();
+        const h = data?.hourly;
+        if (!h?.time?.length) return;
+        let bestClear = -1;
+        let bestTime = '';
+        let bestTemp = null;
+        let fallbackClear = null;
+        let fallbackTemp = null;
+        const tz = data.timezone || c.tz || 'UTC';
+        for (let i = 0; i < h.time.length; i++) {
+          const ts = h.time[i];
+          if (ts < nowSec - 1800 || ts > nowSec + 18 * 3600) continue;
+          const low = h.cloud_cover_low?.[i];
+          const mid = h.cloud_cover_mid?.[i];
+          const high = h.cloud_cover_high?.[i];
+          const tot = h.cloud_cover?.[i];
+          const block = (Number.isFinite(low) && Number.isFinite(mid) && Number.isFinite(high))
+            ? effectiveCloud(low, mid, high)
+            : (Number.isFinite(tot) ? Math.round(tot) : 50);
+          const clear = Math.max(0, Math.min(100, 100 - block));
+          const temp = Number.isFinite(h.temperature_2m?.[i]) ? Math.round(h.temperature_2m[i]) : null;
+          if (fallbackClear === null) { fallbackClear = clear; fallbackTemp = temp; }
+          const sunAlt = computeSolarElevation(new Date(ts * 1000), c.lat, c.lon);
+          if (sunAlt <= -6 && clear > bestClear) {
+            bestClear = clear;
+            bestTemp = temp;
+            const zp = getZoneParts(new Date(ts * 1000), tz);
+            bestTime = `${String(zp.hour).padStart(2, '0')}:00`;
+          }
+        }
+        const finalClear = bestClear >= 0 ? bestClear : (fallbackClear ?? 0);
+        const finalTemp = bestClear >= 0 ? bestTemp : fallbackTemp;
+        state.tripCompareMap[tripKey(c)] = { clearPct: finalClear, bestTime, temp: finalTemp, ts: Date.now() };
+      } catch {} finally {
+        if (timer) clearTimeout(timer);
+      }
+    }));
+    let winner = null;
+    let maxClr = -1;
+    for (const c of state.watchlist) {
+      const info = state.tripCompareMap[tripKey(c)];
+      if (info && info.clearPct > maxClr) { maxClr = info.clearPct; winner = c; }
+    }
+    if (winner && maxClr >= 0) {
+      const wName = resolveCityDisplayName(winner, getLang());
+      toast(en ? `Clearest tonight: ${wName} (${maxClr}%)` : `今晚最晴：${wName}（晴空 ${maxClr}%）`, 'success');
+    } else {
+      toast(en ? 'Could not fetch comparison — check network' : '暫時無法比較，請檢查網路連線', 'warn');
+    }
+  } finally {
+    state.isComparingTrip = false;
+    renderTripWatchlist();
+  }
+}
+
 // ====== Trust, Telemetry & Sources Bottom-Sheet ======
 function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, metarNote = null, stOpt = null) {
   const exp = expOpt || state.explainState;
@@ -2819,6 +3032,30 @@ function bindEvents() {
   $('picker')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) togglePicker(true); });
   $('gpsBtn')?.addEventListener('click', useGPS);
   $('shareBtn')?.addEventListener('click', shareStatus);
+  $('homeShareLinkBtn')?.addEventListener('click', shareStatus);
+  $('shareCardBtn')?.addEventListener('click', shareForecastCard);
+  $('homeShareCardBtn')?.addEventListener('click', shareForecastCard);
+  $('tripPinBtn')?.addEventListener('click', togglePinCurrentCity);
+  $('tripCompareBtn')?.addEventListener('click', compareTripCities);
+  $('tripList')?.addEventListener('click', (e) => {
+    const del = e.target.closest?.('[data-trip-del]');
+    if (del) {
+      const idx = parseInt(del.dataset.tripDel, 10);
+      if (Number.isInteger(idx) && state.watchlist[idx]) {
+        state.watchlist.splice(idx, 1);
+        saveWatchlist(state.watchlist);
+        haptic(6);
+        renderTripWatchlist();
+      }
+      return;
+    }
+    const item = e.target.closest?.('[data-trip-idx]');
+    if (item) {
+      const idx = parseInt(item.dataset.tripIdx, 10);
+      const city = Number.isInteger(idx) ? state.watchlist[idx] : null;
+      if (city) pickPreset(city.name, city.nameEn || city.name, city.lat, city.lon, null);
+    }
+  });
   $('cityForm')?.addEventListener('submit', searchCity);
   $('ringBtn')?.addEventListener('click', (e) => openTrustSheet(e.currentTarget));
   $('trustBtn')?.addEventListener('click', (e) => openTrustSheet(e.currentTarget));

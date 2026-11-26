@@ -16,7 +16,7 @@ import {
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASE_URL = 'https://peteryux.github.io/nordic-aurora-radar';
-const LASTMOD = '2026-11-25';
+const LASTMOD = '2026-11-26';
 
 const SPOTS = [
   {
@@ -198,6 +198,96 @@ const SPOTS = [
     tipEn: 'Queenstown watches the Southern Lights (Aurora Australis) toward the southern horizon. Because geomagnetic latitude is 52°S, strong geomagnetic activity (G1–G2+ / Kp ≥ 5–6 or strong southward Bz) is needed — monitor NOAA solar wind and face south with an open lake view.',
     tipZh: '皇后鎮觀測的是南極光（Aurora Australis），地磁緯度約 52°S，通常需要 G1–G2 以上地磁暴（Kp ≥ 5–6 或強烈南向 Bz）才容易在南方低空出現，建議找南方無山遮蔽的湖岸。',
     keywords: 'Queenstown aurora australis forecast, New Zealand southern lights tonight, Lake Tekapo aurora, 皇后鎮南極光預報, 紐西蘭南極光'
+  },
+  {
+    slug: 'vik',
+    cityEn: 'Vík í Mýrdal',
+    cityZh: '冰島維克',
+    countryEn: 'Iceland',
+    countryZh: '冰島',
+    urlNameEn: 'Iceland · Vík',
+    urlNameZh: '冰島 · Vík',
+    lat: 63.4186, lon: -19.0060,
+    seasonEn: 'Sep – early Apr',
+    seasonZh: '9 月至隔年 4 月初',
+    weatherModelEn: 'Open-Meteo ECMWF + ICON layered clouds · Vegagerðin live road cam',
+    weatherModelZh: 'Open-Meteo ECMWF + ICON 分層雲量 · 冰島公路局 Vík 即時鏡頭',
+    roadNameEn: 'Iceland Road.is & SafeTravel', roadNameZh: '冰島 Road.is 路況與安全', roadUrl: 'https://umferdin.is/en',
+    tipEn: 'South Coast oceanic clouds roll in quickly at Reynisfjara and Vík, while driving 35–70 km east toward Kirkjubæjarklaustur or west toward Skógar often reveals dramatic clear gaps over glaciers.',
+    tipZh: '冰島南岸黑沙灘（Vík）受大西洋雲帶影響變化快，沿一號環島公路往東（Kirkjubæjarklaustur）或往西（Skógar）常能找到冰川上空的晴空破口。',
+    keywords: 'Vik Iceland aurora forecast, South Coast Iceland northern lights, Reynisfjara aurora clouds, 冰島維克極光預報, 冰島南岸極光'
+  },
+  {
+    slug: 'levi',
+    cityEn: 'Levi',
+    cityZh: '芬蘭萊維',
+    countryEn: 'Finland',
+    countryZh: '芬蘭',
+    urlNameEn: 'Finland · Levi',
+    urlNameZh: '芬蘭 · Levi',
+    lat: 67.8040, lon: 24.8080,
+    seasonEn: 'Sep – early Apr',
+    seasonZh: '9 月至隔年 4 月初',
+    weatherModelEn: 'MET Norway (Yr.no) 2.5 km MEPS + FMI Lapland cloud & magnetometer sensors',
+    weatherModelZh: '挪威 Yr.no 2.5 km 分層雲量＋芬蘭氣象局 FMI 地面磁力儀與雲量測站',
+    roadNameEn: 'Finland Fintraffic Roads', roadNameZh: '芬蘭 Fintraffic 路況', roadUrl: 'https://liikennetilanne.fintraffic.fi/',
+    tipEn: 'Levi sits well north of the Arctic Circle in Finnish Lapland: escape ski-resort slope lights by driving 15–30 minutes toward Lake Immeljärvi, Muonio, or Kittilä.',
+    tipZh: '萊維深入北極圈內，避開滑雪場夜間燈光往北或西開 15–30 分鐘至湖畔或 Muonio 方向視野極佳，且鄰近 FMI 地面磁力儀即時偵測爆發。',
+    keywords: 'Levi Finland aurora forecast, Kittila northern lights tonight, Finnish Lapland aurora, 芬蘭萊維極光預報'
+  },
+  {
+    slug: 'saariselka',
+    cityEn: 'Saariselkä',
+    cityZh: '薩利色爾卡',
+    countryEn: 'Finland',
+    countryZh: '芬蘭',
+    urlNameEn: 'Finland · Saariselkä',
+    urlNameZh: '芬蘭 · Saariselkä',
+    lat: 68.4197, lon: 27.4106,
+    seasonEn: 'Sep – early Apr',
+    seasonZh: '9 月至隔年 4 月初',
+    weatherModelEn: 'MET Norway (Yr.no) 2.5 km MEPS + FMI Ivalo/Sodankylä ground sensors',
+    weatherModelZh: '挪威 Yr.no 2.5 km 分層雲量＋芬蘭 FMI Ivalo 機場與地面磁力儀',
+    roadNameEn: 'Finland Fintraffic Roads', roadNameZh: '芬蘭 Fintraffic 路況', roadUrl: 'https://liikennetilanne.fintraffic.fi/',
+    tipEn: 'Home to Finland’s famous glass igloos, Saariselkä enjoys dark Arctic wilderness skies under the core auroral oval — check Kaunispää fell or north toward Inari when valley mist forms.',
+    tipZh: '芬蘭經典玻璃屋所在地，位於極光帶核心且光害極低；若谷地起霧可上 Kaunispää 山頂或沿 E75 往北 Inari 方向找晴空。',
+    keywords: 'Saariselka aurora forecast, Kakslauttanen glass igloo northern lights, Inari aurora tonight, 薩利色爾卡極光預報, 芬蘭玻璃屋極光'
+  },
+  {
+    slug: 'anchorage',
+    cityEn: 'Anchorage',
+    cityZh: '安克拉治',
+    countryEn: 'USA (Alaska)',
+    countryZh: '美國阿拉斯加',
+    urlNameEn: 'USA · Anchorage',
+    urlNameZh: '美國 · Anchorage',
+    lat: 61.2181, lon: -149.9003,
+    seasonEn: 'Sep – early Apr',
+    seasonZh: '9 月至隔年 4 月初',
+    weatherModelEn: 'Open-Meteo ECMWF + GFS layered clouds · METAR PANC airport obs',
+    weatherModelZh: 'Open-Meteo ECMWF + GFS 分層雲量 · PANC 機場實測校正',
+    roadNameEn: 'Alaska 511 Road Status', roadNameZh: '阿拉斯加 511 路況', roadUrl: 'https://511.alaska.gov/',
+    tipEn: 'Anchorage requires moderate geomagnetic activity (Kp 3–4+) for bright northern arcs — drive 35–60 minutes north along Glenn Hwy toward Eklutna or Palmer to escape Cook Inlet city glow.',
+    tipZh: '安克拉治需中等地磁活動（Kp 3–4+）時北向低空清晰可見，建議沿 Glenn Hwy 往北開 35–60 分鐘至 Eklutna 或 Palmer 避開市區光害。',
+    keywords: 'Anchorage aurora forecast, Alaska northern lights tonight, Palmer aurora clouds, 安克拉治極光預報, 阿拉斯加極光'
+  },
+  {
+    slug: 'banff',
+    cityEn: 'Banff',
+    cityZh: '加拿大班夫',
+    countryEn: 'Canada',
+    countryZh: '加拿大',
+    urlNameEn: 'Canada · Banff',
+    urlNameZh: '加拿大 · Banff',
+    lat: 51.1784, lon: -115.5708,
+    seasonEn: 'Sep – Apr (best on Kp 4+ nights)',
+    seasonZh: '9 月至隔年 4 月（Kp 4+ 機會佳）',
+    weatherModelEn: 'Open-Meteo ECMWF + GEM layered clouds · Alberta 511 winter highway status',
+    weatherModelZh: 'Open-Meteo ECMWF + GEM 分層雲量 · 亞伯達 511 公路即時路況',
+    roadNameEn: 'Alberta 511 Road Conditions', roadNameZh: '亞伯達 511 路況', roadUrl: 'https://511.alberta.ca/',
+    tipEn: 'Banff sits in the Canadian Rockies storm-aurora zone: Lake Minnewanka and Vermilion Lakes offer iconic north-facing reflections on Kp 4–5+ nights, while foothills east toward Canmore often clear first.',
+    tipZh: '班夫屬於洛磯山脈風暴極光帶，當 Kp 達 4–5+ 時於 Lake Minnewanka 或 Vermilion Lakes 可拍出北向極光倒影；若山區雲厚可往東 Canmore 方向找晴空。',
+    keywords: 'Banff aurora forecast, Banff northern lights tonight, Lake Minnewanka aurora, 班夫極光預報, 加拿大極光'
   }
 ];
 
@@ -290,7 +380,7 @@ for (const s of spotRecords) {
   <meta name="keywords" content="${esc(s.keywords)}" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
   <meta name="referrer" content="no-referrer" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.open-meteo.com https://services.swpc.noaa.gov; object-src 'none'; base-uri 'self'; form-action 'none';" />
   <meta name="theme-color" content="#08090c" />
   <link rel="canonical" href="${canonical}" />
   <link rel="icon" type="image/svg+xml" href="../../icon.svg" />
@@ -309,6 +399,15 @@ for (const s of spotRecords) {
     .spot-nav a { color: var(--green); text-decoration: none; font-weight: 700; }
     .spot-hero h1 { margin: 0 0 6px; font-size: 1.48rem; line-height: 1.25; }
     .spot-sub { margin: 0 0 14px; color: var(--text-soft); font-size: 0.9rem; line-height: 1.55; }
+    .spot-live {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px;
+      margin: 0 0 12px; padding: 10px 12px; border-radius: 12px;
+      background: var(--surface-2); border: 1px solid var(--border-strong);
+      font-size: 0.84rem; font-variant-numeric: tabular-nums;
+    }
+    .spot-live-lbl { font-size: 0.72rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .spot-live-score { font-size: 1rem; font-weight: 900; color: var(--text); }
+    .spot-live-meta { font-size: 0.8rem; color: var(--text-soft); font-weight: 600; }
     .spot-cta-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 9px; margin-top: 12px; }
     .spot-cta {
       display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 10px 14px;
@@ -344,6 +443,13 @@ for (const s of spotRecords) {
 
     <section class="card spot-hero">
       <h1>${esc(s.cityEn)}, ${esc(s.countryEn)} Aurora Forecast<br/><span style="font-size:1.05rem;color:var(--text-soft);font-weight:700;">${esc(s.countryZh)} · ${esc(s.cityZh)}${auroraTypeZh}即時預報</span></h1>
+      <div id="spotLiveBox" class="spot-live" data-lat="${s.lat}" data-lon="${s.lon}" aria-live="polite">
+        <div>
+          <div class="spot-live-lbl">Live Now｜即時觀測</div>
+          <div id="spotLiveScore" class="spot-live-score">Loading live sky &amp; Kp…</div>
+        </div>
+        <div id="spotLiveMeta" class="spot-live-meta">NOAA SWPC · Open-Meteo</div>
+      </div>
       <p class="spot-sub">${esc(s.tipEn)}<br/>${esc(s.tipZh)}</p>
       <div class="spot-cta-row">
         <a class="spot-cta primary" href="${appUrlEn}">Open Live ${esc(s.cityEn)} Radar (EN) →</a>
@@ -386,6 +492,7 @@ for (const s of spotRecords) {
       </p>
     </section>
   </div>
+  <script type="module" src="../../src/spot-live.js"></script>
 </body>
 </html>
 `;

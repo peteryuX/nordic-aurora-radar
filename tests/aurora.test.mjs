@@ -3225,3 +3225,86 @@ test('60. v55 Zero-Cold-Prompt Silent GPS Auto-Follow & Arctic Nearby-City Sugge
     'checkSilentGpsUpdate must strictly check permissions === granted before ever calling getCurrentPosition');
 });
 
+test('61. v56 Wave 2: Shareable PNG Forecast Card, Multi-City Trip Watchlist & 15 Live SEO Spot Pages', async () => {
+  const { buildShareCardPayload } = await import('../src/share-card.js');
+  const { loadWatchlist, toggleWatchlistCity, isCityInWatchlist, WATCHLIST_MAX } = await import('../src/storage.js');
+  const swSrc = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+  const sitemap = fs.readFileSync(path.join(__dirname, '..', 'sitemap.xml'), 'utf8');
+
+  // (a) Share card pure payload normalizer (ZH + EN, tomorrow-night honesty, clean filename & watermark)
+  const cardZh = buildShareCardPayload({
+    pos: { name: '挪威 · Tromsø', nameEn: 'Norway · Tromsø', lat: 69.6492, lon: 18.9553 },
+    posName: '挪威 · Tromsø',
+    sc: { total: 78, grade: 'prime', isTooBright: false },
+    skyVal: '88%', skySub: '-4°C', aurVal: '活躍', aurSub: 'Kp 4.3', darkVal: '100%', darkSub: '全暗',
+    heroCue: '現在適合出門，肉眼可見，朝頭頂與北方觀察',
+    bestAurora: { time: '23:00', score: 82 }, bestIsNextNight: false,
+    nights3: [{ dayLabel: '今晚', bestNightScore: 82, bestClearPct: 88, isBest: true }],
+    localTimeStr: '21:30', lang: 'zh'
+  });
+  assert.equal(cardZh.total, 78);
+  assert.equal(cardZh.tier, 'prime');
+  assert.equal(cardZh.pillars.length, 3);
+  assert.ok(cardZh.peakLine.includes('今晚最佳時段') && cardZh.fileName.startsWith('aurora-norway-troms'));
+  assert.ok(cardZh.footerUrl.includes('peteryux.github.io/nordic-aurora-radar'));
+
+  const cardEnNext = buildShareCardPayload({
+    pos: { nameEn: 'Iceland · Vík' }, posName: 'Iceland · Vík',
+    sc: { total: 45, grade: 'good' }, bestAurora: { time: '22:00', score: 52 }, bestIsNextNight: true, lang: 'en'
+  });
+  assert.equal(cardEnNext.tier, 'good');
+  assert.ok(cardEnNext.peakLine.includes('Best in 24h'));
+
+  // (b) Multi-City Trip Watchlist storage: pin, dedupe (<15 km), cap at 5, unpin, round-trip persistence
+  const mem = new Map();
+  const mockStore = {
+    getItem: (k) => mem.get(k) ?? null,
+    setItem: (k, v) => mem.set(k, String(v)),
+    removeItem: (k) => mem.delete(k)
+  };
+  let wl = loadWatchlist(mockStore);
+  assert.equal(wl.length, 0);
+  const hubs = [
+    { name: '挪威 · Tromsø', nameEn: 'Norway · Tromsø', lat: 69.6492, lon: 18.9553, tz: 'Europe/Oslo' },
+    { name: '瑞典 · Abisko', nameEn: 'Sweden · Abisko', lat: 68.3495, lon: 18.8312, tz: 'Europe/Stockholm' },
+    { name: '挪威 · Lofoten', nameEn: 'Norway · Lofoten', lat: 68.2342, lon: 14.5683, tz: 'Europe/Oslo' },
+    { name: '冰島 · Reykjavik', nameEn: 'Iceland · Reykjavik', lat: 64.1466, lon: -21.9426, tz: 'Atlantic/Reykjavik' },
+    { name: '冰島 · Vík', nameEn: 'Iceland · Vík', lat: 63.4186, lon: -19.0060, tz: 'Atlantic/Reykjavik' }
+  ];
+  for (const h of hubs) {
+    const r = toggleWatchlistCity(wl, h, mockStore);
+    assert.equal(r.pinned, true);
+    wl = r.list;
+  }
+  assert.equal(wl.length, WATCHLIST_MAX);
+  assert.equal(isCityInWatchlist(wl, hubs[0]), true);
+  // 6th distinct city blocked with full: true
+  const fullRes = toggleWatchlistCity(wl, { name: '芬蘭 · Levi', nameEn: 'Finland · Levi', lat: 67.8040, lon: 24.8080, tz: 'Europe/Helsinki' }, mockStore);
+  assert.equal(fullRes.full, true);
+  assert.equal(fullRes.list.length, 5);
+  // Unpin existing city (even with slight GPS offset <15 km)
+  const unpinRes = toggleWatchlistCity(wl, { lat: 69.66, lon: 18.96 }, mockStore);
+  assert.equal(unpinRes.pinned, false);
+  assert.equal(loadWatchlist(mockStore).length, 4);
+
+  // (c) All 15 live SEO spot pages generated with strict CSP, live hydrator, JSON-LD & sitemap registration
+  const all15 = [
+    'tromso', 'lofoten', 'alta', 'abisko', 'rovaniemi', 'reykjavik', 'akureyri',
+    'fairbanks', 'yellowknife', 'queenstown', 'vik', 'levi', 'saariselka', 'anchorage', 'banff'
+  ];
+  for (const slug of all15) {
+    const pHtml = fs.readFileSync(path.join(__dirname, '..', 'spots', slug, 'index.html'), 'utf8');
+    assert.ok(sitemap.includes(`/spots/${slug}/`), `sitemap.xml missing /spots/${slug}/`);
+    assert.ok(pHtml.includes('id="spotLiveBox"') && pHtml.includes('../../src/spot-live.js'), `spot ${slug} must include live hydrator`);
+    assert.ok(pHtml.includes("script-src 'self'") && !pHtml.includes("script-src 'self' 'unsafe-inline'"), `spot ${slug} CSP must forbid unsafe-inline scripts`);
+    assert.ok(!pHtml.includes('NaN') && !pHtml.includes('undefined'), `spot ${slug} has NaN/undefined`);
+    const ld = pHtml.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+    assert.ok(ld && JSON.parse(ld[1])['@graph'].length >= 2, `spot ${slug} JSON-LD invalid`);
+  }
+
+  // (d) sw.js v56+ precaches ./src/share-card.js
+  const swVer = Number((swSrc.match(/aurora-radar-shell-v(\d+)/) || [])[1] || 0);
+  assert.ok(swVer >= 56 && swSrc.includes('./src/share-card.js'), 'sw.js v56 must precache ./src/share-card.js');
+});
+
+

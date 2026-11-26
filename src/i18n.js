@@ -103,6 +103,11 @@ export const STATIC_TEXT_MAP = {
     'If GPS is blocked in an in-app browser, open in Safari/Chrome or tap the city name above.'
   ],
   gpsSuggestBtn: ['切換到此處', 'Switch here'],
+  homeShareCardTxt: ['存成預報圖卡 (PNG)', 'Save Forecast Card'],
+  homeShareLinkTxt: ['分享連結', 'Share link'],
+  shareCardBtnTxt: ['存成預報圖卡 (PNG)', 'Save Forecast Card (PNG)'],
+  tripLbl: ['我的行程（最多 5 城）', 'My Trip (up to 5 cities)'],
+  tripCompareBtn: ['比較今晚晴空', 'Compare tonight'],
   offlineRetryBtn: ['重試', 'Retry'],
   pickerSheetTitle: ['切換觀測地點', 'Choose location'],
   gpsBtnTxt: pair(TERMS.location.useMyLoc),

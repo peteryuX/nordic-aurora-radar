@@ -8,7 +8,7 @@
   <meta name="keywords" content="Rovaniemi aurora forecast, Finnish Lapland northern lights, Rovaniemi cloud cover, 羅瓦涅米極光預報, 芬蘭極光" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
   <meta name="referrer" content="no-referrer" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.open-meteo.com https://services.swpc.noaa.gov; object-src 'none'; base-uri 'self'; form-action 'none';" />
   <meta name="theme-color" content="#08090c" />
   <link rel="canonical" href="https://peteryux.github.io/nordic-aurora-radar/spots/rovaniemi/" />
   <link rel="icon" type="image/svg+xml" href="../../icon.svg" />
@@ -27,6 +27,15 @@
     .spot-nav a { color: var(--green); text-decoration: none; font-weight: 700; }
     .spot-hero h1 { margin: 0 0 6px; font-size: 1.48rem; line-height: 1.25; }
     .spot-sub { margin: 0 0 14px; color: var(--text-soft); font-size: 0.9rem; line-height: 1.55; }
+    .spot-live {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px;
+      margin: 0 0 12px; padding: 10px 12px; border-radius: 12px;
+      background: var(--surface-2); border: 1px solid var(--border-strong);
+      font-size: 0.84rem; font-variant-numeric: tabular-nums;
+    }
+    .spot-live-lbl { font-size: 0.72rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .spot-live-score { font-size: 1rem; font-weight: 900; color: var(--text); }
+    .spot-live-meta { font-size: 0.8rem; color: var(--text-soft); font-weight: 600; }
     .spot-cta-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 9px; margin-top: 12px; }
     .spot-cta {
       display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 10px 14px;
@@ -51,7 +60,7 @@
     }
     .spot-chip:hover { border-color: var(--green-border); color: var(--text); }
   </style>
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","name":"Rovaniemi Aurora Forecast Tonight｜羅瓦涅米北極光即時預報","url":"https://peteryux.github.io/nordic-aurora-radar/spots/rovaniemi/","inLanguage":["en","zh-Hant"],"dateModified":"2026-11-25","isPartOf":{"@type":"WebApplication","name":"Nordic Aurora Radar","url":"https://peteryux.github.io/nordic-aurora-radar/"},"about":{"@type":"Place","name":"Rovaniemi, Finland","geo":{"@type":"GeoCoordinates","latitude":66.5039,"longitude":25.7294}}},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What Kp index is needed to see aurora in Rovaniemi?","acceptedAnswer":{"@type":"Answer","text":"Rovaniemi sits at 64°N geomagnetic latitude (IGRF-14 Apex-110). Typical viewing threshold is Kp ≥ 1.1, combined with dark sky and clear local cloud cover."}},{"@type":"Question","name":"How do I check live clouds and aurora in Rovaniemi tonight?","acceptedAnswer":{"@type":"Answer","text":"Nordic Aurora Radar combines MET Norway (Yr.no) 2.5 km MEPS layered clouds + Open-Meteo cross-check and live EFRO airport ceilometer readings with 14 NOAA SWPC live solar wind feeds into a single 0–99 hourly viewing score and a 360° clear-sky driving radar."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","name":"Rovaniemi Aurora Forecast Tonight｜羅瓦涅米北極光即時預報","url":"https://peteryux.github.io/nordic-aurora-radar/spots/rovaniemi/","inLanguage":["en","zh-Hant"],"dateModified":"2026-11-26","isPartOf":{"@type":"WebApplication","name":"Nordic Aurora Radar","url":"https://peteryux.github.io/nordic-aurora-radar/"},"about":{"@type":"Place","name":"Rovaniemi, Finland","geo":{"@type":"GeoCoordinates","latitude":66.5039,"longitude":25.7294}}},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What Kp index is needed to see aurora in Rovaniemi?","acceptedAnswer":{"@type":"Answer","text":"Rovaniemi sits at 64°N geomagnetic latitude (IGRF-14 Apex-110). Typical viewing threshold is Kp ≥ 1.1, combined with dark sky and clear local cloud cover."}},{"@type":"Question","name":"How do I check live clouds and aurora in Rovaniemi tonight?","acceptedAnswer":{"@type":"Answer","text":"Nordic Aurora Radar combines MET Norway (Yr.no) 2.5 km MEPS layered clouds + Open-Meteo cross-check and live EFRO airport ceilometer readings with 14 NOAA SWPC live solar wind feeds into a single 0–99 hourly viewing score and a 360° clear-sky driving radar."}}]}]}</script>
 </head>
 <body>
   <div class="spot-wrap">
@@ -62,6 +71,13 @@
 
     <section class="card spot-hero">
       <h1>Rovaniemi, Finland Aurora Forecast<br/><span style="font-size:1.05rem;color:var(--text-soft);font-weight:700;">芬蘭 · 羅瓦涅米北極光即時預報</span></h1>
+      <div id="spotLiveBox" class="spot-live" data-lat="66.5039" data-lon="25.7294" aria-live="polite">
+        <div>
+          <div class="spot-live-lbl">Live Now｜即時觀測</div>
+          <div id="spotLiveScore" class="spot-live-score">Loading live sky &amp; Kp…</div>
+        </div>
+        <div id="spotLiveMeta" class="spot-live-meta">NOAA SWPC · Open-Meteo</div>
+      </div>
       <p class="spot-sub">Rovaniemi sits right on the Arctic Circle: escape city light pollution by driving 15–30 minutes north or northwest toward Olkkajärvi or Ranua, and watch for northern horizon arcs on quiet Kp 2 nights.<br/>羅瓦涅米位於北極圈上，市區光害較明顯，建議往北或西北開 15–30 分鐘至湖畔暗空處；平靜夜（Kp 2）請優先留意北方低空。</p>
       <div class="spot-cta-row">
         <a class="spot-cta primary" href="../../?lat=66.5039&lon=25.7294&name=Finland%20%C2%B7%20Rovaniemi&lang=en">Open Live Rovaniemi Radar (EN) →</a>
@@ -88,12 +104,12 @@
           <tr>
       <td><strong>North Luosto</strong><br/><span class="muted">往北 Luosto</span></td>
       <td class="num">112 km</td>
-      <td>Clear-sky backup direction<br/><span class="muted">晴空備案方向</span></td>
+      <td>Watch reindeer on road<br/><span class="muted">林區留意馴鹿</span></td>
     </tr>
 <tr>
       <td><strong>East Kemijärvi</strong><br/><span class="muted">往東 Kemijärvi</span></td>
       <td class="num">86 km</td>
-      <td>Clear-sky backup direction<br/><span class="muted">晴空備案方向</span></td>
+      <td>Watch reindeer<br/><span class="muted">留意馴鹿</span></td>
     </tr>
 <tr>
       <td><strong>South Ranua</strong><br/><span class="muted">往南 Ranua</span></td>
@@ -124,6 +140,11 @@
           <a class="spot-chip" href="../fairbanks/">Fairbanks · 費爾班克斯</a>
           <a class="spot-chip" href="../yellowknife/">Yellowknife · 黃刀鎮</a>
           <a class="spot-chip" href="../queenstown/">Queenstown · 皇后鎮</a>
+          <a class="spot-chip" href="../vik/">Vík í Mýrdal · 冰島維克</a>
+          <a class="spot-chip" href="../levi/">Levi · 芬蘭萊維</a>
+          <a class="spot-chip" href="../saariselka/">Saariselkä · 薩利色爾卡</a>
+          <a class="spot-chip" href="../anchorage/">Anchorage · 安克拉治</a>
+          <a class="spot-chip" href="../banff/">Banff · 加拿大班夫</a>
       </div>
       <p style="margin:12px 0 0;font-size:0.76rem;color:var(--muted);">
         Free, open-source, zero tracking · Supports °C / °F &amp; scotopic red-light night-vision mode ·
@@ -131,5 +152,6 @@
       </p>
     </section>
   </div>
+  <script type="module" src="../../src/spot-live.js"></script>
 </body>
 </html>
