@@ -380,7 +380,7 @@ for (const s of spotRecords) {
   <meta name="keywords" content="${esc(s.keywords)}" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
   <meta name="referrer" content="no-referrer" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.open-meteo.com https://services.swpc.noaa.gov; object-src 'none'; base-uri 'self'; form-action 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://nordicaurora.goatcounter.com; connect-src 'self' https://api.open-meteo.com https://services.swpc.noaa.gov; object-src 'none'; base-uri 'self'; form-action 'none';" />
   <meta name="theme-color" content="#08090c" />
   <link rel="canonical" href="${canonical}" />
   <link rel="icon" type="image/svg+xml" href="../../icon.svg" />
@@ -487,7 +487,7 @@ for (const s of spotRecords) {
           ${siblingLinks}
       </div>
       <p style="margin:12px 0 0;font-size:0.76rem;color:var(--muted);">
-        Free, open-source, zero tracking · Supports °C / °F &amp; scotopic red-light night-vision mode ·
+        Free, open-source, no ads &amp; cookieless · Supports °C / °F &amp; scotopic red-light night-vision mode ·
         <a href="https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md" target="_blank" rel="noopener noreferrer" style="color:var(--text-soft);">Validation Report (VALIDATION.md) ↗</a>
       </p>
     </section>

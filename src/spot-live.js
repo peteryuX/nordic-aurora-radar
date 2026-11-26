@@ -12,6 +12,9 @@ import {
   parseKpJson,
   tGrade
 } from './aurora-engine.js';
+import { trackPageview } from './analytics.js';
+
+trackPageview();
 
 async function fetchJsonTimeout(url, timeoutMs = 6000) {
   const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;

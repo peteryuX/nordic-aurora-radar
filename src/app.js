@@ -16,6 +16,7 @@ import {
   loadWatchlist, saveWatchlist, isCityInWatchlist, toggleWatchlistCity
 } from './storage.js';
 import { buildShareCardPayload, exportShareCardPng } from './share-card.js';
+import { trackPageview, trackEvent, normalizeCitySlug } from './analytics.js';
 import { SKY_CAMS, renderSkyCamCaption, renderTrustStatGrid, applyStaticI18n as applyStaticI18nDom } from './i18n.js';
 import {
   fetchEnlilBackground, fetchNoaaBundle, fetchWeatherBundle,
@@ -720,6 +721,7 @@ function switchView(name, btn) {
   const navBtn = btn || document.querySelector(`.bottom-nav .nav-btn[data-view="${name}"]`);
   navBtn?.classList.add('on');
   if (name === 'sat') syncSatTab();
+  if (name === 'dir' || name === 'sat') trackEvent(`tab/${name}`, `Tab: ${name}`, { once: true });
   haptic(6);
   const targetY = state.tabScrollY[name] || 0;
   window.scrollTo({ top: targetY, behavior: 'auto' });
@@ -2206,6 +2208,8 @@ function pickPreset(nameZh, nameEn, lat, lon, btn) {
   syncBrowserUrl();
   haptic(8);
   togglePicker(true);
+  const slug = normalizeCitySlug(state.pos);
+  trackEvent(`city/${slug}`, `City: ${slug}`);
   refreshAll(true);
 }
 
@@ -2266,6 +2270,7 @@ async function searchCity(e) {
 
 async function shareStatus() {
   const en = isEn();
+  trackEvent('share-link', 'Share Link');
   const shareUrl = buildShareUrl(location.href, state.pos, getLang());
   const sc = state.lastScore;
   const scStr = sc ? (en ? `${sc.total} (${tGrade(sc.grade, 'en').replace(/^[^\p{L}\p{N}]+\s*/u, '')})` : `${sc.total}（${tGrade(sc.grade, 'zh').replace(/^[^\p{L}\p{N}]+\s*/u, '')}）`) : (en ? 'Updating' : '更新中');
@@ -2314,6 +2319,7 @@ async function shareStatus() {
 
 async function shareForecastCard() {
   const en = isEn();
+  trackEvent('share-card', 'Share PNG Card');
   const btns = [$('homeShareCardBtn'), $('shareCardBtn')].filter(Boolean);
   btns.forEach(b => { b.disabled = true; });
   try {
@@ -2441,6 +2447,7 @@ function togglePinCurrentCity() {
   if (res.full) {
     toast(en ? 'Trip watchlist is full (max 5 cities)' : '行程清單已達上限（最多 5 個城市）', 'warn');
   } else if (res.pinned) {
+    trackEvent('trip-pin', 'Trip Pin City');
     toast(en ? `Pinned to My Trip: ${getPosDisplayName()}` : `已加入我的行程：${getPosDisplayName()}`, 'success');
   } else {
     toast(en ? `Removed from My Trip: ${getPosDisplayName()}` : `已移出我的行程：${getPosDisplayName()}`, 'info');
@@ -2451,6 +2458,7 @@ function togglePinCurrentCity() {
 async function compareTripCities() {
   const en = isEn();
   if (state.isComparingTrip || state.watchlist.length < 2) return;
+  trackEvent('trip-compare', 'Trip Compare Tonight');
   state.isComparingTrip = true;
   renderTripWatchlist();
   const nowSec = Math.floor(Date.now() / 1000);
@@ -3251,6 +3259,7 @@ try {
   if (initView === 'dir' || initView === 'sat') switchView(initView);
 } catch {}
 registerServiceWorker();
+trackPageview();
 refreshAll(false);
 checkSilentGpsUpdate(false);
 

@@ -3307,4 +3307,60 @@ test('61. v56 Wave 2: Shareable PNG Forecast Card, Multi-City Trip Watchlist & 1
   assert.ok(swVer >= 56 && swSrc.includes('./src/share-card.js'), 'sw.js v56 must precache ./src/share-card.js');
 });
 
+test('62. v57 Zero-Script Cookieless GoatCounter Analytics (Prod-Only Guard, Privacy Slug & Strict CSP)', async () => {
+  const { GOATCOUNTER_ENDPOINT, shouldSendAnalytics, normalizeCitySlug, buildAnalyticsUrl } = await import('../src/analytics.js');
+  const htmlSrc = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const swSrc = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+
+  // (a) Production-only guard: fires ONLY on https://peteryux.github.io with !webdriver and not prerendering
+  assert.equal(shouldSendAnalytics({
+    location: { protocol: 'https:', hostname: 'peteryux.github.io' },
+    navigator: { webdriver: false },
+    document: { visibilityState: 'visible' }
+  }), true);
+  assert.equal(shouldSendAnalytics({
+    location: { protocol: 'http:', hostname: '127.0.0.1' },
+    navigator: { webdriver: false },
+    document: { visibilityState: 'visible' }
+  }), false);
+  assert.equal(shouldSendAnalytics({
+    location: { protocol: 'https:', hostname: 'peteryux.github.io' },
+    navigator: { webdriver: true },
+    document: { visibilityState: 'visible' }
+  }), false);
+  assert.equal(shouldSendAnalytics({
+    location: { protocol: 'https:', hostname: 'peteryux.github.io' },
+    navigator: { webdriver: false },
+    document: { visibilityState: 'prerender' }
+  }), false);
+
+  // (b) City slug normalizer strips accents/Nordic letters and never leaks raw GPS coordinates
+  assert.equal(normalizeCitySlug({ nameEn: 'Norway · Tromsø' }), 'tromso');
+  assert.equal(normalizeCitySlug({ nameEn: 'Iceland · Vík' }), 'vik');
+  assert.equal(normalizeCitySlug({ nameEn: 'GPS (69.65, 18.96)' }), 'custom');
+  assert.equal(normalizeCitySlug({ name: '69.65°N, 18.96°E' }), 'custom');
+
+  // (c) Official GoatCounter /count beacon URL format
+  const pvUrl = buildAnalyticsUrl({
+    path: '/nordic-aurora-radar/spots/tromso/',
+    title: 'Tromsø Aurora Forecast',
+    referrer: 'https://www.google.com/',
+    event: false,
+    screenWidth: 390,
+    rnd: 'abc12'
+  });
+  assert.ok(pvUrl.startsWith(`${GOATCOUNTER_ENDPOINT}?`), 'Must target nordicaurora.goatcounter.com/count');
+  assert.ok(pvUrl.includes('p=%2Fspots%2Ftromso%2F') && pvUrl.includes('s=390') && pvUrl.includes('r=https%3A%2F%2Fwww.google.com%2F') && !pvUrl.includes('e=true'));
+  const evUrl = buildAnalyticsUrl({ path: '/event/share-card', title: 'Share PNG Card', event: true, screenWidth: 390, rnd: 'xyz99' });
+  assert.ok(evUrl.includes('p=%2Fevent%2Fshare-card') && evUrl.includes('e=true'));
+
+  // (d) Strict zero-3rd-party-JS CSP + img-src allowlist on index.html & all 15 spot pages + sw.js precache
+  assert.ok(htmlSrc.includes('https://nordicaurora.goatcounter.com'), 'index.html CSP img-src must allow nordicaurora.goatcounter.com');
+  assert.ok(!htmlSrc.includes('gc.zgo.at'), 'Must NOT load external 3rd-party gc.zgo.at script');
+  const vikHtml = fs.readFileSync(path.join(__dirname, '..', 'spots', 'vik', 'index.html'), 'utf8');
+  assert.ok(vikHtml.includes('https://nordicaurora.goatcounter.com') && !vikHtml.includes('gc.zgo.at'));
+  assert.ok(swSrc.includes('./src/analytics.js'), 'sw.js must precache ./src/analytics.js');
+});
+
+
 

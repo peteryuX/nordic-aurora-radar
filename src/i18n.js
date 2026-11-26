@@ -176,7 +176,7 @@ export const STATIC_TEXT_MAP = {
     '直連 NOAA 每 3 小時滾動更新 — 核對警報請看「NOAA 風暴警報」，今晚極光範圍請看「NOAA 極光總覽」。',
     'Live 3h NOAA feed — verify G1–G5 watches in "NOAA Storm Alerts" and tonight\'s oval in "NOAA Aurora Map".'
   ],
-  tsSealLink: ['GitHub 開源（MIT · 不追蹤）↗', 'Open source (MIT · no tracking) ↗'],
+  tsSealLink: ['GitHub 開源（MIT · 無 Cookie）↗', 'Open source (MIT · cookieless) ↗'],
   tsValReportLink: ['完整驗證報告 ↗', 'Validation report ↗'],
   tsPwaTip: [
     '離線使用：Safari 點「分享 → 加入主畫面」或 Chrome 點「安裝」，極區無訊號時仍可開啟快取。',
