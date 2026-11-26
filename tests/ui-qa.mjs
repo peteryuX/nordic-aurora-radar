@@ -231,10 +231,10 @@ html { font-size: ${rootPx}px !important; }
         <div class="scrub-bar">
           <div class="hr-detail">
             <div class="sb-top">${isCloudy
-              ? `<strong>01:00</strong> <strong style="color:var(--good);">${en ? '~38–62 Good' : '約 38–62 適合觀測'}</strong> <span class="sb-tag">${en ? 'Trend' : '趨勢參考'}</span>`
+              ? `<strong>01:00</strong> <strong style="color:var(--good);">${en ? '~52 Good' : '約 52 適合觀測'}</strong> <span class="sb-tag sb-tag-warn">${en ? 'Uncertain sky' : '雲況變數大'}</span>`
               : `<strong>21:00</strong> <strong style="color:var(--green);">${en ? '84 Excellent' : '84 極佳'}</strong>`}</div>
             <div class="sb-bot">${isCloudy
-              ? (en ? '<span class="nowrap">62–86% clear</span> · <span class="nowrap">Full dark</span> · <span class="nowrap">-5°C</span> · <span class="nowrap">~Kp 3</span>' : '<span class="nowrap">晴空 62%–86%</span> · <span class="nowrap">全暗</span> · <span class="nowrap">-5°C</span> · <span class="nowrap">約 Kp 3</span>')
+              ? (en ? '<span class="nowrap">~74% clear</span> · <span class="nowrap">Full dark</span> · <span class="nowrap">-5°C</span> · <span class="nowrap">~Kp 3</span>' : '<span class="nowrap">晴空約 74%</span> · <span class="nowrap">全暗</span> · <span class="nowrap">-5°C</span> · <span class="nowrap">約 Kp 3</span>')
               : (en ? '<span class="nowrap">94% clear</span> · <span class="nowrap">Full dark</span> · <span class="nowrap">-5°C</span> · <span class="nowrap">Kp 5.0</span>' : '<span class="nowrap">晴空 94%</span> · <span class="nowrap">全暗</span> · <span class="nowrap">-5°C</span> · <span class="nowrap">Kp 5.0</span>')}</div>
           </div>
           <div class="steppers">

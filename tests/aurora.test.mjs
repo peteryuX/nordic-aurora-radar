@@ -3016,6 +3016,17 @@ test('57. v51 UX & Product Fixes: Layered Clouds, FMI Mag SVG, Iceland Cams, Reg
   const chipMatches = [...htmlSrc.matchAll(/<button[^>]*data-lbl-zh="([^"]+)"[^>]*data-lbl-en="([^"]+)"/g)];
   assert.equal(chipMatches.length, 18, `All 18 preset chips must carry bilingual labels, got ${chipMatches.length}`);
   assert.ok(chipMatches.every(([, , enLbl]) => !/[\u4e00-\u9fff]/.test(enLbl)), 'EN chip labels must have zero CJK');
+
+  // (g) v52 Scrub-bar never displays unreadable wide X–Y score/cloud ranges, and 24h chart renders at most 1 range halo (selected bar only)
+  assert.ok(!appSrc.includes('scoreLow}–${h.scoreHigh}') && !appSrc.includes('clearLow}%–${h.clearHigh}%'),
+    'Scrub-bar must show single best-estimate point values + plain uncertainty tag instead of unreadable X–Y intervals');
+  const mockTrendHrs = Array.from({ length: 12 }, (_, i) => ({
+    time: `${String((18 + i) % 24).padStart(2, '0')}:00`,
+    isDay: false, outOfZone: false, clear: 55, block: 45, score: 48, scoreLow: 10, scoreHigh: 78
+  }));
+  const waveOnly1 = api.buildSkyWaveSVG(mockTrendHrs, mockTrendHrs[6], 6, 'zh');
+  const haloCount = (waveOnly1.match(/data-role="score-range"/g) || []).length;
+  assert.equal(haloCount, 1, `24h chart should show range halo ONLY on the selected Trend bar, got ${haloCount}`);
 });
 
 

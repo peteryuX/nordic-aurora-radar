@@ -388,8 +388,8 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
         const op = isTrend
           ? (isSel ? '0.92' : (isBest ? '0.74' : '0.52'))
           : (isSel ? '1' : (isBest ? '0.94' : '0.86'));
-        // Soft same-width translucent range capsule behind the bar (zero spiky vertical pins)
-        const showRange = isTrend && !h.outOfZone && scVal >= 12
+        // Soft range halo ONLY on the currently inspected Trend bar (keeps the 24h silhouette clean without 15+ noisy double-height shadow towers)
+        const showRange = isSel && isTrend && !h.outOfZone && scVal >= 12
           && Number.isFinite(h.scoreLow) && Number.isFinite(h.scoreHigh)
           && (h.scoreHigh - h.scoreLow) >= 18;
         let rangeSvg = '';
@@ -397,7 +397,7 @@ export function buildSkyWaveSVG(hrs, bestDark, selectedIdx = -1, lang) {
           const yHi = Math.max(padT + 1.5, yOf(h.scoreHigh));
           const yLo = Math.min(baseY, yOf(h.scoreLow));
           const rh = Math.max(3.5, yLo - yHi);
-          rangeSvg = `<rect data-role="score-range" x="${x.toFixed(1)}" y="${yHi.toFixed(1)}" width="${barW.toFixed(1)}" height="${rh.toFixed(1)}" rx="${barRx}" fill="${fill}" fill-opacity="${isSel ? '0.24' : '0.16'}"/>`;
+          rangeSvg = `<rect data-role="score-range" x="${x.toFixed(1)}" y="${yHi.toFixed(1)}" width="${barW.toFixed(1)}" height="${rh.toFixed(1)}" rx="${barRx}" fill="${fill}" fill-opacity="0.20"/>`;
         }
         const capDot = isSel
           ? `<circle cx="${xOf(i).toFixed(1)}" cy="${Math.max(padT + 2.5, y).toFixed(1)}" r="3.2" fill="var(--text)" stroke="var(--bg)" stroke-width="1.4"/>`

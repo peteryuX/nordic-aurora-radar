@@ -624,6 +624,15 @@ body.is-loading .skel-day .od-stat {
   border: 0.5px solid var(--border);
   white-space: nowrap;
 }
+.sb-tag-warn {
+  color: var(--amber);
+  background: rgba(245,158,11,0.11);
+  border-color: rgba(245,158,11,0.28);
+}
+body.red-mode .sb-tag-warn {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
 .steppers { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .step-btn {
   position: relative; width: 36px; height: 36px; border-radius: 10px;

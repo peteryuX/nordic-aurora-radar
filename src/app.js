@@ -996,20 +996,23 @@ function selectForecastHour(idx) {
   const tStr = formatHourLabel(h, en);
   const scCol = h.isDay ? 'var(--blue)' : tierColor(h.score);
   const scTier = scoreTierWord(h.score, h.isDay, en);
-  const hasBand = isTrend && !isGated && Number.isFinite(h.scoreLow) && Number.isFinite(h.scoreHigh) && (h.scoreHigh - h.scoreLow) >= 6;
   const scoreReadout = (!isTrend || isGated)
     ? `${h.score} ${scTier}`
-    : (hasBand
-        ? (en ? `~${h.scoreLow}–${h.scoreHigh} ${scTier}` : `約 ${h.scoreLow}–${h.scoreHigh} ${scTier}`)
-        : (en ? `~${h.score} ${scTier}` : `約 ${h.score} ${scTier}`));
+    : (en ? `~${h.score} ${scTier}` : `約 ${h.score} ${scTier}`);
+  const clearSpread = (Number.isFinite(h.clearLow) && Number.isFinite(h.clearHigh))
+    ? (h.clearHigh - h.clearLow)
+    : 0;
+  const scoreSpread = (Number.isFinite(h.scoreLow) && Number.isFinite(h.scoreHigh))
+    ? (h.scoreHigh - h.scoreLow)
+    : 0;
+  const highSkyUncert = isTrend && !isGated && (clearSpread >= 40 || scoreSpread >= 35);
   const trendTagHtml = (isTrend && !isGated)
-    ? ` <span class="sb-tag">${term(TERMS.trendRef, en)}</span>`
+    ? (highSkyUncert
+        ? ` <span class="sb-tag sb-tag-warn">${term(TERMS.skyUncertain, en)}</span>`
+        : ` <span class="sb-tag">${term(TERMS.trendRef, en)}</span>`)
     : '';
-  const showCloudRange = isTrend && !h.isDay
-    && Number.isFinite(h.clearLow) && Number.isFinite(h.clearHigh)
-    && (h.clearHigh - h.clearLow) >= 25;
-  const clearPart = showCloudRange
-    ? (en ? `${h.clearLow}–${h.clearHigh}% clear` : `晴空 ${h.clearLow}%–${h.clearHigh}%`)
+  const clearPart = (isTrend && !h.isDay)
+    ? (en ? `~${h.clear}% clear` : `晴空約 ${h.clear}%`)
     : (en ? `${h.clear}% clear` : `晴空 ${h.clear}%`);
   const tempPart = hasTemp ? fmtTemp(tInt) : '';
   const rightMeta = [clearPart, darkTxt, tempPart, kpBadge]

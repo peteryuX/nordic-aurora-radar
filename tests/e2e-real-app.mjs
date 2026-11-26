@@ -492,8 +492,8 @@ const SCENARIOS = [
       if (!r.waveSvgHtml.includes('data-role="horizon-split"') || !r.waveSvgHtml.includes('>即時<') || !r.waveSvgHtml.includes('>趨勢<')) {
         errs.push('Expected 24h skyWaveChart to render Live/Trend split (即時 / 趨勢)');
       }
-      if (!r.hourDetailTrend.includes('趨勢參考') || !r.hourDetailTrend.includes('晴空 28%–78%')) {
-        errs.push(`Expected +6h Trend scrub-bar to show 趨勢參考 and 晴空 28%–78% (met=22 vs ecmwf=72), got "${r.hourDetailTrend}"`);
+      if (!r.hourDetailTrend.includes('雲況變數大') || !r.hourDetailTrend.includes('晴空約 53%') || /\d+–\d+/.test(r.hourDetailTrend)) {
+        errs.push(`Expected +6h Trend scrub-bar to show single estimate 晴空約 53% + 雲況變數大 (zero unreadable X–Y range), got "${r.hourDetailTrend}"`);
       }
       const clr = parseInt(r.fSkyVal, 10);
       if (!(clr <= 10)) errs.push(`Active 0.8mm/h 5m radar snow squall must cap clear sky <=10%, got "${r.fSkyVal}"`);
@@ -631,8 +631,8 @@ const SCENARIOS = [
       if (r.tsMetarNote.includes('SMHI') || r.tsMetarNote.includes('機場')) {
         errs.push(`Station note must stay jargon-free, got "${r.tsMetarNote}"`);
       }
-      if (!r.hourDetailTrend.includes('趨勢參考') || !r.hourDetailTrend.includes('晴空 18%–82%')) {
-        errs.push(`Expected +6h Trend scrub-bar to reflect 51-member P10..P90 clear range (18%–82%), got "${r.hourDetailTrend}"`);
+      if (!r.hourDetailTrend.includes('雲況變數大') || !r.hourDetailTrend.includes('晴空約 ') || /\d+–\d+/.test(r.hourDetailTrend)) {
+        errs.push(`Expected +6h Trend scrub-bar with 51-member P10..P90 wide spread to show single point 晴空約 % + 雲況變數大 (zero unreadable X–Y range), got "${r.hourDetailTrend}"`);
       }
       if (r.issues.length) errs.push(...r.issues);
       return errs;

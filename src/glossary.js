@@ -93,7 +93,8 @@ export const TERMS = Object.freeze({
   confidence:   Object.freeze({ zh: '可信度', en: 'Confidence' }),
   nowcastShort: Object.freeze({ zh: '即時', en: 'Live' }),
   trendShort:   Object.freeze({ zh: '趨勢', en: 'Trend' }),
-  trendRef:     Object.freeze({ zh: '趨勢參考', en: 'Trend' })
+  trendRef:     Object.freeze({ zh: '趨勢參考', en: 'Trend' }),
+  skyUncertain: Object.freeze({ zh: '雲況變數大', en: 'Uncertain sky' })
 });
 
 /**
