@@ -3091,8 +3091,9 @@ test('59. v54 Wave 1 Field-Reliability & Scientific-Accuracy Blitz', async () =>
   const dcSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'data-client.js'), 'utf8');
   const { SKY_CAMS } = await import('../src/i18n.js');
 
-  // (a) SW v54: protects /spots/ from poisoning root ./index.html + cache-first SWR for static assets
-  assert.ok(swSrc.includes('aurora-radar-shell-v54'), 'sw.js must bump cache version to v54');
+  // (a) SW v54+: protects /spots/ from poisoning root ./index.html + cache-first SWR for static assets
+  const swVer = Number((swSrc.match(/aurora-radar-shell-v(\d+)/) || [])[1] || 0);
+  assert.ok(swVer >= 54, `sw.js cache version must be >= 54, got ${swVer}`);
   assert.ok(swSrc.includes("url.pathname.includes('/spots/')"), 'sw.js must guard /spots/ routes from overwriting ./index.html');
 
   // (b) FMI magnetometer distance box (<=600 km) & sharp recovery guard
@@ -3185,3 +3186,42 @@ test('59. v54 Wave 1 Field-Reliability & Scientific-Accuracy Blitz', async () =>
   assert.ok(!appSrc.includes('虛線右側'), 'app.js must not reference obsolete 虛線右側 legend');
   assert.ok(cssSrc.includes('font-size: 1rem') && htmlSrc.includes('enterkeyhint="search"'), 'City search input must prevent iOS Safari forced zoom');
 });
+
+test('60. v55 Zero-Cold-Prompt Silent GPS Auto-Follow & Arctic Nearby-City Suggestion', () => {
+  const swSrc = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+  const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const htmlSrc = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+  // (a) Never acts when permission is not granted (zero cold popups) or when URL has explicit ?lat=&lon=
+  const tromsoGps = { lat: 69.6492, lon: 18.9553, mode: 'gps' };
+  const abiskoCoords = { gpsLat: 68.3495, gpsLon: 18.8312 };
+  assert.equal(api.evaluateSilentGpsDecision({ currentPos: tromsoGps, ...abiskoCoords, permissionState: 'prompt' }).action, 'ignore');
+  assert.equal(api.evaluateSilentGpsDecision({ currentPos: tromsoGps, ...abiskoCoords, permissionState: 'denied' }).action, 'ignore');
+  assert.equal(api.evaluateSilentGpsDecision({ currentPos: tromsoGps, ...abiskoCoords, permissionState: 'granted', hasUrlOverride: true }).action, 'ignore');
+
+  // (b) Follow mode ('gps'): moved >=5 km inside aurora zone -> auto-switch; <5 km -> refresh-coords
+  const movedRes = api.evaluateSilentGpsDecision({ currentPos: tromsoGps, ...abiskoCoords, permissionState: 'granted' });
+  assert.equal(movedRes.action, 'auto-switch', `Expected auto-switch on 145 km road trip, got ${JSON.stringify(movedRes)}`);
+  assert.ok(movedRes.distKm >= 130 && movedRes.distKm <= 160);
+  const sameRes = api.evaluateSilentGpsDecision({ currentPos: tromsoGps, gpsLat: 69.655, gpsLon: 18.96, permissionState: 'granted' });
+  assert.equal(sameRes.action, 'refresh-coords');
+
+  // (c) Flying home to low latitude (Taipei 25°N) must NOT overwrite an Arctic cached GPS city into 0/99
+  const homeRes = api.evaluateSilentGpsDecision({ currentPos: tromsoGps, gpsLat: 25.033, gpsLon: 121.565, permissionState: 'granted' });
+  assert.equal(homeRes.action, 'ignore-low-lat');
+
+  // (d) Manual mode: never hijacks screen; suggests switching only when physically in aurora zone (>=48°) and >=25 km away
+  const manualReyk = { lat: 64.1466, lon: -21.9426, mode: 'manual' };
+  const landedTromso = api.evaluateSilentGpsDecision({ currentPos: manualReyk, gpsLat: 69.6492, gpsLon: 18.9553, permissionState: 'granted' });
+  assert.equal(landedTromso.action, 'suggest-nearby');
+  const homeManual = api.evaluateSilentGpsDecision({ currentPos: manualReyk, gpsLat: 25.033, gpsLon: 121.565, permissionState: 'granted' });
+  assert.equal(homeManual.action, 'ignore', 'Low-latitude manual visitor must never see a GPS switch suggestion');
+
+  // (e) App & HTML & SW wiring guards
+  const swVer = Number((swSrc.match(/aurora-radar-shell-v(\d+)/) || [])[1] || 0);
+  assert.ok(swVer >= 55, `sw.js cache version must be >= 55, got ${swVer}`);
+  assert.ok(htmlSrc.includes('id="gpsSuggestBanner"') && htmlSrc.includes('id="gpsSuggestBtn"'), 'index.html must include #gpsSuggestBanner inside #bannerSlot');
+  assert.ok(appSrc.includes("navigator.permissions.query({ name: 'geolocation' })") && appSrc.includes("if (permState !== 'granted') return;"),
+    'checkSilentGpsUpdate must strictly check permissions === granted before ever calling getCurrentPosition');
+});
+

@@ -307,12 +307,13 @@ body.is-syncing .sync-bar::after { animation: syncSlide 1.15s ease-in-out infini
 }
 .monitor-act:active { transform: scale(0.94); }
 
-.line-tip, .offline-tip {
+.line-tip, .offline-tip, .gps-tip {
   display: none; align-items: center; justify-content: space-between; gap: 8px;
   border-radius: 12px; padding: 8px 11px; margin-bottom: 8px; font-size: 0.79rem; line-height: 1.38;
 }
-.line-tip { background: var(--blue-bg); border: 1px solid var(--blue-border); color: var(--blue-text); }
+.line-tip, .gps-tip { background: var(--blue-bg); border: 1px solid var(--blue-border); color: var(--blue-text); }
 .offline-tip { background: var(--red-bg); border: 1px solid var(--red-border); color: var(--red-text); font-weight: 700; }
+.tip-actions { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .tip-close, .tip-action {
   flex-shrink: 0; border: 1px solid var(--border-strong); background: var(--surface-2); color: inherit;
   border-radius: 9px; cursor: pointer; font-family: inherit; font-weight: 800;

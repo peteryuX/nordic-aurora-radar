@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aurora-radar-shell-v54';
+const CACHE_NAME = 'aurora-radar-shell-v55';
 const FETCH_TIMEOUT_MS = 3500;
 const SHELL_ASSETS = [
   './',

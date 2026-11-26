@@ -27,7 +27,7 @@ const {
   computeDarkWindow, getMoonState, computeViewingGeometry,
   computeMLT, explainAuroraScore, summarize3NightOutlook, evaluateVerdict,
   isCorridorHazard, synthesizeTonightAction, summarizeEnergyTrend, summarizeCompass,
-  shouldTriggerAuroraAlert, utcTagToLocalHM
+  shouldTriggerAuroraAlert, evaluateSilentGpsDecision, utcTagToLocalHM
 } = Engine;
 
 const {
@@ -40,6 +40,7 @@ const {
 window.__AURORA_SCI_TEST__ = { ...Engine, ...Charts };
 
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
+const SILENT_GPS_INTERVAL_MS = 10 * 60 * 1000;
 
 // ====== Consolidated Application State ======
 const state = {
@@ -48,6 +49,9 @@ const state = {
     lat: 69.6492, lon: 18.9553, tz: 'Europe/Oslo',
     mode: 'manual', accuracy: null
   },
+  urlHasExplicitPos: false,
+  lastGpsCheckMs: 0,
+  gpsSuggestion: null,
   lastScore: null,
   lastSyncMs: 0,
   syncedAtMs: 0,
@@ -85,30 +89,33 @@ const state = {
   tempUnit: 'C',
   displayedScore: null,
   scoreAnimFrame: 0,
-  bannerState: { offline: false, stormSevere: false, stormMinorTag: '', lineTip: false }
+  bannerState: { offline: false, stormSevere: false, stormMinorTag: '', lineTip: false, gpsSuggest: false }
 };
 
 const $ = (id) => document.getElementById(id);
 const setText = (id, txt) => { const el = $(id); if (el) el.textContent = txt; };
 const setHtml = (id, html) => { const el = $(id); if (el) el.innerHTML = html; };
 
-/** Strict Banner Budget = 1 above Hero: P0 Alert > P1 Offline > P2 Severe Storm > P3 Monitor > P4 Tip */
+/** Strict Banner Budget = 1 above Hero: P0 Alert > P1 Offline > P2 Severe Storm > P3 Monitor > P4 Tip/Suggest */
 function syncBannerBudget() {
   const monEl = $('monitorBar');
   const offEl = $('offlineBanner');
   const stormEl = $('stormBanner');
   const lineEl = $('lineTip');
+  const gpsEl = $('gpsSuggestBanner');
   let winner = null;
   if (state.activeAlert) winner = 'alert';
   else if (state.bannerState.offline) winner = 'offline';
   else if (state.bannerState.stormSevere) winner = 'storm';
   else if (state.alertEnabled) winner = 'monitor';
   else if (state.bannerState.lineTip) winner = 'line';
+  else if (state.bannerState.gpsSuggest) winner = 'gps';
 
   if (monEl) monEl.classList.toggle('on', winner === 'alert' || winner === 'monitor');
   if (offEl) offEl.style.display = winner === 'offline' ? 'flex' : 'none';
   if (stormEl) stormEl.style.display = winner === 'storm' ? 'flex' : 'none';
   if (lineEl) lineEl.style.display = winner === 'line' ? 'flex' : 'none';
+  if (gpsEl) gpsEl.style.display = winner === 'gps' ? 'flex' : 'none';
 }
 
 /** Pause background aurora GPU animation when hidden, bright, low-score, red-mode, off-tab, Wake-Lock monitor, or scrolled past Hero */
@@ -269,6 +276,7 @@ function toggleLang() {
   syncSwToggleUI();
   renderLocationHeader();
   renderMonitorBar();
+  renderGpsSuggestBanner();
   updateClockAndPhoto();
   if (state.renderState) renderFromState(state.renderState);
   syncBrowserUrl();
@@ -421,6 +429,7 @@ function loadSavedPrefs() {
   state.redModeEnabled = loadRedMode();
   applyRedModeUI();
   const urlPos = parseUrlLocation(location.search);
+  state.urlHasExplicitPos = Boolean(urlPos);
   if (urlPos) {
     state.pos = { ...state.pos, ...urlPos };
   } else {
@@ -2058,9 +2067,129 @@ function handleOfflineFallback(pos) {
 }
 
 // ====== User Actions ======
+function clearGpsSuggestion() {
+  state.gpsSuggestion = null;
+  if (state.bannerState.gpsSuggest) {
+    state.bannerState.gpsSuggest = false;
+    syncBannerBudget();
+  }
+}
+
+function renderGpsSuggestBanner() {
+  const sug = state.gpsSuggestion;
+  if (!sug || !state.bannerState.gpsSuggest) return;
+  const en = isEn();
+  const label = resolveCityDisplayName(sug, getLang());
+  setText('gpsSuggestTxt', en
+    ? `Near ${label} — switch to live GPS?`
+    : `偵測到目前在「${label}」附近，要切換到此處嗎？`);
+  setText('gpsSuggestBtn', en ? 'Switch here' : '切換到此處');
+}
+
+function applyGpsPosition(lat, lon, accuracy, { closeSheet = true, autoFollow = false } = {}) {
+  const myLocSeq = ++state.locationSeq;
+  state.camUserPicked = false;
+  state.urlHasExplicitPos = false;
+  clearGpsSuggestion();
+  document.querySelectorAll('#presetChips .chip').forEach(c => c.classList.remove('on'));
+  const matched = matchKnownCity(lat, lon);
+  const fallback = `GPS (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
+  state.pos = {
+    name: matched ? matched.zh : fallback,
+    nameEn: matched ? matched.en : fallback,
+    lat: +lat.toFixed(4), lon: +lon.toFixed(4),
+    tz: matched ? matched.tz : 'auto',
+    mode: 'gps', accuracy: Number.isFinite(accuracy) ? accuracy : null
+  };
+  renderLocationHeader();
+  syncBrowserUrl();
+  if (closeSheet) togglePicker(true);
+  if (!autoFollow) haptic(10);
+  const en = isEn();
+  toast(autoFollow
+    ? (en ? `Location updated: ${getPosDisplayName()}` : `已自動更新目前位置：${getPosDisplayName()}`)
+    : (en ? `Located: ${getPosDisplayName()}` : `已定位：${getPosDisplayName()}`), 'success');
+  refreshAll(true);
+
+  if (!matched) {
+    reverseGeocodeBilingual(lat, lon).then(({ zhName, enName }) => {
+      if (myLocSeq !== state.locationSeq) return;
+      if (zhName || enName) {
+        state.pos.name = zhName || enName || fallback;
+        state.pos.nameEn = enName || (hasCjkChars(zhName) ? fallback : zhName) || fallback;
+        renderLocationHeader();
+        syncBrowserUrl();
+        savePos(state.pos);
+      }
+    });
+  }
+}
+
+async function checkSilentGpsUpdate(force = false) {
+  if (state.urlHasExplicitPos) return;
+  if (typeof navigator === 'undefined' || !navigator.geolocation || !navigator.permissions?.query) return;
+  const nowMs = Date.now();
+  if (!force && state.lastGpsCheckMs && (nowMs - state.lastGpsCheckMs < SILENT_GPS_INTERVAL_MS)) return;
+  state.lastGpsCheckMs = nowMs;
+  let permState = 'prompt';
+  try {
+    const status = await navigator.permissions.query({ name: 'geolocation' });
+    permState = status?.state || 'prompt';
+  } catch { return; }
+  if (permState !== 'granted') return;
+
+  const snapLocSeq = state.locationSeq;
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      if (snapLocSeq !== state.locationSeq) return;
+      const { latitude: lat, longitude: lon, accuracy } = pos.coords;
+      const decision = evaluateSilentGpsDecision({
+        currentPos: state.pos, gpsLat: lat, gpsLon: lon,
+        hasUrlOverride: state.urlHasExplicitPos, permissionState: permState
+      });
+      if (decision.action === 'auto-switch') {
+        applyGpsPosition(lat, lon, accuracy, { closeSheet: false, autoFollow: true });
+      } else if (decision.action === 'refresh-coords') {
+        state.pos.accuracy = Number.isFinite(accuracy) ? accuracy : state.pos.accuracy;
+        savePos(state.pos);
+      } else if (decision.action === 'suggest-nearby') {
+        let dismissed = false;
+        try { dismissed = sessionStorage.getItem('aurora_gps_suggest_dismissed') === '1'; } catch {}
+        if (dismissed) return;
+        const matched = matchKnownCity(lat, lon);
+        const fallback = `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lon).toFixed(2)}°${lon >= 0 ? 'E' : 'W'}`;
+        state.gpsSuggestion = {
+          lat: +lat.toFixed(4), lon: +lon.toFixed(4),
+          accuracy: Number.isFinite(accuracy) ? accuracy : null,
+          name: matched ? matched.zh : fallback,
+          nameEn: matched ? matched.en : fallback,
+          tz: matched ? matched.tz : 'auto'
+        };
+        state.bannerState.gpsSuggest = true;
+        renderGpsSuggestBanner();
+        syncBannerBudget();
+        if (!matched) {
+          reverseGeocodeBilingual(lat, lon).then(({ zhName, enName }) => {
+            if (!state.gpsSuggestion || snapLocSeq !== state.locationSeq) return;
+            if (zhName || enName) {
+              state.gpsSuggestion.name = zhName || enName || fallback;
+              state.gpsSuggestion.nameEn = enName || (hasCjkChars(zhName) ? fallback : zhName) || fallback;
+              renderGpsSuggestBanner();
+            }
+          });
+        }
+      }
+    },
+    () => {},
+    { enableHighAccuracy: false, timeout: 8000, maximumAge: 180000 }
+  );
+}
+
 function pickPreset(nameZh, nameEn, lat, lon, btn) {
   state.locationSeq++;
   state.camUserPicked = false;
+  state.urlHasExplicitPos = false;
+  clearGpsSuggestion();
   document.querySelectorAll('#presetChips .chip').forEach(c => c.classList.remove('on'));
   btn?.classList.add('on');
   const tz = btn?.dataset?.tz || matchKnownCity(lat, lon)?.tz || 'auto';
@@ -2085,35 +2214,10 @@ function useGPS() {
   const myLocSeq = ++state.locationSeq;
   navigator.geolocation.getCurrentPosition(
     (pos) => {
-      if (myLocSeq !== state.locationSeq) { stopSpin(); return; }
-      state.camUserPicked = false;
-      const { latitude: lat, longitude: lon, accuracy } = pos.coords;
-      document.querySelectorAll('#presetChips .chip').forEach(c => c.classList.remove('on'));
-      const matched = matchKnownCity(lat, lon);
-      const fallback = `GPS (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
-      state.pos = {
-        name: matched ? matched.zh : fallback,
-        nameEn: matched ? matched.en : fallback,
-        lat: +lat.toFixed(4), lon: +lon.toFixed(4),
-        tz: matched ? matched.tz : 'auto',
-        mode: 'gps', accuracy
-      };
-      renderLocationHeader(); syncBrowserUrl(); togglePicker(true);
       stopSpin();
-      haptic(10);
-      toast((isEn() ? 'Located: ' : '已定位：') + getPosDisplayName(), 'success');
-      refreshAll(true);
-
-      if (!matched) {
-        reverseGeocodeBilingual(lat, lon).then(({ zhName, enName }) => {
-          if (myLocSeq !== state.locationSeq) return;
-          if (zhName || enName) {
-            state.pos.name = zhName || enName || fallback;
-            state.pos.nameEn = enName || (hasCjkChars(zhName) ? fallback : zhName) || fallback;
-            renderLocationHeader(); syncBrowserUrl();
-          }
-        });
-      }
+      if (myLocSeq !== state.locationSeq) return;
+      const { latitude: lat, longitude: lon, accuracy } = pos.coords;
+      applyGpsPosition(lat, lon, accuracy, { closeSheet: true, autoFollow: false });
     },
     () => {
       stopSpin();
@@ -2137,6 +2241,8 @@ async function searchCity(e) {
     if (myLocSeq !== state.locationSeq) return;
     if (found) {
       state.camUserPicked = false;
+      state.urlHasExplicitPos = false;
+      clearGpsSuggestion();
       document.querySelectorAll('#presetChips .chip').forEach(c => c.classList.remove('on'));
       state.pos = found;
       renderLocationHeader(); syncBrowserUrl();
@@ -2774,6 +2880,15 @@ function bindEvents() {
     syncBannerBudget();
     try { sessionStorage.setItem('aurora_line_tip_dismissed', '1'); } catch {}
   });
+  $('gpsSuggestBtn')?.addEventListener('click', () => {
+    const sug = state.gpsSuggestion;
+    if (!sug) return;
+    applyGpsPosition(sug.lat, sug.lon, sug.accuracy, { closeSheet: false, autoFollow: false });
+  });
+  $('gpsSuggestClose')?.addEventListener('click', () => {
+    clearGpsSuggestion();
+    try { sessionStorage.setItem('aurora_gps_suggest_dismissed', '1'); } catch {}
+  });
   $('offlineRetryBtn')?.addEventListener('click', () => { haptic(8); refreshAll(true, { forceNoaa: true }); });
 
   $('camBrightBtn')?.addEventListener('click', () => {
@@ -2900,6 +3015,7 @@ try {
 } catch {}
 registerServiceWorker();
 refreshAll(false);
+checkSilentGpsUpdate(false);
 
 setInterval(updateClockAndPhoto, 30000);
 setInterval(() => { if (!document.hidden || state.alertEnabled) refreshAll(false); }, AUTO_REFRESH_MS);
@@ -2909,6 +3025,7 @@ document.addEventListener('visibilitychange', () => {
     updateClockAndPhoto();
     if (state.alertEnabled) acquireWakeLock();
     if (Date.now() - state.lastSyncMs > 3 * 60 * 1000) refreshAll(false);
+    checkSilentGpsUpdate(false);
   }
 });
 window.addEventListener('online', () => { if (!document.hidden) refreshAll(false); });
@@ -2916,5 +3033,6 @@ window.addEventListener('pageshow', (e) => {
   if (e.persisted) {
     updateClockAndPhoto();
     if (Date.now() - state.lastSyncMs > 3 * 60 * 1000) refreshAll(false);
+    checkSilentGpsUpdate(false);
   }
 });

@@ -4322,3 +4322,38 @@ export function shouldTriggerAuroraAlert({ sc, goesSub, fmiMag, scNext, bal } = 
   if (incomingFire) return { fire: true, reason: 'incoming' };
   return { fire: false, reason: null };
 }
+
+/**
+ * Decide how to handle a background silent GPS fix without ever cold-prompting.
+ * - Requires permissionState === 'granted' and no explicit URL ?lat=&lon= override.
+ * - In 'gps' mode: auto-switches when moved >= 5 km (while refusing to overwrite an Arctic/aurora city
+ *   with a low-latitude home location |lat| < 42° after flying home).
+ * - In 'manual' mode: never hijacks the screen; suggests switching only when physically inside the
+ *   aurora zone (|lat| >= 48°) and >= 25 km away from the currently displayed city.
+ */
+export function evaluateSilentGpsDecision({
+  currentPos = null, gpsLat, gpsLon, hasUrlOverride = false, permissionState = 'prompt'
+} = {}) {
+  if (hasUrlOverride || permissionState !== 'granted') return { action: 'ignore', distKm: 0 };
+  if (!Number.isFinite(gpsLat) || !Number.isFinite(gpsLon) || gpsLat < -90 || gpsLat > 90 || gpsLon < -180 || gpsLon > 180) {
+    return { action: 'ignore', distKm: 0 };
+  }
+  if (!currentPos || !Number.isFinite(currentPos.lat) || !Number.isFinite(currentPos.lon)) {
+    return { action: 'ignore', distKm: 0 };
+  }
+  const distKm = Math.round(computeDistanceKm(currentPos.lat, currentPos.lon, gpsLat, gpsLon));
+  const gpsInAuroraBand = Math.abs(gpsLat) >= 42;
+  const curInAuroraBand = Math.abs(currentPos.lat) >= 42;
+
+  if (currentPos.mode === 'gps') {
+    if (!gpsInAuroraBand && curInAuroraBand) return { action: 'ignore-low-lat', distKm };
+    if (distKm >= 5) return { action: 'auto-switch', distKm };
+    return { action: 'refresh-coords', distKm };
+  }
+
+  if (Math.abs(gpsLat) >= 48 && distKm >= 25) {
+    return { action: 'suggest-nearby', distKm };
+  }
+  return { action: 'ignore', distKm };
+}
+

@@ -102,6 +102,7 @@ export const STATIC_TEXT_MAP = {
     '若在 App 內建瀏覽器無法使用 GPS，請改用 Safari / Chrome 開啟，或點上方地名切換。',
     'If GPS is blocked in an in-app browser, open in Safari/Chrome or tap the city name above.'
   ],
+  gpsSuggestBtn: ['切換到此處', 'Switch here'],
   offlineRetryBtn: ['重試', 'Retry'],
   pickerSheetTitle: ['切換觀測地點', 'Choose location'],
   gpsBtnTxt: pair(TERMS.location.useMyLoc),
@@ -212,6 +213,7 @@ const ARIA_LABELS = {
   trustCloseBtn: ['關閉', 'Close', false],
   pickerCloseBtn: ['關閉', 'Close', false],
   lineTipClose: ['關閉提示', 'Dismiss tip', false],
+  gpsSuggestClose: ['關閉位置建議', 'Dismiss location suggestion', false],
   outlookInfoBtn: ['指數說明', 'About this score', false],
   hrPrevBtn: ['上一小時', 'Previous hour', false],
   hrNextBtn: ['下一小時', 'Next hour', false],
