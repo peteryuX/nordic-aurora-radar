@@ -430,6 +430,9 @@ function buildInterceptorScript(sc) {
       fDarkSub: document.getElementById('fDarkSub')?.textContent?.trim() || '',
       fcConfBtn: document.getElementById('fcConfBtn')?.textContent?.trim() || '',
       pMet: document.getElementById('pMet')?.textContent?.trim() || '',
+      pMetHref: document.getElementById('pMet')?.getAttribute('href') || '',
+      tsStatText: document.getElementById('tsStatGrid')?.textContent?.trim() || '',
+      tsProHtml: document.getElementById('tsProBody')?.innerHTML || '',
       tsConfRow: document.getElementById('tsConfRow')?.textContent?.trim() || '',
       tsMetarNote: document.getElementById('tsMetarNote')?.textContent?.trim() || '',
       tsValSky: document.getElementById('tsValSky')?.textContent?.trim() || '',
@@ -519,7 +522,7 @@ const SCENARIOS = [
   },
   {
     id: 'queenstown-south-zh',
-    label: 'Queenstown ZH: Southern Hemisphere prime storm points SOUTH + NZTA road only',
+    label: 'Queenstown ZH: Southern Hemisphere prime storm points SOUTH + NZTA road + region-honest Trust Sheet',
     query: '?lat=-45.0312&lon=168.6626',
     lat: -45.0312, lon: 168.6626, tz: 'Pacific/Auckland', utcOff: 46800, rootPx: 17, lang: 'zh',
     nowMs: Date.UTC(2026, 5, 15, 12, 0, 0), // Southern winter midnight (00:00 NZST)
@@ -527,9 +530,13 @@ const SCENARIOS = [
     verify(r) {
       const errs = [];
       if (!r.vTitle.includes('南方')) errs.push(`Southern Hemisphere prime cue must say 南方, got "${r.vTitle}"`);
+      if (!r.vTitle.includes('肉眼可見')) errs.push(`Prime cue should include naked-eye hint 肉眼可見, got "${r.vTitle}"`);
       if (r.vTitle.includes('北方')) errs.push(`Southern Hemisphere must NEVER say 北方, got "${r.vTitle}"`);
       if (!r.roadVisible || !r.roadText.includes('紐西蘭 NZTA')) errs.push(`Expected NZTA road link, got visible=${r.roadVisible} "${r.roadText}"`);
       if (r.roadText.includes('挪威') || r.roadText.includes('塔斯馬尼亞')) errs.push(`Wrong road link leaked: "${r.roadText}"`);
+      if (r.pMetHref.includes('open-meteo.com/en/docs')) errs.push(`Dead Open-Meteo API docs link leaked: "${r.pMetHref}"`);
+      if (!r.pMetHref.includes('windy.com')) errs.push(`Non-Nordic pMet must link to Windy cloud map, got "${r.pMetHref}"`);
+      if (r.tsStatText.includes('FMI') || r.tsStatText.includes('Yr.no')) errs.push(`Queenstown Trust Sheet must NOT claim Nordic FMI/Yr.no, got "${r.tsStatText}"`);
       return errs;
     }
   },
@@ -633,7 +640,7 @@ const SCENARIOS = [
   },
   {
     id: 'kilpisjarvi-fmi-bma-substorm',
-    label: 'Kilpisjärvi 19px: FMI KIL live overhead substorm (-165 nT) + FMI n_man cloud + Adaptive BMA',
+    label: 'Kilpisjärvi 19px: FMI KIL live overhead substorm (-165 nT) + FMI n_man cloud + Adaptive BMA + Pro Telemetry',
     query: '?lat=69.045&lon=20.80&name=Kilpisjarvi',
     lat: 69.045, lon: 20.80, tz: 'Europe/Helsinki', utcOff: 7200, rootPx: 19, lang: 'zh',
     nowMs: Date.UTC(2026, 10, 25, 20, 0, 0),
@@ -648,6 +655,25 @@ const SCENARIOS = [
       if (!r.tsConfRow.includes('FMI KIL -165nT')) errs.push(`Expected FMI KIL -165nT in Trust Sheet telemetry, got "${r.tsConfRow}"`);
       if (!r.tsConfRow.includes('FMI 87% clr')) errs.push(`Expected FMI 87% clr in Trust Sheet telemetry, got "${r.tsConfRow}"`);
       if (!r.tsConfRow.includes('BMA ')) errs.push(`Expected Adaptive BMA weight in Trust Sheet telemetry, got "${r.tsConfRow}"`);
+      if (!r.tsProHtml.includes('ts-pro-layers') || !r.tsProHtml.includes('ts-pro-mag-svg')) {
+        errs.push(`Expected Pro Telemetry layered clouds + FMI magnetometer SVG in Trust Sheet, got "${r.tsProHtml.slice(0, 120)}"`);
+      }
+      if (r.issues.length) errs.push(...r.issues);
+      return errs;
+    }
+  },
+  {
+    id: 'reykjavik-iceland-cams',
+    label: 'Reykjavik 19px: Official Iceland Vegagerðin live cams active (navSat = 實拍雲圖) + Windy weather link',
+    query: '?lat=64.1466&lon=-21.9426',
+    lat: 64.1466, lon: -21.9426, tz: 'Atlantic/Reykjavik', utcOff: 0, rootPx: 19, lang: 'zh',
+    nowMs: Date.UTC(2026, 10, 25, 22, 0, 0),
+    kpNow: 3.5, bz: -4.0, speed: 460, ov: 48, metCloud: 25, omCloud: 25,
+    verify(r) {
+      const errs = [];
+      if (r.navSat !== '實拍雲圖') errs.push(`Reykjavik (inside Iceland official cam range) navSat must be 實拍雲圖, got "${r.navSat}"`);
+      if (r.pMetHref.includes('open-meteo.com/en/docs')) errs.push(`Reykjavik must not link to open-meteo docs: "${r.pMetHref}"`);
+      if (!r.tsProHtml.includes('ts-pro-layers')) errs.push(`Reykjavik Trust Sheet Pro panel must show layered clouds`);
       if (r.issues.length) errs.push(...r.issues);
       return errs;
     }

@@ -14,7 +14,7 @@ import {
   readCachedEnlil, writeCachedEnlil, writeSwrCacheEntry,
   findMatchingOfflineCache, buildSwrPayload, hydrateOfflineState
 } from './storage.js';
-import { SKY_CAMS, renderSkyCamCaption, applyStaticI18n as applyStaticI18nDom } from './i18n.js';
+import { SKY_CAMS, renderSkyCamCaption, renderTrustStatGrid, applyStaticI18n as applyStaticI18nDom } from './i18n.js';
 import {
   fetchEnlilBackground, fetchNoaaBundle, fetchWeatherBundle,
   computeLiveSnapshot, reverseGeocodeBilingual, reverseGeocodeSingle, geocodeCityQuery
@@ -33,7 +33,7 @@ const {
 const {
   buildSkySceneSVG, buildBzChartSVG, buildSkyWaveSVG, buildCompassRadarSVG,
   buildSkyFactorIcon, buildAuroraFactorIcon, buildMoonPhaseIcon,
-  buildOutlookSkyIcon, buildSolarWindMeterHtml
+  buildOutlookSkyIcon, buildSolarWindMeterHtml, buildFmiMagChartSVG
 } = Charts;
 
 // Expose pure modules on window for automated VLM / browser console inspection
@@ -44,8 +44,8 @@ const AUTO_REFRESH_MS = 5 * 60 * 1000;
 // ====== Consolidated Application State ======
 const state = {
   pos: {
-    name: '挪威 · Alta', nameEn: 'Norway · Alta',
-    lat: 69.9689, lon: 23.2716, tz: 'Europe/Oslo',
+    name: '挪威 · Tromsø', nameEn: 'Norway · Tromsø',
+    lat: 69.6492, lon: 18.9553, tz: 'Europe/Oslo',
     mode: 'manual', accuracy: null
   },
   lastScore: null,
@@ -247,8 +247,8 @@ function toggleRedMode() {
   applyRedModeUI();
   haptic(10);
   toast(state.redModeEnabled
-    ? (isEn() ? 'Red-light night vision ON' : '已開啟紅光夜視模式（保護暗適應）')
-    : (isEn() ? 'Red-light night vision OFF' : '已關閉紅光夜視模式'), 'info');
+    ? (isEn() ? 'Red night vision ON (tap the eye icon again to restore)' : '已開啟紅光夜視（保護暗視力，再點右上角眼睛即可恢復）')
+    : (isEn() ? 'Red night vision OFF' : '已關閉紅光夜視'), 'info');
 }
 
 function applyStaticI18n() {
@@ -367,8 +367,8 @@ async function toggleAlertMode() {
     }
     await acquireWakeLock();
     toast(en
-      ? 'Monitor ON — keep screen unlocked & plugged in'
-      : '已開啟常亮監測，請保持螢幕未鎖定並接上電源', 'warn');
+      ? 'Screen-on monitor ON (browser limit: keep screen open for chime alerts)'
+      : '螢幕常亮監測已開啟（網頁限制：需保持畫面開啟，達標時響鈴提醒）', 'warn');
   } else {
     state.wakeLockFailed = false;
     state.activeAlert = null;
@@ -521,6 +521,25 @@ function syncSkyCamGlareUI(isDaylight) {
 function updateSkyCamDayNotice(key) {
   const notice = $('camDayNotice');
   const cam = SKY_CAMS[key];
+  const en = isEn();
+  if (cam && Number.isFinite(cam.lat)) {
+    const nowCam = new Date();
+    const zCam = getZoneParts(nowCam, cam.tz || 'UTC');
+    const localHM = `${zCam.hourStr}:${zCam.minStr}`;
+    if (cam.isMag) {
+      setText('subCam', en
+        ? `Nordic magnetometer network · Local ${localHM} (auto-updated)`
+        : `北歐即時地磁監測圖 · 當地時間 ${localHM}（自動更新）`);
+    } else {
+      const sunCam = computeSolarElevation(nowCam, cam.lat, cam.lon);
+      const skyState = sunCam <= -6
+        ? (en ? 'Dark sky' : '目前黑夜')
+        : (sunCam <= 0 ? (en ? 'Twilight' : '目前暮光') : (en ? 'Daylight' : '目前白天'));
+      setText('subCam', en
+        ? `Local ${localHM} · ${skyState} (check stars or cloud gaps directly)`
+        : `當地時間 ${localHM} · ${skyState}（畫面直接看星星或雲縫）`);
+    }
+  }
   if (!notice) return;
   if (!cam || cam.isMag || !Number.isFinite(cam.lat)) {
     notice.style.display = 'none';
@@ -534,7 +553,6 @@ function updateSkyCamDayNotice(key) {
     syncSkyCamGlareUI(false);
     return;
   }
-  const en = isEn();
   const sunStr = `${sunAlt > 0 ? '+' : ''}${sunAlt.toFixed(0)}°`;
   const dw = computeDarkWindow(now, cam.lat, cam.lon, cam.tz || 'UTC');
   const nextStr = dw.state === 'twilight-wait' && dw.nextDarkHM
@@ -570,6 +588,8 @@ function getActiveSkyCamRegion(lat, lon) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < 0) return null;
   const nearNordic = findNearestCamInRegion(lat, lon, 'nordic');
   if (nearNordic.distKm <= 650) return { region: 'nordic', key: nearNordic.key };
+  const nearIceland = findNearestCamInRegion(lat, lon, 'iceland');
+  if (nearIceland.distKm <= 450) return { region: 'iceland', key: nearIceland.key };
   const nearNa = findNearestCamInRegion(lat, lon, 'na');
   if (nearNa.distKm <= 1800) return { region: 'na', key: nearNa.key };
   return null;
@@ -604,7 +624,9 @@ function syncSatTab() {
   if (activeRegion) {
     setText('h2Cam', activeRegion === 'na'
       ? (en ? 'North America All-Sky Cameras' : '北美天文台即時全天空實拍')
-      : (en ? 'Nordic All-Sky Cameras' : '北歐天文台即時全天空實拍'));
+      : (activeRegion === 'iceland'
+          ? (en ? 'Iceland Official Live Sky Cameras' : '冰島官方即時天空實拍')
+          : (en ? 'Nordic All-Sky Cameras' : '北歐天文台即時全天空實拍')));
     document.querySelectorAll('#camChips .chip').forEach(c => {
       c.style.display = c.dataset.region === activeRegion ? '' : 'none';
     });
@@ -663,12 +685,13 @@ function renderLocationHeader() {
 
   syncPresetChipHighlight();
   syncNavSatLabel();
+  renderTrustStatGrid($, state.pos, en);
   const windyUrl = `https://www.windy.com/${state.pos.lat.toFixed(3)}/${state.pos.lon.toFixed(3)}?clouds,${state.pos.lat.toFixed(3)},${state.pos.lon.toFixed(3)},8`;
   const yrUrl = `https://www.yr.no/en/forecast/daily-table/${state.pos.lat.toFixed(3)},${state.pos.lon.toFixed(3)}`;
   const we = $('windyExtLink');
   if (we) we.href = windyUrl;
   const pm = $('pMet');
-  if (pm) pm.href = isInNordicMetBox(state.pos.lat, state.pos.lon) ? yrUrl : 'https://open-meteo.com/en/docs';
+  if (pm) pm.href = isInNordicMetBox(state.pos.lat, state.pos.lon) ? yrUrl : windyUrl;
   if ($('v-sat')?.classList.contains('on')) syncSatTab();
   savePos(state.pos);
 }
@@ -1575,7 +1598,7 @@ function renderFromState(st) {
       ? `Local weather station (${stLabel}, ${stDistInt} km) observed ${metarObs.clearPct}% clear ${stAgeEn}${metarObs.ceilingM ? ` · cloud base ${metarObs.ceilingM} m` : ''} — short-term clouds adjusted.`
       : `當地氣象站（${stLabel}，距 ${stDistInt} km）${stAgeZh}實測晴空率 ${metarObs.clearPct}%${metarObs.ceilingM ? ` · 雲底 ${metarObs.ceilingM} m` : ''}，已用於修正短時雲量預報。`;
   }
-  renderTrustSheetLive(expNow, sc, rawParts.join(' · '), metarNote);
+  renderTrustSheetLive(expNow, sc, rawParts.join(' · '), metarNote, st);
 
   setHtml('skySvg', buildSkySceneSVG({
     cloudPct: c0, auroraScore: sc.auroraScore, moonUp: moon.up, moonPct: moon.pct, isTooBright: sc.isTooBright
@@ -1659,11 +1682,11 @@ function renderFromState(st) {
   } else if (act.actionType === 'go') {
     const isNorth = pos.lat >= 0;
     const dirCueZh = sc.total >= 65
-      ? (isNorth ? '現在適合出門，朝頭頂與北方觀察' : '現在適合出門，朝頭頂與南方觀察')
-      : (isNorth ? '可出門觀測，留意北方高空與雲縫' : '可出門觀測，留意南方高空與雲縫');
+      ? (isNorth ? '現在適合出門，肉眼可見，朝頭頂與北方觀察' : '現在適合出門，肉眼可見，朝頭頂與南方觀察')
+      : (isNorth ? '適合出門，肉眼可見、手機更亮，留意北方' : '適合出門，肉眼可見、手機更亮，留意南方');
     const dirCueEn = sc.total >= 65
-      ? (isNorth ? 'Go out now — look overhead and north' : 'Go out now — look overhead and south')
-      : (isNorth ? 'Good to head out — watch the northern sky' : 'Good to head out — watch the southern sky');
+      ? (isNorth ? 'Go out now — visible to eye, look overhead and north' : 'Go out now — visible to eye, look overhead and south')
+      : (isNorth ? 'Good to go — visible to eye, brighter on camera' : 'Good to go — visible to eye, brighter on camera');
     heroCue = en ? dirCueEn : dirCueZh;
   } else if (act.actionType === 'wait' && sc.total < 18 && sc.skyScore < 45) {
     const upcoming = (activeHrs || []).slice(1, 24).filter(h => !Number.isFinite(h?.dtMs) || h.dtMs > refNowMs + 15 * 60000);
@@ -1726,17 +1749,18 @@ function renderFromState(st) {
   renderWaveCard(false);
   render3NightOutlook(localizedNights3);
   renderCompassPanel(dirResults, pos, en);
+  renderTrustStatGrid($, pos, en);
 
   const pMet = $('pMet');
   if (pMet) {
     const isYr = weatherSourceLabel === 'Yr.no 官方' || weatherSourceLabel === 'Yr.no官方';
     const srcLbl = isYr
       ? (en ? 'Yr.no Weather' : 'Yr.no 天氣')
-      : (en ? 'Open-Meteo' : 'Open-Meteo 天氣');
+      : (en ? 'Windy Clouds' : 'Windy 雲圖');
     pMet.textContent = `${srcLbl} ↗`;
     pMet.href = usedMet
       ? `https://www.yr.no/en/forecast/daily-table/${pos.lat.toFixed(3)},${pos.lon.toFixed(3)}`
-      : 'https://open-meteo.com/en/docs';
+      : `https://www.windy.com/${pos.lat.toFixed(3)}/${pos.lon.toFixed(3)}?clouds,${pos.lat.toFixed(3)},${pos.lon.toFixed(3)},8`;
   }
   state.syncedAtMs = refNow.getTime();
   state.syncPartial = !(noaaOk && hereHrs.length);
@@ -2025,15 +2049,26 @@ async function shareStatus() {
   const shareUrl = buildShareUrl(location.href, state.pos, getLang());
   const sc = state.lastScore;
   const scStr = sc ? (en ? `${sc.total} (${tGrade(sc.grade, 'en').replace(/^[^\p{L}\p{N}]+\s*/u, '')})` : `${sc.total}（${tGrade(sc.grade, 'zh').replace(/^[^\p{L}\p{N}]+\s*/u, '')}）`) : (en ? 'Updating' : '更新中');
-  const title = en ? `[${getPosDisplayName()}] Aurora score: ${scStr}` : `【${getPosDisplayName()}】極光觀測指數：${scStr}`;
+  const visHint = !sc || sc.isTooBright
+    ? ''
+    : (sc.total >= 65
+        ? (en ? ' · Bright to naked eye' : ' · 肉眼清楚可見')
+        : (sc.total >= 40
+            ? (en ? ' · Visible to eye, brighter on camera' : ' · 肉眼可見、手機更亮')
+            : (sc.total >= 18 ? (en ? ' · Faint, try phone night mode' : ' · 建議手機夜拍') : '')));
+  const title = en ? `[${getPosDisplayName()}] Aurora ${scStr}${visHint}` : `【${getPosDisplayName()}】極光指數 ${scStr}${visHint}`;
   const skyVal = $('fSkyVal')?.textContent || '';
   const skySub = $('fSkySub')?.textContent || '';
   const skyLine = skyVal && skyVal !== '--'
     ? (en ? `${skyVal} clear${skySub ? ` · ${skySub}` : ''}` : `晴空率 ${skyVal}${skySub ? ` · ${skySub}` : ''}`)
     : skySub;
+  const best = state.bestAurora;
+  const bestLine = (best && best.time && Number.isFinite(best.score) && best.score >= 18)
+    ? (en ? `\n• Best tonight: ${best.time} (score ${best.score})` : `\n• 今晚最佳：${best.time}（指數 ${best.score}）`)
+    : '';
   const body = en
-    ? `${title}\n${$('vTitle')?.textContent || ''}\n• Sky: ${skyLine}\n• Aurora: ${$('fAurSub')?.textContent || ''}\nLive clouds and NOAA aurora data:`
-    : `${title}\n${$('vTitle')?.textContent || ''}\n• 天空：${skyLine}\n• 極光：${$('fAurSub')?.textContent || ''}\n點開看即時雲層與 NOAA 極光資料：`;
+    ? `${title}\n${$('vTitle')?.textContent || ''}\n• Sky: ${skyLine}\n• Aurora: ${$('fAurSub')?.textContent || ''}${bestLine}\nLive clouds & NOAA aurora radar:`
+    : `${title}\n${$('vTitle')?.textContent || ''}\n• 天空：${skyLine}\n• 極光：${$('fAurSub')?.textContent || ''}${bestLine}\n點開看即時雲層與 NOAA 極光雷達：`;
   const txt = `${body}\n${shareUrl}`;
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
     try { await navigator.share({ title, text: body, url: shareUrl }); return; }
@@ -2049,7 +2084,7 @@ async function shareStatus() {
 }
 
 // ====== Trust, Telemetry & Sources Bottom-Sheet ======
-function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, metarNote = null) {
+function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, metarNote = null, stOpt = null) {
   const exp = expOpt || state.explainState;
   const sc = scOpt || state.renderState?.sc;
   if (!exp || !sc) return;
@@ -2099,7 +2134,7 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
     }
   }
   setText('tsConfRow', `${exp.confidence.badgeText}${effTelemetry ? ` · ${effTelemetry}` : ''}`);
-  const stLive = state.renderState;
+  const stLive = stOpt || state.renderState;
   const cd = $('tsConfDetail');
   if (cd) {
     let detailTxt = '';
@@ -2150,6 +2185,57 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
     }
   }
   const tzLive = stLive?.pos?.tz || state.pos.tz;
+  const proWrap = $('tsProDetails');
+  const proBody = $('tsProBody');
+  if (proWrap && proBody) {
+    const h0 = stLive?.hereHrs?.[0];
+    const hasLayers = h0 && [h0.cloudLow, h0.cloudMid, h0.cloudHigh].some(v => Number.isFinite(v));
+    const fmiMag = stLive?.fmiMag;
+    const magSvg = fmiMag?.series?.length >= 4 ? buildFmiMagChartSVG(fmiMag, tzLive, getLang()) : '';
+    if (hasLayers || magSvg) {
+      const blocks = [];
+      if (hasLayers) {
+        const lo = Number.isFinite(h0.cloudLow) ? Math.round(h0.cloudLow) : null;
+        const mi = Number.isFinite(h0.cloudMid) ? Math.round(h0.cloudMid) : null;
+        const hi = Number.isFinite(h0.cloudHigh) ? Math.round(h0.cloudHigh) : null;
+        const fog = Number.isFinite(h0.cloudFog) ? Math.round(h0.cloudFog) : 0;
+        const layerCol = (pct, isHigh) => {
+          if (pct === null) return 'var(--muted)';
+          if (isHigh) return pct >= 70 ? 'var(--amber)' : 'var(--text)';
+          return pct >= 55 ? 'var(--red)' : (pct >= 25 ? 'var(--amber)' : 'var(--green)');
+        };
+        const fogTag = fog >= 20 ? (en ? ` · Fog ${fog}%` : ` · 地面霧 ${fog}%`) : '';
+        const noteTxt = (lo !== null && lo < 25 && hi !== null && hi >= 45)
+          ? (en ? `Mostly thin high cirrus — bright aurora can still shine through.${fogTag}` : `以薄高雲為主，極光強時仍可穿透拍攝。${fogTag}`)
+          : (en ? `Low clouds block aurora most; thin high clouds remain semi-transparent.${fogTag}` : `低層厚雲最遮擋極光；薄高雲仍可穿透拍攝。${fogTag}`);
+        blocks.push(
+          `<div class="ts-pro-layers">` +
+            `<div class="ts-pro-cell"><span>${en ? 'Low (thick)' : '低層厚雲'}</span><strong style="color:${layerCol(lo, false)}">${lo !== null ? `${lo}%` : '--'}</strong></div>` +
+            `<div class="ts-pro-cell"><span>${en ? 'Mid layer' : '中層雲'}</span><strong style="color:${layerCol(mi, false)}">${mi !== null ? `${mi}%` : '--'}</strong></div>` +
+            `<div class="ts-pro-cell"><span>${en ? 'High (thin)' : '薄高雲'}</span><strong style="color:${layerCol(hi, true)}">${hi !== null ? `${hi}%` : '--'}</strong></div>` +
+          `</div>` +
+          `<div class="ts-pro-note">${escapeHtml(noteTxt)}</div>`
+        );
+      }
+      if (magSvg) {
+        const stName = escapeHtml(fmiMag.stationName || fmiMag.code || 'FMI');
+        const distTxt = Number.isFinite(fmiMag.distKm) ? `${Math.round(fmiMag.distKm)} km` : '';
+        const dropVal = Number.isFinite(fmiMag.bayDropNt) && fmiMag.bayDropNt >= 15
+          ? `ΔBx -${Math.round(fmiMag.bayDropNt)} nT`
+          : `±${Math.round(fmiMag.amp60Nt || 0)} nT/h`;
+        blocks.push(
+          `<div class="ts-pro-mag-hd"><span>${en ? `Ground Magnetometer · ${stName}${distTxt ? ` (${distTxt})` : ''}` : `當地地磁實測 · ${stName}${distTxt ? `（${distTxt}）` : ''}`}</span><strong>${escapeHtml(dropVal)}</strong></div>` +
+          `<svg class="ts-pro-mag-svg" viewBox="0 0 380 96" role="img" aria-label="${en ? '3-hour FMI ground magnetometer chart' : '近 3 小時北歐地面磁力儀波形圖'}">${magSvg}</svg>` +
+          `<div class="ts-pro-note">${en ? 'Sharp negative dip below the amber guide signals an overhead auroral substorm.' : '曲線向下跌破琥珀線代表頭頂極光電射流增強（亞暴爆發）。'}</div>`
+        );
+      }
+      proBody.innerHTML = blocks.join('');
+      proWrap.style.display = '';
+    } else {
+      proBody.innerHTML = '';
+      proWrap.style.display = 'none';
+    }
+  }
   const noaaStampRaw = stLive?.noaaAlert?.issueTime || stLive?.noaaScales?.updatedUtc || null;
   const noaaStampHM = noaaStampRaw ? utcTagToLocalHM(noaaStampRaw, tzLive) : '';
   setText('tsNoaaSyncNote', noaaStampHM

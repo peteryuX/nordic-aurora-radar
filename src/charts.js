@@ -728,4 +728,43 @@ export function buildSolarWindMeterHtml({ bz = null, speed = null, energy = null
     </div>`;
 }
 
+/** 3-Hour FMI Ground Magnetometer ΔBx Waveform SVG (negative bay below 0 nT = overhead westward electrojet) */
+export function buildFmiMagChartSVG(fmiMag, timeZone = 'Europe/Oslo', lang) {
+  const en = isEn(lang);
+  const series = Array.isArray(fmiMag?.series) ? fmiMag.series : [];
+  if (series.length < 4) return '';
+  const W = 380, H = 96, padL = 44, padR = 10, padT = 12, padB = 20;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const lowT = Math.max(40, Number(fmiMag.lowThreshold) || 65);
+  const vals = series.map(p => clampNum(p?.relNt, -1500, 500, 0));
+  const minV = Math.min(-lowT * 1.4, ...vals);
+  const maxV = Math.max(25, ...vals);
+  const span = Math.max(40, maxV - minV);
+  const xOf = i => padL + (i / (series.length - 1)) * plotW;
+  const yOf = v => padT + ((maxV - v) / span) * plotH;
+  const y0 = yOf(0);
+  const yThr = yOf(-lowT);
+  const col = fmiMag.active ? 'var(--green)' : (fmiMag.level !== 'quiet' ? 'var(--amber)' : 'var(--blue)');
+
+  const pts = vals.map((v, i) => `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`).join(' ');
+  const areaPts = `${xOf(0).toFixed(1)},${y0.toFixed(1)} ${pts} ${xOf(vals.length - 1).toFixed(1)},${y0.toFixed(1)}`;
+  const tStart = getZoneParts(new Date(series[0].tMs), timeZone);
+  const tMid = getZoneParts(new Date(series[Math.floor(series.length / 2)].tMs), timeZone);
+  const tEnd = getZoneParts(new Date(series[series.length - 1].tMs), timeZone);
+  const lx = xOf(vals.length - 1), ly = yOf(vals[vals.length - 1]);
+
+  return `
+    <line x1="${padL}" y1="${y0.toFixed(1)}" x2="${W - padR}" y2="${y0.toFixed(1)}" stroke="var(--chart-axis)" stroke-width="1"/>
+    <line x1="${padL}" y1="${yThr.toFixed(1)}" x2="${W - padR}" y2="${yThr.toFixed(1)}" stroke="var(--amber)" stroke-opacity="0.35" stroke-width="1"/>
+    <text x="${padL - 6}" y="${(y0 + 3.5).toFixed(1)}" text-anchor="end" fill="var(--muted)" font-size="10.5">0 nT</text>
+    <text x="${padL - 6}" y="${(yThr + 3.5).toFixed(1)}" text-anchor="end" fill="var(--amber)" font-size="10">-${Math.round(lowT)}</text>
+    <polygon points="${areaPts}" fill="${col}" fill-opacity="0.14"/>
+    <polyline fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" points="${pts}"/>
+    <circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="3.2" fill="${col}" stroke="var(--bg)" stroke-width="1.4"/>
+    <text x="${padL}" y="${H - 4}" fill="var(--muted)" font-size="10.5">${escSvg(tStart.hourStr)}:${escSvg(tStart.minStr)}</text>
+    <text x="${(padL + plotW / 2).toFixed(1)}" y="${H - 4}" text-anchor="middle" fill="var(--muted)" font-size="10.5">${escSvg(tMid.hourStr)}:${escSvg(tMid.minStr)}</text>
+    <text x="${W - padR}" y="${H - 4}" text-anchor="end" fill="var(--text-soft)" font-size="10.5">${escSvg(tEnd.hourStr)}:${escSvg(tEnd.minStr)}</text>`;
+}
+
+
 

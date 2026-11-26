@@ -2954,6 +2954,71 @@ test('56. v50 World-Class Upgrades: FMI Nordic Ground Magnetometers, Finnish Lap
   }
 });
 
+test('57. v51 UX & Product Fixes: Layered Clouds, FMI Mag SVG, Iceland Cams, Region-Honest Trust Sheet & Bilingual Chips', async () => {
+  const { SKY_CAMS, renderTrustStatGrid } = await import('../src/i18n.js');
+  const { buildFmiMagChartSVG } = await import('../src/charts.js');
+  const htmlSrc = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+
+  // (a) Layered clouds preserved in both MET Norway and Open-Meteo hourly parsers
+  const nowSec = Math.floor(Date.UTC(2026, 10, 25, 21, 0, 0) / 1000);
+  const omPayload = {
+    hourly: {
+      time: [nowSec, nowSec + 3600],
+      cloud_cover: [80, 60],
+      cloud_cover_low: [15, 20],
+      cloud_cover_mid: [30, 25],
+      cloud_cover_high: [90, 70],
+      temperature_2m: [-2, -3],
+      wind_speed_10m: [4, 4],
+      precipitation: [0, 0]
+    }
+  };
+  const omHrs = api.parseOpenMeteoHourly12(omPayload.hourly, 69.65, 18.96, 'Europe/Oslo', new Date(nowSec * 1000 - 60000));
+  assert.equal(omHrs[0].cloudLow, 15);
+  assert.equal(omHrs[0].cloudMid, 30);
+  assert.equal(omHrs[0].cloudHigh, 90);
+
+  // (b) FMI Magnetometer parser exposes 3h despiked series & buildFmiMagChartSVG renders clean zero-dashed SVG
+  const nowMs = Date.UTC(2026, 10, 26, 4, 30, 0);
+  const bayVals = Array.from({ length: 24 }, (_, k) => k < 18 ? 2306 : Math.round(2306 - ((k - 17) / 6) * 180));
+  const magXml = `<wfs:FeatureCollection>${bayVals.map((v, k) => {
+    const t = new Date(nowMs - (bayVals.length - 1 - k) * 5 * 60000).toISOString().slice(0, 19) + 'Z';
+    return `<wfs:member><BsWfs:BsWfsElement><BsWfs:Location><gml:Point><gml:pos>69.05800 20.77470 </gml:pos></gml:Point></BsWfs:Location><BsWfs:Time>${t}</BsWfs:Time><BsWfs:ParameterName>MAGNX_PT1M_AVG</BsWfs:ParameterName><BsWfs:ParameterValue>${v}</BsWfs:ParameterValue></BsWfs:BsWfsElement></wfs:member>`;
+  }).join('')}</wfs:FeatureCollection>`;
+  const bayMag = api.parseFmiMagnetometerWfs(magXml, 69.6492, 18.9553, nowMs);
+  assert.ok(Array.isArray(bayMag.series) && bayMag.series.length === 24, 'FMI mag parser must expose 3h series');
+  const magSvg = buildFmiMagChartSVG(bayMag, 'Europe/Oslo', 'zh');
+  assert.ok(magSvg.includes('<polyline') && magSvg.includes('0 nT') && !magSvg.includes('NaN'), 'FMI mag SVG must render valid waveform');
+  assert.ok(!magSvg.includes('stroke-dasharray'), 'FMI mag SVG must avoid dashed lines');
+
+  // (c) Official Iceland Vegagerðin cameras in SKY_CAMS + CSP img-src whitelist
+  const icelandCams = Object.values(SKY_CAMS).filter(c => c.region === 'iceland');
+  assert.equal(icelandCams.length, 3, 'Must include 3 official Iceland Vegagerðin cameras');
+  assert.ok(icelandCams.every(c => c.url.startsWith('https://www.vegagerdin.is/')), 'Iceland cams must use official vegagerdin.is URLs');
+  assert.ok(htmlSrc.includes('https://www.vegagerdin.is'), 'CSP img-src must whitelist vegagerdin.is');
+
+  // (d) Region-honest Trust Sheet stat grid: FMI/Yr.no shown in Tromsø, hidden in Queenstown
+  const fakeGrid = { innerHTML: '' };
+  const fake$ = (id) => (id === 'tsStatGrid' ? fakeGrid : null);
+  renderTrustStatGrid(fake$, { lat: 69.6492, lon: 18.9553 }, false);
+  assert.ok(fakeGrid.innerHTML.includes('FMI') && fakeGrid.innerHTML.includes('Yr.no'), 'Tromsø Trust Sheet should show FMI & Yr.no');
+  renderTrustStatGrid(fake$, { lat: -45.0312, lon: 168.6626 }, false);
+  assert.ok(!fakeGrid.innerHTML.includes('FMI') && !fakeGrid.innerHTML.includes('Yr.no'), 'Queenstown Trust Sheet must NEVER claim Nordic FMI/Yr.no');
+  renderTrustStatGrid(fake$, { lat: -45.0312, lon: 168.6626 }, true);
+  assert.ok(!/[\u4e00-\u9fff]/.test(fakeGrid.innerHTML), 'EN Trust Sheet stat grid must have zero CJK');
+
+  // (e) Zero dead open-meteo.com/en/docs links & default city is Tromsø
+  assert.ok(!appSrc.includes('open-meteo.com/en/docs'), 'Must never link users to developer open-meteo.com/en/docs');
+  assert.ok(appSrc.includes("name: '挪威 · Tromsø'") && htmlSrc.includes('>挪威 · Tromsø<'), 'Default city must be Tromsø');
+
+  // (f) All 18 preset city chips carry bilingual data-lbl-zh & pure-English data-lbl-en
+  const chipMatches = [...htmlSrc.matchAll(/<button[^>]*data-lbl-zh="([^"]+)"[^>]*data-lbl-en="([^"]+)"/g)];
+  assert.equal(chipMatches.length, 18, `All 18 preset chips must carry bilingual labels, got ${chipMatches.length}`);
+  assert.ok(chipMatches.every(([, , enLbl]) => !/[\u4e00-\u9fff]/.test(enLbl)), 'EN chip labels must have zero CJK');
+});
+
+
 
 
 

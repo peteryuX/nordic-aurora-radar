@@ -2368,7 +2368,11 @@ export function parseMetNorwayHourly12(metJson, lat, lon, timeZone, nowDate, hor
       : (pr >= 0.1 ? (tp <= 0 ? '❄️ 雪' : '🌧️ 雨雪') : (effCloud <= 25 ? '🌟 晴' : effCloud <= 65 ? '⛅ 縫' : '☁️ 陰'));
     out.push({
       time: `${z.hourStr}:${z.minStr}`, dtMs: midDt.getTime(), localDate: z.dateStr, nightKey,
-      block: effCloud, clear: 100 - effCloud, txt, temp: tp, precip: pr, windMs, windChill, isDay: isTooBright, sunAlt
+      block: effCloud, clear: 100 - effCloud, txt, temp: tp, precip: pr, windMs, windChill, isDay: isTooBright, sunAlt,
+      cloudLow: lowF !== null ? Math.round(lowF) : null,
+      cloudMid: midF !== null ? Math.round(midF) : null,
+      cloudHigh: highF !== null ? Math.round(highF) : null,
+      cloudFog: Math.round(fogVal)
     });
   }
   return out;
@@ -2489,7 +2493,11 @@ export function parseOpenMeteoHourly12(hourly, lat, lon, timeZone, nowDate, utcO
       : (pr >= 0.1 ? (tp <= 0 ? '❄️ 雪' : '🌧️ 雨雪') : (effCloud <= 25 ? '🌟 晴' : effCloud <= 65 ? '⛅ 縫' : '☁️ 陰'));
     out.push({
       time: timeStr, dtMs: midUtc.getTime(), localDate: z.dateStr, nightKey,
-      block: effCloud, clear: 100 - effCloud, txt, temp: tp, precip: pr, windMs, windChill, isDay: isTooBright, sunAlt
+      block: effCloud, clear: 100 - effCloud, txt, temp: tp, precip: pr, windMs, windChill, isDay: isTooBright, sunAlt,
+      cloudLow: lowF !== null ? Math.round(lowF) : null,
+      cloudMid: midF !== null ? Math.round(midF) : null,
+      cloudHigh: highF !== null ? Math.round(highF) : null,
+      cloudFog: Math.round(fogVal)
     });
   }
   return out;
@@ -2985,6 +2993,11 @@ export function parseFmiMagnetometerWfs(xmlText, lat, lon, nowMs = Date.now(), m
     ? Math.min(55, Math.round(bayDropNt * 0.22 * distAtten))
     : 0;
 
+  const series = best.pts.map((p, i) => ({
+    tMs: p.tMs,
+    relNt: Math.round(smooth[i] - quietRef)
+  }));
+
   return {
     code: meta.code,
     stationName: meta.name,
@@ -2998,7 +3011,8 @@ export function parseFmiMagnetometerWfs(xmlText, lat, lon, nowMs = Date.now(), m
     level,
     active,
     groundSubstormJumpNt,
-    obsMs: latestMs
+    obsMs: latestMs,
+    series
   };
 }
 

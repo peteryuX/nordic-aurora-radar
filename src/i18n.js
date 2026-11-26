@@ -6,6 +6,7 @@
  */
 
 import { TERMS, term } from './glossary.js';
+import { isInNordicMetBox, isInFmiNordicBox } from './aurora-engine.js';
 
 const pair = (e) => [e.zh, e.en];
 
@@ -65,6 +66,30 @@ export const SKY_CAMS = {
     page: 'https://auroramax.com/',
     capZh: '資料來源：加拿大太空總署 CSA / 卡加利大學 AuroraMAX 全天空極光相機（Yellowknife）',
     capEn: 'Source: Canadian Space Agency / UCalgary AuroraMAX All-Sky Camera (Yellowknife, NT)'
+  },
+  is_hel: {
+    region: 'iceland',
+    lat: 64.02, lon: -21.38, tz: 'Atlantic/Reykjavik',
+    url: 'https://www.vegagerdin.is/vgdata/vefmyndavelar/hellisheidi_1.jpg',
+    page: 'https://umferdin.is/en',
+    capZh: '資料來源：冰島公路局 Vegagerðin 官方即時鏡頭（雷克雅維克東側 Hellisheiði，約每 10 分鐘更新）',
+    capEn: 'Source: Icelandic Road Administration (Vegagerðin) Live Sky/Road Cam — Hellisheiði (East of Reykjavik)'
+  },
+  is_vik: {
+    region: 'iceland',
+    lat: 63.42, lon: -19.01, tz: 'Atlantic/Reykjavik',
+    url: 'https://www.vegagerdin.is/vgdata/vefmyndavelar/vikurvegur_1.jpg',
+    page: 'https://umferdin.is/en',
+    capZh: '資料來源：冰島公路局 Vegagerðin 官方即時鏡頭（冰島南岸 Vík，約每 10 分鐘更新）',
+    capEn: 'Source: Icelandic Road Administration (Vegagerðin) Live Sky/Road Cam — Vík (South Coast)'
+  },
+  is_aku: {
+    region: 'iceland',
+    lat: 65.47, lon: -18.67, tz: 'Atlantic/Reykjavik',
+    url: 'https://www.vegagerdin.is/vgdata/vefmyndavelar/oxnadalsheidi_1.jpg',
+    page: 'https://umferdin.is/en',
+    capZh: '資料來源：冰島公路局 Vegagerðin 官方即時鏡頭（北部 Akureyri 近郊，約每 10 分鐘更新）',
+    capEn: 'Source: Icelandic Road Administration (Vegagerðin) Live Sky/Road Cam — Öxnadalsheiði (near Akureyri)'
   }
 };
 
@@ -105,14 +130,17 @@ export const STATIC_TEXT_MAP = {
   roadFi: ['芬蘭路況 ↗', 'Finland roads ↗'],
   h2Cam: ['天文台即時全天空實拍', 'Observatory all-sky cameras'],
   subCam: [
-    '約每分鐘實拍，請留意畫面內建 UTC 時間戳記確認是否即時：',
-    'Live observatory frames — check the embedded UTC timestamp to confirm freshness:'
+    '即時天空實拍，切換地點自動顯示最近鏡頭：',
+    'Live sky cameras — automatically matched to the nearest station:'
   ],
   camBtnUit: ['Tromsø 近郊', 'Near Tromsø'],
   camBtnIrf: ['Kiruna', 'Kiruna'],
   camBtnSgo: ['Sodankylä', 'Sodankylä'],
   camBtnKho: ['Svalbard', 'Svalbard'],
   camBtnFmi: ['北歐地磁圖', 'Nordic magnetic map'],
+  camBtnIsHel: ['雷克雅維克東', 'East of Reykjavik'],
+  camBtnIsVik: ['南岸 Vík', 'South Coast · Vík'],
+  camBtnIsAku: ['北部 Akureyri', 'Near Akureyri'],
   camBtnUaf: ['Fairbanks', 'Fairbanks'],
   camBtnAmax: ['Yellowknife', 'Yellowknife'],
   camBrightBtn: ['日間已調暗 · 點此看原亮度', 'Dimmed in daylight · tap for full'],
@@ -127,11 +155,12 @@ export const STATIC_TEXT_MAP = {
   tsLblAur: ['極光活動', 'Aurora'],
   tsLblDark: ['夜空暗度', 'Darkness'],
   tsLblOut: ['觀測指數', 'Score'],
+  tsProSummary: ['進階觀測資料（分層雲量 · 即時地磁）', 'Pro telemetry (cloud layers · magnetometer)'],
   tsTierTitle: ['觀測指數分級（0–99，越高越好）', 'Score tiers (0–99, higher is better)'],
-  tsT1: ['極佳', 'Excellent'],
-  tsT2: ['適合觀測', 'Good'],
-  tsT3: ['普通', 'Fair'],
-  tsT4: ['偏低（雲層過厚、天色過亮或極光偏弱）', 'Low (cloudy, too bright or weak activity)'],
+  tsT1: ['極佳（肉眼清楚可見）', 'Excellent (bright to naked eye)'],
+  tsT2: ['適合觀測（肉眼可見、手機更亮）', 'Good (visible · brighter on camera)'],
+  tsT3: ['普通（肉眼偏淡、建議手機夜拍）', 'Fair (faint · try phone night mode)'],
+  tsT4: ['偏低（雲層過厚、天色過亮或活動偏弱）', 'Low (cloudy, too bright or weak activity)'],
   tsSciTitle: ['官方資料來源與驗證', 'Official data & verification'],
   pNoaa: ['NOAA 極光總覽 ↗', 'NOAA Aurora Map ↗'],
   linkNoaaAlerts: ['NOAA 風暴警報 ↗', 'NOAA Storm Alerts ↗'],
@@ -198,6 +227,39 @@ export function renderSkyCamCaption($, key, en) {
   cap.innerHTML = `<a class="src-link" target="_blank" rel="noopener noreferrer" href="${cam.page}">${txt} ↗</a>`;
 }
 
+export function renderTrustStatGrid($, pos, en) {
+  const tsG = $('tsStatGrid');
+  if (!tsG) return;
+  const lat = Number(pos?.lat), lon = Number(pos?.lon);
+  const inNordic = isInNordicMetBox(lat, lon);
+  const inFmiMag = isInFmiNordicBox(lat, lon);
+  if (en) {
+    tsG.innerHTML =
+      `<div class="ts-stat"><strong>Sun 0.006° · Mag 0.24°</strong><span>JPL DE441 (Moon ≤0.74°) · IGRF-14</span></div>` +
+      (inFmiMag
+        ? `<div class="ts-stat"><strong>NOAA + FMI Ground Mag</strong><span>L1 Wind · GOES · MHD Dst · Nordic Bx</span></div>`
+        : `<div class="ts-stat"><strong>15 NOAA Space Feeds</strong><span>1m L1 Wind · GOES · OVATION · MHD Dst</span></div>`) +
+      (inNordic
+        ? `<div class="ts-stat"><strong>Tri-Nation Sky Sensors</strong><span>METAR · SMHI · FMI ≤55 km (+0–3h)</span></div>`
+        : `<div class="ts-stat"><strong>Local Sky Stations</strong><span>Live METAR sensors ≤55 km (+0–3h)</span></div>`) +
+      (inNordic
+        ? `<div class="ts-stat"><strong>BMA + 51-Member ENS</strong><span>Yr.no 2.5km · ECMWF 51m adaptive</span></div>`
+        : `<div class="ts-stat"><strong>BMA + 51-Member ENS</strong><span>Dual-NWP · ECMWF 51m adaptive</span></div>`);
+  } else {
+    tsG.innerHTML =
+      `<div class="ts-stat"><strong>太陽 0.006° · 地磁 0.24°</strong><span>JPL 日月曆（月 ≤0.74°） · IGRF-14</span></div>` +
+      (inFmiMag
+        ? `<div class="ts-stat"><strong>NOAA + 北歐 FMI 地磁網</strong><span>1m 太陽風 · GOES · MHD Dst · 當地磁力儀</span></div>`
+        : `<div class="ts-stat"><strong>15 項 NOAA 太空天氣</strong><span>1m 太陽風 · GOES · OVATION · MHD Dst</span></div>`) +
+      (inNordic
+        ? `<div class="ts-stat"><strong>北歐三國地面雲量實測</strong><span>METAR · SMHI · FMI 55 km 內校正</span></div>`
+        : `<div class="ts-stat"><strong>當地氣象站即時校正</strong><span>55 km 內 METAR 雲量實測融合</span></div>`) +
+      (inNordic
+        ? `<div class="ts-stat"><strong>貝氏融合 · 51 成員系集</strong><span>Yr.no 2.5km · ECMWF 51 成員動態加權</span></div>`
+        : `<div class="ts-stat"><strong>貝氏融合 · 51 成員系集</strong><span>全球雙模型 · ECMWF 51 成員動態加權</span></div>`);
+  }
+}
+
 export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState, onUpdateCamDayNotice }) {
   document.documentElement.lang = en ? 'en' : 'zh-Hant';
   document.title = en ? 'Nordic Aurora Radar · Live Global Forecast' : '極光即時雷達｜北歐與全球即時預報';
@@ -236,17 +298,12 @@ export function applyStaticI18n({ $, en, currentPos, currentCamKey, hasLiveState
     ovCapEl.innerHTML = `<a class="src-link" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/aurora-30-minute-forecast">${ovTxt} ↗</a>`;
   }
 
-  const tsG = $('tsStatGrid');
-  if (tsG) {
-    tsG.innerHTML = en
-      ? `<div class="ts-stat"><strong>Sun 0.006° · Mag 0.24°</strong><span>JPL DE441 (Moon ≤0.74°) · IGRF-14</span></div>` +
-        `<div class="ts-stat"><strong>NOAA + FMI Ground Mag</strong><span>L1 Wind · GOES · MHD Dst · Nordic Bx</span></div>` +
-        `<div class="ts-stat"><strong>Tri-Nation Sky Sensors</strong><span>METAR · SMHI · FMI ≤55 km (+0–3h)</span></div>` +
-        `<div class="ts-stat"><strong>BMA + 51-Member ENS</strong><span>Yr.no 2.5km · ECMWF 51m adaptive</span></div>`
-      : `<div class="ts-stat"><strong>太陽 0.006° · 地磁 0.24°</strong><span>JPL 日月曆（月 ≤0.74°） · IGRF-14</span></div>` +
-        `<div class="ts-stat"><strong>NOAA + 北歐 FMI 地磁網</strong><span>1m 太陽風 · GOES · MHD Dst · 當地磁力儀</span></div>` +
-        `<div class="ts-stat"><strong>北歐三國地面雲量實測</strong><span>METAR · SMHI · FMI 55 km 內校正</span></div>` +
-        `<div class="ts-stat"><strong>貝氏融合 · 51 成員系集</strong><span>Yr.no 2.5km · ECMWF 51 成員動態加權</span></div>`;
+  renderTrustStatGrid($, currentPos, en);
+
+  if (typeof document !== 'undefined') {
+    document.querySelectorAll('#presetChips .chip[data-lbl-zh]').forEach(btn => {
+      btn.textContent = en ? (btn.dataset.lblEn || btn.textContent) : (btn.dataset.lblZh || btn.textContent);
+    });
   }
 
   if (!hasLiveState) {

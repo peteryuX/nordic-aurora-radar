@@ -9,7 +9,7 @@
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
   <meta name="google-site-verification" content="9uDTXgYt6cLyIyEW8tmFensPSWjd_Yc3Xj_U_BoEsS0" />
   <meta name="referrer" content="no-referrer" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://fox.phys.uit.no https://www.irf.se https://www.sgo.fi https://kho.unis.no https://cdn.fmi.fi https://optics.gi.alaska.edu https://auroramax.phys.ucalgary.ca https://services.swpc.noaa.gov; connect-src 'self' https://services.swpc.noaa.gov https://api.met.no https://api.open-meteo.com https://ensemble-api.open-meteo.com https://geocoding-api.open-meteo.com https://api.bigdatacloud.net https://mesonet.agron.iastate.edu https://opendata-download-metobs.smhi.se https://opendata.fmi.fi; frame-src https://embed.windy.com; object-src 'none'; base-uri 'self'; form-action 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://fox.phys.uit.no https://www.irf.se https://www.sgo.fi https://kho.unis.no https://cdn.fmi.fi https://optics.gi.alaska.edu https://auroramax.phys.ucalgary.ca https://services.swpc.noaa.gov https://www.vegagerdin.is; connect-src 'self' https://services.swpc.noaa.gov https://api.met.no https://api.open-meteo.com https://ensemble-api.open-meteo.com https://geocoding-api.open-meteo.com https://api.bigdatacloud.net https://mesonet.agron.iastate.edu https://opendata-download-metobs.smhi.se https://opendata.fmi.fi; frame-src https://embed.windy.com; object-src 'none'; base-uri 'self'; form-action 'none';" />
   <meta name="theme-color" content="#08101c" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -88,7 +88,7 @@
       <button id="pickBtn" class="hdr-loc-btn" type="button" aria-haspopup="dialog" aria-controls="picker" aria-expanded="false">
         <span class="hdr-loc-row">
           <svg id="gpsDot" class="loc-arrow" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M21 3 3 10.53v.98l6.84 2.65L12.48 21h.98z" fill="currentColor"/></svg>
-          <span id="locName" class="hdr-loc-name">挪威 · Alta</span>
+          <span id="locName" class="hdr-loc-name">挪威 · Tromsø</span>
           <svg class="chev-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.2 6.2L8 10l3.8-3.8"/></svg>
         </span>
         <span id="locMeta" class="hdr-loc-meta">
@@ -282,13 +282,16 @@
     <section id="v-sat" class="view">
       <div class="card" id="skyCamCard">
         <h2><span class="h2-grp"><svg class="h2-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2"/></svg><span id="h2Cam">天文台即時全天空實拍</span></span></h2>
-        <p id="subCam" class="card-sub">約每分鐘實拍，請留意畫面內建 UTC 時間戳記確認是否即時：</p>
+        <p id="subCam" class="card-sub">即時天空實拍，切換地點自動顯示最近鏡頭：</p>
         <div class="chips" id="camChips" style="margin-bottom:10px;">
           <button id="camBtnUit" class="chip on" type="button" data-cam="uit" data-region="nordic">Tromsø 近郊</button>
           <button id="camBtnIrf" class="chip" type="button" data-cam="irf" data-region="nordic">Kiruna</button>
           <button id="camBtnSgo" class="chip" type="button" data-cam="sgo" data-region="nordic">Sodankylä</button>
           <button id="camBtnKho" class="chip" type="button" data-cam="kho" data-region="nordic">Svalbard</button>
           <button id="camBtnFmi" class="chip" type="button" data-cam="fmi" data-region="nordic">北歐地磁圖</button>
+          <button id="camBtnIsHel" class="chip" type="button" data-cam="is_hel" data-region="iceland" style="display:none;">雷克雅維克東</button>
+          <button id="camBtnIsVik" class="chip" type="button" data-cam="is_vik" data-region="iceland" style="display:none;">南岸 Vík</button>
+          <button id="camBtnIsAku" class="chip" type="button" data-cam="is_aku" data-region="iceland" style="display:none;">北部 Akureyri</button>
           <button id="camBtnUaf" class="chip" type="button" data-cam="uaf" data-region="na" style="display:none;">Fairbanks</button>
           <button id="camBtnAmax" class="chip" type="button" data-cam="amax" data-region="na" style="display:none;">Yellowknife</button>
         </div>
@@ -360,34 +363,34 @@
           <div class="picker-grp">
             <div id="pickerGrpNordic" class="picker-lbl">北歐極光帶</div>
             <div class="chips">
-              <button class="chip on" type="button" data-zh="挪威 · Alta" data-en="Norway · Alta" data-lat="69.9689" data-lon="23.2716">Alta</button>
-              <button class="chip" type="button" data-zh="挪威 · Tromsø" data-en="Norway · Tromsø" data-lat="69.6492" data-lon="18.9553">Tromsø</button>
-              <button class="chip" type="button" data-zh="挪威 · Lofoten" data-en="Norway · Lofoten" data-lat="68.2342" data-lon="14.5683">Lofoten</button>
-              <button class="chip" type="button" data-zh="挪威 · Senja" data-en="Norway · Senja" data-lat="69.3470" data-lon="17.4820">Senja</button>
-              <button class="chip" type="button" data-zh="挪威 · Narvik" data-en="Norway · Narvik" data-lat="68.4385" data-lon="17.4273">Narvik</button>
-              <button class="chip" type="button" data-zh="瑞典 · Abisko" data-en="Sweden · Abisko" data-lat="68.3495" data-lon="18.8312">Abisko</button>
-              <button class="chip" type="button" data-zh="瑞典 · Kiruna" data-en="Sweden · Kiruna" data-lat="67.8558" data-lon="20.2253">Kiruna</button>
-              <button class="chip" type="button" data-zh="挪威 · Kirkenes" data-en="Norway · Kirkenes" data-lat="69.7271" data-lon="30.0458">Kirkenes</button>
-              <button class="chip" type="button" data-zh="芬蘭 · Rovaniemi" data-en="Finland · Rovaniemi" data-lat="66.5039" data-lon="25.7294">Rovaniemi</button>
-              <button class="chip" type="button" data-zh="芬蘭 · Inari" data-en="Finland · Inari" data-lat="68.9060" data-lon="27.0275">Inari</button>
+              <button class="chip on" type="button" data-zh="挪威 · Tromsø" data-en="Norway · Tromsø" data-lbl-zh="特羅姆瑟 Tromsø" data-lbl-en="Tromsø" data-lat="69.6492" data-lon="18.9553">特羅姆瑟 Tromsø</button>
+              <button class="chip" type="button" data-zh="芬蘭 · Rovaniemi" data-en="Finland · Rovaniemi" data-lbl-zh="羅瓦涅米 Rovaniemi" data-lbl-en="Rovaniemi" data-lat="66.5039" data-lon="25.7294">羅瓦涅米 Rovaniemi</button>
+              <button class="chip" type="button" data-zh="瑞典 · Abisko" data-en="Sweden · Abisko" data-lbl-zh="阿比斯庫 Abisko" data-lbl-en="Abisko" data-lat="68.3495" data-lon="18.8312">阿比斯庫 Abisko</button>
+              <button class="chip" type="button" data-zh="挪威 · Lofoten" data-en="Norway · Lofoten" data-lbl-zh="羅浮敦 Lofoten" data-lbl-en="Lofoten" data-lat="68.2342" data-lon="14.5683">羅浮敦 Lofoten</button>
+              <button class="chip" type="button" data-zh="挪威 · Alta" data-en="Norway · Alta" data-lbl-zh="阿爾塔 Alta" data-lbl-en="Alta" data-lat="69.9689" data-lon="23.2716">阿爾塔 Alta</button>
+              <button class="chip" type="button" data-zh="挪威 · Senja" data-en="Norway · Senja" data-lbl-zh="塞尼亞 Senja" data-lbl-en="Senja" data-lat="69.3470" data-lon="17.4820">塞尼亞 Senja</button>
+              <button class="chip" type="button" data-zh="挪威 · Narvik" data-en="Norway · Narvik" data-lbl-zh="納爾維克 Narvik" data-lbl-en="Narvik" data-lat="68.4385" data-lon="17.4273">納爾維克 Narvik</button>
+              <button class="chip" type="button" data-zh="瑞典 · Kiruna" data-en="Sweden · Kiruna" data-lbl-zh="基律納 Kiruna" data-lbl-en="Kiruna" data-lat="67.8558" data-lon="20.2253">基律納 Kiruna</button>
+              <button class="chip" type="button" data-zh="挪威 · Kirkenes" data-en="Norway · Kirkenes" data-lbl-zh="希爾克內斯 Kirkenes" data-lbl-en="Kirkenes" data-lat="69.7271" data-lon="30.0458">希爾克內斯 Kirkenes</button>
+              <button class="chip" type="button" data-zh="芬蘭 · Inari" data-en="Finland · Inari" data-lbl-zh="伊納里 Inari" data-lbl-en="Inari" data-lat="68.9060" data-lon="27.0275">伊納里 Inari</button>
             </div>
           </div>
           <div class="picker-grp">
             <div id="pickerGrpNa" class="picker-lbl">北美與冰島</div>
             <div class="chips">
-              <button class="chip" type="button" data-zh="冰島 · Reykjavik" data-en="Iceland · Reykjavik" data-lat="64.1466" data-lon="-21.9426">Reykjavik</button>
-              <button class="chip" type="button" data-zh="冰島 · Akureyri" data-en="Iceland · Akureyri" data-lat="65.6885" data-lon="-18.1262">Akureyri</button>
-              <button class="chip" type="button" data-zh="美國 · Fairbanks" data-en="USA · Fairbanks" data-lat="64.8378" data-lon="-147.7164">Fairbanks</button>
-              <button class="chip" type="button" data-zh="加拿大 · Yellowknife" data-en="Canada · Yellowknife" data-lat="62.4540" data-lon="-114.3718">Yellowknife</button>
-              <button class="chip" type="button" data-zh="加拿大 · Whitehorse" data-en="Canada · Whitehorse" data-lat="60.7212" data-lon="-135.0568">Whitehorse</button>
+              <button class="chip" type="button" data-zh="冰島 · Reykjavik" data-en="Iceland · Reykjavik" data-lbl-zh="雷克雅維克 Reykjavik" data-lbl-en="Reykjavik" data-lat="64.1466" data-lon="-21.9426">雷克雅維克 Reykjavik</button>
+              <button class="chip" type="button" data-zh="冰島 · Akureyri" data-en="Iceland · Akureyri" data-lbl-zh="阿克雷里 Akureyri" data-lbl-en="Akureyri" data-lat="65.6885" data-lon="-18.1262">阿克雷里 Akureyri</button>
+              <button class="chip" type="button" data-zh="美國 · Fairbanks" data-en="USA · Fairbanks" data-lbl-zh="費爾班克斯 Fairbanks" data-lbl-en="Fairbanks" data-lat="64.8378" data-lon="-147.7164">費爾班克斯 Fairbanks</button>
+              <button class="chip" type="button" data-zh="加拿大 · Yellowknife" data-en="Canada · Yellowknife" data-lbl-zh="黃刀鎮 Yellowknife" data-lbl-en="Yellowknife" data-lat="62.4540" data-lon="-114.3718">黃刀鎮 Yellowknife</button>
+              <button class="chip" type="button" data-zh="加拿大 · Whitehorse" data-en="Canada · Whitehorse" data-lbl-zh="白馬市 Whitehorse" data-lbl-en="Whitehorse" data-lat="60.7212" data-lon="-135.0568">白馬市 Whitehorse</button>
             </div>
           </div>
           <div class="picker-grp">
             <div id="pickerGrpSouth" class="picker-lbl">南半球極光</div>
             <div class="chips">
-              <button class="chip" type="button" data-zh="紐西蘭 · Queenstown" data-en="New Zealand · Queenstown" data-lat="-45.0312" data-lon="168.6626">Queenstown</button>
-              <button class="chip" type="button" data-zh="紐西蘭 · Lake Tekapo" data-en="New Zealand · Lake Tekapo" data-lat="-44.0047" data-lon="170.4771">Lake Tekapo</button>
-              <button class="chip" type="button" data-zh="澳洲 · Hobart" data-en="Australia · Hobart" data-lat="-42.8821" data-lon="147.3272">Hobart</button>
+              <button class="chip" type="button" data-zh="紐西蘭 · Queenstown" data-en="New Zealand · Queenstown" data-lbl-zh="皇后鎮 Queenstown" data-lbl-en="Queenstown" data-lat="-45.0312" data-lon="168.6626">皇后鎮 Queenstown</button>
+              <button class="chip" type="button" data-zh="紐西蘭 · Lake Tekapo" data-en="New Zealand · Lake Tekapo" data-lbl-zh="蒂卡波湖 Tekapo" data-lbl-en="Lake Tekapo" data-lat="-44.0047" data-lon="170.4771">蒂卡波湖 Tekapo</button>
+              <button class="chip" type="button" data-zh="澳洲 · Hobart" data-en="Australia · Hobart" data-lbl-zh="荷巴特 Hobart" data-lbl-en="Hobart" data-lat="-42.8821" data-lon="147.3272">荷巴特 Hobart</button>
             </div>
           </div>
         </div>
@@ -439,16 +442,20 @@
           <div id="tsMetarNote" class="ts-metar-note" style="display:none;"></div>
           <div id="tsConfRow" class="ts-conf-row">正在確認氣象與衛星資料…</div>
           <div id="tsConfDetail" class="ts-conf-detail" style="display:none;"></div>
+          <details class="ts-pro-details" id="tsProDetails">
+            <summary id="tsProSummary">進階觀測資料（分層雲量 · 即時地磁）</summary>
+            <div id="tsProBody" class="ts-pro-body"></div>
+          </details>
         </section>
 
         <!-- 2. SCORE TIERS -->
         <section class="ts-sec">
           <h3 id="tsTierTitle" class="ts-h3">觀測指數分級（0–99，越高越好）</h3>
           <div class="ts-tiers" id="tsTiers" style="margin-bottom:0;">
-            <div class="ts-tier"><span class="ts-dot t-high"></span><b>65–99</b><span id="tsT1">極佳</span></div>
-            <div class="ts-tier"><span class="ts-dot t-good"></span><b>40–64</b><span id="tsT2">適合觀測</span></div>
-            <div class="ts-tier"><span class="ts-dot t-mid"></span><b>18–39</b><span id="tsT3">普通</span></div>
-            <div class="ts-tier"><span class="ts-dot t-low"></span><b>0–17</b><span id="tsT4">偏低（雲層過厚、天色過亮或極光偏弱）</span></div>
+            <div class="ts-tier"><span class="ts-dot t-high"></span><b>65–99</b><span id="tsT1">極佳（肉眼清楚可見）</span></div>
+            <div class="ts-tier"><span class="ts-dot t-good"></span><b>40–64</b><span id="tsT2">適合觀測（肉眼可見、手機更亮）</span></div>
+            <div class="ts-tier"><span class="ts-dot t-mid"></span><b>18–39</b><span id="tsT3">普通（肉眼偏淡、建議手機夜拍）</span></div>
+            <div class="ts-tier"><span class="ts-dot t-low"></span><b>0–17</b><span id="tsT4">偏低（雲層過厚、天色過亮或活動偏弱）</span></div>
           </div>
         </section>
 
