@@ -634,11 +634,11 @@ const SCENARIOS = [
       if (r.locName !== '挪威 · Oslo') errs.push(`English search "Oslo" must render 挪威 · Oslo, got "${r.locName}"`);
       if (r.navSat !== '動態雲圖') errs.push(`Oslo (outside Arctic observatory cam range) navSat must be 動態雲圖, got "${r.navSat}"`);
       if (!r.outlookText.includes('強極光時雲厚')) errs.push(`Expected 強極光時雲厚 on Oslo Thu 11/26, got "${r.outlookText}"`);
-      if (!r.outlookText.includes('強光時晴空 0%')) errs.push(`Expected 強光時晴空 0% on Oslo Thu 11/26, got "${r.outlookText}"`);
+      if (!r.outlookText.includes('極光強時晴空 0%')) errs.push(`Expected 極光強時晴空 0% on Oslo Thu 11/26, got "${r.outlookText}"`);
       if (r.compassHtml.includes('travelmode=driving')) errs.push('Already-clear Oslo must NEVER emit turn-by-turn travelmode=driving links');
       if (!r.compassHtml.includes('Maridalen')) errs.push('Oslo compass must surface curated northern dark-sky spot Maridalen / Sognsvann');
       if (!r.compassHtml.includes('看地圖')) errs.push('Already-clear Oslo must demote corridor button to 看地圖');
-      if (r.compassHtml.includes('避光穹參考')) errs.push('Quiet-aurora Oslo (Kp 1.0) must NOT show 避光穹參考 escape badge');
+      if (r.compassHtml.includes('避光害參考')) errs.push('Quiet-aurora Oslo (Kp 1.0) must NOT show 避光害參考 escape badge');
       if (r.issues.length) errs.push(...r.issues);
       return errs;
     }
@@ -898,15 +898,15 @@ const SCENARIOS = [
       if (!r.tsLightNoteText.includes('未扣除市區光害') || /Bortle/i.test(r.tsLightNoteText)) {
         errs.push(`#tsLightNote must honestly explain Sun+Moon boundary without fake Bortle integer, got "${r.tsLightNoteText}"`);
       }
-      if (r.vTitle.includes('頭頂') || !r.vTitle.includes('北方低空')) {
-        errs.push(`Sub-auroral Oslo evening go-cue must say 北方低空 (never falsely 朝頭頂), got "${r.vTitle}"`);
+      if (r.vTitle.includes('頭頂') || !r.vTitle.includes('北方低空') || !r.vTitle.includes('避開光害')) {
+        errs.push(`Sub-auroral Oslo evening go-cue must say 避開光害 + 北方低空 (never falsely 朝頭頂), got "${r.vTitle}"`);
       }
       if (!r.compassHtml.includes('Maridalen')) errs.push('Oslo compass must include Maridalen / Sognsvann');
-      if (!r.compassSummaryText.includes('Maridalen') || !r.compassSummaryText.includes('光穹')) {
-        errs.push(`Active clear Oslo #compassSummary must suggest Maridalen to escape city dome, got "${r.compassSummaryText}"`);
+      if (!r.compassSummaryText.includes('Maridalen') || !r.compassSummaryText.includes('市區光害')) {
+        errs.push(`Active clear Oslo #compassSummary must suggest Maridalen to escape city glare, got "${r.compassSummaryText}"`);
       }
-      if (!r.compassHtml.includes('避光穹參考') || !r.compassHtml.includes('奧斯陸光穹在身後')) {
-        errs.push('Active clear Oslo #compassBox must show 避光穹參考 badge and 奧斯陸光穹在身後 geometry tag');
+      if (!r.compassHtml.includes('避光害參考') || !r.compassHtml.includes('背對奧斯陸光害')) {
+        errs.push('Active clear Oslo #compassBox must show 避光害參考 badge and 背對奧斯陸光害 geometry tag');
       }
       if (r.compassHtml.includes('travelmode=driving')) {
         errs.push('Already-clear Oslo glare-escape must keep calm 看地圖 links (zero travelmode=driving)');

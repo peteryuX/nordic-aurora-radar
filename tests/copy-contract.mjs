@@ -31,7 +31,7 @@ function check(cond, invId, msg) {
 
 const stripTags = (s) => String(s || '').replace(/<[^>]+>/g, '');
 
-const ZH_BANNED_RE = /數據|信息|屏幕|貼士|分佈|(?<!維)持平|天頂|後晚|分鐘 後|小時 後|。。|··/;
+const ZH_BANNED_RE = /數據|信息|屏幕|貼士|分佈|(?<!維)持平|天頂|後晚|分鐘 後|小時 後|。。|··|光穹|北方側|南方側|往「往/;
 const TOKEN_LEAK_RE = /\bNaN\b|\bundefined\b|\[object /;
 const CJK_RE = /[\u4e00-\u9fff]/;
 
@@ -332,11 +332,15 @@ check(
           `${ctx} must link to official NOAA alerts page`);
         check(info?.level === stCase.expectLevel, 'INV-14', `${ctx} level mismatch: got ${info?.level}`);
         checkHygiene(`${info?.title} ${info?.body} ${info?.linkLabel}`, lang, ctx);
-        if (city.lat < 0 && sc.outOfZone !== 'low-lat' && info.stormKp >= sc.neededKp) {
+        const isPolarCap = Number.isFinite(sc.magLat) && sc.magLat >= 74;
+        if (!isPolarCap && city.lat < 0 && sc.outOfZone !== 'low-lat' && info.stormKp >= sc.neededKp) {
           check(!/北方|northern/i.test(info.body), 'INV-14', `${ctx} Southern Hemisphere must not say north: "${info.body}"`);
         }
-        if (city.lat >= 0 && sc.outOfZone !== 'low-lat' && info.stormKp >= sc.neededKp) {
+        if (!isPolarCap && city.lat >= 0 && sc.outOfZone !== 'low-lat' && info.stormKp >= sc.neededKp) {
           check(!/南方|southern/i.test(info.body), 'INV-14', `${ctx} Northern Hemisphere storm note must not say south: "${info.body}"`);
+        }
+        if (isPolarCap && city.lat >= 0 && sc.outOfZone !== 'low-lat') {
+          check(/南方|southern/i.test(info.body), 'INV-14', `${ctx} Northern polar-cap (Svalbard) storm note must look equatorward (south): "${info.body}"`);
         }
       }
     }

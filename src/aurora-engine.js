@@ -60,14 +60,19 @@ export function tSky(zhTxt, lang) {
 
 export function tDirLabel(lbl, lang) {
   if (!isEn(lang)) return String(lbl ?? '').replace(/^📍\s*/, '');
-  return String(lbl ?? '')
+  const s = String(lbl ?? '')
     .replace(/^📍\s*/, '')
     .replace('目前位置', 'Current Spot')
     .replace(/^[⬆️⬇️➡️⬅️]+\s*/, '')
     .replace('往東北 ', 'NE · ').replace('往西北 ', 'NW · ')
     .replace('往東南 ', 'SE · ').replace('往西南 ', 'SW · ')
+    .replace(/^往北\s+(North\b)/i, 'N · $1')
+    .replace(/^往南\s+(South\b)/i, 'S · $1')
+    .replace(/^往東\s+(East\b)/i, 'E · $1')
+    .replace(/^往西\s+(West\b)/i, 'W · $1')
     .replace('往北 ', 'North ').replace('往南 ', 'South ')
     .replace('往東 ', 'East ').replace('往西 ', 'West ');
+  return s;
 }
 
 // Internal grade keys (emoji + ZH) are stable identifiers used by tests & validation fixtures.
@@ -242,11 +247,11 @@ export const EXTENDED_CORRIDORS = [
     { key: 'S', label: '往西南 Balclutha', lat: -46.2414, lon: 169.7347, roadKm: 79, roadNote: 'SH1 幹道·南向視野開闊', roadNoteEn: 'SH1 · open southern horizon', isOcean: false },
     { key: 'W', label: '往西北 Middlemarch', lat: -45.5067, lon: 170.1197, roadKm: 79, roadNote: '內陸晴空暗區·留意黑冰', roadNoteEn: 'Inland dark sky · watch black ice', isOcean: false }
   ]},
-  { match: [59.91, 10.75], pts: [ // Oslo (Norway — poleward northern lookouts keeping Oslo's light dome behind you)
+  { match: [59.91, 10.75], pts: [ // Oslo (Norway — balanced N/NE/NW northern lookouts + S reference)
     { key: 'N', label: '往北 Maridalen', lat: 60.0050, lon: 10.7680, roadKm: 12, roadNote: '市區北緣湖畔·北方視野開闊', roadNoteEn: 'North edge lakeside · open northern sky', isOcean: false },
-    { key: 'E', label: '往東北 Nittedal', lat: 60.1230, lon: 10.8750, roadKm: 28, roadNote: 'Rv4 主幹道·北方視野開闊', roadNoteEn: 'Rv4 main road · open northern horizon', isOcean: false },
-    { key: 'W', label: '往西北 Sundvollen', lat: 60.0620, lon: 10.3100, roadKm: 42, roadNote: 'E16 主幹道·高地暗空區', roadNoteEn: 'E16 main road · elevated dark sky', isOcean: false },
-    { key: 'S', label: '往東 Ask', lat: 60.0640, lon: 11.0360, roadKm: 32, roadNote: '鄉間低光害·北方地平線開闊', roadNoteEn: 'Rural low glare · open northern sky', isOcean: false }
+    { key: 'E', label: '往東北 Ask', lat: 60.0640, lon: 11.0360, roadKm: 32, roadNote: '鄉間低光害·北方視野開闊', roadNoteEn: 'Rural low glare · open northern sky', isOcean: false },
+    { key: 'W', label: '往西北 Sundvollen', lat: 60.0620, lon: 10.3100, roadKm: 42, roadNote: 'E16 主幹道·高地開闊區', roadNoteEn: 'E16 main road · elevated open sky', isOcean: false },
+    { key: 'S', label: '往南 Ski', lat: 59.7195, lon: 10.8358, roadKm: 24, roadNote: 'E6/Rv152 南側·北望奧斯陸市區', roadNoteEn: 'South of Oslo · north view faces city glow', isOcean: false }
   ]}
 ];
 
@@ -271,9 +276,19 @@ export function isInNordicMetBox(lat, lon) {
   return mainland || svalbard;
 }
 
+/** Roadless Arctic archipelago guard (Svalbard: no inter-town roads, polar-bear boundary outside Longyearbyen) */
+export function isRoadlessArctic(lat, lon) {
+  return Number.isFinite(lat) && Number.isFinite(lon) && lat >= 74.0 && lat <= 81.0 && lon >= 10.0 && lon <= 35.0;
+}
+
 /** Mainland Nordic Doppler radar footprint for MET Norway Nowcast 2.0 (5-min live rain/snow; Svalbard returns 422) */
 export function isInNordicRadarBox(lat, lon) {
   return Number.isFinite(lat) && Number.isFinite(lon) && lat >= 55.0 && lat <= 71.5 && lon >= 4.0 && lon <= 32.0;
+}
+
+function bearingToPrefixZh(deg) {
+  const dirs = ['往北', '往東北', '往東', '往東南', '往南', '往西南', '往西', '往西北'];
+  return dirs[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
 }
 
 export function computeCompassPoints(lat, lon, distKm = 60) {
@@ -282,7 +297,23 @@ export function computeCompassPoints(lat, lon, distKm = 60) {
     const hubDist = Math.hypot(lat - c.match[0], (lon - c.match[1]) * Math.cos(lat * Math.PI / 180));
     if (hubDist < 0.25) {
       const hereMeta = Array.isArray(c.closedDirs) && c.closedDirs.length ? { ...here, closedDirs: [...c.closedDirs] } : here;
-      return [hereMeta, ...c.pts.map(p => (hubDist < 0.08 ? { ...p } : { ...p, roadKm: undefined }))];
+      const pts = [];
+      for (const p of c.pts) {
+        const dKm = computeDistanceKm(lat, lon, p.lat, p.lon);
+        // Never suggest the exact spot the traveler is already standing at (e.g., GPS at Maridalen -> 0 km Maridalen)
+        if (dKm < 4) continue;
+        if (hubDist < 0.08) {
+          pts.push({ ...p });
+        } else {
+          // Observer is in a suburb (>9 km from city center): recompute honest compass bearing prefix
+          const brg = computeBearingDeg(lat, lon, p.lat, p.lon);
+          const relabeled = /^往[東西南北]+\s+/.test(p.label)
+            ? p.label.replace(/^往[東西南北]+/, bearingToPrefixZh(brg))
+            : p.label;
+          pts.push({ ...p, label: relabeled, roadKm: undefined });
+        }
+      }
+      if (pts.length >= 2) return [hereMeta, ...pts];
     }
   }
   const dLat = distKm / 111.32;
@@ -4224,12 +4255,19 @@ export function synthesizeTonightAction({
       : '';
     const dirName = en ? tDirLabel(dest?.label || comp.bestKey, 'en') : (dest?.label || comp.bestKey);
     const diffVsNow = Math.max(1, comp.bestClear - Math.round(sc.skyScore));
-    const title = sc.auroraScore >= 50
-      ? (en ? 'Aurora active above — drive to clear sky' : '頭頂極光活躍，建議開車找雲縫')
-      : (en ? 'Cloudy here — clearer skies nearby' : '原地雲層偏厚，周邊有晴空可轉移');
-    const lead = en
-      ? `${dirName}${distTag} is ${comp.bestClear}% clear (${diffVsNow}% clearer than here). Check road conditions first.`
-      : `「${dirName}」${distTag}未來 3 小時晴空率 ${comp.bestClear}%（比原地高 ${diffVsNow}%），出發前請先確認路況。`;
+    const roadless = isRoadlessArctic(lat, lon);
+    const title = roadless
+      ? (en ? 'Aurora active — clearer skies nearby (local guide only)' : '高空極光活躍，周邊有晴空（當地無跨鎮公路）')
+      : (sc.auroraScore >= 50
+          ? (en ? 'Aurora active above — drive or join a tour to clear skies' : '頭頂極光活躍，建議自駕或跟團找雲縫')
+          : (en ? 'Cloudy here — clearer skies nearby' : '原地雲層偏厚，周邊有晴空可轉移'));
+    const lead = roadless
+      ? (en
+          ? `${dirName}${distTag} is ${comp.bestClear}% clear (${diffVsNow}% clearer) — no inter-town roads on Svalbard; stay in town or go with a licensed bear-guard guide.`
+          : `「${dirName}」${distTag}晴空率 ${comp.bestClear}%（比原地高 ${diffVsNow}%），斯瓦巴無跨鎮公路且鎮外有北極熊警戒區，請留鎮內或由持槍嚮導陪同。`)
+      : (en
+          ? `${dirName}${distTag} is ${comp.bestClear}% clear (${diffVsNow}% clearer than here). Check road conditions first.`
+          : `「${dirName}」${distTag}未來 3 小時晴空率 ${comp.bestClear}%（比原地高 ${diffVsNow}%），出發前請先確認路況。`);
     return {
       ...base, title, lead, actionType: 'drive', auroraWorthDriving,
       ctaView: 'dir', ctaLabel: `${term(TERMS.nav.findClear, en)} →`
@@ -4264,6 +4302,16 @@ export function synthesizeTonightAction({
     const lead = en
       ? `Forecast improves around ${bestDark.time} (${bestDark.clear}% clear, score ${bestDark.score}). Rest until then.`
       : `預計 ${bestDark.time} 晴空率 ${bestDark.clear}%（指數 ${bestDark.score}），可先休息稍後再出發。`;
+    return { ...base, title, lead, actionType: 'wait', auroraWorthDriving, ctaView: null, ctaLabel: '' };
+  }
+  // Clear & quiet RIGHT NOW, but a genuine stronger window arrives later TONIGHT -> NEVER fall through to 'sleep' ("Low chance tonight")!
+  if (sc.total < 18 && sc.skyScore >= 45 && bestDark && (bestDark.score ?? 0) >= 35) {
+    const title = en
+      ? `Clear & quiet now — peaks around ${bestDark.time}`
+      : `天空晴朗但目前極光偏弱，預計 ${bestDark.time} 後轉佳`;
+    const lead = en
+      ? `Forecast peaks around ${bestDark.time} (${bestDark.clear}% clear, score ${bestDark.score}). Check back later tonight.`
+      : `預計 ${bestDark.time} 晴空率 ${bestDark.clear}%（指數 ${bestDark.score}），今晚稍後仍有機會。`;
     return { ...base, title, lead, actionType: 'wait', auroraWorthDriving, ctaView: null, ctaLabel: '' };
   }
 
@@ -4350,7 +4398,7 @@ export function summarizeCompass(dirResults, lang, opts = null) {
 
   if (here.avg3h <= 35) {
     const glareEscapeActive = Boolean(
-      glareEnabled && originGlare?.level === 'strong' && opts.auroraWorthViewing
+      glareEnabled && originGlare?.level === 'strong' && (opts.auroraWorthViewing || opts.glareEscapeWorth)
     );
     let glareEscapeKey = null;
     let glareEscapeDir = null;
@@ -4379,13 +4427,23 @@ export function summarizeCompass(dirResults, lang, opts = null) {
       const escClr = Math.max(0, Math.min(100, Math.round(100 - glareEscapeDir.avg3h)));
       const kmZh = Number.isFinite(escKm) ? `（~${escKm} km，晴空 ${escClr}%）` : `（晴空 ${escClr}%）`;
       const kmEn = Number.isFinite(escKm) ? ` (~${escKm} km, ${escClr}% clear)` : ` (${escClr}% clear)`;
-      clearZh = `目前所在地已晴空（未來 3 小時晴空率 ${hereClear}%），無需為找雲縫遠行；但${originGlare.cityName}市區光害偏強，可考慮往「${glareEscapeDir.label}」${kmZh}把光穹留在身後。`;
-      clearEn = `Already clear right here (${hereClear}% clear over the next 3h) — no need to drive for cloud breaks, though ${originGlare.cityName} glare is strong; consider "${tDirLabel(glareEscapeDir.label, 'en')}"${kmEn} to put the city dome behind you.`;
+      const cleanTargetZh = glareEscapeDir.label.replace(/^往[東西南北]+\s*/, '');
+      clearZh = `目前所在地已晴空（未來 3 小時晴空率 ${hereClear}%），無需為找雲縫遠行；${originGlare.cityName}市區光害偏強，原地避開路燈仍有機會，想更清楚可考慮前往「${cleanTargetZh}」${kmZh}把市區光害留在身後。`;
+      clearEn = `Already clear right here (${hereClear}% clear over the next 3h) — no need to drive for cloud breaks. ${originGlare.cityName} city glare is strong; step away from streetlamps locally, or consider "${tDirLabel(glareEscapeDir.label, 'en')}"${kmEn} to put the city glow behind you.`;
     } else if (glareEscapeActive) {
-      const dirZh = originGlare.escapeDir || '北方';
+      const hasPolewardLand = landOthers.some(d => {
+        const g = glareByKey[d.key];
+        return g && (g.status === 'behind' || g.status === 'away');
+      });
+      const dirShortZh = originGlare.escapeDirShort || (originGlare.escapeDir === '南方' ? '南' : '北');
       const dirEn = originGlare.escapeDir || 'north';
-      clearZh = `目前所在地已晴空（未來 3 小時晴空率 ${hereClear}%），無需為找雲縫遠行；但${originGlare.cityName}市區光害偏強，建議移往${dirZh}側避開光穹。`;
-      clearEn = `Already clear right here (${hereClear}% clear over the next 3h) — no need to drive for cloud breaks, though ${originGlare.cityName} glare is strong; move ${dirEn} to put the city dome behind you.`;
+      if (hasPolewardLand) {
+        clearZh = `目前所在地已晴空（未來 3 小時晴空率 ${hereClear}%），無需為找雲縫遠行；${originGlare.cityName}市區光害偏強，建議移往${dirShortZh}側避開市區光害。`;
+        clearEn = `Already clear right here (${hereClear}% clear over the next 3h) — no need to drive for cloud breaks, though ${originGlare.cityName} glare is strong; move ${dirEn} to put the city glow behind you.`;
+      } else {
+        clearZh = `目前所在地已晴空（未來 3 小時晴空率 ${hereClear}%），無需為找雲縫遠行；${originGlare.cityName}市區光害偏強，建議就近前往暗處並避開直射路燈。`;
+        clearEn = `Already clear right here (${hereClear}% clear over the next 3h) — no need to drive for cloud breaks, though ${originGlare.cityName} glare is strong; find a locally dark spot away from direct streetlights.`;
+      }
     } else {
       clearZh = hereClear >= 85
         ? `目前所在地已晴空（未來 3 小時晴空率 ${hereClear}%），無需驅車遠行；若市區光害明顯，就近避開路燈即可。`
@@ -4535,41 +4593,50 @@ export const URBAN_GLARE_CENTERS = Object.freeze([
   // Nordic & Iceland metros / aurora hubs
   { id: 'oslo',         name: '奧斯陸',     nameEn: 'Oslo',         lat: 59.9127, lon: 10.7461,  coreKm: 9,  domeKm: 32, peakL: 24 },
   { id: 'stockholm',    name: '斯德哥爾摩', nameEn: 'Stockholm',    lat: 59.3293, lon: 18.0686,  coreKm: 12, domeKm: 38, peakL: 28 },
+  { id: 'uppsala',      name: '烏普薩拉',   nameEn: 'Uppsala',      lat: 59.8586, lon: 17.6389,  coreKm: 5,  domeKm: 18, peakL: 10 },
   { id: 'helsinki',     name: '赫爾辛基',   nameEn: 'Helsinki',     lat: 60.1699, lon: 24.9384,  coreKm: 11, domeKm: 34, peakL: 24 },
+  { id: 'tallinn',      name: '塔林',       nameEn: 'Tallinn',      lat: 59.4370, lon: 24.7536,  coreKm: 7,  domeKm: 22, peakL: 16 },
   { id: 'copenhagen',   name: '哥本哈根',   nameEn: 'Copenhagen',   lat: 55.6761, lon: 12.5683,  coreKm: 12, domeKm: 36, peakL: 28 },
   { id: 'gothenburg',   name: '哥德堡',     nameEn: 'Gothenburg',   lat: 57.7089, lon: 11.9746,  coreKm: 8,  domeKm: 26, peakL: 16 },
   { id: 'malmo',        name: '馬爾默',     nameEn: 'Malmö',        lat: 55.6050, lon: 13.0038,  coreKm: 7,  domeKm: 22, peakL: 14 },
   { id: 'bergen',       name: '卑爾根',     nameEn: 'Bergen',       lat: 60.3913, lon: 5.3221,   coreKm: 6,  domeKm: 20, peakL: 12 },
-  { id: 'trondheim',    name: '特隆赫姆',   nameEn: 'Trondheim',    lat: 63.4305, lon: 10.3951,  coreKm: 5,  domeKm: 18, peakL: 10 },
+  { id: 'trondheim',    name: '特隆赫姆',   nameEn: 'Trondheim',    lat: 63.4305, lon: 10.3951,  coreKm: 5,  domeKm: 18, peakL: 12 },
   { id: 'stavanger',    name: '斯塔萬格',   nameEn: 'Stavanger',    lat: 58.9700, lon: 5.7331,   coreKm: 6,  domeKm: 20, peakL: 12 },
-  { id: 'tampere',      name: '坦佩雷',     nameEn: 'Tampere',      lat: 61.4978, lon: 23.7610,  coreKm: 6,  domeKm: 20, peakL: 11 },
+  { id: 'tampere',      name: '坦佩雷',     nameEn: 'Tampere',      lat: 61.4978, lon: 23.7610,  coreKm: 6,  domeKm: 20, peakL: 12 },
   { id: 'oulu',         name: '奧盧',       nameEn: 'Oulu',         lat: 65.0121, lon: 25.4651,  coreKm: 5,  domeKm: 18, peakL: 9  },
   { id: 'aarhus',       name: '奧胡斯',     nameEn: 'Aarhus',       lat: 56.1629, lon: 10.2039,  coreKm: 6,  domeKm: 20, peakL: 12 },
-  { id: 'reykjavik',    name: '雷克雅維克', nameEn: 'Reykjavik',    lat: 64.1466, lon: -21.9426, coreKm: 5,  domeKm: 18, peakL: 10 },
+  { id: 'reykjavik',    name: '雷克雅維克', nameEn: 'Reykjavik',    lat: 64.1466, lon: -21.9426, coreKm: 5,  domeKm: 18, peakL: 12 },
   { id: 'tromso',       name: 'Tromsø',     nameEn: 'Tromsø',       lat: 69.6492, lon: 18.9553,  coreKm: 3,  domeKm: 10, peakL: 4.5 },
   { id: 'rovaniemi',    name: 'Rovaniemi',  nameEn: 'Rovaniemi',    lat: 66.5039, lon: 25.7294,  coreKm: 3,  domeKm: 10, peakL: 4.0 },
-  // UK & Continental Europe
+  { id: 'murmansk',     name: '摩爾曼斯克', nameEn: 'Murmansk',     lat: 68.9585, lon: 33.0827,  coreKm: 6,  domeKm: 20, peakL: 13 },
+  // UK, Ireland & Continental Europe
   { id: 'london',       name: '倫敦',       nameEn: 'London',       lat: 51.5074, lon: -0.1278,  coreKm: 22, domeKm: 55, peakL: 36 },
   { id: 'berlin',       name: '柏林',       nameEn: 'Berlin',       lat: 52.5200, lon: 13.4050,  coreKm: 16, domeKm: 45, peakL: 30 },
   { id: 'edinburgh',    name: '愛丁堡',     nameEn: 'Edinburgh',    lat: 55.9533, lon: -3.1883,  coreKm: 8,  domeKm: 26, peakL: 16 },
   { id: 'glasgow',      name: '格拉斯哥',   nameEn: 'Glasgow',      lat: 55.8642, lon: -4.2518,  coreKm: 10, domeKm: 30, peakL: 20 },
   { id: 'manchester',   name: '曼徹斯特',   nameEn: 'Manchester',   lat: 53.4808, lon: -2.2426,  coreKm: 14, domeKm: 38, peakL: 26 },
-  { id: 'aberdeen',     name: '亞伯丁',     nameEn: 'Aberdeen',     lat: 57.1497, lon: -2.0943,  coreKm: 6,  domeKm: 20, peakL: 11 },
+  { id: 'aberdeen',     name: '亞伯丁',     nameEn: 'Aberdeen',     lat: 57.1497, lon: -2.0943,  coreKm: 6,  domeKm: 20, peakL: 12 },
+  { id: 'dublin',       name: '都柏林',     nameEn: 'Dublin',       lat: 53.3498, lon: -6.2603,  coreKm: 12, domeKm: 34, peakL: 24 },
+  { id: 'belfast',      name: '貝爾法斯特', nameEn: 'Belfast',      lat: 54.5973, lon: -5.9301,  coreKm: 8,  domeKm: 24, peakL: 16 },
   // North America
   { id: 'anchorage',    name: '安克拉治',   nameEn: 'Anchorage',    lat: 61.2181, lon: -149.9003,coreKm: 7,  domeKm: 24, peakL: 14 },
   { id: 'fairbanks',    name: '費爾班克斯', nameEn: 'Fairbanks',    lat: 64.8378, lon: -147.7164,coreKm: 3.5,domeKm: 12, peakL: 4.5 },
   { id: 'calgary',      name: '卡加利',     nameEn: 'Calgary',      lat: 51.0447, lon: -114.0719,coreKm: 13, domeKm: 38, peakL: 26 },
   { id: 'edmonton',     name: '艾德蒙頓',   nameEn: 'Edmonton',     lat: 53.5461, lon: -113.4938,coreKm: 12, domeKm: 36, peakL: 24 },
+  { id: 'winnipeg',     name: '溫尼伯',     nameEn: 'Winnipeg',     lat: 49.8951, lon: -97.1384, coreKm: 11, domeKm: 34, peakL: 22 },
+  { id: 'saskatoon',    name: '薩斯卡通',   nameEn: 'Saskatoon',    lat: 52.1332, lon: -106.6700,coreKm: 7,  domeKm: 22, peakL: 14 },
   { id: 'vancouver',    name: '溫哥華',     nameEn: 'Vancouver',    lat: 49.2827, lon: -123.1207,coreKm: 15, domeKm: 42, peakL: 28 },
   { id: 'seattle',      name: '西雅圖',     nameEn: 'Seattle',      lat: 47.6062, lon: -122.3321,coreKm: 16, domeKm: 45, peakL: 30 },
   { id: 'minneapolis',  name: '明尼阿波利斯', nameEn: 'Minneapolis',lat: 44.9778, lon: -93.2650, coreKm: 16, domeKm: 45, peakL: 28 },
   { id: 'toronto',      name: '多倫多',     nameEn: 'Toronto',      lat: 43.6532, lon: -79.3832, coreKm: 20, domeKm: 55, peakL: 36 },
+  { id: 'ottawa',       name: '渥太華',     nameEn: 'Ottawa',       lat: 45.4215, lon: -75.6972, coreKm: 12, domeKm: 36, peakL: 24 },
   { id: 'montreal',     name: '蒙特婁',     nameEn: 'Montreal',     lat: 45.5017, lon: -73.5673, coreKm: 16, domeKm: 45, peakL: 30 },
+  { id: 'quebec',       name: '魁北克市',   nameEn: 'Quebec City',  lat: 46.8139, lon: -71.2080, coreKm: 10, domeKm: 30, peakL: 20 },
   // East Asia & Southern Hemisphere
   { id: 'sapporo',      name: '札幌',       nameEn: 'Sapporo',      lat: 43.0618, lon: 141.3545, coreKm: 13, domeKm: 38, peakL: 28 },
   { id: 'melbourne',    name: '墨爾本',     nameEn: 'Melbourne',    lat: -37.8136,lon: 144.9631, coreKm: 18, domeKm: 50, peakL: 32 },
   { id: 'christchurch', name: '基督城',     nameEn: 'Christchurch', lat: -43.5321,lon: 172.6362, coreKm: 8,  domeKm: 24, peakL: 14 },
-  { id: 'hobart',       name: '荷巴特',     nameEn: 'Hobart',       lat: -42.8821,lon: 147.3272, coreKm: 6,  domeKm: 20, peakL: 10 },
+  { id: 'hobart',       name: '荷巴特',     nameEn: 'Hobart',       lat: -42.8821,lon: 147.3272, coreKm: 6,  domeKm: 20, peakL: 12 },
   { id: 'dunedin',      name: '但尼丁',     nameEn: 'Dunedin',      lat: -45.8788,lon: 170.5028, coreKm: 5,  domeKm: 16, peakL: 8  },
   { id: 'capetown',     name: '開普敦',     nameEn: 'Cape Town',    lat: -33.9249,lon: 18.4241,  coreKm: 14, domeKm: 40, peakL: 26 }
 ]);
@@ -4595,8 +4662,10 @@ export function estimateUrbanSkyglow({
   lat, lon, geom = null, auroraScore = 30, effMoonPct = 0, lang
 } = {}) {
   const en = isEn(lang);
-  const escapeDirZh = (Number.isFinite(lat) && lat < 0) ? '南方' : '北方';
-  const escapeDirEn = (Number.isFinite(lat) && lat < 0) ? 'south' : 'north';
+  const isSouth = Number.isFinite(lat) && lat < 0;
+  const escapeDirZh = isSouth ? '南方' : '北方';
+  const escapeDirShortZh = isSouth ? '南' : '北';
+  const escapeDirEn = isSouth ? 'south' : 'north';
   const fallback = {
     level: 'unknown',
     knownDark: false,
@@ -4612,6 +4681,7 @@ export function estimateUrbanSkyglow({
     extraMagLoss: 0,
     stormPierces: auroraScore >= 82,
     escapeDir: en ? escapeDirEn : escapeDirZh,
+    escapeDirShort: en ? escapeDirEn : escapeDirShortZh,
     tagText: ''
   };
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return fallback;
@@ -4655,10 +4725,15 @@ export function estimateUrbanSkyglow({
     }
   }
 
+  const effectiveMagLoss = +(2.5 * Math.log10((1 + lMoon + effectiveL) / (1 + lMoon))).toFixed(2);
   let level = 'unknown';
   if (effectiveL >= 10 || (domeImpact === 'blocking-horizon' && excessL >= 4)) {
     level = 'strong';
   } else if (effectiveL >= 2.5) {
+    level = 'moderate';
+  }
+  // Moonlight-additive dilution: under bright full moon, moderate-size city domes add <1.2 mag marginal loss
+  if (level === 'strong' && domeImpact !== 'blocking-horizon' && Number(effMoonPct) >= 75 && effectiveMagLoss < 1.2) {
     level = 'moderate';
   }
   if (level === 'unknown') return fallback;
@@ -4684,6 +4759,7 @@ export function estimateUrbanSkyglow({
     extraMagLoss,
     stormPierces,
     escapeDir: en ? escapeDirEn : escapeDirZh,
+    escapeDirShort: en ? escapeDirEn : escapeDirShortZh,
     tagText
   };
 }
@@ -4693,9 +4769,9 @@ export function estimateUrbanSkyglow({
  * relative to BOTH any destination metro AND the origin metro dome.
  *
  * Guardrails:
- * - Catches second-city ambushes (e.g., Edinburgh -> West 60 km hitting Glasgow).
+ * - Catches second-city ambushes (e.g., Edinburgh -> West 60 km hitting Glasgow, or rural -> city core).
  * - Never labels unmapped destinations as "verified dark" / "zero light pollution" / Bortle.
- * - Positive labels ('behind' / 'away') are strictly relative to the known origin city dome.
+ * - Positive labels ('behind' / 'away') are strictly relative to the known origin city glow.
  */
 export function evaluateCorridorSkyglow({
   dir = null, originGlare = null, geom = null, auroraScore = 30, effMoonPct = 0, lang
@@ -4715,13 +4791,13 @@ export function evaluateCorridorSkyglow({
     return {
       status: 'blocking',
       cityName: destGlare.cityName,
-      tagText: en ? `⚠ Faces ${destGlare.cityName} glow` : `⚠ 朝${destGlare.cityName}光穹`,
+      tagText: en ? `⚠ Faces ${destGlare.cityName} glow` : `⚠ 面向${destGlare.cityName}光害`,
       penaltyPct: 8,
       isWarning: true
     };
   }
-  // 2. Second-city ambush (e.g., Edinburgh -> West 60 km landing near Glasgow!)
-  if (destGlare.level !== 'unknown' && destGlare.cityName && originCity && destGlare.cityName !== originCity) {
+  // 2. Second-city or rural-to-city ambush (e.g., Edinburgh -> West hitting Glasgow, or rural -> Dunedin core)
+  if (destGlare.level !== 'unknown' && destGlare.cityName && ((originCity && destGlare.cityName !== originCity) || (!originCity && destGlare.domeImpact === 'core'))) {
     return {
       status: 'other-city',
       cityName: destGlare.cityName,
@@ -4746,7 +4822,7 @@ export function evaluateCorridorSkyglow({
       return {
         status: 'behind',
         cityName: originCity,
-        tagText: en ? `${originCity} glow behind` : `${originCity}光穹在身後`,
+        tagText: en ? `${originCity} glow behind` : `背對${originCity}光害`,
         penaltyPct: -4,
         isWarning: false
       };
@@ -4762,16 +4838,16 @@ export function evaluateCorridorSkyglow({
       return {
         status: 'blocking-far',
         cityName: originCity,
-        tagText: en ? `⚠ Toward ${originCity} glow` : `⚠ 朝向${originCity}光穹方向`,
+        tagText: en ? `⚠ Toward ${originCity} glow` : `⚠ 朝向${originCity}光害`,
         penaltyPct: 6,
         isWarning: true
       };
     }
-    if (destGlare.level === 'unknown' && angToOrigin >= 115 && distFromOrigin >= (originGlare.coreKm || 6) && distFromOrigin <= Math.max(80, (originGlare.domeKm || 30) * 2.5)) {
+    if (horizonCheck && destGlare.level === 'unknown' && angToOrigin >= 115 && distFromOrigin >= (originGlare.coreKm || 6) && distFromOrigin <= Math.max(80, (originGlare.domeKm || 30) * 2.5)) {
       return {
         status: 'away',
         cityName: originCity,
-        tagText: en ? `Away from ${originCity} glow` : `避開${originCity}光穹`,
+        tagText: en ? `Away from ${originCity} glow` : `避開${originCity}光害`,
         penaltyPct: -4,
         isWarning: false
       };
@@ -4779,6 +4855,7 @@ export function evaluateCorridorSkyglow({
   }
   return none;
 }
+
 
 
 

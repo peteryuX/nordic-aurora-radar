@@ -942,7 +942,8 @@ function renderWaveCard(focusBest = false) {
   const bestTimeLbl = bestInVis ? formatHourLabel(bestInVis, en) : '';
   const bestIsNextNight = bestInVis ? isNextNightHour(bestInVis) : false;
   const dirs = state.renderState?.dirResults;
-  const compassGood = !Array.isArray(dirs) || dirs.length < 2 || Boolean(summarizeCompass(dirs, getLang(), state.renderState?.compassOpts)?.good);
+  const worthChase = state.renderState?.compassOpts ? Boolean(state.renderState.compassOpts.auroraWorthViewing) : true;
+  const compassGood = worthChase && (!Array.isArray(dirs) || dirs.length < 2 || Boolean(summarizeCompass(dirs, getLang(), state.renderState?.compassOpts)?.good));
   const bestText = formatWavePeakSummary({
     vis, bestInVis, outZoneKind, isOutOfZone, bestTimeLbl, bestIsNextNight, compassGood, en
   });
@@ -1367,10 +1368,10 @@ function renderCompassPanel(dirResults, pos, en, compassOpts = null) {
   const landDirs = dirResults.slice(1).filter(d => d && !d.isOcean && !d.unavailable && Number.isFinite(d.avg3h));
   const allCloudyNearby = !hereIsClear && !sum?.good && landDirs.length > 0 && landDirs.every(d => Math.round(100 - d.avg3h) < 30);
   const escCity = compassOpts?.originGlare?.cityName || '';
-  const escDir = compassOpts?.originGlare?.escapeDir || (en ? 'north' : '北方');
+  const escDirShort = compassOpts?.originGlare?.escapeDirShort || (en ? 'north' : '北');
   const refHeader = hereIsClear
-    ? (sum?.glareEscapeActive && escCity
-        ? `<div class="dir-ref-hd">${escapeHtml(en ? `Nearby reference · clear here; check ${escDir}-side spots to put ${escCity} glow behind you` : `周邊參考 · 原地已晴空，若想避開${escCity}光穹可看${escDir}側地點`)}</div>`
+    ? (sum?.glareEscapeKey && escCity
+        ? `<div class="dir-ref-hd">${escapeHtml(en ? `Nearby reference · clear here; check ${escDirShort}-side spots to avoid ${escCity} glow` : `周邊參考 · 原地已晴空，想避開${escCity}市區光害可看${escDirShort}側地點`)}</div>`
         : `<div class="dir-ref-hd">${en ? 'Nearby skies for reference · no need to drive' : '周邊晴空參考 · 目前無需遠行'}</div>`)
     : (allCloudyNearby
         ? `<div class="dir-ref-hd">${en ? 'Nearby skies are also cloudy · no need to drive' : '周邊同樣多雲 · 目前不建議遠行'}</div>`
@@ -1417,7 +1418,7 @@ function renderCompassPanel(dirResults, pos, en, compassOpts = null) {
     const glareHtml = (glare && glare.tagText && !noteText.includes(glare.tagText))
       ? `<div class="${glare.isWarning ? 'dir-note' : 'dir-tip'}">${escapeHtml(glare.tagText)}</div>`
       : '';
-    const isPositiveNote = /雨影|晴空|暗空|主幹道|視野開闊|rain shadow|dark sky|main highway|paved|open northern|open southern/i.test(noteText);
+    const isPositiveNote = /雨影|晴空|暗空|主幹道|視野開闊|開闊區|rain shadow|dark sky|main highway|paved|open northern|open southern|open sky/i.test(noteText);
     const noteHtml = noteText ? `<div class="${isPositiveNote ? 'dir-tip' : 'dir-note'}">${escapeHtml(noteText)}</div>` : '';
     const areaHref = `https://www.google.com/maps/search/?api=1&query=${d.lat},${d.lon}`;
     const driveHref = `https://www.google.com/maps/dir/?api=1&origin=${pos.lat},${pos.lon}&destination=${d.lat},${d.lon}&travelmode=driving`;
@@ -1444,7 +1445,7 @@ function renderCompassPanel(dirResults, pos, en, compassOpts = null) {
       : `${en ? 'Next 3h' : '3 小時晴空率'} <strong class="${col}">${clear3h}%</strong> · ${en ? 'now' : '目前'} ${clearNow}% · ${fmtTemp(d.temp)}${rainTag}`;
     const badgeHtml = isBest
       ? ` <span class="dir-best-tag">${en ? 'Best' : '最佳'}</span>`
-      : (isGlareEscape ? ` <span class="dir-best-tag">${en ? 'Avoids glare' : '避光穹參考'}</span>` : '');
+      : (isGlareEscape ? ` <span class="dir-best-tag">${en ? 'Avoids glare' : '避光害參考'}</span>` : '');
     return `<div class="dir ${isBest ? 'best' : ''} ${hazard ? 'hazard' : ''} ${d.isOcean ? 'sea' : ''} ${demoteToMap ? 'ref-only' : ''}" data-dir-card="${escapeHtml(d.key)}">
       <div class="dir-main"><div class="dir-title">${escapeHtml(tDirLabel(d.label))}${badgeHtml}<span class="dir-dist">${distTag}</span></div>
       <div class="dir-stat">${statLine}</div>${hazardHtml}${glareHtml}${noteHtml}</div>
@@ -1592,6 +1593,7 @@ function renderFromState(st) {
     originGlare: urbanGlare,
     geom: geomNow,
     auroraWorthViewing: isAuroraWorthViewing({ sc, scNext, bal: safeBal, goesSub, fmiMag }),
+    glareEscapeWorth: !sc.isTooBright && !sc.outOfZone && ((sc.total ?? 0) >= 18 || (sc.auroraScore ?? 0) >= 20),
     isTooBright: Boolean(sc.isTooBright),
     outOfZone: Boolean(sc.outOfZone),
     auroraScore: sc.auroraScore,
@@ -1608,10 +1610,10 @@ function renderFromState(st) {
     heroTags.push(`<span class="meta-item t-amber">${SVG_ICO_WARN}<span>${en ? 'Blowing snow' : '吹雪強風'}</span></span>`);
   }
   if (state.bannerState.stormMinorTag && sc.outOfZone !== 'low-lat') {
-    heroTags.push(`<button type="button" class="meta-item meta-btn t-amber" data-open-trust="storm" aria-haspopup="dialog" aria-controls="trustSheet">${SVG_ICO_BOLT}<span>${escapeHtml(state.bannerState.stormMinorTag)}</span></button>`);
+    heroTags.push(`<button type="button" class="meta-item meta-btn t-amber" data-open-trust="storm" aria-haspopup="dialog" aria-controls="trustSheet">${SVG_ICO_BOLT}<span>${escapeHtml(state.bannerState.stormMinorTag)}</span>${SVG_ICO_CHEV_R}</button>`);
   }
   if (urbanGlare.level === 'strong' && !sc.isTooBright && !sc.outOfZone && !urbanGlare.stormPierces) {
-    heroTags.push(`<button type="button" class="meta-item meta-btn t-muted" data-open-trust="light" aria-haspopup="dialog" aria-controls="trustSheet">${SVG_ICO_WARN}<span>${escapeHtml(urbanGlare.tagText)}</span></button>`);
+    heroTags.push(`<button type="button" class="meta-item meta-btn t-muted" data-open-trust="light" aria-haspopup="dialog" aria-controls="trustSheet">${SVG_ICO_WARN}<span>${escapeHtml(urbanGlare.tagText)}</span>${SVG_ICO_CHEV_R}</button>`);
   }
   if (!heroTags.length && scNext && !sc.outOfZone) {
     const diff = scNext.total - sc.total;
@@ -1640,7 +1642,7 @@ function renderFromState(st) {
     kp, mlt: mltNow ?? null, effMoonPct: moon.effMoonPct, compassOpts
   });
   const { aurSubHtml, heroCue, heroSub } = buildHeroViewModel({
-    pos, sc, kp, mltNow, act, activeHrs, localizedNights3, refNowMs: refNow.getTime(), en
+    pos, sc, kp, mltNow, act, activeHrs, localizedNights3, refNowMs: refNow.getTime(), urbanGlare, en
   });
 
   document.body.classList.remove('is-loading');
@@ -2416,6 +2418,7 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
     ln.className = `ts-light-note${lightNote.isUrban ? ' is-urban' : ''}`;
     ln.textContent = lightNote.text;
   }
+  setText('tsConfBadge', exp.confidence.badgeText);
   setText('tsConfRow', `${exp.confidence.badgeText}${effTelemetry ? ` · ${effTelemetry}` : ''}`);
   const sn = $('tsStormNote');
   if (sn) {
@@ -2424,6 +2427,7 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
       noaaAlert: stLive?.noaaAlert,
       sc,
       lat: stLive?.pos?.lat ?? state.pos.lat,
+      lon: stLive?.pos?.lon ?? state.pos.lon,
       en,
       fmtDateFn: fmtMonthDay
     });

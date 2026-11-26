@@ -204,7 +204,7 @@ export const LOADING_PLACEHOLDER_MAP = {
   compassSummary: ['正在掃描周邊晴空…', 'Scanning nearby clear skies…'],
   tsLiveBadge: ['計算中', 'Loading'],
   tsDiagTxt: ['正在分析主要影響因素…', 'Analyzing key factor…'],
-  tsConfRow: ['正在確認氣象與衛星資料…', 'Checking forecast & satellite data…']
+  tsConfBadge: ['正在確認氣象與衛星資料…', 'Checking forecast & satellite data…']
 };
 
 const ARIA_LABELS = {

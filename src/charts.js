@@ -527,22 +527,36 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
     const px = CX + r * Math.cos(rad);
     const py = CY + r * Math.sin(rad);
     const outBias = r > 98 ? -14 : 16;
-    const lx = Math.max(66, Math.min(254, px + Math.cos(rad) * outBias * 0.45));
-    const ly = Math.max(44, Math.min(276, py + (py < CY ? -22 : 22)));
-    return { ...p, r, rad, px, py, lx, ly };
+    const valTxt = p.unavail ? '--' : `${glyphOf(p.clearPct, p.d.isOcean, p.unavail, p.hazard)}${p.clearPct}%`;
+    const kmSub = p.d.isOcean ? '' : ` · ${Math.round(p.km)}km`;
+    const pillW = Math.max(72, Math.min(118, Math.max(p.shortLbl.length * 7.8, (valTxt.length + kmSub.length) * 6.4) + 18));
+    const halfW = pillW / 2 + 4;
+    const lx = Math.max(halfW, Math.min(320 - halfW, px + Math.cos(rad) * outBias * 0.45));
+    const ly = Math.max(42, Math.min(278, py + (py < CY ? -22 : 22)));
+    return { ...p, r, rad, px, py, lx, ly, pillW };
   });
 
-  // 3-pass label repulsion so closely spaced real-world corridors never overlap
-  for (let pass = 0; pass < 3; pass++) {
+  // 6-pass 2D label repulsion using true per-pill widths so tight clusters (e.g., Oslo northern lookouts) never overlap
+  for (let pass = 0; pass < 6; pass++) {
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
         const a = nodes[i], b = nodes[j];
-        if (Math.abs(a.lx - b.lx) < 82 && Math.abs(a.ly - b.ly) < 30) {
-          const push = (30 - Math.abs(a.ly - b.ly)) / 2 + 2;
-          if (a.ly <= b.ly) { a.ly -= push; b.ly += push; }
-          else { a.ly += push; b.ly -= push; }
-          a.ly = Math.max(44, Math.min(276, a.ly));
-          b.ly = Math.max(44, Math.min(276, b.ly));
+        const minDx = (a.pillW + b.pillW) / 2 + 6;
+        const minDy = 33;
+        const dx = Math.abs(a.lx - b.lx);
+        const dy = Math.abs(a.ly - b.ly);
+        if (dx < minDx && dy < minDy) {
+          const pushY = (minDy - dy) / 2 + 1.5;
+          if (a.ly <= b.ly) { a.ly -= pushY; b.ly += pushY; }
+          else { a.ly += pushY; b.ly -= pushY; }
+          const pushX = Math.min(14, (minDx - dx) * 0.25);
+          if (a.lx <= b.lx) { a.lx -= pushX; b.lx += pushX; }
+          else { a.lx += pushX; b.lx -= pushX; }
+          const ha = a.pillW / 2 + 4, hb = b.pillW / 2 + 4;
+          a.lx = Math.max(ha, Math.min(320 - ha, a.lx));
+          b.lx = Math.max(hb, Math.min(320 - hb, b.lx));
+          a.ly = Math.max(38, Math.min(282, a.ly));
+          b.ly = Math.max(38, Math.min(282, b.ly));
         }
       }
     }

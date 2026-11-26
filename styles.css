@@ -580,6 +580,7 @@ body.is-loading .skel-day .od-stat {
   position: relative; background: transparent; border: none; padding: 0; font-family: inherit; cursor: pointer;
   transition: opacity 0.15s ease, transform 0.14s var(--spring);
 }
+.meta-btn > span { border-bottom: 1px dotted currentColor; padding-bottom: 0.5px; }
 .meta-btn::after { content: ''; position: absolute; inset: -10px -6px; }
 .meta-btn:active { transform: scale(0.96); }
 .meta-item.t-amber { color: var(--amber); }
@@ -889,8 +890,8 @@ body.red-mode .sb-tag-warn {
 }
 .dir.dir-pulse { animation: dirPulse 0.95s ease-out; }
 .dir-hazards { margin-top: 3px; font-size: 0.75rem; color: var(--red); font-weight: 700; line-height: 1.35; }
-.dir-note { display: inline-block; margin-top: 2px; font-size: 0.74rem; color: var(--amber); font-weight: 600; }
-.dir-tip { display: inline-block; margin-top: 2px; font-size: 0.74rem; color: var(--blue); font-weight: 600; }
+.dir-note { display: block; margin-top: 3px; font-size: 0.74rem; color: var(--amber); font-weight: 600; line-height: 1.35; }
+.dir-tip { display: block; margin-top: 3px; font-size: 0.74rem; color: var(--blue); font-weight: 600; line-height: 1.35; }
 .c-green { color: var(--green); } .c-amber { color: var(--amber); } .c-red { color: var(--red); }
 .c-muted { color: var(--muted); } .c-blue { color: var(--blue); }
 

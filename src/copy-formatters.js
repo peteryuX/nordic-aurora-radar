@@ -6,7 +6,7 @@
  * number-to-copy invariant across thousands of weather/latitude/lunar states.
  */
 
-import { escapeHtml, computeViewingGeometry } from './aurora-engine.js';
+import { escapeHtml, computeViewingGeometry, computeGeomagneticLat, requiredKpForMagLat } from './aurora-engine.js';
 import { TERMS, term } from './glossary.js';
 
 function fmtNextHr(h) {
@@ -215,7 +215,7 @@ export function formatOutlookRowStats({ n, idx = 0, en = false } = {}) {
     ? n.kpPeakClear
     : (usePeakHour ? n.peakClear : n?.bestClear);
   const clearTxt = isMismatch
-    ? (en ? `${n.kpPeakClear}% clear at peak` : `強光時晴空 ${n.kpPeakClear}%`)
+    ? (en ? `${n.kpPeakClear}% clear at peak` : `極光強時晴空 ${n.kpPeakClear}%`)
     : (displayClear !== null && displayClear !== undefined
         ? (en ? `${displayClear}% clear` : `${term(TERMS.clearSky, false)} ${displayClear}%`)
         : term(TERMS.status.noDarkSky, en));
@@ -261,11 +261,11 @@ export function resolveStormEvent({ scales = null, noaaAlert = null } = {}) {
 
 /**
  * Format actionable NOAA G1–G5 / CME storm details for #tsStormNote inside #trustSheet.
- * Ensures tapping the Hero storm tag always opens concrete local-latitude storm details
- * plus a direct official NOAA Alerts link.
+ * Uses stable nightside geomagnetic latitude baseline so daytime watches NEVER flip-flop
+ * against tonight's 24h chart due to dayside MLT contraction.
  */
 export function formatStormAlertDetail({
-  scales = null, noaaAlert = null, sc = null, lat = 69.97, en = false, fmtDateFn = null
+  scales = null, noaaAlert = null, sc = null, lat = 69.97, lon = null, en = false, fmtDateFn = null
 } = {}) {
   const ev = resolveStormEvent({ scales, noaaAlert });
   if (!ev) return null;
@@ -275,9 +275,15 @@ export function formatStormAlertDetail({
   const { useAlert, isShock, level: lvl } = ev;
 
   const stormKp = Math.min(9, 4 + Math.max(1, lvl));
-  const dirZh = lat >= 0 ? '北方' : '南方';
-  const dirEn = lat >= 0 ? 'northern' : 'southern';
-  const needKp = Number.isFinite(sc?.neededKp) ? sc.neededKp : null;
+  const baseMag = (Number.isFinite(lat) && Number.isFinite(lon))
+    ? Math.abs(computeGeomagneticLat(lat, lon))
+    : (Number.isFinite(sc?.magLat) ? Math.abs(sc.magLat) : null);
+  const isPolarCap = baseMag !== null && baseMag >= 74;
+  const lookSouth = (lat < 0) !== isPolarCap;
+  const dirZh = lookSouth ? '南方' : '北方';
+  const dirEn = lookSouth ? 'southern' : 'northern';
+  const nightNeedKp = baseMag !== null ? requiredKpForMagLat(baseMag + 1.0) : null;
+  const needKp = nightNeedKp !== null ? nightNeedKp : (Number.isFinite(sc?.neededKp) ? sc.neededKp : null);
   let localNote;
   if (sc?.outOfZone === 'low-lat') {
     const ml = Number.isFinite(sc?.magLat) ? sc.magLat : '--';
@@ -285,18 +291,18 @@ export function formatStormAlertDetail({
       ? `Magnetic latitude here (${ml}°) is too low — even a G${lvl} storm rarely reaches this far.`
       : `此地磁緯度偏低（地磁 ${ml}°），即使出現 G${lvl} 地磁暴也通常看不到極光。`;
   } else if (needKp !== null) {
-    if (stormKp >= needKp + 1) {
+    if (stormKp >= needKp + 1.5) {
       localNote = en
-        ? `This latitude typically needs Kp ${needKp} — if Kp ${stormKp} hits under clear dark skies, aurora can reach overhead and the ${dirEn} sky.`
-        : `此地通常需 Kp ${needKp}，若達標（Kp ${stormKp}）且天黑晴朗，極光有機會出現在頭頂至${dirZh}天空。`;
+        ? `This latitude typically needs Kp ${needKp} at night — if Kp ${stormKp} hits under clear dark skies, aurora can reach overhead and the ${dirEn} sky.`
+        : `此地夜間通常需 Kp ${needKp}，若達標（Kp ${stormKp}）且天黑晴朗，極光有機會出現在頭頂至${dirZh}天空。`;
     } else if (stormKp >= needKp) {
       localNote = en
-        ? `This latitude needs ~Kp ${needKp} — if Kp ${stormKp} hits under clear dark skies, look low toward the ${dirEn} horizon or try a camera.`
-        : `此地需約 Kp ${needKp}，若達標（Kp ${stormKp}）且天黑晴朗，有機會於${dirZh}低空看見微弱極光或用相機拍到。`;
+        ? `This latitude needs ~Kp ${needKp} at night — if Kp ${stormKp} hits under clear dark skies, look low toward the ${dirEn} horizon or try a camera.`
+        : `此地夜間需約 Kp ${needKp}，若達標（Kp ${stormKp}）且天黑晴朗，有機會於${dirZh}低空看見微弱極光或用手機夜拍拍到。`;
     } else {
       localNote = en
-        ? `This latitude needs ~Kp ${needKp} — a G${lvl} storm (Kp ${stormKp}) is usually still too weak here.`
-        : `此地需約 Kp ${needKp}，單靠 G${lvl}（Kp ${stormKp}）通常仍不足，需更強磁暴才有機會。`;
+        ? `This latitude needs ~Kp ${needKp} at night — a G${lvl} storm (Kp ${stormKp}) is usually still too weak here.`
+        : `此地夜間需約 Kp ${needKp}，單靠 G${lvl}（Kp ${stormKp}）通常仍不足，需更強磁暴才有機會。`;
     }
   } else {
     localNote = en
@@ -358,15 +364,37 @@ export function formatStormAlertDetail({
  */
 export function buildHeroViewModel({
   pos = { lat: 69.65, lon: 18.96 }, sc = {}, kp = null, mltNow = null,
-  act = {}, activeHrs = [], localizedNights3 = [], refNowMs = Date.now(), en = false
+  act = {}, activeHrs = [], localizedNights3 = [], refNowMs = Date.now(), urbanGlare = null, en = false
 } = {}) {
   const kpShort = kp !== null && Number.isFinite(Number(kp)) ? Number(kp).toFixed(1) : '--';
-  const showNeedKp = sc.outOfZone === 'need-storm' || (Number.isFinite(sc.neededKp) && sc.neededKp >= 2.5 && (sc.auroraScore ?? 0) < 55);
+  const baseMag = (Number.isFinite(pos?.lat) && Number.isFinite(pos?.lon))
+    ? Math.abs(computeGeomagneticLat(pos.lat, pos.lon))
+    : (Number.isFinite(sc.magLat) ? Math.abs(sc.magLat) : null);
+  const nightNeedKp = baseMag !== null ? requiredKpForMagLat(baseMag + 1.0) : null;
+  const displayNeedKp = (sc.isTooBright && nightNeedKp !== null) ? nightNeedKp : sc.neededKp;
+  const showNeedKp = sc.outOfZone === 'need-storm' || (Number.isFinite(displayNeedKp) && displayNeedKp >= 2.5 && (sc.auroraScore ?? 0) < 55);
   const aurSubHtml = sc.outOfZone === 'low-lat'
     ? `<span class="nowrap">${en ? `Mag ${sc.magLat}°` : `地磁 ${sc.magLat}°`}</span>`
     : (showNeedKp
-        ? `<span class="nowrap">Kp ${kpShort} · ${en ? `need ${sc.neededKp}` : `需 ${sc.neededKp}`}</span>`
+        ? `<span class="nowrap">Kp ${kpShort} · ${en ? `need ${displayNeedKp}` : `需 ${displayNeedKp}`}</span>`
         : `<span class="nowrap">Kp ${kpShort}${(sc.auroraScore ?? 0) >= 55 ? (en ? ' · Active' : ' · 活躍') : ''}</span>`);
+
+  const resolveViewDir = () => {
+    const geom = computeViewingGeometry({
+      lat: pos.lat, lon: pos.lon,
+      kp: Math.max(kp ?? 0, sc.effKp ?? 0), mlt: mltNow, lang: en ? 'en' : 'zh'
+    });
+    const lookSouth = (pos.lat < 0) !== (geom.mode === 'overhead-eq');
+    const isOverhead = (geom.mode === 'overhead' || geom.mode === 'overhead-eq')
+      && !(Math.abs(sc.magLat ?? 65) < 60 && (sc.effKp ?? kp ?? 0) < 5.5);
+    return {
+      geom,
+      lookSouth,
+      isOverhead,
+      dirZh: lookSouth ? '南方' : '北方',
+      dirEn: lookSouth ? 'south' : 'north'
+    };
+  };
 
   let heroCue = act.title || '';
   let heroSub = '';
@@ -376,33 +404,34 @@ export function buildHeroViewModel({
   } else if (act.actionType === 'daylight') {
     heroCue = act.lead || act.title || '';
   } else if (act.actionType === 'go') {
-    const geom = computeViewingGeometry({
-      lat: pos.lat, lon: pos.lon,
-      kp: Math.max(kp ?? 0, sc.effKp ?? 0), mlt: mltNow, lang: en ? 'en' : 'zh'
-    });
-    const lookSouth = pos.lat < 0 || geom.mode === 'overhead-eq';
-    const isOverhead = geom.mode === 'overhead' || geom.mode === 'overhead-eq';
-    const dirZh = lookSouth ? '南方' : '北方';
-    const dirEn = lookSouth ? 'south' : 'north';
+    const { lookSouth, isOverhead, dirZh, dirEn } = resolveViewDir();
+    const inStrongGlare = Boolean(urbanGlare?.level === 'strong' && !urbanGlare.stormPierces);
     const dirCueZh = (sc.total ?? 0) >= 65
-      ? (isOverhead
+      ? (isOverhead && !inStrongGlare
           ? (lookSouth ? '現在適合出門，肉眼可見，朝頭頂與南方觀察' : '現在適合出門，肉眼可見，朝頭頂與北方觀察')
-          : `現在適合出門，避開光害肉眼可見，朝${dirZh}低空觀察`)
+          : `現在適合出門，避開市區光害肉眼可見，朝${isOverhead ? `頭頂與${dirZh}` : `${dirZh}低空`}觀察`)
       : ((sc.total ?? 0) >= 40
-          ? (isOverhead
+          ? (isOverhead && !inStrongGlare
               ? (lookSouth ? '適合出門，肉眼可見、手機更亮，留意南方' : '適合出門，肉眼可見、手機更亮，留意北方')
-              : `適合出門，肉眼可見、手機更亮，留意${dirZh}低空`)
+              : `適合出門，避開光害、手機更亮，留意${isOverhead ? dirZh : `${dirZh}低空`}`)
           : '極光爆發中，留意雲縫與手機夜拍');
     const dirCueEn = (sc.total ?? 0) >= 65
-      ? (isOverhead
+      ? (isOverhead && !inStrongGlare
           ? (lookSouth ? 'Go out now — visible to eye, look overhead and south' : 'Go out now — visible to eye, look overhead and north')
           : `Go out now — visible to eye away from city lights, look ${dirEn}`)
       : ((sc.total ?? 0) >= 40
-          ? (isOverhead
+          ? (isOverhead && !inStrongGlare
               ? 'Good to go — visible to eye, brighter on camera'
               : `Good to go — look ${dirEn} away from city lights, brighter on camera`)
           : 'Aurora burst — watch cloud gaps & try camera');
     heroCue = en ? dirCueEn : dirCueZh;
+  } else if (act.actionType === 'wait' && (sc.total ?? 0) >= 18 && (sc.total ?? 0) < 40) {
+    // Fair tier (18–39): give first-time travelers exact direction + phone Night Mode guidance
+    const { isOverhead, dirZh, dirEn } = resolveViewDir();
+    heroCue = act.title || '';
+    heroSub = en
+      ? `Look ${dirEn}${isOverhead ? '' : ' low on horizon'} — may look faint to eye, try phone Night Mode`
+      : `朝${dirZh}${isOverhead ? '' : '低空'}觀察 · 肉眼可能僅見淡白霧，建議開手機夜拍確認`;
   } else if (act.actionType === 'wait' && (sc.total ?? 0) < 18 && (sc.skyScore ?? 0) < 45) {
     const upcoming = (activeHrs || []).slice(1, 24).filter(h => !Number.isFinite(h?.dtMs) || h.dtMs > refNowMs + 15 * 60000);
     const firstGood = upcoming.find(h => h && !h.isDay && h.score >= 40)
@@ -415,12 +444,17 @@ export function buildHeroViewModel({
           : (en ? `Rest for now — skies improve after ${startT}` : `先休息，預計 ${startT} 後有望轉佳`))
       : (act.title || '');
   } else if (act.actionType === 'sleep') {
-    const futureBest = (localizedNights3 || []).slice(1)
-      .filter(n => n && (n.tone === 'good' || n.tone === 'warn'))
-      .sort((a, b) => (b.bestNightScore || 0) - (a.bestNightScore || 0))[0];
-    heroCue = futureBest
-      ? (en ? `Low chance tonight — ${futureBest.dayLabel} looks better` : `今晚機率偏低，${futureBest.dayLabel}機會較佳`)
-      : (en ? 'Low chance right now — check back later' : '目前機率偏低，可先休息稍後再看');
+    const tonightScore = Number(localizedNights3?.[0]?.bestNightScore) || 0;
+    if (tonightScore >= 35) {
+      heroCue = en ? 'Quiet right now — better chance later tonight' : '目前極光偏弱，今晚稍後仍有機會';
+    } else {
+      const futureBest = (localizedNights3 || []).slice(1)
+        .filter(n => n && (n.tone === 'good' || n.tone === 'warn') && (n.bestNightScore || 0) > tonightScore + 5)
+        .sort((a, b) => (b.bestNightScore || 0) - (a.bestNightScore || 0))[0];
+      heroCue = futureBest
+        ? (en ? `Low chance tonight — ${futureBest.dayLabel} looks better` : `今晚機率偏低，${futureBest.dayLabel}機會較佳`)
+        : (en ? 'Low chance right now — check back later' : '目前機率偏低，可先休息稍後再看');
+    }
   }
 
   return { aurSubHtml, heroCue, heroSub };
@@ -489,6 +523,7 @@ export function formatLightPollutionNote({
 
   const city = urbanGlare.cityName || '';
   const dir = urbanGlare.escapeDir || (en ? 'north' : '北方');
+  const dirShort = urbanGlare.escapeDirShort || (dir === '南方' ? '南' : (dir === '北方' ? '北' : dir));
   const isManual = pos?.mode !== 'gps';
   if (urbanGlare.stormPierces) {
     const text = en
@@ -498,23 +533,23 @@ export function formatLightPollutionNote({
   }
   if (urbanGlare.domeImpact === 'blocking-horizon') {
     const text = en
-      ? `Darkness excludes city glare — ${city}’s light dome lies directly toward the ${dir} auroral horizon here, washing out weak arcs. Move ${dir} of ${city} to put the glow behind you.`
-      : `「夜空暗度」未扣除市區光害：此處朝${dir}極光方向正對${city}市區光穹，低空微弱極光易被淹沒；建議移至${city}${dir}側把光害留在身後。`;
+      ? `Darkness excludes city glare — ${city}’s city glow lies directly toward the ${dir} auroral horizon here, washing out weak arcs. Move ${dir} of ${city} to put the glow behind you.`
+      : `「夜空暗度」未扣除市區光害：此處朝${dir}極光方向正對${city}市區光害，低空微弱極光易被淹沒；建議移至${city}${dirShort}側把光害留在身後。`;
     return { text, isUrban: true };
   }
   if (urbanGlare.domeImpact === 'behind') {
     const text = en
-      ? `Darkness excludes local glare — ${city}’s light dome sits behind you here, giving a clearer ${dir} horizon; stay away from nearby streetlamps.`
-      : `「夜空暗度」未扣除當地光害：此處位在${city}${dir}側、市區光穹在身後，朝${dir}視野較佳，就近避開路燈即可。`;
+      ? `Darkness excludes local glare — ${city}’s glow sits behind you here, giving a clearer ${dir} horizon; stay away from nearby streetlamps.`
+      : `「夜空暗度」未扣除當地光害：此處位在${city}${dirShort}側、市區光害在身後，朝${dir}視野較佳，就近避開路燈即可。`;
     return { text, isUrban: false };
   }
   const text = isManual
     ? (en
-        ? `Darkness excludes city glare — coordinates are near ${city} center. Weak-to-moderate aurora fades in city light; head toward the ${dir} edge away from the light dome.`
-        : `「夜空暗度」僅計太陽與月光，未扣除市區光害；目前座標接近${city}市中心，弱至中度極光易被光害吃掉，出發建議往${dir}側郊區避開光穹。`)
+        ? `Darkness excludes city glare — coordinates are near ${city} center. Weak-to-moderate aurora fades in city light; head toward the ${dir} edge away from city glow.`
+        : `「夜空暗度」僅計太陽與月光，未扣除市區光害；目前座標接近${city}市中心，弱至中度極光易被光害吃掉，出發建議往${dirShort}側郊區避開市區光害。`)
     : (en
         ? `Darkness excludes city glare — you appear near ${city}’s urban glow, so naked-eye visibility will be lower than the regional score. Move ${dir} away from streetlights.`
-        : `「夜空暗度」僅計太陽與月光，未扣除市區光害；目前接近${city}光害區，實際肉眼可見度會低於上方區域指數，建議往${dir}側避開路燈。`);
+        : `「夜空暗度」僅計太陽與月光，未扣除市區光害；目前接近${city}光害區，實際肉眼可見度會低於上方區域指數，建議往${dirShort}側避開路燈。`);
   return { text, isUrban: urbanGlare.level === 'strong' };
 }
 

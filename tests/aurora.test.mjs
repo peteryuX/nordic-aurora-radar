@@ -3593,7 +3593,7 @@ test('67. v62 Urban Skyglow Hybrid (Additive Luminance, Azimuthal Dome, Zero Fak
 test('68. v63 Compass × Azimuthal Light-Dome Integration (<=12% Tie-Breaker, Second-City Ambush Guard, Clear-Night Metro Escape & SSoT)', () => {
   const swSrc = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
   const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
-  assert.ok(swSrc.includes('aurora-radar-shell-v63'), 'sw.js CACHE_NAME must be bumped to v63');
+  assert.ok(/aurora-radar-shell-v\d+/.test(swSrc), 'sw.js CACHE_NAME must be versioned');
   assert.ok(appSrc.includes('st.compassOpts = compassOpts') && appSrc.includes('compassOpts') && appSrc.includes('glareEscapeKey'),
     'app.js must share one compassOpts across synthesizeTonightAction, vActionBtn, renderWaveCard, and renderCompassPanel');
 
@@ -3631,7 +3631,7 @@ test('68. v63 Compass × Azimuthal Light-Dome Integration (<=12% Tie-Breaker, Se
   assert.equal(actTie.actionType, 'drive');
   assert.ok(actTie.lead.includes('Maridalen'), `synthesizeTonightAction must share the exact same tie-broken winner (Maridalen), got "${actTie.lead}"`);
 
-  // Beyond 12% cloud margin (17% difference): clouds ALWAYS win, with honest dome warning
+  // Beyond 12% cloud margin (17% difference): clouds ALWAYS win, with honest glare warning
   const wideDirs = [
     { key: 'here', label: '原地', avg3h: 82, nowC: 85, isOcean: false },
     { key: 'S', label: '往南 Kolbotn', lat: 59.81, lon: 10.80, roadKm: 16, avg3h: 15, nowC: 15, temp: -2, maxWind3h: 3, maxPrecip3h: 0, isOcean: false },
@@ -3639,7 +3639,7 @@ test('68. v63 Compass × Azimuthal Light-Dome Integration (<=12% Tie-Breaker, Se
   ];
   const wideSum = api.summarizeCompass(wideDirs, 'zh', optsCloudy);
   assert.equal(wideSum.bestKey, 'S', `Beyond 12% cloud margin, clearer sky must still win (clouds > glare), got ${wideSum.bestKey}`);
-  assert.ok(wideSum.text.includes('光穹'), `Winner facing city dome must include honest glare note, got "${wideSum.text}"`);
+  assert.ok(wideSum.text.includes('光害'), `Winner facing city glare must include honest glare note, got "${wideSum.text}"`);
 
   // (c) Clear-night Oslo: NEVER mutates bestKey away from 'here'; activates glareEscapeKey only when auroraWorthViewing=true
   const clearDirs = [
@@ -3651,13 +3651,103 @@ test('68. v63 Compass × Azimuthal Light-Dome Integration (<=12% Tie-Breaker, Se
   assert.equal(clearActive.bestKey, 'here', 'Clear night must NEVER mutate bestKey away from here');
   assert.equal(clearActive.glareEscapeActive, true);
   assert.equal(clearActive.glareEscapeKey, 'N', `Clear active Oslo night should suggest Maridalen (12km) as calm glareEscapeKey, got ${clearActive.glareEscapeKey}`);
-  assert.ok(clearActive.text.includes('Maridalen') && clearActive.text.includes('光穹'));
+  assert.ok(clearActive.text.includes('Maridalen') && clearActive.text.includes('市區光害'));
 
   const clearQuiet = api.summarizeCompass(clearDirs, 'zh', { ...optsCloudy, auroraWorthViewing: false });
   assert.equal(clearQuiet.bestKey, 'here');
   assert.equal(clearQuiet.glareEscapeActive, false);
   assert.equal(clearQuiet.glareEscapeKey, null, 'Quiet aurora night must stay calm with no glareEscapeKey');
 });
+
+test('69. v64 All-4-Auditors Sign-Off (Nightside Storm Parity, Clear-Now/Storm-Later, Svalbard Guard, Suburb GPS, Beginner Clarity & Physics Edge Cases)', async () => {
+  const { formatStormAlertDetail, buildHeroViewModel, formatLightPollutionNote, formatOutlookRowStats } = await import('../src/copy-formatters.js');
+  const swSrc = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+  const cssSrc = fs.readFileSync(path.join(__dirname, '..', 'styles.css'), 'utf8');
+  assert.ok(swSrc.includes('aurora-radar-shell-v64'), 'sw.js CACHE_NAME must be bumped to v64');
+  assert.ok(cssSrc.includes('.dir-note { display: block;') && cssSrc.includes('.dir-tip { display: block;'), '.dir-note and .dir-tip must be block-level to prevent glued tags');
+
+  // (a) Oslo G1 Watch: noon vs evening produces identical stable nightside Kp baseline (never flips to 5.3 / too weak!)
+  const osloNoonSc = api.computeAuroraScore({ lat: 59.9127, lon: 10.7461, cloudNow: 10, sunAlt: 8, kp: 1.5, mlt: 13 });
+  const osloNightSc = api.computeAuroraScore({ lat: 59.9127, lon: 10.7461, cloudNow: 10, sunAlt: -20, kp: 1.5, mlt: 22 });
+  const g1Scales = { active: true, currentScale: 0, maxForecastScale: 1, peakDate: '2026-11-26' };
+  const stormNoon = formatStormAlertDetail({ scales: g1Scales, sc: osloNoonSc, lat: 59.9127, lon: 10.7461, en: false });
+  const stormNight = formatStormAlertDetail({ scales: g1Scales, sc: osloNightSc, lat: 59.9127, lon: 10.7461, en: false });
+  assert.equal(stormNoon.body, stormNight.body, 'Daytime and nighttime G1 Watch explanation must agree 100%');
+  assert.ok(!stormNoon.body.includes('通常仍不足') && stormNoon.body.includes('北方低空'), `Oslo G1 watch must describe northern low-horizon chance, got "${stormNoon.body}"`);
+
+  // (b) Clear & Quiet NOW + Storm Later Tonight: NEVER emits sleep / "Low chance tonight"
+  const clearQuietNow = api.computeAuroraScore({ lat: 69.65, lon: 18.96, cloudNow: 8, sunAlt: -20, kp: 0.3, bz: 1, speed: 320, ovation: 5, hpiGw: 10 });
+  const actWait = api.synthesizeTonightAction({
+    lat: 69.65, lon: 18.96, sc: clearQuietNow,
+    bestDark: { time: '01:00', clear: 85, score: 65 },
+    nights3: [{ dayLabel: '今晚', bestNightScore: 65, tone: 'good' }, { dayLabel: '明晚', bestNightScore: 32, tone: 'warn' }],
+    kp: 0.3, lang: 'zh'
+  });
+  assert.equal(actWait.actionType, 'wait', `Clear quiet now with 65-pt peak later tonight must be wait, got ${actWait.actionType}`);
+  assert.ok(actWait.title.includes('01:00'), `Title must point to tonight's peak time 01:00, got "${actWait.title}"`);
+  const vmSleepGuard = buildHeroViewModel({
+    pos: { lat: 69.65, lon: 18.96 }, sc: clearQuietNow, kp: 0.3,
+    act: { actionType: 'sleep' },
+    localizedNights3: [{ dayLabel: '今晚', bestNightScore: 65, tone: 'good' }, { dayLabel: '明晚', bestNightScore: 32, tone: 'warn' }],
+    en: false
+  });
+  assert.ok(!vmSleepGuard.heroCue.includes('明晚'), `Hero must NEVER recommend weaker 明晚 when Tonight is 65, got "${vmSleepGuard.heroCue}"`);
+
+  // (c) Svalbard roadless Arctic polar-bear guard: NEVER says 開車 or drive
+  assert.equal(api.isRoadlessArctic(78.2232, 15.6267), true);
+  const svActive = api.computeAuroraScore({ lat: 78.2232, lon: 15.6267, cloudNow: 85, sunAlt: -20, kp: 3.5, bz: -5, speed: 480, ovation: 50, hpiGw: 55 });
+  const svDirs = [
+    { key: 'here', label: '原地', avg3h: 85, nowC: 85, isOcean: false },
+    { key: 'N', label: '往北 60 km', lat: 78.76, lon: 15.63, avg3h: 10, nowC: 10, temp: -12, maxWind3h: 4, maxPrecip3h: 0, isOcean: false, isGeneric: true }
+  ];
+  const svActZh = api.synthesizeTonightAction({ lat: 78.2232, lon: 15.6267, sc: svActive, dirResults: svDirs, kp: 3.5, lang: 'zh' });
+  const svActEn = api.synthesizeTonightAction({ lat: 78.2232, lon: 15.6267, sc: svActive, dirResults: svDirs, kp: 3.5, lang: 'en' });
+  assert.ok(!svActZh.title.includes('開車') && svActZh.lead.includes('北極熊'), `Svalbard must warn about roadless polar-bear zone, got "${svActZh.title} / ${svActZh.lead}"`);
+  assert.ok(!/\bdrive\b/i.test(svActEn.title) && svActEn.lead.includes('Svalbard'), `Svalbard EN must not tell users to drive, got "${svActEn.title}"`);
+
+  // (d) Suburb GPS self-skip & honest bearing relabeling + Hobart duplicate cardinal fix
+  const atMaridalen = api.computeCompassPoints(60.005, 10.768);
+  assert.ok(!atMaridalen.slice(1).some(p => p.label.includes('Maridalen')), 'Standing at Maridalen must skip 0 km Maridalen');
+  const atAsk = api.computeCompassPoints(60.064, 11.036);
+  const marFromAsk = atAsk.find(p => p.label.includes('Maridalen'));
+  assert.ok(marFromAsk && !marFromAsk.label.startsWith('往北'), `From Ask, Maridalen is WSW (not North), got "${marFromAsk?.label}"`);
+  assert.equal(api.tDirLabel('往南 South Arm', 'en'), 'S · South Arm', 'Hobart South Arm must not duplicate South');
+
+  // (e) Knife-edge peakL cliff eliminated + full-moon additive dilution + coastal ocean guard
+  const hobart500m = api.estimateUrbanSkyglow({ lat: -42.8866, lon: 147.3272, auroraScore: 50, effMoonPct: 0, lang: 'zh' });
+  assert.equal(hobart500m.level, 'strong', 'Hobart 500m from center must stay strong (no peakL=10 cliff)');
+  const reyk500m = api.estimateUrbanSkyglow({ lat: 64.1510, lon: -21.9426, auroraScore: 50, effMoonPct: 0, lang: 'zh' });
+  assert.equal(reyk500m.level, 'strong', 'Reykjavik 500m from center must stay strong');
+  const bergenFullMoon = api.estimateUrbanSkyglow({ lat: 60.3913, lon: 5.3221, auroraScore: 45, effMoonPct: 100, lang: 'zh' });
+  assert.equal(bergenFullMoon.level, 'moderate', 'Bright full moon must dilute moderate-peak city glare via effectiveMagLoss');
+
+  const melbGlare = api.estimateUrbanSkyglow({ lat: -37.8136, lon: 144.9631, auroraScore: 50, effMoonPct: 0, lang: 'zh' });
+  const melbClear = api.summarizeCompass([
+    { key: 'here', label: '原地', avg3h: 5, nowC: 5, isOcean: false },
+    { key: 'S', label: '往南 60 km', lat: -38.35, lon: 144.96, avg3h: 5, nowC: 5, isOcean: true, isGeneric: true },
+    { key: 'N', label: '往北 60 km', lat: -37.27, lon: 144.96, avg3h: 5, nowC: 5, isOcean: false, isGeneric: true }
+  ], 'zh', { originGlare: melbGlare, auroraWorthViewing: true, isTooBright: false, outOfZone: false, auroraScore: 50, effMoonPct: 0 });
+  assert.ok(!melbClear.text.includes('移往南側'), `Melbourne with Open Sea south must NOT tell users to move south into ocean: "${melbClear.text}"`);
+
+  // (f) Beginner clarity: 18-39 Fair tier shows direction + Night Mode tip, zero 光穹, zero 北方側, McMurdo XOR, 極光強時晴空
+  const fairSc = api.computeAuroraScore({ lat: 59.9127, lon: 10.7461, cloudNow: 10, sunAlt: -20, kp: 3.0, bz: -2, speed: 400, ovation: 20, hpiGw: 25, mlt: 23 });
+  assert.ok(fairSc.total >= 18 && fairSc.total < 40, `Expected Fair tier 18-39, got ${fairSc.total}`);
+  const fairVmZh = buildHeroViewModel({ pos: { lat: 59.9127, lon: 10.7461 }, sc: fairSc, kp: 3.0, mltNow: 23, act: { actionType: 'wait', title: '天空偏晴' }, en: false });
+  assert.ok(fairVmZh.heroSub.includes('北方') && fairVmZh.heroSub.includes('手機夜拍'), `18-39 Fair tier must display direction + Night Mode tip, got "${fairVmZh.heroSub}"`);
+
+  const mcmurdoVmEn = buildHeroViewModel({
+    pos: { lat: -77.85, lon: 166.67 },
+    sc: { total: 72, auroraScore: 80, skyScore: 95, darkScore: 100, magLat: 79, effKp: 2.0 },
+    kp: 2.0, mltNow: 0, act: { actionType: 'go', title: 'go' }, en: true
+  });
+  assert.ok(mcmurdoVmEn.heroCue.includes('north') && !mcmurdoVmEn.heroCue.includes('south'), `McMurdo polar-cap overhead-eq must look north, got "${mcmurdoVmEn.heroCue}"`);
+
+  const mmRow = formatOutlookRowStats({ n: { peakCloudMismatch: true, kpPeakClear: 12, bestClear: 90, maxKp: 5.0, kpAvailable: true }, idx: 1, en: false });
+  assert.equal(mmRow.clearTxt, '極光強時晴空 12%');
+  const osloNote = formatLightPollutionNote({ urbanGlare: api.estimateUrbanSkyglow({ lat: 59.9127, lon: 10.7461, auroraScore: 45, effMoonPct: 0, lang: 'zh' }), pos: { mode: 'manual' }, sc: {}, en: false });
+  assert.ok(!/光穹|北方側|南方側/.test(osloNote.text), `Beginner copy must not contain 光穹 or 北方側: "${osloNote.text}"`);
+});
+
 
 
 
