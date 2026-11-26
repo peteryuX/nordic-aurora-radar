@@ -68,7 +68,7 @@ export const SKY_CAMS = {
     capEn: 'Source: Canadian Space Agency / UCalgary AuroraMAX All-Sky Camera (Yellowknife, NT)'
   },
   is_hel: {
-    region: 'iceland',
+    region: 'iceland', isRoadCam: true,
     lat: 64.02, lon: -21.38, tz: 'Atlantic/Reykjavik',
     url: 'https://www.vegagerdin.is/vgdata/vefmyndavelar/hellisheidi_1.jpg',
     page: 'https://umferdin.is/en',
@@ -76,7 +76,7 @@ export const SKY_CAMS = {
     capEn: 'Source: Icelandic Road Administration (Vegagerðin) Live Sky/Road Cam — Hellisheiði (East of Reykjavik)'
   },
   is_vik: {
-    region: 'iceland',
+    region: 'iceland', isRoadCam: true,
     lat: 63.42, lon: -19.01, tz: 'Atlantic/Reykjavik',
     url: 'https://www.vegagerdin.is/vgdata/vefmyndavelar/vikurvegur_1.jpg',
     page: 'https://umferdin.is/en',
@@ -84,7 +84,7 @@ export const SKY_CAMS = {
     capEn: 'Source: Icelandic Road Administration (Vegagerðin) Live Sky/Road Cam — Vík (South Coast)'
   },
   is_aku: {
-    region: 'iceland',
+    region: 'iceland', isRoadCam: true,
     lat: 65.47, lon: -18.67, tz: 'Atlantic/Reykjavik',
     url: 'https://www.vegagerdin.is/vgdata/vefmyndavelar/oxnadalsheidi_1.jpg',
     page: 'https://umferdin.is/en',

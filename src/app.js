@@ -202,7 +202,7 @@ function syncBrowserUrl() {
   try {
     if (typeof history !== 'undefined' && location.protocol.startsWith('http')) {
       const nextUrl = buildShareUrl(location.href, state.pos, getLang());
-      if (nextUrl !== location.href) history.replaceState(null, '', nextUrl);
+      if (nextUrl !== location.href) history.replaceState(history.state, '', nextUrl);
     }
   } catch {}
 }
@@ -346,7 +346,13 @@ async function acquireWakeLock() {
     state.wakeLockObj = wl;
     state.wakeLockFailed = false;
     wl.addEventListener?.('release', () => {
-      if (state.wakeLockObj === wl) state.wakeLockObj = null;
+      if (state.wakeLockObj === wl) {
+        state.wakeLockObj = null;
+        if (state.alertEnabled && !document.hidden) {
+          state.wakeLockFailed = true;
+          renderMonitorBar();
+        }
+      }
     });
   } catch {
     state.wakeLockObj = null;
@@ -381,9 +387,9 @@ async function toggleAlertMode() {
   syncAnimBatteryGuard();
 }
 
-function maybeTriggerAlert(sc, goesSub, scNext, bal, pos = state.pos) {
+function maybeTriggerAlert(sc, goesSub, scNext, bal, pos = state.pos, fmiMag = null) {
   if (!state.alertEnabled) return;
-  const check = shouldTriggerAuroraAlert({ sc, goesSub, scNext, bal });
+  const check = shouldTriggerAuroraAlert({ sc, goesSub, fmiMag, scNext, bal });
   if (!check.fire || Date.now() - state.lastAlertMs < 15 * 60 * 1000) return;
   state.lastAlertMs = Date.now();
   playAuroraChime();
@@ -530,6 +536,14 @@ function updateSkyCamDayNotice(key) {
       setText('subCam', en
         ? `Nordic magnetometer network · Local ${localHM} (auto-updated)`
         : `北歐即時地磁監測圖 · 當地時間 ${localHM}（自動更新）`);
+    } else if (cam.isRoadCam) {
+      const sunCam = computeSolarElevation(nowCam, cam.lat, cam.lon);
+      const skyState = sunCam <= -6
+        ? (en ? 'Night' : '夜間')
+        : (sunCam <= 0 ? (en ? 'Twilight' : '暮光') : (en ? 'Daylight' : '白天'));
+      setText('subCam', en
+        ? `Local ${localHM} · ${skyState} road & horizon camera (updates every ~10m)`
+        : `當地時間 ${localHM} · ${skyState}公路與天際線實拍（約每 10 分鐘更新）`);
     } else {
       const sunCam = computeSolarElevation(nowCam, cam.lat, cam.lon);
       const skyState = sunCam <= -6
@@ -541,7 +555,7 @@ function updateSkyCamDayNotice(key) {
     }
   }
   if (!notice) return;
-  if (!cam || cam.isMag || !Number.isFinite(cam.lat)) {
+  if (!cam || cam.isMag || cam.isRoadCam || !Number.isFinite(cam.lat)) {
     notice.style.display = 'none';
     syncSkyCamGlareUI(false);
     return;
@@ -579,7 +593,17 @@ function selectSkyCam(key, btn, isUser = false) {
     c.classList.toggle('on', btn ? c === btn : c.dataset.cam === key);
   });
   const img = $('skyCamImg');
-  if (img) img.src = `${SKY_CAMS[key].url}?t=${Date.now()}`;
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  if (img) {
+    if (!offline) {
+      const bucket = Math.floor(Date.now() / 120000);
+      const nextSrc = `${SKY_CAMS[key].url}?t=${bucket}`;
+      img.style.display = '';
+      if (img.src !== nextSrc) img.src = nextSrc;
+    } else if (!img.complete || img.naturalWidth === 0) {
+      img.style.display = 'none';
+    }
+  }
   renderSkyCamCaption($, key, isEn());
   updateSkyCamDayNotice(key);
 }
@@ -604,16 +628,44 @@ function syncSatTab() {
   syncNavSatLabel();
   const wf = $('windyFrame');
   if (!wf) return;
-  const target = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&overlay=clouds&lat=${state.pos.lat.toFixed(3)}&lon=${state.pos.lon.toFixed(3)}&zoom=7`;
-  if (wf.src !== target) wf.src = target;
-  const hemi = state.pos.lat >= 0 ? 'north' : 'south';
   const en = isEn();
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  const wfWrap = wf.parentElement;
+  let offBox = $('windyOfflineBox');
+  if (offline) {
+    wf.style.display = 'none';
+    if (!offBox && wfWrap) {
+      offBox = document.createElement('div');
+      offBox.id = 'windyOfflineBox';
+      offBox.className = 'windy-offline';
+      wfWrap.appendChild(offBox);
+    }
+    if (offBox) {
+      offBox.style.display = 'flex';
+      offBox.textContent = en
+        ? 'Offline — live Windy cloud map requires signal. Your cached 24h forecast remains available on Overview.'
+        : '目前無網路訊號 — 即時動態雲圖需連線載入，可先回到「總覽」查看快取預報。';
+    }
+  } else {
+    if (offBox) offBox.style.display = 'none';
+    wf.style.display = '';
+    const target = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&overlay=clouds&lat=${state.pos.lat.toFixed(3)}&lon=${state.pos.lon.toFixed(3)}&zoom=7`;
+    if (wf.src !== target) wf.src = target;
+  }
+  const hemi = state.pos.lat >= 0 ? 'north' : 'south';
   setText('ovHeading', state.pos.lat >= 0
     ? (en ? 'NOAA Northern Hemisphere Aurora Oval' : 'NOAA 北半球即時極光橢圓圖')
     : (en ? 'NOAA Southern Hemisphere Aurora Oval' : 'NOAA 南半球即時極光橢圓圖'));
   setHtml('ovCap', `<a class="src-link" target="_blank" rel="noopener noreferrer" href="https://www.spaceweather.gov/products/aurora-30-minute-forecast">${en ? 'Source: NOAA SWPC OVATION Live Model (Green = aurora, Yellow/Red = strong) ↗' : '資料來源：NOAA SWPC OVATION 即時模型（綠色＝有極光、黃紅＝強爆發）↗'}</a>`);
   const ovImg = $('ovationImg');
-  if (ovImg) ovImg.src = `https://services.swpc.noaa.gov/images/animations/ovation/${hemi}/latest.jpg?t=${Date.now()}`;
+  if (ovImg && !offline) {
+    const bucket = Math.floor(Date.now() / 180000);
+    const nextOv = `https://services.swpc.noaa.gov/images/animations/ovation/${hemi}/latest.jpg?t=${bucket}`;
+    ovImg.style.display = '';
+    if (ovImg.src !== nextOv) ovImg.src = nextOv;
+  } else if (ovImg && offline && (!ovImg.complete || ovImg.naturalWidth === 0)) {
+    ovImg.style.display = 'none';
+  }
 
   const camCard = $('skyCamCard');
   const activeCam = getActiveSkyCamRegion(state.pos.lat, state.pos.lon);
@@ -981,12 +1033,19 @@ function selectForecastHour(idx) {
   setHtml('skyWaveChart', buildSkyWaveSVG(vis, bestInVis, idx, getLang()));
   const hasTemp = Number.isFinite(Number(h.temp));
   const tInt = hasTemp ? (Math.round(Number(h.temp)) || 0) : null;
+  const wcInt = Number.isFinite(Number(h.windChill)) ? (Math.round(Number(h.windChill)) || 0) : tInt;
+  const windMs = Number.isFinite(Number(h.windMs)) ? Math.round(Number(h.windMs)) : 0;
   const isTrend = idx >= 4;
   const isGated = Boolean(h.isDay || h.outOfZone);
   const darkPct = Number.isFinite(h.darkScore) ? Math.round(h.darkScore) : (h.isDay ? 0 : (h.moonUp ? Math.max(20, 100 - Math.round((h.moonPct || 0) * 0.4)) : 100));
+  const brightMoonUp = Boolean(h.moonUp && (h.moonPct || 0) >= 60 && (h.moonAlt || 0) >= 10);
   const darkTxt = h.isDay
     ? ''
-    : (darkPct >= 95 ? term(TERMS.darkFull, en) : `${term(TERMS.darkShort, en)} ${darkPct}%`);
+    : (darkPct >= 95 && !brightMoonUp
+        ? term(TERMS.darkFull, en)
+        : (brightMoonUp
+            ? (en ? `Dark ${darkPct}% · Moon ${Math.round(h.moonPct)}%` : `暗度 ${darkPct}% · 月 ${Math.round(h.moonPct)}%`)
+            : `${term(TERMS.darkShort, en)} ${darkPct}%`));
   const kpVal = Number.isFinite(h.kpFc) ? h.kpFc : null;
   const kpBadge = kpVal === null
     ? `Kp ${escapeHtml(h.kpFc)}`
@@ -1014,8 +1073,11 @@ function selectForecastHour(idx) {
   const clearPart = (isTrend && !h.isDay)
     ? (en ? `~${h.clear}% clear` : `晴空約 ${h.clear}%`)
     : (en ? `${h.clear}% clear` : `晴空 ${h.clear}%`);
-  const tempPart = hasTemp ? fmtTemp(tInt) : '';
-  const rightMeta = [clearPart, darkTxt, tempPart, kpBadge]
+  const tempPart = hasTemp
+    ? ((tInt - wcInt >= 3) ? (en ? `Feels ${fmtTemp(wcInt)}` : `體感 ${fmtTemp(wcInt)}`) : fmtTemp(tInt))
+    : '';
+  const windPart = windMs >= 10 ? (en ? `Wind ${windMs}m/s` : `風速 ${windMs}m/s`) : '';
+  const rightMeta = [clearPart, darkTxt, tempPart, windPart, kpBadge]
     .filter(Boolean)
     .map(p => `<span class="nowrap">${p}</span>`)
     .join(' · ');
@@ -1245,7 +1307,7 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, fmiMag, sub
   const groundRecovery = Boolean(!groundBurst && substormPhase?.phase === 'recovery' && substormPhase?.groundTriggered);
   const isBurst = Boolean(groundBurst || goesSub?.active || bal?.shockActive);
   const isBrighten = Boolean(enSum.good || (latestEnergy !== null && latestEnergy >= 62));
-  const isBuilding = Boolean(!isBrighten && ((latestEnergy !== null && latestEnergy >= 25) || (enSum.raw && enSum.raw.includes('增強'))));
+  const isBuilding = Boolean(!isBrighten && latestEnergy !== null && latestEnergy >= 25);
 
   const bzBadge = $('bzBadge');
   if (bzBadge) {
@@ -1323,21 +1385,21 @@ function renderNoaaSection({ magSeries, chartSeries, speed, goesSub, fmiMag, sub
   const lastArrMs = lastM ? Engine.parseUtcMs(lastM.time_tag) + etaMin * 60000 : NaN;
   const isFutureEta = Number.isFinite(lastArrMs) && lastArrMs >= Date.now() - 2 * 60000;
   const etaClock = isFutureEta ? utcTagToLocalHM(lastM.time_tag, tz, etaMin) : '';
-  const hasDashedLine = Boolean(bal && Number.isInteger(bal.arrivingIdx) && bal.arrivingIdx > 4 && bal.arrivingIdx < (chartSeries?.length || 0) - 4);
-  const nowClock = hasDashedLine ? utcTagToLocalHM(chartSeries[bal.arrivingIdx]?.time_tag, tz, etaMin) : '';
-  setHtml('bzHtmlHead', hasDashedLine && nowClock
+  const hasNowMarker = Boolean(bal && Number.isInteger(bal.arrivingIdx) && bal.arrivingIdx > 4 && bal.arrivingIdx < (chartSeries?.length || 0) - 4);
+  const nowClock = hasNowMarker ? utcTagToLocalHM(chartSeries[bal.arrivingIdx]?.time_tag, tz, etaMin) : '';
+  setHtml('bzHtmlHead', hasNowMarker && nowClock
     ? (en
         ? `<span>${escapeHtml(term(TERMS.solarWind.axisTitle, true))}</span><span>Now <strong>${escapeHtml(nowClock)}</strong> · Incoming right</span>`
-        : `<span>${escapeHtml(term(TERMS.solarWind.axisTitle, false))}</span><span>現在 <strong>${escapeHtml(nowClock)}</strong> · 虛線右側陸續抵達</span>`)
+        : `<span>${escapeHtml(term(TERMS.solarWind.axisTitle, false))}</span><span>現在 <strong>${escapeHtml(nowClock)}</strong> · 右側陸續抵達</span>`)
     : (en
         ? `<span>${escapeHtml(term(TERMS.solarWind.axisTitle, true))}</span><span>Estimated Earth arrival</span>`
         : `<span>${escapeHtml(term(TERMS.solarWind.axisTitle, false))}</span><span>已換算為到達地球當地時間</span>`));
   setText('etaHint', en
-    ? (hasDashedLine && etaClock
-        ? `Right of dashed line = arriving by ${etaClock}`
+    ? (hasNowMarker && etaClock
+        ? `Right of Now marker = measured wind arriving by ${etaClock}`
         : (etaClock ? `Earth-arrival local time (incoming wind arriving by ${etaClock})` : 'Time axis shows estimated Earth arrival'))
-    : (hasDashedLine && etaClock
-        ? `虛線右側＝已測得太陽風，預估於 ${etaClock} 前陸續到達`
+    : (hasNowMarker && etaClock
+        ? `「現在」標記右側＝已測得太陽風，預估於 ${etaClock} 前陸續到達`
         : (etaClock ? `時間軸為到達地球當地時間（已測得太陽風約 ${etaClock} 前抵達）` : '時間軸已換算為到達地球的當地時間')));
 
   if (Array.isArray(chartSeries) && chartSeries.length >= 2) {
@@ -1378,16 +1440,22 @@ function fmtWinterDrive(km, en) {
   return en ? `~${dur} drive` : `約 ${dur}`;
 }
 
-function formatDarkCountdownSub(darkWin, moon, en) {
+function formatDarkCountdownSub(darkWin, moon, en, sunAltNow = null) {
   if (darkWin?.state === 'midnight-sun') return en ? 'Midnight sun' : '極晝偏亮';
   if (darkWin?.state === 'twilight-wait' && darkWin.nextDarkHM) {
     return en ? `Dark ${escapeHtml(darkWin.nextDarkHM)}` : `${escapeHtml(darkWin.nextDarkHM)} 天黑`;
   }
-  const moonBright = Boolean(moon.up && moon.effMoonPct >= 40);
+  const moonBright = Boolean(moon.up && (moon.effMoonPct >= 40 || ((moon.pct ?? 0) >= 75 && (moon.altDeg ?? 0) >= 15)));
   const moonLbl = (moon.pct ?? 0) >= 85
     ? (en ? 'Full moon' : '滿月')
     : (en ? 'Moonlit' : '有亮月');
   if (darkWin?.state === 'polar-night') {
+    const polarTwilight = Number.isFinite(sunAltNow) && sunAltNow > -10;
+    if (polarTwilight) {
+      return moonBright
+        ? (en ? `Polar twilight · ${moonLbl}` : `極夜微光 · ${moonLbl}`)
+        : (en ? 'Polar twilight' : '極夜微光');
+    }
     return moonBright
       ? (en ? `Polar night · ${moonLbl}` : `極夜 · ${moonLbl}`)
       : (en ? 'Polar night' : '極夜全暗');
@@ -1555,11 +1623,12 @@ function renderFromState(st) {
     metarObs && metarFusion?.applied && (metarObs.distKm ?? 99) <= 25 && (metarObs.ageMin ?? 99) <= 60
   );
   const effSubstormJump = Math.max(goesSub ? goesSub.jumpNt : 0, fmiMag?.groundSubstormJumpNt || 0);
+  const substormSource = (fmiMag?.groundSubstormJumpNt || 0) > (goesSub ? goesSub.jumpNt : 0) ? 'FMI' : 'GOES';
   const expNow = explainAuroraScore({
     lat: pos.lat, lon: pos.lon,
     cloudNow: c0, sunAlt: sunAltNow,
     bz: safeBal.nowBz ?? bz, speed, kp, ovation, hpiGw,
-    substormJumpNt: effSubstormJump,
+    substormJumpNt: effSubstormJump, substormSource,
     pdyn: safeBal.nowPdyn, shockJumpNpa: safeBal.nowShockJumpNpa,
     newell: safeBal.nowNewell, preconditionedNewell60: safeBal.avgNewell60,
     dst: st.effectiveDst?.dstNow ?? kyotoDst?.dst ?? null,
@@ -1679,7 +1748,7 @@ function renderFromState(st) {
     moon,
     skySubHtml: skyParts.join('<span class="sub-dot" aria-hidden="true">·</span>'),
     aurSubHtml,
-    darkSubHtml: formatDarkCountdownSub(darkWin, moon, en)
+    darkSubHtml: formatDarkCountdownSub(darkWin, moon, en, sunAltNow)
   });
 
   const localizedNights3 = multiDayPts
@@ -1695,7 +1764,7 @@ function renderFromState(st) {
   if (Array.isArray(st.scoredHours) && st.scoredHours.length) state.scoredHours = st.scoredHours;
 
   const act = synthesizeTonightAction({
-    lat: pos.lat, lon: pos.lon, sc, scNext, bal: safeBal, goesSub,
+    lat: pos.lat, lon: pos.lon, sc, scNext, bal: safeBal, goesSub, fmiMag,
     bestDark, dirResults, nights3: localizedNights3, darkWin,
     kp, mlt: mltNow ?? null, effMoonPct: moon.effMoonPct
   });
@@ -1709,13 +1778,21 @@ function renderFromState(st) {
   } else if (act.actionType === 'daylight') {
     heroCue = act.lead || act.title;
   } else if (act.actionType === 'go') {
-    const isNorth = pos.lat >= 0;
+    const geom = computeViewingGeometry({
+      lat: pos.lat, lon: pos.lon,
+      kp: Math.max(kp ?? 0, sc.effKp ?? 0), mlt: mltNow, lang: getLang()
+    });
+    const lookSouth = pos.lat < 0 || geom.mode === 'overhead-eq';
     const dirCueZh = sc.total >= 65
-      ? (isNorth ? '現在適合出門，肉眼可見，朝頭頂與北方觀察' : '現在適合出門，肉眼可見，朝頭頂與南方觀察')
-      : (isNorth ? '適合出門，肉眼可見、手機更亮，留意北方' : '適合出門，肉眼可見、手機更亮，留意南方');
+      ? (lookSouth ? '現在適合出門，肉眼可見，朝頭頂與南方觀察' : '現在適合出門，肉眼可見，朝頭頂與北方觀察')
+      : (sc.total >= 40
+          ? (lookSouth ? '適合出門，肉眼可見、手機更亮，留意南方' : '適合出門，肉眼可見、手機更亮，留意北方')
+          : '極光爆發中，留意雲縫與手機夜拍');
     const dirCueEn = sc.total >= 65
-      ? (isNorth ? 'Go out now — visible to eye, look overhead and north' : 'Go out now — visible to eye, look overhead and south')
-      : (isNorth ? 'Good to go — visible to eye, brighter on camera' : 'Good to go — visible to eye, brighter on camera');
+      ? (lookSouth ? 'Go out now — visible to eye, look overhead and south' : 'Go out now — visible to eye, look overhead and north')
+      : (sc.total >= 40
+          ? 'Good to go — visible to eye, brighter on camera'
+          : 'Aurora burst — watch cloud gaps & try camera');
     heroCue = en ? dirCueEn : dirCueZh;
   } else if (act.actionType === 'wait' && sc.total < 18 && sc.skyScore < 45) {
     const upcoming = (activeHrs || []).slice(1, 24).filter(h => !Number.isFinite(h?.dtMs) || h.dtMs > refNowMs + 15 * 60000);
@@ -1890,7 +1967,7 @@ async function refreshAll(manual, { forceNoaa = false } = {}) {
 
       renderFromState(state.renderState);
       updateClockAndPhoto();
-      maybeTriggerAlert(snap.renderState.sc, snap.renderState.goesSub, snap.renderState.scNext, snap.renderState.bal, pos);
+      maybeTriggerAlert(snap.renderState.sc, snap.renderState.goesSub, snap.renderState.scNext, snap.renderState.bal, pos, snap.renderState.fmiMag);
 
       const verdict = evaluateVerdict({
         lat: pos.lat, lon: pos.lon, bestDark: snap.renderState.bestDark, kp: snap.renderState.kp,
@@ -2092,8 +2169,17 @@ async function shareStatus() {
     ? (en ? `${skyVal} clear${skySub ? ` · ${skySub}` : ''}` : `晴空率 ${skyVal}${skySub ? ` · ${skySub}` : ''}`)
     : skySub;
   const best = state.bestAurora;
+  let bestIsNextNight = false;
+  if (best && Number.isFinite(best.dtMs)) {
+    const tz = state.pos.tz || 'UTC';
+    const refMs = Date.now();
+    bestIsNextNight = getZoneParts(new Date(best.dtMs - 12 * 3600000), tz).dateStr
+      !== getZoneParts(new Date(refMs - 12 * 3600000), tz).dateStr;
+  }
   const bestLine = (best && best.time && Number.isFinite(best.score) && best.score >= 18)
-    ? (en ? `\n• Best tonight: ${best.time} (score ${best.score})` : `\n• 今晚最佳：${best.time}（指數 ${best.score}）`)
+    ? (en
+        ? `\n• ${bestIsNextNight ? 'Best in 24h' : 'Best tonight'}: ${best.time} (score ${best.score})`
+        : `\n• ${bestIsNextNight ? '24 小時最佳' : '今晚最佳'}：${best.time}（指數 ${best.score}）`)
     : '';
   const body = en
     ? `${title}\n${$('vTitle')?.textContent || ''}\n• Sky: ${skyLine}\n• Aurora: ${$('fAurSub')?.textContent || ''}${bestLine}\nLive clouds & NOAA aurora radar:`
@@ -2765,11 +2851,30 @@ function bindEvents() {
     btn.addEventListener('click', () => switchView(btn.dataset.view, btn));
   });
 
-  $('skyCamImg')?.addEventListener('error', () => {
-    setText('skyCamCap', isEn() ? 'All-sky camera feed temporarily offline — try another observatory above.' : '天文台實拍影像暫時無法連線，可切換上方其他極圈天文台。');
+  const skyCamImg = $('skyCamImg');
+  skyCamImg?.addEventListener('load', () => { skyCamImg.style.display = ''; });
+  skyCamImg?.addEventListener('error', () => {
+    skyCamImg.style.display = 'none';
+    const brightBtn = $('camBrightBtn');
+    if (brightBtn) brightBtn.style.display = 'none';
+    const cam = SKY_CAMS[state.camKey];
+    const en = isEn();
+    const linkHtml = cam?.page
+      ? ` <a class="src-link" href="${escapeHtml(cam.page)}" target="_blank" rel="noopener noreferrer">${en ? 'Official site ↗' : '開啟官方頁面 ↗'}</a>`
+      : '';
+    setHtml('skyCamCap', (en
+      ? 'Live camera feed temporarily offline — try another observatory above.'
+      : '實拍影像暫時無法連線，可切換上方其他鏡頭。') + linkHtml);
   });
-  $('ovationImg')?.addEventListener('error', () => {
-    setText('ovCap', isEn() ? 'NOAA OVATION map temporarily unavailable — pull down to refresh.' : 'NOAA 極光橢圓圖暫時無法載入，請稍後下拉更新重試。');
+  const ovImg = $('ovationImg');
+  ovImg?.addEventListener('load', () => { ovImg.style.display = ''; });
+  ovImg?.addEventListener('error', () => {
+    ovImg.style.display = 'none';
+    const en = isEn();
+    setHtml('ovCap', (en
+      ? 'NOAA OVATION map temporarily unavailable — pull down to refresh.'
+      : 'NOAA 極光橢圓圖暫時無法載入，請稍後下拉更新重試。')
+      + ` <a class="src-link" href="https://www.swpc.noaa.gov/products/aurora-30-minute-forecast" target="_blank" rel="noopener noreferrer">${en ? 'NOAA OVATION ↗' : '查看 NOAA 原圖 ↗'}</a>`);
   });
 }
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aurora-radar-shell-v53';
+const CACHE_NAME = 'aurora-radar-shell-v54';
 const FETCH_TIMEOUT_MS = 3500;
 const SHELL_ASSETS = [
   './',
@@ -45,8 +45,10 @@ function fetchWithTimeout(req, timeoutMs) {
   return fetch(req, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
 }
 
-// Conservative network-first strategy strictly for same-origin app shell;
-// never intercepts third-party live APIs (NOAA, MET Norway, Open-Meteo, Windy, sky cams).
+// Versioned app-shell SW:
+// - Root HTML navigation: network-first (3.5s cap) with safe ./index.html fallback; NEVER caches /spots/* into ./index.html.
+// - Versioned static shell assets (.js/.css/.svg/.png/.json): stale-while-revalidate (instant boot on blackholed 1-bar LTE).
+// - Never intercepts third-party live APIs (NOAA, MET Norway, Open-Meteo, Windy, sky cams).
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
@@ -54,25 +56,47 @@ self.addEventListener('fetch', event => {
   if (url.origin !== self.location.origin) return;
 
   const isNav = req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html');
-  const cacheKey = isNav ? './index.html' : req;
+  const isSpotsPage = url.pathname.includes('/spots/');
 
+  if (isNav) {
+    if (isSpotsPage) {
+      // Let static SEO landing pages pass through network-first under their own URL (never overwrite ./index.html!)
+      event.respondWith(
+        fetchWithTimeout(req, FETCH_TIMEOUT_MS)
+          .catch(() => caches.match(req, { ignoreSearch: true }).then(hit => hit || new Response('Offline', { status: 503, statusText: 'Offline' })))
+      );
+      return;
+    }
+    event.respondWith(
+      fetchWithTimeout(req, FETCH_TIMEOUT_MS)
+        .then(res => {
+          if (res && res.ok) {
+            const clone = res.clone();
+            event.waitUntil(caches.open(CACHE_NAME).then(c => c.put('./index.html', clone)).catch(() => {}));
+            return res;
+          }
+          return caches.match('./index.html').then(hit => hit || res);
+        })
+        .catch(() => caches.match('./index.html').then(hit => hit || new Response('Offline', { status: 503, statusText: 'Offline' })))
+    );
+    return;
+  }
+
+  // Static versioned shell assets: serve immediately from versioned cache (SWR) to eliminate 10s blackhole stalls
   event.respondWith(
-    fetchWithTimeout(req, FETCH_TIMEOUT_MS)
-      .then(res => {
+    caches.match(req, { ignoreSearch: true }).then(cached => {
+      const netFetch = fetchWithTimeout(req, FETCH_TIMEOUT_MS).then(res => {
         if (res && res.ok) {
           const clone = res.clone();
-          event.waitUntil(caches.open(CACHE_NAME).then(c => c.put(cacheKey, clone)).catch(() => {}));
-          return res;
+          event.waitUntil(caches.open(CACHE_NAME).then(c => c.put(req, clone)).catch(() => {}));
         }
-        // Fallback to cached shell on 5xx upstream errors
-        return caches.match(cacheKey, { ignoreSearch: true }).then(hit => hit || res);
-      })
-      .catch(() => {
-        if (isNav) {
-          return caches.match('./index.html').then(hit => hit || new Response('Offline', { status: 503, statusText: 'Offline' }));
-        }
-        // Never serve index.html as a fallback for .js/.css/.json/.svg (prevents MIME corruption)
-        return caches.match(req, { ignoreSearch: true }).then(hit => hit || new Response('', { status: 503, statusText: 'Offline' }));
-      })
+        return res;
+      }).catch(() => null);
+      if (cached) {
+        event.waitUntil(netFetch);
+        return cached;
+      }
+      return netFetch.then(res => res || new Response('', { status: 503, statusText: 'Offline' }));
+    })
   );
 });

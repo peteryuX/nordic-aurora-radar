@@ -165,7 +165,7 @@ export const GLOBAL_CORRIDORS = [
     { key: 'S', label: '往南 Selfoss', lat: 63.9331, lon: -21.0023, roadKm: 58, roadNote: 'Hellisheiði 山口易封', roadNoteEn: 'Hellisheiði pass closures', isOcean: false },
     { key: 'W', label: '往西 Garður', lat: 64.0650, lon: -22.6464, roadKm: 55, isOcean: false }
   ]},
-  { match: [65.69, -18.13], pts: [
+  { match: [65.69, -18.13], closedDirs: ['S'], pts: [
     { key: 'N', label: '往北 Dalvík', lat: 65.9702, lon: -18.5286, roadKm: 43, isOcean: false },
     { key: 'E', label: '往東 Goðafoss', lat: 65.6828, lon: -17.5502, roadKm: 35, roadNote: '收費隧道／山口', roadNoteEn: 'Toll tunnel / pass', isOcean: false },
     { key: 'W', label: '往西 Varmahlíð', lat: 65.5529, lon: -19.4452, roadKm: 94, roadNote: '高海拔山口易封', roadNoteEn: 'High pass closure risk', isOcean: false }
@@ -232,7 +232,7 @@ export const EXTENDED_CORRIDORS = [
     { key: 'E', label: '往東北 Eagle River', lat: 61.3214, lon: -149.5678, roadKm: 23, roadNote: '主要幹道', roadNoteEn: 'Main highway', isOcean: false },
     { key: 'S', label: '往東南 Girdwood', lat: 60.9425, lon: -149.1664, roadKm: 62, roadNote: 'Seward Hwy 沿海強風', roadNoteEn: 'Seward Hwy · coastal wind', isOcean: false }
   ]},
-  { match: [51.18, -115.57], pts: [ // Banff (Canadian Rockies)
+  { match: [51.18, -115.57], closedDirs: ['S'], pts: [ // Banff (Canadian Rockies — Hwy 40 Highwood Pass closed Dec-Jun)
     { key: 'N', label: '往北 Minnewanka', lat: 51.2485, lon: -115.4979, roadKm: 13, roadNote: '冬季除雪環路·暗空湖岸', roadNoteEn: 'Plowed dark-sky lakeside loop', isOcean: false },
     { key: 'E', label: '往東 Canmore', lat: 51.0890, lon: -115.3580, roadKm: 24, roadNote: '1 號國道主幹道', roadNoteEn: 'Trans-Canada Hwy 1', isOcean: false },
     { key: 'W', label: '往西北 Lake Louise', lat: 51.4254, lon: -116.1773, roadKm: 57, roadNote: '1 號國道·需冬季雪胎', roadNoteEn: 'Hwy 1 · winter tires required', isOcean: false }
@@ -275,7 +275,8 @@ export function computeCompassPoints(lat, lon, distKm = 60) {
   for (const c of CHASE_CORRIDORS) {
     const hubDist = Math.hypot(lat - c.match[0], (lon - c.match[1]) * Math.cos(lat * Math.PI / 180));
     if (hubDist < 0.25) {
-      return [here, ...c.pts.map(p => (hubDist < 0.08 ? { ...p } : { ...p, roadKm: undefined }))];
+      const hereMeta = Array.isArray(c.closedDirs) && c.closedDirs.length ? { ...here, closedDirs: [...c.closedDirs] } : here;
+      return [hereMeta, ...c.pts.map(p => (hubDist < 0.08 ? { ...p } : { ...p, roadKm: undefined }))];
     }
   }
   const dLat = distKm / 111.32;
@@ -1421,7 +1422,7 @@ export function explainAuroraScore(params = {}) {
     scNext = null, noaaOk = true, noaaLagMin = null, usedMet = false,
     cloudConsensus = null, hereHrs = null, cloudSpan3h = null,
     kp = null, ovation = null, moonPct = null, moonAltDeg = null,
-    noaaAlert = null, predKp1h = null, metarCalibrated = false, lang
+    noaaAlert = null, predKp1h = null, metarCalibrated = false, substormSource = 'GOES', lang
   } = params;
   const en = isEn(lang);
   const { result: sc, breakdown: bd } = computeAuroraScoreInternal(params);
@@ -1451,7 +1452,11 @@ export function explainAuroraScore(params = {}) {
   const boostPartsZh = [];
   const boostPartsEn = [];
   if (bd.precondAdj >= 0.5) { boostPartsZh.push(`60m 磁尾蓄能 +${bd.precondAdj}`); boostPartsEn.push(`60m preconditioning +${bd.precondAdj}`); }
-  if (bd.substormAdj >= 0.5) { boostPartsZh.push(`GOES 副磁暴 +${bd.substormAdj}`); boostPartsEn.push(`GOES substorm +${bd.substormAdj}`); }
+  if (bd.substormAdj >= 0.5) {
+    const isFmi = substormSource === 'FMI';
+    boostPartsZh.push(isFmi ? `FMI 地磁爆發 +${bd.substormAdj}` : `GOES 副磁暴 +${bd.substormAdj}`);
+    boostPartsEn.push(isFmi ? `FMI substorm +${bd.substormAdj}` : `GOES substorm +${bd.substormAdj}`);
+  }
   if (bd.pdynAdj >= 0.5) { boostPartsZh.push(`動壓衝擊 +${bd.pdynAdj}`); boostPartsEn.push(`pressure shock +${bd.pdynAdj}`); }
   if (bd.kpFromDst >= 5.0 && bd.dst !== null) { boostPartsZh.push(`環電流 Dst ${bd.dst} nT`); boostPartsEn.push(`ring current Dst ${bd.dst} nT`); }
   const boostSuffixZh = boostPartsZh.length ? `（已計入：${boostPartsZh.join('、')}）` : '';
@@ -2666,6 +2671,9 @@ export const METAR_STATIONS = [
   { icao: 'BIKF', iemId: 'BIKF', name: 'Keflavik',      lat: 63.985, lon: -22.606 },
   { icao: 'BIAR', iemId: 'BIAR', name: 'Akureyri',      lat: 65.660, lon: -18.073 },
   { icao: 'BIEG', iemId: 'BIEG', name: 'Egilsstaðir',   lat: 65.283, lon: -14.401 },
+  { icao: 'BIVM', iemId: 'BIVM', name: 'Vestmannaeyjar', lat: 63.424, lon: -20.279 },
+  { icao: 'BIHN', iemId: 'BIHN', name: 'Höfn',          lat: 64.296, lon: -15.227 },
+  { icao: 'BIIS', iemId: 'BIIS', name: 'Ísafjörður',    lat: 66.058, lon: -23.135 },
   { icao: 'BGGH', iemId: 'BGGH', name: 'Nuuk',          lat: 64.191, lon: -51.678 },
   { icao: 'BGSF', iemId: 'BGSF', name: 'Kangerlussuaq', lat: 67.012, lon: -50.712 },
   // Alaska & Canada
@@ -2927,9 +2935,11 @@ export const FMI_MAG_STATIONS = [
   { code: 'TAR', name: 'Tartu',        lat: 58.2600, lon: 26.4600, low: 55, high: 100 }
 ];
 
-/** Geographic domain covered by the Nordic FMI/IMAGE ground magnetometer chain (<=600 km reach). */
+/** Geographic domain covered by the Nordic FMI/IMAGE ground magnetometer chain (exact <=600 km station reach). */
 export function isInFmiNordicBox(lat, lon) {
-  return Number.isFinite(lat) && Number.isFinite(lon) && lat >= 56.0 && lat <= 73.5 && lon >= 4.0 && lon <= 35.0;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
+  if (lat < 53.0 || lat > 75.5 || lon < 4.0 || lon > 36.0) return false;
+  return FMI_MAG_STATIONS.some(st => computeDistanceKm(lat, lon, st.lat, st.lon) <= 600);
 }
 
 /** Geographic domain for FMI Finnish Lapland / mainland automated ground cloud sensors (n_man oktas). */
@@ -3007,6 +3017,14 @@ export function parseFmiMagnetometerWfs(xmlText, lat, lon, nowMs = Date.now(), m
   const quietRef = sorted[Math.floor(0.80 * (sorted.length - 1))];
   const latestBx = smooth[smooth.length - 1];
   const minLast15 = Math.min(...smooth.slice(-Math.min(4, smooth.length)));
+  const last40 = [];
+  for (let i = 0; i < best.pts.length; i++) {
+    if (best.pts[i].tMs >= latestMs - 40 * 60000) last40.push(smooth[i]);
+  }
+  const minLast40 = last40.length ? Math.min(...last40) : minLast15;
+  const currentDropNt = Math.max(0, Math.round(quietRef - latestBx));
+  const peakBayDrop40 = Math.max(0, Math.round(quietRef - minLast40));
+  const reboundFromTrough = Math.max(0, Math.round(latestBx - minLast40));
   // Negative bay drop (positive nT magnitude when westward auroral electrojet depresses Bx)
   const bayDropNt = Math.max(0, Math.round(quietRef - Math.min(latestBx, minLast15)));
 
@@ -3020,11 +3038,13 @@ export function parseFmiMagnetometerWfs(xmlText, lat, lon, nowMs = Date.now(), m
       if (rate > maxDropRate) maxDropRate = rate;
     }
   }
+  const isSharpRecovery = (reboundFromTrough >= 60 && maxDropRate < 2 && peakBayDrop40 > 0 && reboundFromTrough >= peakBayDrop40 * 0.5)
+    || (reboundFromTrough >= 60 && currentDropNt < Math.round(meta.low * 0.75));
 
   const level = (bayDropNt >= meta.high || amp60Nt >= Math.round(meta.high * 1.15))
     ? 'high'
     : ((bayDropNt >= meta.low || amp60Nt >= Math.round(meta.low * 1.15)) ? 'moderate' : 'quiet');
-  const active = bayDropNt >= meta.low || (amp60Nt >= meta.high && maxDropRate >= 5);
+  const active = !isSharpRecovery && (bayDropNt >= meta.low || (amp60Nt >= meta.high && maxDropRate >= 5));
   // Conservative mapping to equivalent GOES substorm jump nT (0 when quiet; max 55 nT on major overhead substorm)
   const distAtten = best.distKm <= 300 ? 1 : Math.max(0.4, 1 - (best.distKm - 300) / 500);
   const groundSubstormJumpNt = active
@@ -3344,7 +3364,10 @@ export function assimilateLiveGpsNowcast(hereHrs, { radarNowcast = null, omCurre
       applied = true;
     }
     if (Number.isFinite(omCurrent.effCloud)) {
-      if (!usedMet) {
+      const isThinCirrusOnly = !omCurrent.isFog && (omCurrent.precip || 0) < 0.1
+        && Number.isFinite(h0.cloudLow) && Number.isFinite(h0.cloudMid) && Number.isFinite(h0.cloudHigh)
+        && h0.cloudLow <= 20 && h0.cloudMid <= 20 && h0.cloudHigh >= 55 && omCurrent.effCloud > block + 15;
+      if (!usedMet && !isThinCirrusOnly) {
         const w = (omCurrent.isFog || omCurrent.precip >= 0.2) ? 0.45 : 0.35;
         block = Math.max(0, Math.min(100, Math.round((1 - w) * block + w * omCurrent.effCloud)));
         applied = true;
@@ -4061,7 +4084,7 @@ export function isCorridorHazard(d) {
  * Combines live score, incoming solar wind, dark-window countdown, 360° clear-sky corridors & 3-Night Outlook.
  */
 export function synthesizeTonightAction({
-  lat = 69.97, lon = 23.27, sc, scNext = null, bal = null, goesSub = null,
+  lat = 69.97, lon = 23.27, sc, scNext = null, bal = null, goesSub = null, fmiMag = null,
   bestDark = null, dirResults = null, nights3 = null, darkWin = null,
   kp = null, mlt = null, effMoonPct = 0, lang
 } = {}) {
@@ -4104,8 +4127,8 @@ export function synthesizeTonightAction({
     return { ...base, lead, actionType: 'daylight', ctaView: null, ctaLabel: '' };
   }
 
-  // 2. GO NOW (good/prime score or active substorm with usable sky)
-  if (sc.total >= 40 || (goesSub?.active && sc.skyScore >= 25)) {
+  // 2. GO NOW (good/prime score or active GOES/FMI substorm with usable sky)
+  if (sc.total >= 40 || ((goesSub?.active || fmiMag?.active) && sc.skyScore >= 25)) {
     return { ...base, actionType: 'go', ctaView: null, ctaLabel: '' };
   }
 
@@ -4206,10 +4229,10 @@ export function summarizeEnergyTrend(series, speed, langOrBal, maybeLang) {
   const lastE = energies[energies.length - 1];
   const maxE30 = Math.max(...energies.slice(-30));
 
-  if (lastE >= 62 || lastBz <= -4) {
+  if (lastE >= 62 || (lastBz <= -4 && lastE >= 40)) {
     return { good: true, text: en ? `Solar wind entered the Active zone — aurora may brighten in ~${etaMin} min.` : `太陽風進入「活躍區」，預計約 ${etaMin} 分鐘後有機會觸發極光增強。`, raw, etaMin };
   }
-  if (maxE30 >= 62 || minBzRecent <= -4) {
+  if ((maxE30 >= 62 || minBzRecent <= -4) && lastE >= 25) {
     return { good: true, text: en ? `Energy spiked in the past 30 min — keep watching for the next ${etaMin} min.` : `過去 30 分鐘曾出現能量高峰，接下來約 ${etaMin} 分鐘值得留意。`, raw, etaMin };
   }
   if (lastE >= 25 || lastBz < -0.5) {
@@ -4287,10 +4310,10 @@ export function summarizeCompass(dirResults, lang) {
 }
 
 /** Decide whether real-time conditions warrant firing an aurora alert (including storm gaps & incoming CME) */
-export function shouldTriggerAuroraAlert({ sc, goesSub, scNext, bal } = {}) {
+export function shouldTriggerAuroraAlert({ sc, goesSub, fmiMag, scNext, bal } = {}) {
   if (!sc || sc.isTooBright) return { fire: false, reason: null };
   const stormGapFire = !sc.outOfZone && sc.auroraScore >= 80 && sc.skyScore >= 20;
-  const substormFire = !sc.outOfZone && Boolean(goesSub?.active) && sc.skyScore >= 25;
+  const substormFire = !sc.outOfZone && Boolean(goesSub?.active || fmiMag?.active) && sc.skyScore >= 25;
   const nextCoupled = Boolean(scNext && !scNext.outOfZone && !scNext.isTooBright && ((scNext.auroraScore ?? 0) >= 40 || (scNext.total ?? 0) >= 35));
   const incomingFire = Boolean(scNext && !scNext.outOfZone && !scNext.isTooBright && (scNext.total >= 45 || (bal?.shockActive && sc.skyScore >= 30 && nextCoupled)));
   if (!sc.outOfZone && sc.total >= 40) return { fire: true, reason: 'score' };

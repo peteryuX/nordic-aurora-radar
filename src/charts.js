@@ -554,8 +554,9 @@ export function buildCompassRadarSVG(dirResults, originPos, lang) {
     return `<line x1="${(CX + R_OUTER * Math.cos(r1)).toFixed(1)}" y1="${(CY + R_OUTER * Math.sin(r1)).toFixed(1)}" x2="${(CX + R_OUTER * Math.cos(r2)).toFixed(1)}" y2="${(CY + R_OUTER * Math.sin(r2)).toFixed(1)}" stroke="var(--chart-grid)" stroke-width="1"/>`;
   }).join('');
 
-  // Missing cardinal winter-closed safety marker (e.g., Akureyri closed F26 south)
-  const closedMarks = ['N', 'E', 'S', 'W'].filter(k => !byKey[k]).map(k => {
+  // Explicit winter-closed highway markers only (e.g., Akureyri F26 south, Banff Hwy 40 south — never label open ocean as closed road!)
+  const closedList = Array.isArray(byKey.here?.closedDirs) ? byKey.here.closedDirs : [];
+  const closedMarks = closedList.filter(k => !byKey[k] && fallbackBearing[k] !== undefined).map(k => {
     const rad = toRad(fallbackBearing[k] - 90);
     const cx = CX + 98 * Math.cos(rad);
     const cy = CY + 98 * Math.sin(rad);

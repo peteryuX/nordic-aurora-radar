@@ -3083,11 +3083,105 @@ test('58. v53 Clear-Sky Navigation Safety: No Generic Drive Links, EXTENDED_CORR
   assert.ok(appSrc.includes('google.com/maps/search/?api=1&query='), 'Generic & stay-local compass cards must open area map search');
 });
 
+test('59. v54 Wave 1 Field-Reliability & Scientific-Accuracy Blitz', async () => {
+  const swSrc = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+  const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const cssSrc = fs.readFileSync(path.join(__dirname, '..', 'styles.css'), 'utf8');
+  const htmlSrc = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const dcSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'data-client.js'), 'utf8');
+  const { SKY_CAMS } = await import('../src/i18n.js');
 
+  // (a) SW v54: protects /spots/ from poisoning root ./index.html + cache-first SWR for static assets
+  assert.ok(swSrc.includes('aurora-radar-shell-v54'), 'sw.js must bump cache version to v54');
+  assert.ok(swSrc.includes("url.pathname.includes('/spots/')"), 'sw.js must guard /spots/ routes from overwriting ./index.html');
 
+  // (b) FMI magnetometer distance box (<=600 km) & sharp recovery guard
+  assert.equal(api.isInFmiNordicBox(69.6492, 18.9553), true, 'Tromsø must be inside FMI Nordic box');
+  assert.equal(api.isInFmiNordicBox(66.5039, 25.7294), true, 'Rovaniemi must be inside FMI Nordic box');
+  assert.equal(api.isInFmiNordicBox(60.3913, 5.3221), false, 'Bergen (>600 km from FMI chain) must be outside FMI box');
 
+  const nowMs = Date.UTC(2026, 10, 26, 4, 30, 0);
+  // Sharp recovery: deep dip 25 min ago (-220 nT) followed by steep rebound back to -90 nT (+130 nT recovery)
+  const recVals = [
+    2300, 2300, 2300, 2300, 2300, 2300, 2300, 2300, 2300, 2300, 2300, 2300,
+    2280, 2240, 2180, 2120, 2080, 2080, 2100, 2130, 2160, 2190, 2210, 2215
+  ];
+  const recXml = `<wfs:FeatureCollection>${recVals.map((v, k) => {
+    const t = new Date(nowMs - (recVals.length - 1 - k) * 5 * 60000).toISOString().slice(0, 19) + 'Z';
+    return `<wfs:member><BsWfs:BsWfsElement><BsWfs:Location><gml:Point><gml:pos>69.05800 20.77470 </gml:pos></gml:Point></BsWfs:Location><BsWfs:Time>${t}</BsWfs:Time><BsWfs:ParameterName>MAGNX_PT1M_AVG</BsWfs:ParameterName><BsWfs:ParameterValue>${v}</BsWfs:ParameterValue></BsWfs:BsWfsElement></wfs:member>`;
+  }).join('')}</wfs:FeatureCollection>`;
+  const recMag = api.parseFmiMagnetometerWfs(recXml, 69.6492, 18.9553, nowMs);
+  assert.ok(recMag && recMag.active === false, `Sharp recovery phase must not stay active: ${JSON.stringify(recMag)}`);
 
+  // (c) Thin-cirrus protection in assimilateLiveGpsNowcast (unlayered 95% total cloud must not crush clear cirrus hour[0])
+  const cirrusHrs = [{
+    dtMs: nowMs, block: 28, clear: 72, cloudLow: 5, cloudMid: 8, cloudHigh: 85, precip: 0, temp: -2, windMs: 3
+  }, {
+    dtMs: nowMs + 3600000, block: 28, clear: 72, cloudLow: 5, cloudMid: 8, cloudHigh: 85, precip: 0, temp: -2, windMs: 3
+  }];
+  const cirrusRes = api.assimilateLiveGpsNowcast(cirrusHrs, {
+    omCurrent: { effCloud: 95, isFog: false, precip: 0 }, hasFreshMetar: false, usedMet: false
+  });
+  assert.equal(cirrusRes.hours[0].block, 28, `Thin cirrus hour[0] block (${cirrusRes.hours[0].block}%) must not be dragged up by unlayered total cloud`);
+  const stratusRes = api.assimilateLiveGpsNowcast([{ ...cirrusHrs[0], cloudLow: 60, cloudHigh: 10 }, cirrusHrs[1]], {
+    omCurrent: { effCloud: 95, isFog: false, precip: 0 }, hasFreshMetar: false, usedMet: false
+  });
+  assert.ok(stratusRes.hours[0].block >= 45, `Real low-cloud hour[0] (${stratusRes.hours[0].block}%) must still assimilate 15m GPS cloud`);
 
+  // (d) FMI ground substorm wired into synthesizeTonightAction, shouldTriggerAuroraAlert & explainAuroraScore
+  const fmiActive = { active: true, bayDropNt: 165, code: 'KIL', groundSubstormJumpNt: 45 };
+  const fmiAlert = api.shouldTriggerAuroraAlert({
+    sc: { total: 32, isTooBright: false, skyScore: 55, auroraScore: 45 },
+    goesSub: null,
+    fmiMag: fmiActive,
+    scNext: null, bal: null
+  });
+  assert.equal(fmiAlert.fire, true, 'Active FMI substorm must trigger alert even without GOES substorm');
+  assert.equal(fmiAlert.reason, 'substorm', 'FMI substorm alert must report substorm reason');
+  const fmiAct = api.synthesizeTonightAction({
+    lat: 69.65, lon: 18.96,
+    sc: { total: 42, skyScore: 65, auroraScore: 60, isTooBright: false, grade: 'good', outOfZone: null },
+    scNext: null, bal: null, goesSub: null, fmiMag: fmiActive,
+    bestDark: null, dirResults: [], nights3: [], darkWin: { isDarkNow: true },
+    kp: 3.0, mlt: 23.0, effMoonPct: 0, lang: 'en'
+  });
+  assert.equal(fmiAct.actionType, 'go', 'Active FMI substorm under usable sky must trigger go action');
+  const fmiExp = api.explainAuroraScore({
+    lat: 69.65, lon: 18.96, cloudNow: 20, sunAlt: -18, bz: -3, speed: 450, kp: 3,
+    substormJumpNt: 45, substormSource: 'FMI', lang: 'en'
+  });
+  const fmiExpZh = api.explainAuroraScore({
+    lat: 69.65, lon: 18.96, cloudNow: 20, sunAlt: -18, bz: -3, speed: 450, kp: 3,
+    substormJumpNt: 45, substormSource: 'FMI', lang: 'zh'
+  });
+  assert.ok(fmiExp.bottleneck.detail.includes('FMI substorm'), `Expected FMI substorm in detail: ${fmiExp.bottleneck.detail}`);
+  assert.ok(fmiExpZh.bottleneck.detail.includes('FMI 地磁爆發'), `Expected FMI 地磁爆發 in detail: ${fmiExpZh.bottleneck.detail}`);
 
+  // (e) Compass SVG closed-road tag ONLY on explicit closedDirs (Akureyri S = yes, Vík S Atlantic = no)
+  const vikPts = api.computeCompassPoints(63.4186, -19.0060, 60).map((p, i) => ({
+    ...p, avg3h: i === 0 ? 80 : 25, nowC: 30, temp: -1, maxWind3h: 5, maxPrecip3h: 0
+  }));
+  const vikSvg = api.buildCompassRadarSVG(vikPts, { lat: 63.4186, lon: -19.0060 }, 'en');
+  assert.ok(!vikSvg.includes('Closed in winter'), 'Vík South (open Atlantic) must never be labeled Closed in winter');
+  const akuPts = api.computeCompassPoints(65.6835, -18.0878, 60).map((p, i) => ({
+    ...p, avg3h: i === 0 ? 80 : 25, nowC: 30, temp: -4, maxWind3h: 4, maxPrecip3h: 0
+  }));
+  const akuSvg = api.buildCompassRadarSVG(akuPts, { lat: 65.6835, lon: -18.0878 }, 'en');
+  assert.ok(akuSvg.includes('Closed in winter'), 'Akureyri South (F26 Highland track) must still display Closed in winter');
 
+  // (f) summarizeEnergyTrend requires lastE >= 25 for good=true (no green badge when energy has faded to 12)
+  const fadedEnergy = api.summarizeEnergyTrend([
+    { bz: -8, speed: 550 }, { bz: -7, speed: 540 }, { bz: 2, speed: 350 }, { bz: 3, speed: 340 }
+  ], 340, 'en');
+  assert.equal(fadedEnergy.good, false, 'Faded northward Bz must not report good=true energy trend');
 
+  // (g) Iceland 24/7 METAR stations, isRoadCam flag, single-attempt METAR guard, iOS input zoom fix, history.state & copy hygiene
+  for (const icao of ['BIVM', 'BIHN', 'BIIS']) {
+    assert.ok(api.METAR_STATIONS.some(s => s.icao === icao), `Missing Iceland METAR station ${icao}`);
+  }
+  assert.ok(SKY_CAMS.is_hel.isRoadCam && SKY_CAMS.is_vik.isRoadCam && SKY_CAMS.is_aku.isRoadCam, 'Iceland road cams must set isRoadCam: true');
+  assert.ok(dcSrc.includes('let metarTried = false'), 'fetchGroundStation must guard against duplicate sequential METAR timeouts');
+  assert.ok(appSrc.includes('history.replaceState(history.state'), 'syncBrowserUrl must preserve history.state');
+  assert.ok(!appSrc.includes('虛線右側'), 'app.js must not reference obsolete 虛線右側 legend');
+  assert.ok(cssSrc.includes('font-size: 1rem') && htmlSrc.includes('enterkeyhint="search"'), 'City search input must prevent iOS Safari forced zoom');
+});

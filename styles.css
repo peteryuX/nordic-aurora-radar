@@ -338,7 +338,7 @@ body.is-syncing .sync-bar::after { animation: syncSlide 1.15s ease-in-out infini
 .search-row { display: flex; gap: 7px; margin-bottom: 2px; }
 .search-row input {
   flex: 1; min-width: 0; padding: 10px 12px; min-height: 48px; border-radius: 12px;
-  border: 1px solid var(--border-strong); background: var(--bg); color: var(--text); font-size: 0.88rem; font-family: inherit;
+  border: 1px solid var(--border-strong); background: var(--bg); color: var(--text); font-size: 1rem; font-family: inherit;
 }
 .search-row input::placeholder { color: var(--muted); opacity: 0.85; }
 
@@ -1224,11 +1224,16 @@ body.a11y-xlarge .ts-op { display: none; }
 }
 .ts-pro-details > summary {
   cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between;
-  font-size: 0.8rem; font-weight: 600; color: var(--text-soft); padding: 4px 0; user-select: none;
+  font-size: 0.8rem; font-weight: 600; color: var(--text-soft); padding: 6px 0; min-height: 44px; user-select: none;
 }
 .ts-pro-details > summary::-webkit-details-marker { display: none; }
 .ts-pro-details > summary::after { content: '▾'; font-size: 0.82rem; color: var(--muted); transition: transform 0.18s ease; }
 .ts-pro-details[open] > summary::after { transform: rotate(180deg); }
+.windy-offline {
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  height: 100%; padding: 24px 18px; color: var(--muted); font-size: 0.86rem; line-height: 1.5;
+  background: var(--bg);
+}
 .ts-pro-body { margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
 .ts-pro-layers {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;

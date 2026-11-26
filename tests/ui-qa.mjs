@@ -280,7 +280,7 @@ html { font-size: ${rootPx}px !important; }
               <button class="step-btn" type="button" aria-label="next">${stepNextSvg}</button>
             </div>
           </div>
-          <div class="hr-legend"><span>${en ? 'Right of dashed line = arriving by 17:07' : '虛線右側＝已測得太陽風，預估於 17:07 前陸續到達'}</span></div>
+          <div class="hr-legend"><span>${en ? 'Right of "Now" = arriving by 17:07' : '「現在」標記右側＝已測得太陽風，預估於 17:07 前陸續到達'}</span></div>
         </div>` : ''}
       </section>
     </main>

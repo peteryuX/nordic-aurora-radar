@@ -431,11 +431,13 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
     const preferSmhi = Boolean(nearSmhi && (!nearMetar || (nearMetar.distKm > 25 && nearSmhi.distKm + 10 < nearMetar.distKm)));
     const fetchGroundStation = async () => {
       const nowMs = now.getTime();
+      let metarTried = false;
       if (preferSmhi) {
         const smhiObs = await fetchSmhiCloudObs(nearSmhi, nowMs, signal).catch(() => null);
         if (smhiObs) return { obs: smhiObs, station: nearSmhi };
       }
       if (nearMetar && nearMetar.distKm <= 25) {
+        metarTried = true;
         const mObs = await fetchLiveMetar(nearMetar, nowMs, signal).catch(() => null);
         if (mObs) return { obs: mObs, station: nearMetar };
       }
@@ -445,7 +447,7 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
           return { obs: fmiObs, station: { name: fmiObs.name, lat: fmiObs.lat, lon: fmiObs.lon, distKm: fmiObs.distKm } };
         }
       }
-      if (nearMetar) {
+      if (nearMetar && !metarTried) {
         const mObs = await fetchLiveMetar(nearMetar, nowMs, signal).catch(() => null);
         if (mObs) return { obs: mObs, station: nearMetar };
       }
@@ -553,21 +555,23 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
       if (omHere.hrs.length) {
         out.cloudConsensus = evaluateCloudConsensus(metHereHrs.slice(0, 12), omHere.hrs.slice(0, 12));
       }
+      let dirMetarConfirmsEcmwf = false;
+      let dirBmaWeight2 = null;
       if (omHere.hrs.length || (Array.isArray(ensHrs) && ensHrs.length)) {
         // Inverse-variance Bayesian Model Averaging (BMA) calibrated directly against live ground obs (METAR / SMHI / FMI):
         // smoothly shifts up to 0.85 toward whichever model matches actual overhead sky, relaxing to 50/50 + 51m ENS by +6h.
         const confirmGap = (metarRaw?.source === 'SMHI' || metarRaw?.source === 'FMI') ? 25 : 20;
-        const metarConfirmsEcmwf = Boolean(
+        dirMetarConfirmsEcmwf = Boolean(
           metarRaw && activeStation && activeStation.distKm <= 25 && (metarRaw.ageMin ?? 99) <= 60 &&
           Number.isFinite(metarRaw.effCloud) &&
           Number.isFinite(metHereHrs[0]?.block) && Number.isFinite(omHere.hrs[0]?.block) &&
           (Math.abs(metarRaw.effCloud - metHereHrs[0].block) - Math.abs(metarRaw.effCloud - omHere.hrs[0].block)) >= confirmGap
         );
-        const bmaWeight2 = (metarRaw && activeStation && omHere.hrs.length)
+        dirBmaWeight2 = (metarRaw && activeStation && omHere.hrs.length)
           ? computeAdaptiveBmaWeight(metHereHrs[0]?.block, omHere.hrs[0]?.block, metarRaw.effCloud, activeStation.distKm, metarRaw.ageMin)
           : null;
-        out.bmaWeight2 = bmaWeight2;
-        out.hereHrs = blendNordicHourlyForecasts(metHereHrs, omHere.hrs, { metarConfirmsEcmwf, ensHrs, bmaWeight2 });
+        out.bmaWeight2 = dirBmaWeight2;
+        out.hereHrs = blendNordicHourlyForecasts(metHereHrs, omHere.hrs, { metarConfirmsEcmwf: dirMetarConfirmsEcmwf, ensHrs, bmaWeight2: dirBmaWeight2 });
       }
       // Backfill MET Norway's coarse 6h steps after +48h with hourly ECMWF points so Night +2 gets true 1h resolution
       if (omHere.multiDay.length && metMulti.some(p => (p.stepHrs || 1) > 1)) {
@@ -589,9 +593,16 @@ export async function fetchWeatherBundle({ pos, now, signal, isCurrent = () => t
         let hrs = i === 0
           ? out.hereHrs
           : (metList[i] ? parseMetNorwayHourly12(metList[i], pt.lat, pt.lon, out.resolvedTz, now, 12) : []);
-        if (!hrs.length && omList[i]?.hourly) {
-          const ptTz = omList[i].timezone || out.resolvedTz;
-          hrs = parseOmPoint(omList[i], pt.lat, pt.lon, ptTz, 12).hrs;
+        const omPtHrs = (i > 0 && omList[i]?.hourly)
+          ? parseOmPoint(omList[i], pt.lat, pt.lon, omList[i].timezone || out.resolvedTz, 12).hrs
+          : [];
+        if (i > 0 && hrs.length && omPtHrs.length && (dirMetarConfirmsEcmwf || (Number.isFinite(dirBmaWeight2) && dirBmaWeight2 > 0.55))) {
+          // Parity guard: when local live obs proved MEPS missed a regional stratus deck, apply ECMWF BMA parity
+          // to surrounding corridor points so the radar never sends drivers into the exact same overcast deck.
+          const corridorBma = Number.isFinite(dirBmaWeight2) ? Math.min(0.65, dirBmaWeight2) : 0.50;
+          hrs = blendNordicHourlyForecasts(hrs, omPtHrs, { metarConfirmsEcmwf: true, bmaWeight2: corridorBma });
+        } else if (!hrs.length && omPtHrs.length) {
+          hrs = omPtHrs;
         }
         dirHrsList.push(hrs);
         out.dirResults.push(summarizePoint(pt, hrs));
