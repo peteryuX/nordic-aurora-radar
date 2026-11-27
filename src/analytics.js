@@ -6,8 +6,8 @@
  * zero PII, and zero raw GPS coordinates. Only fires on production GitHub Pages.
  */
 
-export const GOATCOUNTER_ENDPOINT = 'https://nordicaurora.goatcounter.com/count';
-const PROD_HOST = 'peteryux.github.io';
+export const GOATCOUNTER_ENDPOINT = 'https://ohwhatif.goatcounter.com/count';
+const PROD_HOSTS = new Set(['ohwhatif.com', 'www.ohwhatif.com', 'ohwhatif.github.io', 'peteryux.github.io']);
 
 const sentOnce = new Set();
 let pageviewSent = false;
@@ -17,7 +17,7 @@ export function shouldSendAnalytics(envOpt = null) {
   const loc = envOpt?.location ?? (typeof location !== 'undefined' ? location : null);
   const nav = envOpt?.navigator ?? (typeof navigator !== 'undefined' ? navigator : null);
   const doc = envOpt?.document ?? (typeof document !== 'undefined' ? document : null);
-  if (!loc || loc.protocol !== 'https:' || loc.hostname !== PROD_HOST) return false;
+  if (!loc || loc.protocol !== 'https:' || !PROD_HOSTS.has(loc.hostname)) return false;
   if (nav?.webdriver) return false;
   if (doc?.visibilityState === 'prerender') return false;
   return true;
@@ -46,7 +46,7 @@ export function normalizeCitySlug(pos) {
 
 /** Build GoatCounter /count beacon URL matching official gc.zgo.at/count.js query schema */
 export function buildAnalyticsUrl({
-  path = '/',
+  path = '/nordic-aurora-radar/',
   title = '',
   referrer = '',
   event = false,
@@ -55,8 +55,9 @@ export function buildAnalyticsUrl({
   endpoint = GOATCOUNTER_ENDPOINT
 } = {}) {
   const params = new URLSearchParams();
-  const cleanPath = String(path || '/').replace(/^\/nordic-aurora-radar(?=\/|$)/, '') || '/';
-  params.set('p', cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`);
+  const rawPath = String(path || '/').trim() || '/';
+  const cleanPath = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
+  params.set('p', cleanPath);
   if (title) params.set('t', String(title).slice(0, 140));
   if (referrer && !event) params.set('r', String(referrer).slice(0, 240));
   if (event) params.set('e', 'true');
@@ -81,7 +82,7 @@ function sendBeaconUrl(url) {
 export function trackPageview({ path, title } = {}) {
   if (pageviewSent || !shouldSendAnalytics()) return false;
   pageviewSent = true;
-  const rawPath = path || (typeof location !== 'undefined' ? location.pathname : '/');
+  const rawPath = path || (typeof location !== 'undefined' ? location.pathname : '/nordic-aurora-radar/');
   const rawTitle = title || (typeof document !== 'undefined' ? document.title : '');
   const ref = typeof document !== 'undefined' ? (document.referrer || '') : '';
   const sw = typeof window !== 'undefined' && window.screen ? window.screen.width : null;
@@ -95,5 +96,6 @@ export function trackEvent(slug, title = '', { once = false } = {}) {
   if (once && sentOnce.has(key)) return false;
   if (once) sentOnce.add(key);
   const sw = typeof window !== 'undefined' && window.screen ? window.screen.width : null;
-  return sendBeaconUrl(buildAnalyticsUrl({ path: `/event/${key}`, title: title || key, event: true, screenWidth: sw }));
+  const evPath = key.startsWith('aurora/') ? `/event/${key}` : `/event/aurora/${key}`;
+  return sendBeaconUrl(buildAnalyticsUrl({ path: evPath, title: title || key, event: true, screenWidth: sw }));
 }

@@ -16,7 +16,7 @@ import {
 } from '../src/aurora-engine.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const BASE_URL = 'https://peteryux.github.io/nordic-aurora-radar';
+const BASE_URL = 'https://ohwhatif.com/nordic-aurora-radar';
 const LASTMOD = '2026-11-26';
 
 const SPOTS = [
@@ -395,7 +395,7 @@ for (const s of spotRecords) {
   <meta name="keywords" content="${esc(s.keywords)}" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
   <meta name="referrer" content="no-referrer" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://nordicaurora.goatcounter.com; connect-src 'self' https://api.open-meteo.com https://services.swpc.noaa.gov; object-src 'none'; base-uri 'self'; form-action 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://ohwhatif.goatcounter.com; connect-src 'self' https://api.open-meteo.com https://services.swpc.noaa.gov; object-src 'none'; base-uri 'self'; form-action 'none';" />
   <meta name="theme-color" content="#08090c" />
   <link rel="canonical" href="${canonical}" />
   <link rel="icon" type="image/svg+xml" href="../../icon.svg" />
@@ -504,7 +504,8 @@ for (const s of spotRecords) {
       <p style="margin:12px 0 0;font-size:0.76rem;color:var(--muted);">
         Free, open-source, no ads &amp; cookieless · Supports °C / °F &amp; scotopic red-light night-vision mode ·
         <a href="../../verification/" style="color:var(--green);">Live 30-Day Instrument Verification｜每日實測驗證 ↗</a> ·
-        <a href="https://github.com/peteryuX/nordic-aurora-radar/issues/new?template=field-sky-report.yml" target="_blank" rel="noopener noreferrer" style="color:var(--text-soft);">Field Report｜現場回報 ↗</a>
+        <a href="mailto:hello@ohwhatif.com?subject=${encodeURIComponent(`[Aurora Radar] ${s.cityEn} feedback`)}" style="color:var(--text-soft);">Email Feedback｜免登入回報 ↗</a> ·
+        <a href="https://ohwhatif.com/" style="color:var(--text-soft);">More free tools · OhWhatIf ↗</a>
       </p>
     </section>
   </div>
@@ -572,8 +573,9 @@ const llmsFull = `# Nordic Aurora Radar (極光即時雷達) — Full Technical 
 - Live App (繁體中文): ${BASE_URL}/
 - Live App (English): ${BASE_URL}/?lang=en
 - Live 30-Day Instrument Verification Scorecard: ${BASE_URL}/verification/
-- Source Repository & Field Reports: https://github.com/peteryuX/nordic-aurora-radar
-- Validation & Known Limitations: https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md
+- Studio Hub: https://ohwhatif.com/
+- Source Repository & Field Reports: https://github.com/ohwhatif/nordic-aurora-radar
+- Validation & Known Limitations: https://github.com/ohwhatif/nordic-aurora-radar/blob/main/VALIDATION.md
 - Last Updated: ${LASTMOD}
 
 ## Core Architecture & User Experience

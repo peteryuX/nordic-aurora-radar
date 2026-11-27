@@ -2671,12 +2671,22 @@ function renderTrustSheetLive(expOpt = null, scOpt = null, rawTelemetry = null, 
         ? 'Live 3h NOAA feed — verify G1–G5 watches in "NOAA Storm Alerts" and tonight\'s oval in "NOAA Aurora Map".'
         : '直連 NOAA 每 3 小時滾動更新 — 核對警報請看「NOAA 風暴警報」，今晚極光範圍請看「NOAA 極光總覽」。'));
   const fbLink = $('tsFeedbackLink');
-  if (fbLink) {
+  const emailLink = $('tsEmailLink');
+  if (fbLink || emailLink) {
     const cityLabel = getPosDisplayName(stLive?.pos || state.pos);
     const clkTxt = $('clk')?.textContent?.trim() || '';
     const locStr = `${cityLabel}${clkTxt ? ` · ${clkTxt}` : ''} (${Number(state.pos.lat).toFixed(2)}, ${Number(state.pos.lon).toFixed(2)})`;
-    const snapStr = `v67 | Score ${sc?.total ?? '--'}/99 | Clear ${sc?.skyScore ?? '--'}% | Kp ${Number.isFinite(stLive?.kp) ? stLive.kp.toFixed(1) : '--'} | Bz ${Number.isFinite(stLive?.bz) ? stLive.bz.toFixed(1) : '--'} nT`;
-    fbLink.href = `https://github.com/peteryuX/nordic-aurora-radar/issues/new?template=field-sky-report.yml&location=${encodeURIComponent(locStr)}&telemetry=${encodeURIComponent(snapStr)}`;
+    const snapStr = `v69 | Score ${sc?.total ?? '--'}/99 | Clear ${sc?.skyScore ?? '--'}% | Kp ${Number.isFinite(stLive?.kp) ? stLive.kp.toFixed(1) : '--'} | Bz ${Number.isFinite(stLive?.bz) ? stLive.bz.toFixed(1) : '--'} nT`;
+    if (fbLink) {
+      fbLink.href = `https://github.com/ohwhatif/nordic-aurora-radar/issues/new?template=field-sky-report.yml&location=${encodeURIComponent(locStr)}&telemetry=${encodeURIComponent(snapStr)}`;
+    }
+    if (emailLink) {
+      const subj = en ? `[Aurora Radar] Field report — ${cityLabel}` : `[極光雷達] 現場回報／建議 — ${cityLabel}`;
+      const body = en
+        ? `Location: ${locStr}\nSnapshot: ${snapStr}\n\nWhat did you actually see in the sky or notice in the app?\n`
+        : `地點：${locStr}\n當下讀數：${snapStr}\n\n現場實際天空狀況或使用建議：\n`;
+      emailLink.href = `mailto:hello@ohwhatif.com?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+    }
   }
   renderVerificationCard();
 }

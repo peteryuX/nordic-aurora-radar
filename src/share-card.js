@@ -93,7 +93,7 @@ export function buildShareCardPayload({
     peakLine,
     outlook,
     fileName: `aurora-${slugBase}-${dateTag}.png`,
-    footerUrl: 'peteryux.github.io/nordic-aurora-radar',
+    footerUrl: 'OhWhatIf.com/nordic-aurora-radar',
     footerMeta: en ? 'NOAA SWPC · Yr.no · FMI · Free & No-Ads' : 'NOAA SWPC · Yr.no · FMI · 免費無廣告'
   };
 }

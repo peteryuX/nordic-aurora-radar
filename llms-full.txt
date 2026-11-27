@@ -2,11 +2,12 @@
 
 > Free, open-source (MIT), cookieless real-time aurora forecast PWA for Northern Norway, Iceland, Lapland, Alaska, Canada, New Zealand, Tasmania, and global GPS locations.
 
-- Live App (繁體中文): https://peteryux.github.io/nordic-aurora-radar/
-- Live App (English): https://peteryux.github.io/nordic-aurora-radar/?lang=en
-- Live 30-Day Instrument Verification Scorecard: https://peteryux.github.io/nordic-aurora-radar/verification/
-- Source Repository & Field Reports: https://github.com/peteryuX/nordic-aurora-radar
-- Validation & Known Limitations: https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md
+- Live App (繁體中文): https://ohwhatif.com/nordic-aurora-radar/
+- Live App (English): https://ohwhatif.com/nordic-aurora-radar/?lang=en
+- Live 30-Day Instrument Verification Scorecard: https://ohwhatif.com/nordic-aurora-radar/verification/
+- Studio Hub: https://ohwhatif.com/
+- Source Repository & Field Reports: https://github.com/ohwhatif/nordic-aurora-radar
+- Validation & Known Limitations: https://github.com/ohwhatif/nordic-aurora-radar/blob/main/VALIDATION.md
 - Last Updated: 2026-11-26
 
 ## Core Architecture & User Experience
@@ -27,7 +28,7 @@
 ## Supported Key Aurora Destinations (Direct Landing Pages)
 
 ### Tromsø, Norway (特羅姆瑟)
-- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/tromso/
+- Guide & Direct Launch: https://ohwhatif.com/nordic-aurora-radar/spots/tromso/
 - Coordinates: `69.6492, 18.9553` | Geomagnetic Latitude (IGRF-14): `67°N`
 - Typical Activity Threshold: Kp 0–1 (directly under the auroral oval)
 - Best Season: Sep – early Apr (darkest Nov – Feb)
@@ -37,7 +38,7 @@
 - Official Road Authority: Norway Vegvesen Traffic (https://www.vegvesen.no/trafikk)
 
 ### Lofoten Islands, Norway (羅浮敦群島)
-- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/lofoten/
+- Guide & Direct Launch: https://ohwhatif.com/nordic-aurora-radar/spots/lofoten/
 - Coordinates: `68.2342, 14.5683` | Geomagnetic Latitude (IGRF-14): `66°N`
 - Typical Activity Threshold: Kp 0–1 (directly under the auroral oval)
 - Best Season: Sep – early Apr (polar night Dec – Jan)
@@ -47,7 +48,7 @@
 - Official Road Authority: Norway Vegvesen Traffic (https://www.vegvesen.no/trafikk)
 
 ### Alta, Norway (阿爾塔)
-- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/alta/
+- Guide & Direct Launch: https://ohwhatif.com/nordic-aurora-radar/spots/alta/
 - Coordinates: `69.9689, 23.2716` | Geomagnetic Latitude (IGRF-14): `67°N`
 - Typical Activity Threshold: Kp 0–1 (directly under the auroral oval)
 - Best Season: Sep – early Apr
@@ -57,7 +58,7 @@
 - Official Road Authority: Norway Vegvesen Traffic (https://www.vegvesen.no/trafikk)
 
 ### Abisko, Sweden (阿比斯庫)
-- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/abisko/
+- Guide & Direct Launch: https://ohwhatif.com/nordic-aurora-radar/spots/abisko/
 - Coordinates: `68.3495, 18.8312` | Geomagnetic Latitude (IGRF-14): `66°N`
 - Typical Activity Threshold: Kp 0–1 (directly under the auroral oval)
 - Best Season: Sep – early Apr
@@ -67,7 +68,7 @@
 - Official Road Authority: Sweden Trafikverket (https://www.trafikverket.se/trafikinformation/vag/)
 
 ### Rovaniemi, Finland (羅瓦涅米)
-- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/rovaniemi/
+- Guide & Direct Launch: https://ohwhatif.com/nordic-aurora-radar/spots/rovaniemi/
 - Coordinates: `66.5039, 25.7294` | Geomagnetic Latitude (IGRF-14): `64°N`
 - Typical Activity Threshold: Kp ≥ 1.1
 - Best Season: Sep – early Apr
@@ -77,7 +78,7 @@
 - Official Road Authority: Finland Fintraffic Roads (https://liikennetilanne.fintraffic.fi/)
 
 ### Reykjavik, Iceland (雷克雅維克)
-- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/reykjavik/
+- Guide & Direct Launch: https://ohwhatif.com/nordic-aurora-radar/spots/reykjavik/
 - Coordinates: `64.1466, -21.9426` | Geomagnetic Latitude (IGRF-14): `64°N`
 - Typical Activity Threshold: Kp ≥ 0.9
 - Best Season: Sep – mid Apr
@@ -87,7 +88,7 @@
 - Official Road Authority: Iceland Umferðin Road Status (https://umferdin.is/en)
 
 ### Akureyri, Iceland (阿克雷里)
-- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/akureyri/
+- Guide & Direct Launch: https://ohwhatif.com/nordic-aurora-radar/spots/akureyri/
 - Coordinates: `65.6885, -18.1262` | Geomagnetic Latitude (IGRF-14): `65°N`
 - Typical Activity Threshold: Kp 0–1 (directly under the auroral oval)
 - Best Season: Sep – mid Apr
@@ -97,7 +98,7 @@
 - Official Road Authority: Iceland Umferðin Road Status (https://umferdin.is/en)
 
 ### Fairbanks, Alaska, USA (費爾班克斯)
-- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/fairbanks/
+- Guide & Direct Launch: https://ohwhatif.com/nordic-aurora-radar/spots/fairbanks/
 - Coordinates: `64.8378, -147.7164` | Geomagnetic Latitude (IGRF-14): `65°N`
 - Typical Activity Threshold: Kp 0–1 (directly under the auroral oval)
 - Best Season: Late Aug – mid Apr
@@ -107,7 +108,7 @@
 - Official Road Authority: Alaska 511 Road Conditions (https://511.alaska.gov/)
 
 ### Yellowknife, Canada (黃刀鎮)
-- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/yellowknife/
+- Guide & Direct Launch: https://ohwhatif.com/nordic-aurora-radar/spots/yellowknife/
 - Coordinates: `62.454, -114.3718` | Geomagnetic Latitude (IGRF-14): `68°N`
 - Typical Activity Threshold: Kp 0–1 (directly under the auroral oval)
 - Best Season: Mid Aug – mid Apr
@@ -117,7 +118,7 @@
 - Official Road Authority: NWT Highway Conditions (https://www.inf.gov.nt.ca/en/services/highways/highway-conditions)
 
 ### Queenstown, New Zealand (皇后鎮)
-- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/queenstown/
+- Guide & Direct Launch: https://ohwhatif.com/nordic-aurora-radar/spots/queenstown/
 - Coordinates: `-45.0312, 168.6626` | Geomagnetic Latitude (IGRF-14): `52°S`
 - Typical Activity Threshold: Kp ≥ 6.2
 - Best Season: Mar – Oct (southern autumn/winter storms)
@@ -127,7 +128,7 @@
 - Official Road Authority: NZTA Journeys Road Status (https://www.journeys.nzta.govt.nz/)
 
 ### Vík í Mýrdal, Iceland (冰島維克)
-- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/vik/
+- Guide & Direct Launch: https://ohwhatif.com/nordic-aurora-radar/spots/vik/
 - Coordinates: `63.4186, -19.006` | Geomagnetic Latitude (IGRF-14): `63°N`
 - Typical Activity Threshold: Kp ≥ 1.4
 - Best Season: Sep – early Apr
@@ -137,7 +138,7 @@
 - Official Road Authority: Iceland Road.is & SafeTravel (https://umferdin.is/en)
 
 ### Levi, Finland (芬蘭萊維)
-- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/levi/
+- Guide & Direct Launch: https://ohwhatif.com/nordic-aurora-radar/spots/levi/
 - Coordinates: `67.804, 24.808` | Geomagnetic Latitude (IGRF-14): `65°N`
 - Typical Activity Threshold: Kp 0–1 (directly under the auroral oval)
 - Best Season: Sep – early Apr
@@ -147,7 +148,7 @@
 - Official Road Authority: Finland Fintraffic Roads (https://liikennetilanne.fintraffic.fi/)
 
 ### Saariselkä, Finland (薩利色爾卡)
-- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/saariselka/
+- Guide & Direct Launch: https://ohwhatif.com/nordic-aurora-radar/spots/saariselka/
 - Coordinates: `68.4197, 27.4106` | Geomagnetic Latitude (IGRF-14): `65°N`
 - Typical Activity Threshold: Kp 0–1 (directly under the auroral oval)
 - Best Season: Sep – early Apr
@@ -157,7 +158,7 @@
 - Official Road Authority: Finland Fintraffic Roads (https://liikennetilanne.fintraffic.fi/)
 
 ### Anchorage, USA (Alaska) (安克拉治)
-- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/anchorage/
+- Guide & Direct Launch: https://ohwhatif.com/nordic-aurora-radar/spots/anchorage/
 - Coordinates: `61.2181, -149.9003` | Geomagnetic Latitude (IGRF-14): `61°N`
 - Typical Activity Threshold: Kp ≥ 2.4
 - Best Season: Sep – early Apr
@@ -167,7 +168,7 @@
 - Official Road Authority: Alaska 511 Road Status (https://511.alaska.gov/)
 
 ### Banff, Canada (加拿大班夫)
-- Guide & Direct Launch: https://peteryux.github.io/nordic-aurora-radar/spots/banff/
+- Guide & Direct Launch: https://ohwhatif.com/nordic-aurora-radar/spots/banff/
 - Coordinates: `51.1784, -115.5708` | Geomagnetic Latitude (IGRF-14): `57°N`
 - Typical Activity Threshold: Kp ≥ 4.2
 - Best Season: Sep – Apr (best on Kp 4+ nights)

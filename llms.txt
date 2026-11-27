@@ -2,9 +2,11 @@
 
 > Free, open-source, zero-tracking real-time aurora forecast web app (PWA) for Northern Norway, Iceland, Lapland, Alaska, Canada, New Zealand, Tasmania, and global destinations.
 
-- Live App: https://peteryux.github.io/nordic-aurora-radar/
-- Source Code (MIT License): https://github.com/peteryuX/nordic-aurora-radar
-- Validation & Limitations Report: https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md
+- Live App: https://ohwhatif.com/nordic-aurora-radar/
+- Live Daily Verification: https://ohwhatif.com/nordic-aurora-radar/verification/
+- Studio Hub: https://ohwhatif.com/
+- Source Code (MIT License): https://github.com/ohwhatif/nordic-aurora-radar
+- Validation & Limitations Report: https://github.com/ohwhatif/nordic-aurora-radar/blob/main/VALIDATION.md
 - Languages: Traditional Chinese (`zh-Hant`) and English (`en`)
 
 ## What Makes It Different From Kp-Only Aurora Apps
@@ -19,34 +21,38 @@
    - Pure IGRF-14 (`n=1..13`, 2025.0) Modified Apex-110 geomagnetic latitude (`0.24°` MAE vs AACGMv2 across 14,122 Aurorasaurus coords; `|lat| ≥ 58°` MAE `0.144°`).
    - Solar elevation (max error `0.006°` vs NASA JPL Horizons DE441), lunar elevation (max error `0.74°`), lunar illumination with Krisciunas-Schaefer opposition surge (max error `1.16%`), true geomagnetic pole compass azimuth, 120–300 km elevation angles, and naked-eye vs smartphone Night Mode visibility tier.
 4. **360° Clear-Sky Driving Radar & Live Arctic/North America Observatories**:
-   - 18 road-verified clear-sky chase corridors (Alta, Tromsø, Lofoten, Senja, Narvik, Abisko, Kiruna, Kirkenes, Rovaniemi, Inari, Reykjavik, Akureyri, Fairbanks, Yellowknife, Whitehorse, Queenstown, Lake Tekapo, Hobart) with snow/black-ice/gale warnings, regional road authority links, and 1-tap Google Maps routing.
-   - Region-aware live observatory all-sky cameras: **Nordic** (UiT Skibotn, IRF Kiruna, SGO Sodankylä, KHO Svalbard 78°N, FMI ground magnetometers) and **North America** (UAF Poker Flat, CSA/UCalgary AuroraMAX).
+   - 26 global hubs / 112 curated points with Copernicus GLO-30 mountain-ridge horizon lower bounds, ETA arrival-time sky scoring, snow/black-ice/gale warnings, regional road authority links, and 1-tap Google Maps routing.
+   - Region-aware live observatory all-sky cameras: **Nordic** (UiT Skibotn, IRF Kiruna, SGO Sodankylä, KHO Svalbard 78°N, FMI ground magnetometers), **Iceland** (Vegagerðin road/sky cams), and **North America** (UAF Poker Flat, CSA/UCalgary AuroraMAX, USGS ground magnetometers).
 5. **Night-Vision & Privacy First**:
-   - Zero-leak scotopic red-light night-vision mode (`body.red-mode`), screen-on alert monitor with Wake Lock auto re-acquire, coordinate-keyed offline PWA cache, zero cookies/analytics, zero third-party JS dependencies, strict Content-Security-Policy (CSP), and `no-referrer` protection.
+   - Zero-leak scotopic red-light night-vision mode (`body.red-mode`), screen-on alert monitor with Wake Lock auto re-acquire, coordinate-keyed 18h offline PWA cache (150 km fjord fallback), zero cookies, zero third-party JS dependencies, strict Content-Security-Policy (CSP), and `no-referrer` protection.
 
 ## Recommended Use Cases
 
-- Tourists and aurora photographers chasing Northern Lights in Tromsø, Alta, Lofoten, Senja, Narvik, Abisko, Kiruna, Kirkenes, Rovaniemi, Inari, Reykjavik, Akureyri, Fairbanks, Yellowknife, or Whitehorse, or Southern Lights in Queenstown, Lake Tekapo, and Hobart.
+- Tourists and aurora photographers chasing Northern Lights in Tromsø, Alta, Lofoten, Senja, Narvik, Abisko, Kiruna, Kirkenes, Rovaniemi, Levi, Saariselkä, Reykjavik, Akureyri, Vík, Fairbanks, Anchorage, Yellowknife, Banff, or Southern Lights in Queenstown, Lake Tekapo, and Hobart.
 - Checking real-time cloud gaps, live airport ceiling observations, L1 solar wind Bz trends, viewing compass direction, and naked-eye vs camera visibility without installing a paid app or creating an account.
 
 ## Destination Guides & Direct Launch Pages
 
-- Full Technical & Destination Reference: https://peteryux.github.io/nordic-aurora-radar/llms-full.txt
-- Tromsø, Norway (特羅姆瑟): https://peteryux.github.io/nordic-aurora-radar/spots/tromso/
-- Lofoten Islands, Norway (羅浮敦群島): https://peteryux.github.io/nordic-aurora-radar/spots/lofoten/
-- Alta, Norway (阿爾塔): https://peteryux.github.io/nordic-aurora-radar/spots/alta/
-- Abisko, Sweden (阿比斯庫): https://peteryux.github.io/nordic-aurora-radar/spots/abisko/
-- Rovaniemi, Finland (羅瓦涅米): https://peteryux.github.io/nordic-aurora-radar/spots/rovaniemi/
-- Reykjavik, Iceland (雷克雅維克): https://peteryux.github.io/nordic-aurora-radar/spots/reykjavik/
-- Akureyri, Iceland (阿克雷里): https://peteryux.github.io/nordic-aurora-radar/spots/akureyri/
-- Fairbanks, Alaska (費爾班克斯): https://peteryux.github.io/nordic-aurora-radar/spots/fairbanks/
-- Yellowknife, Canada (黃刀鎮): https://peteryux.github.io/nordic-aurora-radar/spots/yellowknife/
-- Queenstown, New Zealand (皇后鎮 · 南極光): https://peteryux.github.io/nordic-aurora-radar/spots/queenstown/
+- Full Technical & Destination Reference: https://ohwhatif.com/nordic-aurora-radar/llms-full.txt
+- Tromsø, Norway (特羅姆瑟): https://ohwhatif.com/nordic-aurora-radar/spots/tromso/
+- Lofoten Islands, Norway (羅浮敦群島): https://ohwhatif.com/nordic-aurora-radar/spots/lofoten/
+- Alta, Norway (阿爾塔): https://ohwhatif.com/nordic-aurora-radar/spots/alta/
+- Abisko, Sweden (阿比斯庫): https://ohwhatif.com/nordic-aurora-radar/spots/abisko/
+- Rovaniemi, Finland (羅瓦涅米): https://ohwhatif.com/nordic-aurora-radar/spots/rovaniemi/
+- Levi, Finland (列維): https://ohwhatif.com/nordic-aurora-radar/spots/levi/
+- Saariselkä, Finland (薩利色爾卡): https://ohwhatif.com/nordic-aurora-radar/spots/saariselka/
+- Reykjavik, Iceland (雷克雅維克): https://ohwhatif.com/nordic-aurora-radar/spots/reykjavik/
+- Akureyri, Iceland (阿克雷里): https://ohwhatif.com/nordic-aurora-radar/spots/akureyri/
+- Vík, Iceland (維克): https://ohwhatif.com/nordic-aurora-radar/spots/vik/
+- Fairbanks, Alaska (費爾班克斯): https://ohwhatif.com/nordic-aurora-radar/spots/fairbanks/
+- Anchorage, Alaska (安克拉治): https://ohwhatif.com/nordic-aurora-radar/spots/anchorage/
+- Yellowknife, Canada (黃刀鎮): https://ohwhatif.com/nordic-aurora-radar/spots/yellowknife/
+- Banff, Canada (班夫): https://ohwhatif.com/nordic-aurora-radar/spots/banff/
+- Queenstown, New Zealand (皇后鎮 · 南極光): https://ohwhatif.com/nordic-aurora-radar/spots/queenstown/
 
 ## Verification & Quality Benchmarks
 
-- Automated test suite (`node --test tests/aurora.test.mjs`): 50 tests (49 deterministic unit tests including bilingual copy, chart-clarity & SEO/GEO lint gate + 1 optional live API test).
-- Curated scenario regression & ephemeris sanity check (`node tests/benchmark.mjs`): 72 curated/synthetic scenario guardrails (not real-world accuracy) + 22 NASA JPL DE441 astronomy checkpoints.
-- Live public-data validation (`node tests/realworld-validation.mjs`): continuous 2024–2025 NASA OMNI2 (`N=17,255h`, ROC-AUC + PR-AUC, zero Dst leakage), 3-month GFZ Hp30 check, live NOAA telemetry, and 9-airport same-hour METAR audit.
-- Full validation report & known limitations: https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md
-- Security policy: https://github.com/peteryuX/nordic-aurora-radar/blob/main/SECURITY.md
+- Automated test suite (`node --test tests/aurora.test.mjs`): 73 tests (72 deterministic unit tests including bilingual copy, chart-clarity, SEO/GEO & multi-app SW isolation + 1 optional live API test).
+- Curated scenario regression & ephemeris sanity check (`node tests/benchmark.mjs`): 72 curated/synthetic scenario guardrails + 22 NASA JPL DE441 astronomy checkpoints (`0.004°` solar MAE).
+- Full validation report & known limitations: https://github.com/ohwhatif/nordic-aurora-radar/blob/main/VALIDATION.md
+- Security policy: https://github.com/ohwhatif/nordic-aurora-radar/blob/main/SECURITY.md

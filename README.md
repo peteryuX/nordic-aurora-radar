@@ -1,18 +1,19 @@
 # Nordic Aurora Radar｜極光即時雷達
 
-[![Live App (EN)](https://img.shields.io/badge/Live%20App-English-34f0b0?style=flat-square)](https://peteryux.github.io/nordic-aurora-radar/?lang=en)
-[![Live App (繁體中文)](https://img.shields.io/badge/線上版-繁體中文-66bdff?style=flat-square)](https://peteryux.github.io/nordic-aurora-radar/?lang=zh)
-[![Live 30d Verification](https://img.shields.io/badge/Daily%20Verification-METAR%20%2B%20GFZ%20Hp30-fbbf24?style=flat-square)](https://peteryux.github.io/nordic-aurora-radar/verification/)
+[![Live App (EN)](https://img.shields.io/badge/Live%20App-English-34f0b0?style=flat-square)](https://ohwhatif.com/nordic-aurora-radar/?lang=en)
+[![Live App (繁體中文)](https://img.shields.io/badge/線上版-繁體中文-66bdff?style=flat-square)](https://ohwhatif.com/nordic-aurora-radar/?lang=zh)
+[![Live 30d Verification](https://img.shields.io/badge/Daily%20Verification-METAR%20%2B%20GFZ%20Hp30-fbbf24?style=flat-square)](https://ohwhatif.com/nordic-aurora-radar/verification/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-a855f7?style=flat-square)](LICENSE)
 
 Real-time Nordic & global aurora radar fusing **MET Norway (Yr.no)** 2.5 km layered clouds, **14 live NOAA SWPC** space-weather feeds, **FMI Nordic & USGS North America** real-time ground magnetometers, **Copernicus GLO-30** satellite mountain-ridge horizon lower bounds, daily automated **METAR laser-ceilometer + GFZ Hp30** verification, and an **ETA arrival-time 360° winter-road clear-sky radar** — zero build step, zero cookies, 100% client-side.
 
 整合挪威官方 **Yr.no** 2.5 km 分層雲量、**14 項美國 NOAA 即時太空天氣衛星**、**北歐 FMI 與北美 USGS 即時地面磁力儀**、歐洲太空總署 **Copernicus GLO-30** 衛星遠山遮蔽下界、每日自動 **9 站 METAR 雷射測雲儀＋GFZ Hp30 驗證頁**，以及計算**抵達時（ETA）晴空率**的 360° 冬季實路雷達；零後端、零廣告、零 Cookie，支援紅光夜視與無訊號峽灣離線求生。
 
-- **English**: https://peteryux.github.io/nordic-aurora-radar/?lang=en
-- **繁體中文**: https://peteryux.github.io/nordic-aurora-radar/?lang=zh
-- **Live Daily 30-Day Verification**: https://peteryux.github.io/nordic-aurora-radar/verification/
-- **Submit Field Sky Report / Feedback**: https://github.com/peteryuX/nordic-aurora-radar/issues/new/choose
+- **English**: https://ohwhatif.com/nordic-aurora-radar/?lang=en
+- **繁體中文**: https://ohwhatif.com/nordic-aurora-radar/?lang=zh
+- **Live Daily 30-Day Verification**: https://ohwhatif.com/nordic-aurora-radar/verification/
+- **More Free Tools (OhWhatIf Studio)**: https://ohwhatif.com/
+- **Field Report / Feedback**: hello@ohwhatif.com · https://github.com/ohwhatif/nordic-aurora-radar/issues/new/choose
 
 ## Key Features｜主要功能
 

@@ -2,7 +2,7 @@
 
 ## Architecture & Zero-Trust Guarantees
 
-**Nordic Aurora Radar** is a 100% open-source, static client-side web application hosted over HTTPS on GitHub Pages (`https://peteryux.github.io/nordic-aurora-radar/`).
+**Nordic Aurora Radar** is a 100% open-source, static client-side web application hosted over HTTPS on GitHub Pages (`https://ohwhatif.com/nordic-aurora-radar/`).
 
 - **Zero Third-Party JavaScript Dependencies**: No CDN scripts, no npm runtime bundles, no obfuscated or minified binaries. Every line of code in `index.html`, `styles.css`, and `src/*.js` is directly readable and auditable on GitHub.
 - **Strict Content-Security-Policy (CSP)**: Enforced via `<meta http-equiv="Content-Security-Policy">` in `index.html`:
@@ -16,4 +16,4 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security issue, XSS vector, or broken/compromised upstream link, please open a [GitHub Security Advisory](https://github.com/peteryuX/nordic-aurora-radar/security/advisories/new) or an issue on `peteryuX/nordic-aurora-radar`.
+If you discover a security issue, XSS vector, or broken/compromised upstream link, please email `hello@ohwhatif.com` or open a [GitHub Security Advisory](https://github.com/ohwhatif/nordic-aurora-radar/security/advisories/new) on `ohwhatif/nordic-aurora-radar`.

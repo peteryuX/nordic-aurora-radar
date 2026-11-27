@@ -3248,7 +3248,7 @@ test('61. v56 Wave 2: Shareable PNG Forecast Card, Multi-City Trip Watchlist & 1
   assert.equal(cardZh.tier, 'prime');
   assert.equal(cardZh.pillars.length, 3);
   assert.ok(cardZh.peakLine.includes('今晚最佳時段') && cardZh.fileName.startsWith('aurora-norway-troms'));
-  assert.ok(cardZh.footerUrl.includes('peteryux.github.io/nordic-aurora-radar'));
+  assert.ok(cardZh.footerUrl.includes('OhWhatIf.com/nordic-aurora-radar'));
 
   const cardEnNext = buildShareCardPayload({
     pos: { nameEn: 'Iceland · Vík' }, posName: 'Iceland · Vík',
@@ -3314,7 +3314,12 @@ test('62. v57 Zero-Script Cookieless GoatCounter Analytics (Prod-Only Guard, Pri
   const htmlSrc = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const swSrc = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
 
-  // (a) Production-only guard: fires ONLY on https://peteryux.github.io with !webdriver and not prerendering
+  // (a) Production-only guard: fires ONLY on allowlisted HTTPS prod hosts (ohwhatif.com / GitHub Pages) with !webdriver and not prerendering
+  assert.equal(shouldSendAnalytics({
+    location: { protocol: 'https:', hostname: 'ohwhatif.com' },
+    navigator: { webdriver: false },
+    document: { visibilityState: 'visible' }
+  }), true);
   assert.equal(shouldSendAnalytics({
     location: { protocol: 'https:', hostname: 'peteryux.github.io' },
     navigator: { webdriver: false },
@@ -3326,12 +3331,12 @@ test('62. v57 Zero-Script Cookieless GoatCounter Analytics (Prod-Only Guard, Pri
     document: { visibilityState: 'visible' }
   }), false);
   assert.equal(shouldSendAnalytics({
-    location: { protocol: 'https:', hostname: 'peteryux.github.io' },
+    location: { protocol: 'https:', hostname: 'ohwhatif.com' },
     navigator: { webdriver: true },
     document: { visibilityState: 'visible' }
   }), false);
   assert.equal(shouldSendAnalytics({
-    location: { protocol: 'https:', hostname: 'peteryux.github.io' },
+    location: { protocol: 'https:', hostname: 'ohwhatif.com' },
     navigator: { webdriver: false },
     document: { visibilityState: 'prerender' }
   }), false);
@@ -3342,7 +3347,7 @@ test('62. v57 Zero-Script Cookieless GoatCounter Analytics (Prod-Only Guard, Pri
   assert.equal(normalizeCitySlug({ nameEn: 'GPS (69.65, 18.96)' }), 'custom');
   assert.equal(normalizeCitySlug({ name: '69.65°N, 18.96°E' }), 'custom');
 
-  // (c) Official GoatCounter /count beacon URL format
+  // (c) Official GoatCounter /count beacon URL format (preserves /nordic-aurora-radar subpath for unified studio dashboard)
   const pvUrl = buildAnalyticsUrl({
     path: '/nordic-aurora-radar/spots/tromso/',
     title: 'Tromsø Aurora Forecast',
@@ -3351,16 +3356,16 @@ test('62. v57 Zero-Script Cookieless GoatCounter Analytics (Prod-Only Guard, Pri
     screenWidth: 390,
     rnd: 'abc12'
   });
-  assert.ok(pvUrl.startsWith(`${GOATCOUNTER_ENDPOINT}?`), 'Must target nordicaurora.goatcounter.com/count');
-  assert.ok(pvUrl.includes('p=%2Fspots%2Ftromso%2F') && pvUrl.includes('s=390') && pvUrl.includes('r=https%3A%2F%2Fwww.google.com%2F') && !pvUrl.includes('e=true'));
-  const evUrl = buildAnalyticsUrl({ path: '/event/share-card', title: 'Share PNG Card', event: true, screenWidth: 390, rnd: 'xyz99' });
-  assert.ok(evUrl.includes('p=%2Fevent%2Fshare-card') && evUrl.includes('e=true'));
+  assert.ok(pvUrl.startsWith(`${GOATCOUNTER_ENDPOINT}?`) && GOATCOUNTER_ENDPOINT.includes('ohwhatif.goatcounter.com'), 'Must target ohwhatif.goatcounter.com/count');
+  assert.ok(pvUrl.includes('p=%2Fnordic-aurora-radar%2Fspots%2Ftromso%2F') && pvUrl.includes('s=390') && pvUrl.includes('r=https%3A%2F%2Fwww.google.com%2F') && !pvUrl.includes('e=true'));
+  const evUrl = buildAnalyticsUrl({ path: '/event/aurora/share-card', title: 'Share PNG Card', event: true, screenWidth: 390, rnd: 'xyz99' });
+  assert.ok(evUrl.includes('p=%2Fevent%2Faurora%2Fshare-card') && evUrl.includes('e=true'));
 
   // (d) Strict zero-3rd-party-JS CSP + img-src allowlist on index.html & all 15 spot pages + sw.js precache
-  assert.ok(htmlSrc.includes('https://nordicaurora.goatcounter.com'), 'index.html CSP img-src must allow nordicaurora.goatcounter.com');
+  assert.ok(htmlSrc.includes('https://ohwhatif.goatcounter.com'), 'index.html CSP img-src must allow ohwhatif.goatcounter.com');
   assert.ok(!htmlSrc.includes('gc.zgo.at'), 'Must NOT load external 3rd-party gc.zgo.at script');
   const vikHtml = fs.readFileSync(path.join(__dirname, '..', 'spots', 'vik', 'index.html'), 'utf8');
-  assert.ok(vikHtml.includes('https://nordicaurora.goatcounter.com') && !vikHtml.includes('gc.zgo.at'));
+  assert.ok(vikHtml.includes('https://ohwhatif.goatcounter.com') && !vikHtml.includes('gc.zgo.at'));
   assert.ok(swSrc.includes('./src/analytics.js'), 'sw.js must precache ./src/analytics.js');
 });
 
