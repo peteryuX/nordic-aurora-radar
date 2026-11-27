@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Live 30-Day Instrument Verification｜每日獨立儀器驗證成績單 — Nordic Aurora Radar</title>
-  <meta name="description" content="Transparent daily automated verification of Nordic Aurora Radar against 9 Arctic airport METAR laser ceilometers, GFZ Potsdam Hp30 geomagnetic index, Copernicus GLO-30 satellite DEM, and NASA JPL DE441 ephemeris." />
+  <title>Independent Verification &amp; Live Daily Audit｜獨立科學驗證與每日實測 — Nordic Aurora Radar</title>
+  <meta name="description" content="Multi-winter 60,693-hour METAR cloud nowcast proof (False-Clear cut 7.5% to 3.2%), 10-year 95.8% Prime optical aurora hit rate, Copernicus GLO-30 mountain-ridge masks, NASA JPL DE441 ephemeris, and daily live automated audit." />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://nordicaurora.goatcounter.com; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none';" />
@@ -14,22 +14,23 @@
   <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://peteryux.github.io/nordic-aurora-radar/verification/" />
-  <meta property="og:title" content="Live 30-Day Instrument Verification — Nordic Aurora Radar" />
-  <meta property="og:description" content="Daily automated open-source scorecard verifying raw cloud forecasts against 9 Arctic METAR laser ceilometers &amp; GFZ Potsdam Hp30." />
+  <meta property="og:title" content="Independent Verification &amp; Live Daily Audit — Nordic Aurora Radar" />
+  <meta property="og:description" content="60,693-hour METAR validation (False-Clear 7.5% → 3.2%), 95.8% optical Prime hit rate, JPL DE441 0.004° &amp; daily automated open scorecard." />
   <meta property="og:image" content="https://peteryux.github.io/nordic-aurora-radar/og-cover.png?v=2" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="stylesheet" href="../styles.css" />
   <style>
-    .v-wrap { max-width: 720px; margin: 0 auto; padding: 18px 14px 56px; }
+    .v-wrap { max-width: 740px; margin: 0 auto; padding: 18px 14px 56px; }
     .v-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; font-size: 0.84rem; flex-wrap: wrap; }
     .v-nav a { color: var(--green); text-decoration: none; font-weight: 700; }
     .v-h1 { margin: 0 0 6px; font-size: 1.45rem; line-height: 1.25; }
-    .v-sub { margin: 0 0 14px; color: var(--text-soft); font-size: 0.88rem; line-height: 1.55; }
-    .v-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 10px; }
+    .v-sub { margin: 0 0 12px; color: var(--text-soft); font-size: 0.88rem; line-height: 1.55; }
+    .v-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 8px; margin-top: 10px; }
     .v-kv { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 11px 12px; }
     .v-kv span { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; }
     .v-kv strong { font-size: 1.12rem; color: var(--text); font-variant-numeric: tabular-nums; }
-    .v-kv small { display: block; font-size: 0.72rem; color: var(--text-soft); margin-top: 3px; line-height: 1.35; }
+    .v-kv strong.ok { color: var(--green-text); }
+    .v-kv small { display: block; font-size: 0.72rem; color: var(--text-soft); margin-top: 3px; line-height: 1.38; }
     .v-tbl { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.82rem; }
     .v-tbl th, .v-tbl td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
     .v-tbl th { color: var(--muted); font-size: 0.74rem; font-weight: 700; }
@@ -37,7 +38,8 @@
     .v-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-soft); }
     .v-pill.ok { color: var(--green-text); border-color: var(--green-border); background: var(--green-bg); }
     .v-pill.warn { color: var(--amber); }
-    .v-disc { margin-top: 10px; font-size: 0.76rem; color: var(--muted); line-height: 1.5; }
+    .v-note { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); font-size: 0.78rem; color: var(--text-soft); line-height: 1.5; }
+    .v-disc { margin-top: 8px; font-size: 0.75rem; color: var(--muted); line-height: 1.5; }
     .v-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
     .v-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 9px 14px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 0.84rem; background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); }
     .v-btn.primary { background: var(--green-bg); border-color: var(--green-border); color: var(--green-text); }
@@ -50,25 +52,71 @@
       <a href="./latest.json" target="_blank" rel="noopener noreferrer">Raw latest.json ↗</a>
     </nav>
 
+    <!-- 1. FULL-SCALE MULTI-YEAR INDEPENDENT VALIDATION (THE REAL PROOF) -->
     <section class="card">
-      <h1 class="v-h1">Live 30-Day Instrument Verification<br/><span style="font-size:1rem;color:var(--text-soft);font-weight:700;">每日獨立儀器自動驗證成績單</span></h1>
+      <h1 class="v-h1">Independent Zero-Fitting Verification<br/><span style="font-size:1rem;color:var(--text-soft);font-weight:700;">多年度獨立儀器盲測與每日實測成績單</span></h1>
       <p class="v-sub">
-        Updated automatically every day via GitHub Actions at 12:15 UTC against independent ground laser ceilometers (METAR) and the German GFZ Potsdam 30-minute geomagnetic index (Hp30). Zero cherry-picking, zero leakage, and strict small-sample honesty guards.<br/>
-        每天由 GitHub Actions 自動對照 9 座極區氣象觀測站雷射測雲儀與德國 GFZ Potsdam 30 分鐘地磁指數（Hp30）；絕不篩選數據、零資料外洩、樣本不足誠實標示。
+        Every scoring weight is derived from first-principles physics — zero training or overfitting on validation data. Both wins and known caveats are published openly in <a href="https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md" target="_blank" rel="noopener noreferrer" style="color:var(--green);">VALIDATION.md ↗</a>.<br/>
+        所有物理權重皆未對驗證資料擬合（零作弊、連已知限制一併公開）。以下為跨兩冬與跨十年的大規模公開科學資料庫實測結果：
+      </p>
+      <div class="v-grid">
+        <div class="v-kv">
+          <span>2-Winter Cloud Nowcast (+1h)</span>
+          <strong class="ok">False-Clear 3.2%</strong>
+          <small>Cut from 7.5% raw NWP · MAE 24.0% → <strong>18.3%</strong> · AUC 0.898 (N = 60,693h)</small>
+        </div>
+        <div class="v-kv">
+          <span>10-Yr Optical Camera (557.7 nm)</span>
+          <strong class="ok">95.8% Hit Rate</strong>
+          <small>Real optical aurora when score ≥ 65 (Prime) · FMI/MIRACLE N = 44,870h</small>
+        </div>
+        <div class="v-kv">
+          <span>Pure-L1 Solar Wind (Zero Kp/Dst)</span>
+          <strong class="ok">ROC 0.902</strong>
+          <small>NASA OMNI2 AE ≥ 500 nT (17,255h) · 6-yr GFZ Hp30 0.869–0.949</small>
+        </div>
+        <div class="v-kv">
+          <span>Astronomy &amp; Geomagnetic Grid</span>
+          <strong class="ok">0.004° / 0.236°</strong>
+          <small>NASA JPL DE441 solar MAE · IGRF-14 Apex-110 vs AACGMv2 (14,122 pts)</small>
+        </div>
+      </div>
+
+      <table class="v-tbl" style="margin-top:12px;">
+        <thead><tr><th>Comparison (2 Winters, 19 Arctic Hubs)｜兩冬 19 極區站點實測對照</th><th>Cloud MAE</th><th>Clear-Sky AUC</th><th>False-Clear 假晴空</th></tr></thead>
+        <tbody>
+          <tr><td>Ordinary Weather App (Raw Single NWP)｜一般氣象原始預報</td><td class="num">23.95%</td><td class="num">0.810</td><td class="num">7.5%</td></tr>
+          <tr><td><strong>Nordic Aurora Radar (+1h Live METAR OI)｜本雷達即時實測融合</strong></td><td class="num"><strong style="color:var(--green-text);">18.26%</strong></td><td class="num"><strong style="color:var(--green-text);">0.898</strong></td><td class="num"><strong style="color:var(--green-text);">3.2%</strong></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 2. LIVE DAILY RAW-NWP MONITOR (TRANSPARENT PRE-FUSION BASELINE) -->
+    <section class="card">
+      <h2>Live Daily Raw-NWP Monitor (Pre-Fusion Baseline)｜每日自動化原始模型監測</h2>
+      <p class="v-sub">
+        Runs automatically every day via GitHub Actions against 9 live Arctic/Nordic/NA METAR ceilometers and 30-day GFZ Potsdam Hp30. To prevent data leakage, this daily monitor intentionally grades <strong>raw uncalibrated weather models BEFORE our live METAR station fusion</strong>.<br/>
+        為了確保零資料外洩，此每日自動帳本刻意量測<strong>「尚未套用當地氣象站即時校正」前的原始數值預報</strong>——同時證明極區原始雲量誤差本就偏大（約 25–35%），這正是本雷達必須結合「分層雲權重＋當地測雲儀即時校正＋360° 備案路線」的原因。
       </p>
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
         <span id="vStatusPill" class="v-pill">Loading live scorecard…</span>
         <span id="vUpdatedAt" class="v-pill">Updated: --</span>
       </div>
       <div class="v-grid" id="vSummaryGrid">
-        <div class="v-kv"><span>Layered Cloud MAE｜分層雲量誤差</span><strong id="vLayeredMae">--</strong><small id="vCloudBase">vs raw total: --</small></div>
-        <div class="v-kv"><span>Audited Stations｜核對觀測站</span><strong id="vStations">--</strong><small id="vProspCount">Prospective +3/+6/+12h: --</small></div>
-        <div class="v-kv"><span>30d GFZ Hp30 Bins｜30天實測</span><strong id="vHp30Bins">--</strong><small id="vHp30Events">Active / Storm: --</small></div>
-        <div class="v-kv"><span>Pure-L1 ROC-AUC｜太陽風辨識力</span><strong id="vL1Auc">--</strong><small id="vL1Note">Small-sample guard active</small></div>
+        <div class="v-kv"><span>Raw Layered Cloud MAE｜原始分層誤差</span><strong id="vLayeredMae">--</strong><small id="vCloudBase">vs raw total: --</small></div>
+        <div class="v-kv"><span>Daily Rolling Sample｜滾動樣本進度</span><strong id="vStations">--</strong><small id="vProspCount">Prospective +3/+6/+12h: --</small></div>
+        <div class="v-kv"><span>30d GFZ Hp30 Bins｜近 30 天地磁</span><strong id="vHp30Bins">--</strong><small id="vHp30Events">Active / Storm: --</small></div>
+        <div class="v-kv"><span>Rolling Pure-L1 AUC｜滾動太陽風驗證</span><strong id="vL1Auc">--</strong><small id="vL1Note">Small-sample guard active</small></div>
+      </div>
+      <div class="v-note">
+        <strong>Why is raw NWP error ~25–33% here, while our 2-winter live app MAE is 18.3%?</strong><br/>
+        (1) Raw Arctic NWP misses localized fjord clouds &amp; marine stratus; our live app fuses real-time METAR/SMHI/FMI sky sensors within 55 km to cut `+1h` error from `24.0% → 18.3%` and False-Clear from `7.5% → 3.2%`. (2) Automated airport laser ceilometers (`NCD`/`CLR`) also cannot detect thin cirrus above ~12,500 ft, which inflates apparent error when high clouds are present.<br/>
+        <strong>為何這裡原始模型誤差約 25–33%，但兩冬實測 App 誤差僅 18.3%？</strong> 因為上表是「未校正原始數值預報」的裸測基準；線上 App 實際運作時會融合 55 km 內氣象站雷射測雲儀，將假晴空率從 7.5% 壓低至 3.2%。此外自動測雲儀無法偵測高空薄卷雲，也會讓原始誤差看起來偏高。
       </div>
       <p id="vDisclaimer" class="v-disc"></p>
     </section>
 
+    <!-- 3. COPERNICUS GLO-30 SATELLITE MOUNTAIN-RIDGE HORIZON MASKS -->
     <section class="card">
       <h2>Satellite Mountain-Ridge Horizon Lower Bounds (Copernicus GLO-30)｜衛星地形山脊遮蔽實測</h2>
       <p class="v-sub" style="margin-bottom:6px;">
@@ -84,16 +132,6 @@
           <tr><td><strong>Yellowknife / Rovaniemi / Abisko (Lake)</strong></td><td class="num"><strong>0°–1°</strong></td><td>Wide-open horizon — zero false warnings / 開闊視野零誤報</td></tr>
         </tbody>
       </table>
-    </section>
-
-    <section class="card">
-      <h2>Independent Physics Benchmarks｜獨立物理基準驗證</h2>
-      <div class="v-grid">
-        <div class="v-kv"><span>NASA JPL DE441 Ephemeris</span><strong>0.004°</strong><small>Solar MAE (22 checkpoints · max 0.006°)</small></div>
-        <div class="v-kv"><span>IGRF-14 Apex-110 vs AACGMv2</span><strong>0.236°</strong><small>MAE across 14,122 Aurorasaurus coords</small></div>
-        <div class="v-kv"><span>NASA OMNI2 (17,255h)</span><strong>ROC 0.902</strong><small>Pure-L1 AE ≥ 500 nT (PR-AUC 0.655)</small></div>
-        <div class="v-kv"><span>Automated CI Gates</span><strong>17,631+</strong><small>17 copy invariants · 72 MCC=1.0 · 15 E2E</small></div>
-      </div>
       <div class="v-acts">
         <a class="v-btn primary" href="../">Open Live Aurora Radar｜開啟即時雷達 →</a>
         <a class="v-btn" href="https://github.com/peteryuX/nordic-aurora-radar/blob/main/VALIDATION.md" target="_blank" rel="noopener noreferrer">Full VALIDATION.md ↗</a>

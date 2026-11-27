@@ -16,10 +16,13 @@ export async function hydrateVerificationPage() {
     const genMs = Date.parse(v?.generatedAt || '');
     const ageDays = Number.isFinite(genMs) ? (Date.now() - genMs) / 86400000 : 99;
     const dateStr = Number.isFinite(genMs) ? new Date(genMs).toISOString().replace('T', ' ').slice(0, 16) + ' UTC' : '--';
+    const ca = v.cloudAudit || {};
+    const ga = v.geomagAudit || {};
     const pill = document.getElementById('vStatusPill');
     if (pill) {
       if (ageDays <= 2) {
-        pill.textContent = 'LIVE · Daily Automated Audit Active｜每日自動驗證運行中';
+        const warm = (ca.samples || 0) < 30 ? ` · Warming up (${ca.samples || 0} samples)` : '';
+        pill.textContent = `LIVE · Daily Audit Active${warm}`;
         pill.className = 'v-pill ok';
       } else if (ageDays <= 7) {
         pill.textContent = `Updated ${Math.round(ageDays)}d ago`;
@@ -31,13 +34,15 @@ export async function hydrateVerificationPage() {
     }
     set('vUpdatedAt', `Updated: ${dateStr}`);
 
-    const ca = v.cloudAudit || {};
-    const ga = v.geomagAudit || {};
+    const diffPts = (Number.isFinite(ca.rawTotalMaePct) && Number.isFinite(ca.layeredMaePct))
+      ? +(ca.rawTotalMaePct - ca.layeredMaePct).toFixed(1)
+      : null;
+    const diffStr = (diffPts !== null && diffPts > 0) ? ` (-${diffPts} pts better)` : '';
     set('vLayeredMae', Number.isFinite(ca.layeredMaePct) ? `${ca.layeredMaePct}%` : '--');
-    const baseTxt = Number.isFinite(ca.rawTotalMaePct) ? `vs raw total cloud: ${ca.rawTotalMaePct}%` : 'Raw baseline accumulating';
+    const baseTxt = Number.isFinite(ca.rawTotalMaePct) ? `vs raw total ${ca.rawTotalMaePct}%${diffStr}` : 'Raw baseline accumulating';
     const fcTxt = Number.isFinite(ca.falseClearRatePct) ? ` · False-clear ${ca.falseClearRatePct}%` : '';
     set('vCloudBase', `${baseTxt}${fcTxt}`);
-    set('vStations', `${ca.airportsCheckedNow ?? '--'} stations (${ca.samples ?? 0} graded)`);
+    set('vStations', `${ca.samples ?? 0} checks (${ca.airportsCheckedNow ?? '--'} live)`);
     set('vProspCount', `Prospective +3/+6/+12h: ${ca.prospectiveSamples ?? 0} graded · ${ca.pendingProspective ?? 0} locked`);
     set('vHp30Bins', Number.isFinite(ga.gfzHp30Bins30d) ? `${ga.gfzHp30Bins30d.toLocaleString()}` : '--');
     set('vHp30Events', `Active (≥4): ${ga.activeEvents30d ?? 0} · Storm (≥5): ${ga.stormEvents30d ?? 0}`);

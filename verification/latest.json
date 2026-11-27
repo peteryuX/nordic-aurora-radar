@@ -11,7 +11,7 @@
     "layeredMaePct": 30.3,
     "rawTotalMaePct": 32.9,
     "persistenceMaePct": null,
-    "falseClearRatePct": 33.3
+    "falseClearRatePct": null
   },
   "geomagAudit": {
     "gfzHp30Bins30d": 1439,

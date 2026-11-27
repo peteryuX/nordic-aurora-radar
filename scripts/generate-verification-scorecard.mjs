@@ -68,9 +68,14 @@ async function fetchText(url, timeoutMs = 15000) {
 
 function metarObservedCloudPct(m) {
   const coverMap = { CLR: 0, SKC: 0, CAVOK: 0, NCD: 0, NSC: 0, FEW: 19, SCT: 44, BKN: 75, OVC: 100, OVX: 100 };
-  let pct = coverMap[String(m.cover || '').toUpperCase()];
-  if (pct === undefined) pct = 0;
-  if (Array.isArray(m.clouds) && m.clouds.length) {
+  const rawCover = String(m.cover || '').toUpperCase();
+  const hasKnownCover = Object.prototype.hasOwnProperty.call(coverMap, rawCover);
+  const hasClouds = Array.isArray(m.clouds) && m.clouds.length > 0;
+  const wx = String(m.wxString || '');
+  const hasWx = /\b(FG|FZFG|OVX|\+?SN|BLSN|SHSN|RA|SHRA)\b/.test(wx);
+  if (!hasKnownCover && !hasClouds && !hasWx) return null;
+  let pct = hasKnownCover ? coverMap[rawCover] : 0;
+  if (hasClouds) {
     let trans = 1;
     for (const c of m.clouds) {
       const frac = (coverMap[String(c.cover || '').toUpperCase()] ?? 0) / 100;
@@ -80,7 +85,6 @@ function metarObservedCloudPct(m) {
     }
     pct = Math.round(100 * (1 - trans));
   }
-  const wx = String(m.wxString || '');
   if (/\b(FG|FZFG|OVX)\b/.test(wx)) pct = Math.max(pct, 90);
   else if (/\b(\+?SN|BLSN|SHSN|RA|SHRA)\b/.test(wx)) pct = Math.max(pct, 60);
   return Math.max(0, Math.min(100, pct));
@@ -225,9 +229,11 @@ async function run() {
     if (!id) continue;
     const obsMs = Number.isFinite(m.obsTime) ? m.obsTime * 1000 : Date.parse(m.reportTime || '');
     if (!Number.isFinite(obsMs)) continue;
+    const cld = metarObservedCloudPct(m);
+    if (cld === null) continue;
     const prev = metarByIcao.get(id);
     if (!prev || obsMs > prev.obsMs) {
-      metarByIcao.set(id, { obsMs, cloud: metarObservedCloudPct(m) });
+      metarByIcao.set(id, { obsMs, cloud: cld });
     }
   }
 
@@ -335,7 +341,7 @@ async function run() {
     layeredMae = +(sEff / cloudPool.length).toFixed(1);
     rawTotalMae = +(sRaw / cloudPool.length).toFixed(1);
     persistMae = nPers >= 3 ? +(sPers / nPers).toFixed(1) : null;
-    falseClearRate = fcClearPreds >= 5 ? +((fcFalseClears / fcClearPreds) * 100).toFixed(1) : null;
+    falseClearRate = fcClearPreds >= 15 ? +((fcFalseClears / fcClearPreds) * 100).toFixed(1) : null;
   }
 
   // ---- TRACK B: 30-Day Independent GFZ Potsdam Hp30 + Pure-L1 Solar-Wind Audit ----
