@@ -1,4 +1,5 @@
-const CACHE_NAME = 'aurora-radar-shell-v67';
+const CACHE_PREFIX = 'aurora-radar-shell-';
+const CACHE_NAME = 'aurora-radar-shell-v68';
 const FETCH_TIMEOUT_MS = 3500;
 const SHELL_ASSETS = [
   './',
@@ -40,7 +41,11 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(keys => Promise.all(
+        keys
+          .filter(k => k.startsWith(CACHE_PREFIX) && k !== CACHE_NAME)
+          .map(k => caches.delete(k))
+      ))
       .then(() => self.clients.claim())
   );
 });
@@ -77,7 +82,7 @@ self.addEventListener('fetch', event => {
           }
           return res;
         })
-        .catch(() => caches.match(req, { ignoreSearch: true }).then(hit => hit || new Response('', { status: 503, statusText: 'Offline' })))
+        .catch(() => caches.open(CACHE_NAME).then(c => c.match(req, { ignoreSearch: true })).then(hit => hit || new Response('', { status: 503, statusText: 'Offline' })))
     );
     return;
   }
@@ -87,7 +92,7 @@ self.addEventListener('fetch', event => {
       // Let static SEO landing pages pass through network-first under their own URL (never overwrite ./index.html!)
       event.respondWith(
         fetchWithTimeout(req, FETCH_TIMEOUT_MS)
-          .catch(() => caches.match(req, { ignoreSearch: true }).then(hit => hit || new Response('Offline', { status: 503, statusText: 'Offline' })))
+          .catch(() => caches.open(CACHE_NAME).then(c => c.match(req, { ignoreSearch: true })).then(hit => hit || new Response('Offline', { status: 503, statusText: 'Offline' })))
       );
       return;
     }

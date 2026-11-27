@@ -3942,7 +3942,8 @@ test('72. v67 Public Live Verification Page, In-App Field Feedback Loop & Copern
   const sitemapXml = fs.readFileSync(path.join(__dirname, '..', 'sitemap.xml'), 'utf8');
   const banffHtml = fs.readFileSync(path.join(__dirname, '..', 'spots', 'banff', 'index.html'), 'utf8');
 
-  assert.ok(swSrc.includes('aurora-radar-shell-v67'), 'sw.js CACHE_NAME must be bumped to v67');
+  const swVer72 = Number((swSrc.match(/aurora-radar-shell-v(\d+)/) || [])[1] || 0);
+  assert.ok(swVer72 >= 67, `sw.js CACHE_NAME must be >= aurora-radar-shell-v67, got v${swVer72}`);
   assert.ok(swSrc.includes('./src/verification-page.js'), 'sw.js SHELL_ASSETS must include ./src/verification-page.js');
   assert.ok(htmlSrc.includes('id="tsFeedbackLink"') && htmlSrc.includes('href="verification/"'), 'Trust Sheet must link to live verification/ page and #tsFeedbackLink');
   assert.ok(verifHtml.includes('../src/verification-page.js') && verifHtml.includes('id="vLayeredMae"'), 'verification/index.html must mount live scorecard DOM & hydrator');
@@ -3952,6 +3953,58 @@ test('72. v67 Public Live Verification Page, In-App Field Feedback Loop & Copern
   for (const tpl of ['field-sky-report.yml', 'bug-report.yml', 'feature-request.yml']) {
     assert.ok(fs.existsSync(path.join(__dirname, '..', '.github', 'ISSUE_TEMPLATE', tpl)), `Missing issue template ${tpl}`);
   }
+});
+
+test('73. Multi-App Same-Origin PWA Isolation (Prefix-Scoped SW Cache Pruning & Manifest ID)', async () => {
+  const vm = await import('node:vm');
+  const swSrc = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifest.json'), 'utf8'));
+
+  assert.equal(manifest.id, './', 'manifest.json must declare explicit relative id for multi-PWA origin isolation');
+  assert.ok(!/\bcaches\.match\(/.test(swSrc), 'sw.js must not call unscoped global caches.match(); scope reads to CACHE_NAME');
+
+  const swVer73 = Number((swSrc.match(/aurora-radar-shell-v(\d+)/) || [])[1] || 0);
+  assert.ok(swVer73 >= 68, `sw.js must be >= v68 with prefix-scoped pruning, got v${swVer73}`);
+
+  const listeners = {};
+  const deleted = [];
+  let claimed = false;
+  const mockKeys = [
+    'aurora-radar-shell-v66',
+    'aurora-radar-shell-v67',
+    `aurora-radar-shell-v${swVer73}`,
+    'other-studio-app-v1',
+    'workbox-precache-v2'
+  ];
+  const sandbox = {
+    URL,
+    Request,
+    Response,
+    AbortController,
+    setTimeout,
+    clearTimeout,
+    caches: {
+      keys: async () => [...mockKeys],
+      delete: async (k) => { deleted.push(k); return true; },
+      open: async () => ({ match: async () => null, put: async () => {} })
+    },
+    self: {
+      location: { origin: 'https://studio.example' },
+      addEventListener: (type, fn) => { listeners[type] = fn; },
+      skipWaiting: async () => {},
+      clients: { claim: async () => { claimed = true; } }
+    }
+  };
+  vm.runInNewContext(swSrc, sandbox);
+  assert.equal(typeof listeners.activate, 'function', 'sw.js must register activate listener');
+
+  let pending = null;
+  listeners.activate({ waitUntil: (p) => { pending = p; } });
+  await pending;
+
+  assert.deepEqual(deleted.sort(), ['aurora-radar-shell-v66', 'aurora-radar-shell-v67'],
+    `activate must delete ONLY stale aurora-radar-shell-* caches, got ${JSON.stringify(deleted)}`);
+  assert.equal(claimed, true, 'activate must call self.clients.claim()');
 });
 
 

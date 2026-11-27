@@ -2,6 +2,7 @@
   "name": "Nordic Aurora Radar｜極光即時雷達",
   "short_name": "Aurora Radar",
   "description": "Aurora forecast for travelers: clear sky, aurora activity and darkness in one score. Live Yr.no clouds, NOAA solar wind, and nearby clear-sky radar.",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
